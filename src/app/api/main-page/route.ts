@@ -1,12 +1,9 @@
 export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next'; // セッション取得のためにインポート
 import { authOptions } from '@/lib/nextauth';
-
-
-const prisma = new PrismaClient();
 
 export async function GET() {
   // ▼▼▼ 変更点 1: ユーザーのセッションとフィルター設定を取得します ▼▼▼

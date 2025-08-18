@@ -1,7 +1,7 @@
 export const runtime = 'nodejs';
 
 import { NextResponse, NextRequest } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import {
   VertexAI,
   HarmCategory,
@@ -10,7 +10,6 @@ import {
 } from "@google-cloud/vertexai";
 
 // PrismaとVertex AIを初期化
-const prisma = new PrismaClient();
 const vertex_ai = new VertexAI({
   project: process.env.GOOGLE_PROJECT_ID || "meta-scanner-466006-v8",
   location: "us-central1",

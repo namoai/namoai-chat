@@ -3,11 +3,10 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
-import { PrismaClient, Prisma } from '@prisma/client'; // Prismaをインポート
+import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import fs from 'fs/promises';
 import path from 'path';
-
-const prisma = new PrismaClient();
 
 // GET: 現在ログインしているユーザーのプロフィール情報を取得します
 export async function GET() {

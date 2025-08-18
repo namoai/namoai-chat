@@ -1,11 +1,10 @@
 export const runtime = 'nodejs';
 
 import { NextResponse, NextRequest } from 'next/server';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
-
-const prisma = new PrismaClient();
 
 // ✅ Vercelビルドエラーを回避するため、URLから直接IDを解析するヘルパー関数
 function extractNoticeIdFromRequest(request: Request): number | null {

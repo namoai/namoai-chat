@@ -1,12 +1,10 @@
 export const runtime = 'nodejs';
 
+import { prisma } from "@/lib/prisma";
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import bcrypt from 'bcrypt';
-
-const prisma = new PrismaClient();
 
 export async function PUT(request: Request) {
   const session = await getServerSession(authOptions);

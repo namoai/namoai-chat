@@ -1,12 +1,10 @@
 export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { createClient } from '@supabase/supabase-js';
-
-const prisma = new PrismaClient();
 
 type ImageMetaData = {
   url: string;

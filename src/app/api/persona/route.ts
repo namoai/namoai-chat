@@ -1,11 +1,9 @@
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
-
-const prisma = new PrismaClient();
 
 /**
  * GET: ログイン中のユーザーが所有するペルソナ一覧を取得します

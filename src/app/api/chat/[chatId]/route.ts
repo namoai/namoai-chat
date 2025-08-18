@@ -1,16 +1,13 @@
 export const runtime = 'nodejs';
 
 import { NextResponse, NextRequest } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import {
   VertexAI,
   HarmCategory,
   HarmBlockThreshold,
   Content,
 } from "@google-cloud/vertexai";
-
-// Prismaクライアントを初期化
-const prisma = new PrismaClient();
 
 // Vertex AIクライアントとモデルを初期化
 // Google Cloud SDKが環境変数 'GOOGLE_APPLICATION_CREDENTIALS' を自動的に読み込み、

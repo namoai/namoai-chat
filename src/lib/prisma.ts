@@ -65,7 +65,8 @@ async function resolveDatabaseUrl(): Promise<string> {
   const client = new SecretManagerServiceClient();
   const [version] = await client.accessSecretVersion({ name });
   const payload = version.payload?.data?.toString();
-  if (!payload) throw new Error("GSM: DATABASE_URL シークレットのpayloadが空です。");
+  if (!payload)
+    throw new Error("GSM: DATABASE_URL シークレットのpayloadが空です。");
 
   global.__dbUrl = payload;
   return payload;
@@ -80,8 +81,11 @@ async function createPrisma(): Promise<PrismaClient> {
   const url = await resolveDatabaseUrl();
 
   const instance = new PrismaClient({
-    datasources: { db: { url } },
-    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+    datasourceUrl: url,
+    log:
+      process.env.NODE_ENV === "development"
+        ? ["query", "error", "warn"]
+        : ["error"],
   });
 
   if (process.env.NODE_ENV !== "production") {
