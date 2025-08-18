@@ -13,7 +13,8 @@ declare global {
 /**
  * サービスアカウントJSONを /tmp に展開して ADC を設定
  * - GOOGLE_APPLICATION_CREDENTIALS が既にあれば何もしない
- * - GOOGLE_APPLICATION_CREDENTIALS_JSON（平文） or GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64（Base64）をサポート
+ * - GOOGLE_APPLICATION_CREDENTIALS_JSON（平文） or
+ *   GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64（Base64）をサポート
  */
 async function ensureGcpCredsFile() {
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS) return;
@@ -26,60 +27,45 @@ async function ensureGcpCredsFile() {
   const fs = await import("node:fs/promises");
   const path = await import("node:path");
   const credPath = path.join("/tmp", "gcp-sa.json");
-
   const json = jsonRaw ?? Buffer.from(jsonB64!, "base64").toString("utf8");
   await fs.writeFile(credPath, json, "utf8");
   process.env.GOOGLE_APPLICATION_CREDENTIALS = credPath;
 }
 
 /**
- * GSMのシークレット名を解決
- * 優先順:
- *  1) GSM_DATABASE_URL_NAME（フルリソース名）
- *  2) GSM_SECRET_NAMES（カンマ区切り）から `/secrets/DATABASE_URL/` を含むもの or 先頭を採用
- *  3) GOOGLE_PROJECT_ID と GSM_DATABASE_URL_ID（省略時 'DATABASE_URL'）から組み立て
+ * Secret Manager のリソース名を構築
+ * - 画面のシークレット命名に合わせて、IDは常に "DATABASE_URL" を使用
+ * - projects/{GOOGLE_PROJECT_ID}/secrets/DATABASE_URL/versions/latest
  */
-function resolveSecretResourceName(): string | undefined {
-  if (process.env.GSM_DATABASE_URL_NAME) {
-    return process.env.GSM_DATABASE_URL_NAME;
-  }
-
-  const list = process.env.GSM_SECRET_NAMES?.split(",").map(s => s.trim()).filter(Boolean);
-  if (list && list.length > 0) {
-    const preferred = list.find(s => /\/secrets\/DATABASE_URL\//.test(s));
-    return preferred ?? list[0];
-  }
-
-  if (process.env.GOOGLE_PROJECT_ID) {
-    const id = process.env.GSM_DATABASE_URL_ID || "DATABASE_URL";
-    return `projects/${process.env.GOOGLE_PROJECT_ID}/secrets/${id}/versions/latest`;
-  }
-
-  return undefined;
+function buildDatabaseUrlSecretName(): string | undefined {
+  const projectId = process.env.GOOGLE_PROJECT_ID;
+  if (!projectId) return undefined;
+  return `projects/${projectId}/secrets/DATABASE_URL/versions/latest`;
 }
 
 /**
  * 実行時またはビルド時に DB URL を取得
- * 1) ENV: DATABASE_URL
- * 2) GSM: resolveSecretResourceName() で求めた名前から取得
+ * 1) ENV: DATABASE_URL（存在すれば最優先で使用）
+ * 2) GSM: projects/{GOOGLE_PROJECT_ID}/secrets/DATABASE_URL/versions/latest から取得
  */
 async function resolveDatabaseUrl(): Promise<string> {
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
   if (global.__dbUrl) return global.__dbUrl;
 
+  // Secret Manager を使うためのADC設定
   await ensureGcpCredsFile();
 
-  const name = resolveSecretResourceName();
+  const name = buildDatabaseUrlSecretName();
   if (!name) {
     throw new Error(
-      "DATABASE_URL も GSM の指定も未設定です。次のいずれかを設定してください：DATABASE_URL / GSM_DATABASE_URL_NAME / GSM_SECRET_NAMES / (GOOGLE_PROJECT_ID + GSM_DATABASE_URL_ID)"
+      "GOOGLE_PROJECT_ID が未設定です。ENVの DATABASE_URL を直接設定するか、GOOGLE_PROJECT_ID とサービスアカウントJSONを設定してください。"
     );
   }
 
   const client = new SecretManagerServiceClient();
   const [version] = await client.accessSecretVersion({ name });
   const payload = version.payload?.data?.toString();
-  if (!payload) throw new Error("GSM: DATABASE_URL のpayloadが空です。");
+  if (!payload) throw new Error("GSM: DATABASE_URL シークレットのpayloadが空です。");
 
   global.__dbUrl = payload;
   return payload;
@@ -87,7 +73,6 @@ async function resolveDatabaseUrl(): Promise<string> {
 
 /**
  * PrismaClient を生成（開発はグローバルにキャッシュ）
- * ※ ここはビルド時にも呼ばれ得るため、GSM対応済み
  */
 async function createPrisma(): Promise<PrismaClient> {
   if (global.__prisma) return global.__prisma;
