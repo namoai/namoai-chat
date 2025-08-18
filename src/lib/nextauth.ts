@@ -1,10 +1,8 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from '@/lib/prisma';
 import bcrypt from "bcrypt";
-
-const prisma = new PrismaClient();
 
 // NextAuthの設定をオブジェクトとして定義し、エクスポートします。
 // これにより、他のサーバーサイドのファイルでこの設定を再利用できます。

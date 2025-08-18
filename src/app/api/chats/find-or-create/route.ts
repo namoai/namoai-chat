@@ -1,11 +1,9 @@
 export const runtime = 'nodejs';
 
 import { NextResponse, NextRequest } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from '@/lib/prisma'
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/nextauth";
-
-const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   // ✅ RequestをNextRequestに修正

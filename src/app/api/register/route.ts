@@ -3,11 +3,8 @@ export const runtime = 'nodejs';
 console.log("✅ /api/register 라우트 실행됨!");
 
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from '@/lib/prisma'
 import bcrypt from "bcrypt";
-
-// Prisma クライアントの初期化
-const prisma = new PrismaClient();
 
 export async function POST(req: Request) {
   try {
