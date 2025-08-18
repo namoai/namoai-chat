@@ -1,3 +1,5 @@
+export const runtime = 'nodejs';
+
 console.log("✅ /api/register 라우트 실행됨!");
 
 import { NextResponse } from "next/server";

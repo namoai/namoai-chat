@@ -1,7 +1,10 @@
+export const runtime = 'nodejs';
+
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth/next'; // セッション取得のためにインポート
 import { authOptions } from '@/lib/nextauth';
+
 
 const prisma = new PrismaClient();
 
@@ -99,3 +102,4 @@ export async function GET() {
     );
   }
 }
+
