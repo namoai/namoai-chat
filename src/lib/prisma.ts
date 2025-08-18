@@ -1,31 +1,20 @@
 // src/lib/prisma.ts
-import "@/lib/secrets-loader";
 import { PrismaClient } from "@prisma/client";
 import { SecretManagerServiceClient } from "@google-cloud/secret-manager";
 
 /**
- * グローバルキャッシュ宣言（開発環境でのHot Reload対策）
+ * グローバルキャッシュ（開発環境のHot Reload対策）
  */
 declare global {
-  // eslint-disable-next-line no-var
-  var prisma: PrismaClient | undefined;
-  // eslint-disable-next-line no-var
+  // 開発時のみ使用。プロダクションでは毎コールドスタートで生成される想定
+  var __prisma: PrismaClient | undefined;
   var __dbUrl: string | undefined;
 }
 
 /**
- * 実行時にDB URLを解決する
- * 1) ENV: DATABASE_URL
- * 2) GSM: projects/<PROJECT_ID>/secrets/<SECRET_ID>/versions/latest
- *    - GSM_DATABASE_URL_NAME（フルリソース名）
- *    - または GSM_PROJECT_ID + GSM_DATABASE_URL_ID の組み合わせ
- * 3) サービスアカウントJSONが環境変数（GOOGLE_APPLICATION_CREDENTIALS_JSON）に入っている場合は /tmp にファイル化
+ * サービスアカウントJSONがENVに入っている場合、/tmp に展開してADCパスを設定
  */
-async function resolveDatabaseUrl(): Promise<string> {
-  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  if (global.__dbUrl) return global.__dbUrl;
-
-  // NetlifyランタイムでサービスアカウントJSONを /tmp に保存し、ADCパスを設定
+async function ensureGcpCredsFile() {
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
@@ -33,49 +22,66 @@ async function resolveDatabaseUrl(): Promise<string> {
     await fs.writeFile(credPath, process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON, "utf8");
     process.env.GOOGLE_APPLICATION_CREDENTIALS = credPath;
   }
+}
 
-  const gsmName =
+/**
+ * 実行時にDB URLを解決
+ * 1) ENV: DATABASE_URL
+ * 2) GSM: GSM_DATABASE_URL_NAME（フル名）または GSM_PROJECT_ID + GSM_DATABASE_URL_ID
+ */
+async function resolveDatabaseUrl(): Promise<string> {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  if (global.__dbUrl) return global.__dbUrl;
+
+  await ensureGcpCredsFile();
+
+  const name =
     process.env.GSM_DATABASE_URL_NAME ||
     (process.env.GSM_PROJECT_ID && process.env.GSM_DATABASE_URL_ID
       ? `projects/${process.env.GSM_PROJECT_ID}/secrets/${process.env.GSM_DATABASE_URL_ID}/versions/latest`
       : undefined);
 
-  if (!gsmName) {
+  if (!name) {
     throw new Error(
-      "DATABASE_URLが存在せず、GSMのシークレット名も未設定です。DATABASE_URL または GSM_DATABASE_URL_NAME（もしくは GSM_PROJECT_ID + GSM_DATABASE_URL_ID）を設定してください。"
+      "DATABASE_URL も GSM シークレット名も未設定です。DATABASE_URL または GSM_DATABASE_URL_NAME（もしくは GSM_PROJECT_ID + GSM_DATABASE_URL_ID）を設定してください。"
     );
   }
 
   const client = new SecretManagerServiceClient();
-  const [version] = await client.accessSecretVersion({ name: gsmName });
+  const [version] = await client.accessSecretVersion({ name });
   const payload = version.payload?.data?.toString();
-
-  if (!payload) {
-    throw new Error("GSM: DATABASE_URL シークレットのpayloadが空です。");
-  }
+  if (!payload) throw new Error("GSM: DATABASE_URL のpayloadが空です。");
 
   global.__dbUrl = payload;
   return payload;
 }
 
 /**
- * Prismaインスタンスをシングルトンとして取得
- * - 開発環境: global.prisma にキャッシュ
- * - 本番環境: サーバーレス特性により関数のコールドスタートごとに初期化
+ * PrismaClient を作成（開発はグローバルにキャッシュ）
  */
-export async function getPrisma(): Promise<PrismaClient> {
-  if (global.prisma) return global.prisma;
+async function createPrisma(): Promise<PrismaClient> {
+  if (global.__prisma) return global.__prisma;
 
-  const datasourceUrl = await resolveDatabaseUrl();
+  const url = await resolveDatabaseUrl();
 
-  const client = new PrismaClient({
-    datasources: { db: { url: datasourceUrl } },
+  const instance = new PrismaClient({
+    datasources: { db: { url } },
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   });
 
   if (process.env.NODE_ENV !== "production") {
-    global.prisma = client;
+    global.__prisma = instance;
   }
+  return instance;
+}
 
-  return client;
+/**
+ * 互換性維持のため：
+ * - 既存コードの `import { prisma } from "@/lib/prisma"` をそのまま使えるよう、
+ *   トップレベルawaitで PrismaClient インスタンスをエクスポート
+ * - 併せて getPrisma も提供
+ */
+export const prisma: PrismaClient = await createPrisma();
+export async function getPrisma(): Promise<PrismaClient> {
+  return prisma;
 }
