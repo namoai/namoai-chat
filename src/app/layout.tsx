@@ -10,9 +10,6 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-// geistMonoフォントは現在使用されていないため、削除しました
-// const geistMono = Geist_Mono({ ... });
-
 export const metadata: Metadata = {
   // サイトのタイトルと説明を適切に設定します
   title: "NAMOAI Chat",
@@ -26,22 +23,17 @@ export default function RootLayout({
 }>) {
   return (
     // ページの言語を日本語に設定します
-
     <html lang="ja">
-      {" "}
+      {/* ▼▼▼ 変更点: bodyタグ内の不要な空白を削除しました ▼▼▼ */}
       <body className={`${geistSans.variable} antialiased`}>
-        {" "}
-        {/* 2. NextAuthのセッション状態をアプリ全体で共有するためにProvidersでラップします */}{" "}
+        {/* NextAuthのセッション状態をアプリ全体で共有するためにProvidersでラップします */}
         <Providers>
-          {" "}
-          {/* 3. 全てのページ内容({children})をAppShellコンポーネントでラップします。
-
-            これにより、AppShellがパスに応じてナビゲーションバーの表示・非表示を管理します。
-
-          */}
-          <AppShell>{children}</AppShell>{" "}
-        </Providers>{" "}
-      </body>{" "}
+          {/* 全てのページ内容({children})をAppShellコンポーネントでラップします。
+            これにより、AppShellがパスに応じてナビゲーションバーの表示・非表示を管理します。
+          */}
+          <AppShell>{children}</AppShell>
+        </Providers>
+      </body>
     </html>
   );
 }

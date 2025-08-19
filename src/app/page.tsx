@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import CharacterRow from '@/components/CharacterRow';
-import { Search, Calendar, User } from 'lucide-react';
+import { Search, User, Trophy, Users, PlusCircle } from 'lucide-react';
 
-// ▼▼▼ 変更点 1: キャラクターの正確な型を定義します ▼▼▼
+// キャラクターのデータ型を定義します。
 type Character = {
   id: number;
   name: string;
@@ -12,13 +11,50 @@ type Character = {
   characterImages: { imageUrl: string }[];
 };
 
-// ▼▼▼ 変更点 2: any[] の代わりに上で定義したCharacter[]を使用します ▼▼▼
+// メインページのデータ型を定義します。
 type MainPageData = {
   trendingCharacters: Character[];
   newTopCharacters: Character[];
   specialCharacters: Character[];
   generalCharacters: Character[];
 };
+
+const CharacterRow = ({ title, characters, moreLink }: { title: string, characters: Character[], moreLink?: string }) => {
+  if (!characters || characters.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="mb-8">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold">{title}</h2>
+        {moreLink && (
+            // ▼▼▼ 変更点: ホバーエフェクトとカーソル変更を追加 ▼▼▼
+          <a href={moreLink} className="p-1 text-gray-400 hover:text-pink-500 transition-colors cursor-pointer" title="もっと見る">
+            <PlusCircle size={22} />
+          </a>
+        )}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {characters.map((char) => (
+          <a href={`/characters/${char.id}`} key={char.id} className="cursor-pointer group">
+            <div className="aspect-square bg-gray-800 rounded-lg overflow-hidden mb-2 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-pink-500/30">
+              <img 
+                src={char.characterImages[0]?.imageUrl || 'https://placehold.co/300x300/1a1a1a/ffffff?text=?'} 
+                alt={char.name}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                onError={(e) => { e.currentTarget.src = 'https://placehold.co/300x300/1a1a1a/ffffff?text=?'; }}
+              />
+            </div>
+            <h3 className="font-semibold truncate">{char.name}</h3>
+            <p className="text-sm text-gray-400 truncate">{char.description || ' '}</p>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+};
+
 
 export default function HomePage() {
   const [pageData, setPageData] = useState<MainPageData | null>(null);
@@ -32,7 +68,7 @@ export default function HomePage() {
         const data = await response.json();
         setPageData(data);
       } catch (error) {
-        console.error(error);
+        console.error("データの取得に失敗しました:", error);
       } finally {
         setLoading(false);
       }
@@ -52,21 +88,32 @@ export default function HomePage() {
     <div className="bg-black min-h-screen text-white p-4 pb-20">
       <header className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-pink-500">ナモアイ</h1>
-        <div className="flex items-center gap-4">
-          <Search className="cursor-pointer" />
-          <Calendar className="cursor-pointer" />
-          <User className="cursor-pointer" />
+        {/* ▼▼▼ 変更点: 各アイコンのdivにホバーエフェクトとカーソル変更を追加 ▼▼▼ */}
+        <div className="flex items-center gap-2 text-gray-300">
+          <a href="/charlist" title="キャラクター一覧" className="p-2 rounded-full hover:bg-pink-500/20 hover:text-white transition-colors cursor-pointer">
+            <Users />
+          </a>
+          <a href="/search" title="検索" className="p-2 rounded-full hover:bg-pink-500/20 hover:text-white transition-colors cursor-pointer">
+            <Search />
+          </a>
+          <a href="/ranking" title="ランキング" className="p-2 rounded-full hover:bg-pink-500/20 hover:text-white transition-colors cursor-pointer">
+            <Trophy />
+          </a>
+          <a href="/mypage" title="マイページ" className="p-2 rounded-full hover:bg-pink-500/20 hover:text-white transition-colors cursor-pointer">
+            <User />
+          </a>
         </div>
       </header>
 
-      <div className="bg-pink-500 rounded-lg p-4 mb-8 text-center">
+      {/* ▼▼▼ 変更点: バナーにもホバーエフェクトとカーソル変更を追加 ▼▼▼ */}
+      <div className="bg-pink-500 rounded-lg p-4 mb-8 text-center hover:bg-pink-600 transition-colors cursor-pointer">
         <h2 className="font-bold">毎日出席して最大10倍の報酬をゲット！</h2>
       </div>
 
-      <CharacterRow title="今話題のキャラクター" characters={pageData.trendingCharacters} />
+      <CharacterRow title="今話題のキャラクター" characters={pageData.trendingCharacters} moreLink="/chatlist" />
       <CharacterRow title="ホットな新作TOP10" characters={pageData.newTopCharacters} />
       <CharacterRow title="見逃せない特集キャラクター" characters={pageData.specialCharacters} />
-      <CharacterRow title="新規キャラクター紹介" characters={pageData.generalCharacters} />
+      <CharacterRow title="新規キャラクター紹介" characters={pageData.generalCharacters} moreLink="/charlist" />
     </div>
   );
 }
