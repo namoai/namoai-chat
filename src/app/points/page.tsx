@@ -40,8 +40,8 @@ export default function PointPage() {
         const data = await response.json();
         setPointsData(data);
       }
-    } catch (error) {
-      console.error("ポイントデータの取得に失敗:", error);
+    } catch (_error) {
+      console.error("ポイントデータの取得に失敗:", _error);
     } finally {
       setLoading(false);
     }
@@ -60,8 +60,9 @@ export default function PointPage() {
       if (response.ok) {
         fetchPoints(); // ポイント情報を更新
       }
-    } catch (error) {
-      setMessage('エラーが発生しました。');
+    } catch (_error) {
+      console.error('毎日出席イベント処理エラー:', _error);
+      setMessage('エラーが発生しました.');
     }
   };
   
@@ -78,8 +79,9 @@ export default function PointPage() {
       if (response.ok) {
         fetchPoints(); // ポイント情報を更新
       }
-    } catch (error) {
-       setMessage('エラーが発生しました。');
+    } catch (_error) {
+       console.error('ポイント課金処理エラー:', _error);
+       setMessage('エラーが発生しました.');
     }
   };
 
@@ -114,7 +116,7 @@ export default function PointPage() {
         <button 
           onClick={handleAttendance}
           disabled={pointsData?.attendedToday}
-          className={`w-full p-4 rounded-lg font-bold transition-colors flex items-center justify-center ${
+          className={`w/full p-4 rounded-lg font-bold transition-colors flex items-center justify-center ${
             pointsData?.attendedToday 
               ? 'bg-gray-700 text-gray-500 cursor-not-allowed' 
               : 'bg-pink-500 hover:bg-pink-600 cursor-pointer'
