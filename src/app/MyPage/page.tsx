@@ -1,13 +1,13 @@
 "use client";
 
-// ▼▼▼ 変更点: エラーの原因となる 'next-auth/react', 'next/navigation', 'next/image' のインポートを削除しました ▼▼▼
 import type { Session } from "next-auth";
 import {
-  Heart, ChevronRight, Megaphone, Settings, Users, BookUser,
-  MessageSquareText, MailQuestion, User, ShieldCheck, BrainCircuit,
-  LogOut, Coins,
+  Heart, ChevronRight, Megaphone, Users, BookUser,
+  User, ShieldCheck, BrainCircuit, LogOut, Coins,
 } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
+import Link from "next/link";
+import Image from "next/image";
 
 // ユーザーのプロフィール画像がない場合に表示するデフォルトのSVGアイコンコンポーネント
 const DefaultAvatarIcon = ({ size = 48 }: { size?: number }) => (
@@ -68,7 +68,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
           const pointsData = await pointsRes.json();
           setPoints({ total: (pointsData.free_points || 0) + (pointsData.paid_points || 0), loading: false });
         } else {
-            setPoints({ total: 0, loading: false });
+          setPoints({ total: 0, loading: false });
         }
 
         const filterRes = await fetch('/api/users/safety-filter');
@@ -92,7 +92,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
         body: JSON.stringify({ safetyFilter: newStatus }),
       });
       if (!response.ok) throw new Error('設定の変更に失敗しました。');
-      
+
       const data = await response.json();
       setIsSafetyFilterOn(data.safetyFilter);
       alert(`セーフティフィルターを${newStatus ? 'ON' : 'OFF'}にしました。`);
@@ -114,10 +114,10 @@ const LoggedInView = ({ session }: { session: Session }) => {
 
   const myMenuItems: MenuItem[] = [
     { icon: <User size={20} className="text-gray-400" />, text: "キャラクター管理", action: "/character-management" },
-    { 
-      icon: <ShieldCheck size={20} className="text-gray-400" />, 
-      text: "セーフティフィルター", 
-      badge: isSafetyFilterOn ? "ON" : "OFF", 
+    {
+      icon: <ShieldCheck size={20} className="text-gray-400" />,
+      text: "セーフティフィルター",
+      badge: isSafetyFilterOn ? "ON" : "OFF",
       action: handleSafetyFilterToggle
     },
     { icon: <BrainCircuit size={20} className="text-gray-400" />, text: "ペルソナ設定", action: "/persona/list" },
@@ -128,21 +128,35 @@ const LoggedInView = ({ session }: { session: Session }) => {
     { icon: <Megaphone size={20} className="text-gray-400" />, text: "お知らせ", action: "/notice" },
   ];
 
-  // ▼▼▼ 変更点: useRouterの代わりに<a>タグを使用する汎用コンポーネント ▼▼▼
+  // Linkを使う汎用メニュー
   const MenuItemComponent = ({ item }: { item: MenuItem | Omit<MenuItem, 'badge'> }) => {
     const commonClasses = "w-full flex items-center text-left p-4 hover:bg-gray-800 transition-colors duration-200 cursor-pointer";
     const content = (
       <>
         {item.icon}
         <span className="ml-4 text-base">{item.text}</span>
-        {'badge' in item && item.badge && (<span className={`ml-auto text-sm px-2 py-1 rounded ${isSafetyFilterOn ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>{item.badge}</span>)}
+        {'badge' in item && item.badge && (
+          <span
+            className={`ml-auto text-sm px-2 py-1 rounded ${isSafetyFilterOn ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}
+          >
+            {item.badge}
+          </span>
+        )}
       </>
     );
 
     if (typeof item.action === 'string') {
-      return <a href={item.action} className={commonClasses}>{content}</a>;
+      return (
+        <Link href={item.action} className={commonClasses}>
+          {content}
+        </Link>
+      );
     }
-    return <button onClick={item.action} className={commonClasses}>{content}</button>;
+    return (
+      <button onClick={item.action} className={commonClasses}>
+        {content}
+      </button>
+    );
   };
 
   return (
@@ -159,9 +173,14 @@ const LoggedInView = ({ session }: { session: Session }) => {
       <main className="flex flex-col gap-6">
         <div className="bg-[#1C1C1E] p-4 rounded-lg flex items-center">
           <div className="mr-4">
-             {/* ▼▼▼ 変更点: <Image>を<img>に置き換えました ▼▼▼ */}
             {session.user?.image ? (
-              <img src={session.user.image} alt="User Avatar" width={48} height={48} className="rounded-full" />
+              <Image
+                src={session.user.image}
+                alt="User Avatar"
+                width={48}
+                height={48}
+                className="rounded-full"
+              />
             ) : (
               <DefaultAvatarIcon size={48} />
             )}
@@ -176,12 +195,18 @@ const LoggedInView = ({ session }: { session: Session }) => {
               )}
             </div>
           </div>
-          <a href={`/profile/${session.user?.id}`} className="bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-lg transition-colors duration-200">
+          <Link
+            href={`/profile/${session.user?.id}`}
+            className="bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-lg transition-colors duration-200"
+          >
             マイプロフィール
-          </a>
+          </Link>
         </div>
 
-        <a href='/points' className="w-full bg-[#1C1C1E] p-4 rounded-lg flex items-center justify-between cursor-pointer hover:bg-gray-800 transition-colors duration-200">
+        <Link
+          href="/points"
+          className="w-full bg-[#1C1C1E] p-4 rounded-lg flex items-center justify-between cursor-pointer hover:bg-gray-800 transition-colors duration-200"
+        >
           <div className="flex items-center gap-2">
             <Coins size={20} className="text-yellow-400" />
             <span className="font-semibold">保有ポイント</span>
@@ -192,7 +217,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
             </span>
             <ChevronRight size={20} className="text-gray-400" />
           </div>
-        </a>
+        </Link>
 
         <div className="bg-[#1C1C1E] rounded-lg">
           <div className="px-4 pt-4 pb-2"><h2 className="text-xs text-gray-500">MY</h2></div>
@@ -200,18 +225,22 @@ const LoggedInView = ({ session }: { session: Session }) => {
             {myMenuItems.map((item) => <MenuItemComponent key={item.text} item={item} />)}
           </nav>
         </div>
-        
+
         <div className="bg-[#1C1C1E] rounded-lg">
           <div className="px-4 pt-4 pb-2"><h2 className="text-xs text-gray-500">コミュニケーション・案内</h2></div>
           <nav className="flex flex-col">
             {infoMenuItems.map((item) => <MenuItemComponent key={item.text} item={item} />)}
           </nav>
         </div>
-        {/* ▼▼▼ 変更点: signOutをAPIエンドポイントへのリンクに変更 ▼▼▼ */}
-        <a href="/api/auth/signout?callbackUrl=/" className="w-full flex items-center justify-center text-left p-4 bg-[#1C1C1E] rounded-lg hover:bg-red-800/50 transition-colors duration-200 cursor-pointer">
+
+        {/* Next.js ルールに合わせて Link を使用 */}
+        <Link
+          href="/api/auth/signout?callbackUrl=/"
+          className="w-full flex items-center justify-center text-left p-4 bg-[#1C1C1E] rounded-lg hover:bg-red-800/50 transition-colors duration-200 cursor-pointer"
+        >
           <LogOut size={20} className="text-red-500 mr-3" />
           <span className="text-red-500 font-semibold">ログアウト</span>
-        </a>
+        </Link>
       </main>
     </>
   );
@@ -226,20 +255,28 @@ const LoggedOutView = () => {
   ];
   return (
     <main className="flex flex-col gap-6">
-      <a href="/login" className="w-full bg-[#1C1C1E] p-4 rounded-lg flex items-center cursor-pointer hover:bg-gray-800 transition-colors duration-200">
+      <Link
+        href="/login"
+        className="w-full bg-[#1C1C1E] p-4 rounded-lg flex items-center cursor-pointer hover:bg-gray-800 transition-colors duration-200"
+      >
         <div className="bg-pink-500 p-3 rounded-full mr-4"><Heart size={24} className="text-white" fill="white" /></div>
         <div className="text-left"><p className="font-semibold">ログインして始める</p></div>
         <ChevronRight size={20} className="text-gray-400 ml-auto" />
-      </a>
+      </Link>
+
       <div className="bg-[#1C1C1E] rounded-lg">
         <div className="px-4 pt-4 pb-2"><h2 className="text-xs text-gray-500">コミュニケーション・案内</h2></div>
         <nav className="flex flex-col">
           {menuItems.map((item, index) => (
-            <a key={index} href={item.href} className="w-full flex items-center text-left p-4 hover:bg-gray-800 transition-colors duration-200 cursor-pointer">
+            <Link
+              key={index}
+              href={item.href}
+              className="w-full flex items-center text-left p-4 hover:bg-gray-800 transition-colors duration-200 cursor-pointer"
+            >
               {item.icon}
               <span className="ml-4 text-base">{item.text}</span>
               {item.badge && (<span className="ml-auto text-sm text-pink-400 font-semibold">{item.badge}</span>)}
-            </a>
+            </Link>
           ))}
         </nav>
       </div>
@@ -248,7 +285,6 @@ const LoggedOutView = () => {
 };
 
 export default function MyPage() {
-  // ▼▼▼ 変更点: useSessionの代わりにfetch APIでセッション情報を取得します ▼▼▼
   const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
 
