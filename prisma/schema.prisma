@@ -96,12 +96,13 @@ model sessions {
 }
 
 model points {
-  id          Int      @id @default(autoincrement())
-  user_id     Int      @unique
-  free_points Int      @default(0)
-  paid_points Int      @default(0)
-  updated_at  DateTime @default(now())
-  users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  id             Int       @id @default(autoincrement())
+  user_id        Int       @unique
+  free_points    Int       @default(0)
+  paid_points    Int       @default(0)
+  updated_at     DateTime  @default(now())
+  lastAttendedAt DateTime? @db.Timestamptz(6)
+  users          users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
 model chat {

@@ -1,9 +1,7 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
+// ▼▼▼ 変更点: エラーの原因となる 'next-auth/react', 'next/navigation', 'next/image' のインポートを削除しました ▼▼▼
 import type { Session } from "next-auth";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
 import {
   Heart, ChevronRight, Megaphone, Settings, Users, BookUser,
   MessageSquareText, MailQuestion, User, ShieldCheck, BrainCircuit,
@@ -52,13 +50,12 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirm
 type MenuItem = {
   icon: ReactNode;
   text: string;
-  action: () => void;
+  action: string | (() => void); // hrefまたはonClick関数
   badge?: string;
 };
 
 // ログインしているユーザー向けのビュー
 const LoggedInView = ({ session }: { session: Session }) => {
-  const router = useRouter();
   const [points, setPoints] = useState<{ total: number; loading: boolean }>({ total: 0, loading: true });
   const [isSafetyFilterOn, setIsSafetyFilterOn] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -87,9 +84,6 @@ const LoggedInView = ({ session }: { session: Session }) => {
     fetchData();
   }, []);
 
-  const handleNavigate = (path: string) => router.push(path);
-
-  // フィルターの状態を更新する共通関数
   const updateSafetyFilter = async (newStatus: boolean) => {
     try {
       const response = await fetch('/api/users/safety-filter', {
@@ -110,7 +104,6 @@ const LoggedInView = ({ session }: { session: Session }) => {
     }
   };
 
-  // クリック時の処理をトグル方式に変更
   const handleSafetyFilterToggle = () => {
     if (isSafetyFilterOn) {
       setIsModalOpen(true);
@@ -120,20 +113,37 @@ const LoggedInView = ({ session }: { session: Session }) => {
   };
 
   const myMenuItems: MenuItem[] = [
-    { icon: <User size={20} className="text-gray-400" />, text: "キャラクター管理", action: () => handleNavigate("/character-management") },
+    { icon: <User size={20} className="text-gray-400" />, text: "キャラクター管理", action: "/character-management" },
     { 
       icon: <ShieldCheck size={20} className="text-gray-400" />, 
       text: "セーフティフィルター", 
       badge: isSafetyFilterOn ? "ON" : "OFF", 
       action: handleSafetyFilterToggle
     },
-    { icon: <BrainCircuit size={20} className="text-gray-400" />, text: "ペルソナ設定", action: () => handleNavigate("/persona/list") },
+    { icon: <BrainCircuit size={20} className="text-gray-400" />, text: "ペルソナ設定", action: "/persona/list" },
   ];
   const infoMenuItems: Omit<MenuItem, 'badge'>[] = [
-    { icon: <Users size={20} className="text-gray-400" />, text: "ディスコード", action: () => handleNavigate("/discord") },
-    { icon: <BookUser size={20} className="text-gray-400" />, text: "ユーザーガイド", action: () => handleNavigate("/guide") },
-    { icon: <Megaphone size={20} className="text-gray-400" />, text: "お知らせ", action: () => handleNavigate("/notice") },
+    { icon: <Users size={20} className="text-gray-400" />, text: "ディスコード", action: "/discord" },
+    { icon: <BookUser size={20} className="text-gray-400" />, text: "ユーザーガイド", action: "/guide" },
+    { icon: <Megaphone size={20} className="text-gray-400" />, text: "お知らせ", action: "/notice" },
   ];
+
+  // ▼▼▼ 変更点: useRouterの代わりに<a>タグを使用する汎用コンポーネント ▼▼▼
+  const MenuItemComponent = ({ item }: { item: MenuItem | Omit<MenuItem, 'badge'> }) => {
+    const commonClasses = "w-full flex items-center text-left p-4 hover:bg-gray-800 transition-colors duration-200 cursor-pointer";
+    const content = (
+      <>
+        {item.icon}
+        <span className="ml-4 text-base">{item.text}</span>
+        {'badge' in item && item.badge && (<span className={`ml-auto text-sm px-2 py-1 rounded ${isSafetyFilterOn ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>{item.badge}</span>)}
+      </>
+    );
+
+    if (typeof item.action === 'string') {
+      return <a href={item.action} className={commonClasses}>{content}</a>;
+    }
+    return <button onClick={item.action} className={commonClasses}>{content}</button>;
+  };
 
   return (
     <>
@@ -149,17 +159,16 @@ const LoggedInView = ({ session }: { session: Session }) => {
       <main className="flex flex-col gap-6">
         <div className="bg-[#1C1C1E] p-4 rounded-lg flex items-center">
           <div className="mr-4">
+             {/* ▼▼▼ 変更点: <Image>を<img>に置き換えました ▼▼▼ */}
             {session.user?.image ? (
-              <Image src={session.user.image} alt="User Avatar" width={48} height={48} className="rounded-full" />
+              <img src={session.user.image} alt="User Avatar" width={48} height={48} className="rounded-full" />
             ) : (
               <DefaultAvatarIcon size={48} />
             )}
           </div>
           <div className="flex-grow">
-            {/* ✨ ここを修正しました ✨ */}
             <div className="flex items-center gap-2">
               <p className="font-bold text-lg">{session.user?.name || "ユーザー"}</p>
-              {/* ユーザーのroleが'ADMIN'の場合、管理者バッジを表示します */}
               {session.user?.role === 'ADMIN' && (
                 <span className="text-xs bg-pink-600 text-white font-semibold py-1 px-2 rounded-md">
                   管理者
@@ -167,15 +176,12 @@ const LoggedInView = ({ session }: { session: Session }) => {
               )}
             </div>
           </div>
-          <button onClick={() => handleNavigate(`/profile/${session.user?.id}`)} className="bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-lg transition-colors duration-200">
+          <a href={`/profile/${session.user?.id}`} className="bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-lg transition-colors duration-200">
             マイプロフィール
-          </button>
+          </a>
         </div>
 
-        <button
-          onClick={() => handleNavigate('/billing')}
-          className="w-full bg-[#1C1C1E] p-4 rounded-lg flex items-center justify-between cursor-pointer hover:bg-gray-800 transition-colors duration-200"
-        >
+        <a href='/points' className="w-full bg-[#1C1C1E] p-4 rounded-lg flex items-center justify-between cursor-pointer hover:bg-gray-800 transition-colors duration-200">
           <div className="flex items-center gap-2">
             <Coins size={20} className="text-yellow-400" />
             <span className="font-semibold">保有ポイント</span>
@@ -186,36 +192,26 @@ const LoggedInView = ({ session }: { session: Session }) => {
             </span>
             <ChevronRight size={20} className="text-gray-400" />
           </div>
-        </button>
+        </a>
 
         <div className="bg-[#1C1C1E] rounded-lg">
           <div className="px-4 pt-4 pb-2"><h2 className="text-xs text-gray-500">MY</h2></div>
           <nav className="flex flex-col">
-            {myMenuItems.map((item) => (
-              <button key={item.text} onClick={item.action} className="w-full flex items-center text-left p-4 hover:bg-gray-800 transition-colors duration-200 cursor-pointer">
-                {item.icon}
-                <span className="ml-4 text-base">{item.text}</span>
-                {item.badge && (<span className={`ml-auto text-sm px-2 py-1 rounded ${isSafetyFilterOn ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>{item.badge}</span>)}
-              </button>
-            ))}
+            {myMenuItems.map((item) => <MenuItemComponent key={item.text} item={item} />)}
           </nav>
         </div>
         
         <div className="bg-[#1C1C1E] rounded-lg">
           <div className="px-4 pt-4 pb-2"><h2 className="text-xs text-gray-500">コミュニケーション・案内</h2></div>
           <nav className="flex flex-col">
-            {infoMenuItems.map((item) => (
-              <button key={item.text} onClick={item.action} className="w-full flex items-center text-left p-4 hover:bg-gray-800 transition-colors duration-200 cursor-pointer">
-                {item.icon}
-                <span className="ml-4 text-base">{item.text}</span>
-              </button>
-            ))}
+            {infoMenuItems.map((item) => <MenuItemComponent key={item.text} item={item} />)}
           </nav>
         </div>
-        <button onClick={() => signOut({ callbackUrl: '/' })} className="w-full flex items-center justify-center text-left p-4 bg-[#1C1C1E] rounded-lg hover:bg-red-800/50 transition-colors duration-200 cursor-pointer">
+        {/* ▼▼▼ 変更点: signOutをAPIエンドポイントへのリンクに変更 ▼▼▼ */}
+        <a href="/api/auth/signout?callbackUrl=/" className="w-full flex items-center justify-center text-left p-4 bg-[#1C1C1E] rounded-lg hover:bg-red-800/50 transition-colors duration-200 cursor-pointer">
           <LogOut size={20} className="text-red-500 mr-3" />
           <span className="text-red-500 font-semibold">ログアウト</span>
-        </button>
+        </a>
       </main>
     </>
   );
@@ -223,34 +219,27 @@ const LoggedInView = ({ session }: { session: Session }) => {
 
 // ログインしていないユーザー向けのビュー
 const LoggedOutView = () => {
-  const router = useRouter();
-  const handleNavigate = (path: string) => {
-    router.push(path);
-  };
   const menuItems = [
     { icon: <Users size={20} className="text-gray-400" />, text: "ディスコード", href: "/discord" },
     { icon: <BookUser size={20} className="text-gray-400" />, text: "ユーザーガイド", href: "/guide" },
     { icon: <Megaphone size={20} className="text-gray-400" />, text: "お知らせ", badge: "アップデート", href: "/notices" },
-    { icon: <MailQuestion size={20} className="text-gray-400" />, text: "ご意見箱", href: "/suggestions" },
-    { icon: <MessageSquareText size={20} className="text-gray-400" />, text: "フィードバック", href: "/feedback" },
-    { icon: <Settings size={20} className="text-gray-400" />, text: "設定", href: "/settings" },
   ];
   return (
     <main className="flex flex-col gap-6">
-      <button onClick={() => router.push("/login")} className="w-full bg-[#1C1C1E] p-4 rounded-lg flex items-center cursor-pointer hover:bg-gray-800 transition-colors duration-200">
+      <a href="/login" className="w-full bg-[#1C1C1E] p-4 rounded-lg flex items-center cursor-pointer hover:bg-gray-800 transition-colors duration-200">
         <div className="bg-pink-500 p-3 rounded-full mr-4"><Heart size={24} className="text-white" fill="white" /></div>
         <div className="text-left"><p className="font-semibold">ログインして始める</p></div>
         <ChevronRight size={20} className="text-gray-400 ml-auto" />
-      </button>
+      </a>
       <div className="bg-[#1C1C1E] rounded-lg">
         <div className="px-4 pt-4 pb-2"><h2 className="text-xs text-gray-500">コミュニケーション・案内</h2></div>
         <nav className="flex flex-col">
           {menuItems.map((item, index) => (
-            <button key={index} onClick={() => handleNavigate(item.href)} className="w-full flex items-center text-left p-4 hover:bg-gray-800 transition-colors duration-200 cursor-pointer">
+            <a key={index} href={item.href} className="w-full flex items-center text-left p-4 hover:bg-gray-800 transition-colors duration-200 cursor-pointer">
               {item.icon}
               <span className="ml-4 text-base">{item.text}</span>
               {item.badge && (<span className="ml-auto text-sm text-pink-400 font-semibold">{item.badge}</span>)}
-            </button>
+            </a>
           ))}
         </nav>
       </div>
@@ -259,12 +248,38 @@ const LoggedOutView = () => {
 };
 
 export default function MyPage() {
-  const { data: session, status } = useSession();
+  // ▼▼▼ 変更点: useSessionの代わりにfetch APIでセッション情報を取得します ▼▼▼
+  const [session, setSession] = useState<Session | null>(null);
+  const [status, setStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
+
+  useEffect(() => {
+    const fetchSession = async () => {
+      try {
+        const response = await fetch('/api/auth/session');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && Object.keys(data).length > 0) {
+            setSession(data);
+            setStatus("authenticated");
+          } else {
+            setStatus("unauthenticated");
+          }
+        } else {
+          setStatus("unauthenticated");
+        }
+      } catch (error) {
+        console.error("セッションの取得に失敗しました:", error);
+        setStatus("unauthenticated");
+      }
+    };
+    fetchSession();
+  }, []);
+
   return (
     <div className="min-h-screen bg-black text-white p-4 font-sans pb-20">
       <header className="text-center py-4"><h1 className="text-lg font-bold">マイページ</h1></header>
       {status === "loading" && <p className="text-center">ローディング中...</p>}
-      {status === "authenticated" && <LoggedInView session={session} />}
+      {status === "authenticated" && session && <LoggedInView session={session} />}
       {status === "unauthenticated" && <LoggedOutView />}
     </div>
   );
