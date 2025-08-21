@@ -18,6 +18,7 @@ export async function GET() {
     });
     return NextResponse.json(guides);
   } catch (error) {
+    console.error("ガイド取得エラー:", error); // ▼▼▼ 変更点: エラーをコンソールに出力します ▼▼▼
     return NextResponse.json({ error: 'サーバーエラー' }, { status: 500 });
   }
 }
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json(newGuide, { status: 201 });
   } catch (error) {
+    console.error("ガイド作成エラー:", error); // ▼▼▼ 変更点: エラーをコンソールに出力します ▼▼▼
     return NextResponse.json({ error: '作成に失敗しました。' }, { status: 500 });
   }
 }
@@ -67,6 +69,7 @@ export async function PUT(request: NextRequest) {
         });
         return NextResponse.json(updatedGuide);
     } catch (error) {
+        console.error("ガイド更新エラー:", error); // ▼▼▼ 変更点: エラーをコンソールに出力します ▼▼▼
         return NextResponse.json({ error: '更新に失敗しました。' }, { status: 500 });
     }
 }
@@ -85,6 +88,7 @@ export async function DELETE(request: NextRequest) {
         });
         return NextResponse.json({ message: '削除しました。' }, { status: 200 });
     } catch (error) {
+        console.error("ガイド削除エラー:", error); // ▼▼▼ 変更点: エラーをコンソールに出力します ▼▼▼
         return NextResponse.json({ error: '削除に失敗しました。' }, { status: 500 });
     }
 }

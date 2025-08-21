@@ -15,7 +15,7 @@ type Guide = {
 };
 
 export default function AdminGuidesPage() {
-  const [session, setSession] = useState<Session | null>(null);
+  // const [session, setSession] = useState<Session | null>(null); // ▼▼▼ 変更点: 未使用のため、この行を削除しました ▼▼▼
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
   
   const [guides, setGuides] = useState<Guide[]>([]);
@@ -36,7 +36,7 @@ export default function AdminGuidesPage() {
         const sessionData = await res.json();
 
         if (sessionData && Object.keys(sessionData).length > 0) {
-          setSession(sessionData);
+          // setSession(sessionData); // ▼▼▼ 変更点: 未使用のため、この行を削除しました ▼▼▼
           setStatus('authenticated');
 
           if (sessionData.user?.role !== 'ADMIN') {
@@ -138,7 +138,6 @@ export default function AdminGuidesPage() {
 
   return (
     <div className="bg-black text-white min-h-screen p-8">
-      {/* ▼▼▼ 変更点: ヘッダーに戻るボタンを追加 ▼▼▼ */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">ガイド管理</h1>
         <a href="/guide" className="flex items-center bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold py-2 px-4 rounded-lg transition-colors">
