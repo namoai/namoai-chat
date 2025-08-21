@@ -154,3 +154,15 @@ model notices {
   content   String
   createdAt DateTime @default(now()) @db.Timestamp(6)
 }
+
+model guides {
+  id           Int      @id @default(autoincrement())
+  mainCategory String   @db.VarChar(100)
+  subCategory  String   @db.VarChar(100)
+  title        String   @db.VarChar(255)
+  content      String
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([mainCategory, subCategory])
+}

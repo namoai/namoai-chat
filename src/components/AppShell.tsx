@@ -5,7 +5,7 @@ import BottomNav from "./BottomNav";
 
 // 下部のナビゲーションバーを非表示にするパスのリスト
 // ✅ お知らせページ(`/notice`)のパスを追加して、メニューバーを非表示にします。
-const HIDE_NAV_PATHS = ["/login", "/register", "/chat/", "/characters/", "/notice"];
+const HIDE_NAV_PATHS = ["/login", "/register", "/chat/", "/characters/", "/notice", "/guide"];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   // 現在のURLパスを取得します
