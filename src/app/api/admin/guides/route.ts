@@ -1,90 +1,129 @@
 export const runtime = 'nodejs';
 
-import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from "@/lib/prisma";
-import { getServerSession } from 'next-auth/next';
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
+import { prisma } from '@/lib/prisma';
 
-// GET: すべてのガイドを取得します（管理者用）
+function isNonEmptyString(v: unknown): v is string {
+  return typeof v === 'string' && v.trim().length > 0;
+}
+function toIntOrNull(v: unknown) {
+  const n = typeof v === 'string' ? Number(v) : (v as number);
+  if (Number.isInteger(n)) return n as number;
+  return null;
+}
+function badRequest(message: string, details?: unknown) {
+  return NextResponse.json({ message, details }, { status: 400 });
+}
+
+type RoleSession = {
+  user?: {
+    role?: string;
+  };
+} | null;
+
+async function requireAdmin() {
+  const session = (await getServerSession(authOptions)) as RoleSession;
+  const role = session?.user?.role;
+  if (role !== 'ADMIN') {
+    return { ok: false as const, res: NextResponse.json({ message: 'Unauthorized' }, { status: 401 }) };
+  }
+  return { ok: true as const };
+}
+
+// ── GET /api/admin/guides ───────────────────────────────────────────────
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'ADMIN') {
-    return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.res;
 
+  const guides = await prisma.guides.findMany({
+    orderBy: [{ displayOrder: 'asc' }, { id: 'desc' }],
+  });
+  return NextResponse.json(guides);
+}
+
+// ── POST /api/admin/guides ──────────────────────────────────────────────
+export async function POST(req: Request) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.res;
+
+  let body: unknown = null;
   try {
-    const guides = await prisma.guides.findMany({
-      orderBy: [{ mainCategory: 'asc' }, { displayOrder: 'asc' }],
-    });
-    return NextResponse.json(guides);
-  } catch (error) {
-    return NextResponse.json({ error: 'サーバーエラー' }, { status: 500 });
+    body = await req.json();
+  } catch {
+    return badRequest('Invalid JSON');
   }
+  if (!body || typeof body !== 'object') return badRequest('Invalid JSON');
+
+  const { mainCategory, subCategory, title, content, displayOrder } = body as Record<string, unknown>;
+
+  if (!isNonEmptyString(mainCategory)) return badRequest('mainCategory is required');
+  if (!isNonEmptyString(subCategory)) return badRequest('subCategory is required');
+  if (!isNonEmptyString(title)) return badRequest('title is required');
+  if (!isNonEmptyString(content)) return badRequest('content is required');
+
+  const displayOrderInt = toIntOrNull(displayOrder);
+  if (displayOrderInt === null || displayOrderInt < 0) {
+    return badRequest('displayOrder must be a non-negative integer');
+  }
+
+  const created = await prisma.guides.create({
+    data: { mainCategory, subCategory, title, content, displayOrder: displayOrderInt },
+  });
+  return NextResponse.json(created, { status: 201 });
 }
 
-// POST: 新しいガイドを作成します（管理者用）
-export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'ADMIN') {
-    return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
-  }
+// ── PUT /api/admin/guides ───────────────────────────────────────────────
+export async function PUT(req: Request) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.res;
 
+  let body: unknown = null;
   try {
-    const data = await request.json();
-    const newGuide = await prisma.guides.create({
-      data: {
-        mainCategory: data.mainCategory,
-        subCategory: data.subCategory,
-        title: data.title,
-        content: data.content,
-        displayOrder: parseInt(data.displayOrder, 10) || 0,
-      },
-    });
-    return NextResponse.json(newGuide, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ error: '作成に失敗しました。' }, { status: 500 });
+    body = await req.json();
+  } catch {
+    return badRequest('Invalid JSON');
   }
+  if (!body || typeof body !== 'object') return badRequest('Invalid JSON');
+
+  const { id, mainCategory, subCategory, title, content, displayOrder } = body as Record<string, unknown>;
+
+  const idInt = toIntOrNull(id);
+  if (idInt === null || idInt <= 0) return badRequest('id must be a positive integer');
+
+  if (!isNonEmptyString(mainCategory)) return badRequest('mainCategory is required');
+  if (!isNonEmptyString(subCategory)) return badRequest('subCategory is required');
+  if (!isNonEmptyString(title)) return badRequest('title is required');
+  if (!isNonEmptyString(content)) return badRequest('content is required');
+
+  const displayOrderInt = toIntOrNull(displayOrder);
+  if (displayOrderInt === null || displayOrderInt < 0) {
+    return badRequest('displayOrder must be a non-negative integer');
+  }
+
+  const updated = await prisma.guides.update({
+    where: { id: idInt },
+    data: { mainCategory, subCategory, title, content, displayOrder: displayOrderInt },
+  });
+  return NextResponse.json(updated);
 }
 
-// PUT: 既存のガイドを更新します（管理者用）
-export async function PUT(request: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (session?.user?.role !== 'ADMIN') {
-        return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
-    }
+// ── DELETE /api/admin/guides ────────────────────────────────────────────
+export async function DELETE(req: Request) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.res;
 
-    try {
-        const data = await request.json();
-        const { id, ...updateData } = data;
+  let body: unknown = null;
+  try {
+    body = await req.json();
+  } catch {
+    return badRequest('Invalid JSON');
+  }
 
-        if (updateData.displayOrder) {
-            updateData.displayOrder = parseInt(updateData.displayOrder, 10);
-        }
+  const idInt = body ? toIntOrNull((body as Record<string, unknown>).id) : null;
+  if (idInt === null || idInt <= 0) return badRequest('id must be a positive integer');
 
-        const updatedGuide = await prisma.guides.update({
-            where: { id: parseInt(id, 10) },
-            data: updateData,
-        });
-        return NextResponse.json(updatedGuide);
-    } catch (error) {
-        return NextResponse.json({ error: '更新に失敗しました。' }, { status: 500 });
-    }
-}
-
-// DELETE: ガイドを削除します（管理者用）
-export async function DELETE(request: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (session?.user?.role !== 'ADMIN') {
-        return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
-    }
-
-    try {
-        const { id } = await request.json();
-        await prisma.guides.delete({
-            where: { id: parseInt(id, 10) },
-        });
-        return NextResponse.json({ message: '削除しました。' }, { status: 200 });
-    } catch (error) {
-        return NextResponse.json({ error: '削除に失敗しました。' }, { status: 500 });
-    }
+  await prisma.guides.delete({ where: { id: idInt } });
+  return NextResponse.json({ ok: true });
 }
