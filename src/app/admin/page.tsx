@@ -45,7 +45,7 @@ export default function AdminDashboardPage() {
     <div className="bg-black text-white min-h-screen p-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">管理パネル</h1>
-        <a href="/mypage" className="flex items-center bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold py-2 px-4 rounded-lg transition-colors">
+        <a href="/MyPage" className="flex items-center bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold py-2 px-4 rounded-lg transition-colors">
           <ArrowLeft size={16} className="mr-2" />
           マイページに戻る
         </a>
