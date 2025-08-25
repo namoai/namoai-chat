@@ -4,11 +4,13 @@ import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
+// ▼▼▼ 変更点: 型安全性のためにRole Enumをインポートします ▼▼▼
+import { Role } from '@prisma/client';
 
 /**
  * GET: すべてのお知らせを新しい順に取得します
  */
-// ✅ Vercelビルドエラーを解決するため、未使用の`_request`引数を削除しました。
+// この関数は公開APIなので、権限チェックは不要です。
 export async function GET(): Promise<NextResponse> {
   try {
     const notices = await prisma.notices.findMany({
@@ -32,8 +34,9 @@ export async function GET(): Promise<NextResponse> {
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const session = await getServerSession(authOptions);
 
-  // ログインしていない、または管理者でない場合はエラー
-  if (!session?.user?.role || session.user.role !== 'ADMIN') {
+  // ▼▼▼ 変更点: 権限チェックを MODERATOR と SUPER_ADMIN に変更します ▼▼▼
+  const userRole = session?.user?.role;
+  if (!userRole || (userRole !== Role.MODERATOR && userRole !== Role.SUPER_ADMIN)) {
     return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
   }
 

@@ -4,13 +4,16 @@ import { authOptions } from '@/lib/nextauth';
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import NoticeForm from "@/components/NoticeForm";
+// ▼▼▼ 変更点: 型安全性のためにRole Enumをインポートします ▼▼▼
+import { Role } from "@prisma/client";
 
 // このページはサーバーコンポーネントとして動作します
 export default async function NoticeCreateAdminPage() {
   const session = await getServerSession(authOptions);
 
-  // セッションがない、または管理者でない場合はリダイレクト
-  if (session?.user?.role !== 'ADMIN') {
+  // ▼▼▼ 変更点: 権限チェックを MODERATOR と SUPER_ADMIN に変更します ▼▼▼
+  const userRole = session?.user?.role;
+  if (userRole !== Role.MODERATOR && userRole !== Role.SUPER_ADMIN) {
     redirect('/notice');
   }
 

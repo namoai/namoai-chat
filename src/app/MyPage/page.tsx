@@ -3,11 +3,10 @@
 import type { Session } from "next-auth";
 import {
   Heart, ChevronRight, Megaphone, Users, BookUser,
-  User, ShieldCheck, BrainCircuit, LogOut, Coins,
+  User, ShieldCheck, BrainCircuit, LogOut, Coins, Shield,
 } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
-import Link from "next/link";
-import Image from "next/image";
+import { signOut } from "next-auth/react"; // ▼▼▼ 変更点: signOut関数をインポート ▼▼▼
 
 // ユーザーのプロフィール画像がない場合に表示するデフォルトのSVGアイコンコンポーネント
 const DefaultAvatarIcon = ({ size = 48 }: { size?: number }) => (
@@ -58,7 +57,13 @@ type MenuItem = {
 const LoggedInView = ({ session }: { session: Session }) => {
   const [points, setPoints] = useState<{ total: number; loading: boolean }>({ total: 0, loading: true });
   const [isSafetyFilterOn, setIsSafetyFilterOn] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSafetyModalOpen, setIsSafetyModalOpen] = useState(false);
+  // ▼▼▼ 変更点: ログアウト確認モーダルのためのstateを追加 ▼▼▼
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+
+  const userRole = session?.user?.role;
+  const isAdmin = userRole && userRole !== 'USER';
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -100,13 +105,13 @@ const LoggedInView = ({ session }: { session: Session }) => {
       console.error(error);
       alert('エラーが発生しました。');
     } finally {
-      setIsModalOpen(false);
+      setIsSafetyModalOpen(false);
     }
   };
 
   const handleSafetyFilterToggle = () => {
     if (isSafetyFilterOn) {
-      setIsModalOpen(true);
+      setIsSafetyModalOpen(true);
     } else {
       updateSafetyFilter(true);
     }
@@ -128,7 +133,6 @@ const LoggedInView = ({ session }: { session: Session }) => {
     { icon: <Megaphone size={20} className="text-gray-400" />, text: "お知らせ", action: "/notice" },
   ];
 
-  // Linkを使う汎用メニュー
   const MenuItemComponent = ({ item }: { item: MenuItem | Omit<MenuItem, 'badge'> }) => {
     const commonClasses = "w-full flex items-center text-left p-4 hover:bg-gray-800 transition-colors duration-200 cursor-pointer";
     const content = (
@@ -147,9 +151,9 @@ const LoggedInView = ({ session }: { session: Session }) => {
 
     if (typeof item.action === 'string') {
       return (
-        <Link href={item.action} className={commonClasses}>
+        <a href={item.action} className={commonClasses}>
           {content}
-        </Link>
+        </a>
       );
     }
     return (
@@ -162,19 +166,30 @@ const LoggedInView = ({ session }: { session: Session }) => {
   return (
     <>
       <ConfirmationModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isSafetyModalOpen}
+        onClose={() => setIsSafetyModalOpen(false)}
         onConfirm={() => updateSafetyFilter(false)}
         title="年齢確認"
         message="あなたは成人ですか？ 「はい」を選択すると、成人向けコンテンツが表示される可能性があります。"
         confirmText="はい"
         cancelText="いいえ"
       />
+      {/* ▼▼▼ 変更点: ログアウト専用の確認モーダルを追加 ▼▼▼ */}
+      <ConfirmationModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={() => signOut({ callbackUrl: '/' })}
+        title="ログアウト"
+        message="本当にログアウトしますか？"
+        confirmText="はい"
+        cancelText="いいえ"
+      />
+
       <main className="flex flex-col gap-6">
         <div className="bg-[#1C1C1E] p-4 rounded-lg flex items-center">
           <div className="mr-4">
             {session.user?.image ? (
-              <Image
+              <img
                 src={session.user.image}
                 alt="User Avatar"
                 width={48}
@@ -188,22 +203,22 @@ const LoggedInView = ({ session }: { session: Session }) => {
           <div className="flex-grow">
             <div className="flex items-center gap-2">
               <p className="font-bold text-lg">{session.user?.name || "ユーザー"}</p>
-              {session.user?.role === 'ADMIN' && (
+              {isAdmin && (
                 <span className="text-xs bg-pink-600 text-white font-semibold py-1 px-2 rounded-md">
-                  管理者
+                  {userRole}
                 </span>
               )}
             </div>
           </div>
-          <Link
+          <a
             href={`/profile/${session.user?.id}`}
             className="bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-lg transition-colors duration-200"
           >
             マイプロフィール
-          </Link>
+          </a>
         </div>
 
-        <Link
+        <a
           href="/points"
           className="w-full bg-[#1C1C1E] p-4 rounded-lg flex items-center justify-between cursor-pointer hover:bg-gray-800 transition-colors duration-200"
         >
@@ -217,7 +232,19 @@ const LoggedInView = ({ session }: { session: Session }) => {
             </span>
             <ChevronRight size={20} className="text-gray-400" />
           </div>
-        </Link>
+        </a>
+
+        {isAdmin && (
+          <div className="bg-[#1C1C1E] rounded-lg">
+            <div className="px-4 pt-4 pb-2"><h2 className="text-xs text-gray-500">管理</h2></div>
+            <nav>
+              <a href="/admin" className="w-full flex items-center text-left p-4 hover:bg-gray-800 transition-colors duration-200 cursor-pointer">
+                <Shield size={20} className="text-gray-400" />
+                <span className="ml-4 text-base">管理パネル</span>
+              </a>
+            </nav>
+          </div>
+        )}
 
         <div className="bg-[#1C1C1E] rounded-lg">
           <div className="px-4 pt-4 pb-2"><h2 className="text-xs text-gray-500">MY</h2></div>
@@ -233,14 +260,14 @@ const LoggedInView = ({ session }: { session: Session }) => {
           </nav>
         </div>
 
-        {/* Next.js ルールに合わせて Link を使用 */}
-        <Link
-          href="/api/auth/signout?callbackUrl=/"
+        {/* ▼▼▼ 変更点: <a>タグを<button>に変更し、onClickでモーダルを開くように変更 ▼▼▼ */}
+        <button
+          onClick={() => setIsLogoutModalOpen(true)}
           className="w-full flex items-center justify-center text-left p-4 bg-[#1C1C1E] rounded-lg hover:bg-red-800/50 transition-colors duration-200 cursor-pointer"
         >
           <LogOut size={20} className="text-red-500 mr-3" />
           <span className="text-red-500 font-semibold">ログアウト</span>
-        </Link>
+        </button>
       </main>
     </>
   );
@@ -251,24 +278,24 @@ const LoggedOutView = () => {
   const menuItems = [
     { icon: <Users size={20} className="text-gray-400" />, text: "ディスコード", href: "/discord" },
     { icon: <BookUser size={20} className="text-gray-400" />, text: "ユーザーガイド", href: "/guide" },
-    { icon: <Megaphone size={20} className="text-gray-400" />, text: "お知らせ", badge: "アップデート", href: "/notices" },
+    { icon: <Megaphone size={20} className="text-gray-400" />, text: "お知らせ", badge: "アップデート", href: "/notice" },
   ];
   return (
     <main className="flex flex-col gap-6">
-      <Link
+      <a
         href="/login"
         className="w-full bg-[#1C1C1E] p-4 rounded-lg flex items-center cursor-pointer hover:bg-gray-800 transition-colors duration-200"
       >
         <div className="bg-pink-500 p-3 rounded-full mr-4"><Heart size={24} className="text-white" fill="white" /></div>
         <div className="text-left"><p className="font-semibold">ログインして始める</p></div>
         <ChevronRight size={20} className="text-gray-400 ml-auto" />
-      </Link>
+      </a>
 
       <div className="bg-[#1C1C1E] rounded-lg">
         <div className="px-4 pt-4 pb-2"><h2 className="text-xs text-gray-500">コミュニケーション・案内</h2></div>
         <nav className="flex flex-col">
           {menuItems.map((item, index) => (
-            <Link
+            <a
               key={index}
               href={item.href}
               className="w-full flex items-center text-left p-4 hover:bg-gray-800 transition-colors duration-200 cursor-pointer"
@@ -276,7 +303,7 @@ const LoggedOutView = () => {
               {item.icon}
               <span className="ml-4 text-base">{item.text}</span>
               {item.badge && (<span className="ml-auto text-sm text-pink-400 font-semibold">{item.badge}</span>)}
-            </Link>
+            </a>
           ))}
         </nav>
       </div>

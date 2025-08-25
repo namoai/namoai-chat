@@ -2,7 +2,7 @@ export const runtime = 'nodejs';
 
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client"; // ▼▼▼ 変更点: Role Enumをインポートします ▼▼▼
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 
@@ -52,7 +52,9 @@ export async function GET(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'ADMIN') {
+  // ▼▼▼ 変更点: 権限チェックを MODERATOR と SUPER_ADMIN に変更します ▼▼▼
+  const userRole = session?.user?.role;
+  if (!userRole || (userRole !== Role.MODERATOR && userRole !== Role.SUPER_ADMIN)) {
     return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
   }
 
@@ -85,7 +87,9 @@ export async function PUT(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'ADMIN') {
+  // ▼▼▼ 変更点: 権限チェックを MODERATOR と SUPER_ADMIN に変更します ▼▼▼
+  const userRole = session?.user?.role;
+  if (!userRole || (userRole !== Role.MODERATOR && userRole !== Role.SUPER_ADMIN)) {
     return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
   }
 

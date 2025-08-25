@@ -1,71 +1,76 @@
 export const runtime = 'nodejs';
 
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
+import { Role } from '@prisma/client'; // Role Enumをインポート
+
+// --- ヘルパー関数 ---
 
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0;
 }
-function toIntOrNull(v: unknown) {
+function toIntOrNull(v: unknown): number | null {
   const n = typeof v === 'string' ? Number(v) : (v as number);
-  if (Number.isInteger(n)) return n as number;
+  if (Number.isInteger(n)) return n;
   return null;
 }
 function badRequest(message: string, details?: unknown) {
   return NextResponse.json({ message, details }, { status: 400 });
 }
 
-type RoleSession = {
-  user?: {
-    role?: string;
-  };
-} | null;
-
-async function requireAdmin() {
-  const session = (await getServerSession(authOptions)) as RoleSession;
+/**
+ * ▼▼▼ 変更点: 権限チェック関数を修正 ▼▼▼
+ * ガイド管理権限 (MODERATOR または SUPER_ADMIN) があるか確認します。
+ */
+async function requireGuideManagementPermission() {
+  const session = await getServerSession(authOptions);
   const role = session?.user?.role;
-  if (role !== 'ADMIN') {
-    return { ok: false as const, res: NextResponse.json({ message: 'Unauthorized' }, { status: 401 }) };
+  
+  if (role !== Role.MODERATOR && role !== Role.SUPER_ADMIN) {
+    return { 
+      ok: false as const, 
+      res: NextResponse.json({ message: '権限がありません。' }, { status: 403 }) 
+    };
   }
   return { ok: true as const };
 }
 
 // ── GET /api/admin/guides ───────────────────────────────────────────────
 export async function GET() {
-  const auth = await requireAdmin();
+  const auth = await requireGuideManagementPermission();
   if (!auth.ok) return auth.res;
 
   const guides = await prisma.guides.findMany({
-    orderBy: [{ displayOrder: 'asc' }, { id: 'desc' }],
+    orderBy: [{ mainCategory: 'asc' }, { subCategory: 'asc' }, { displayOrder: 'asc' }],
   });
   return NextResponse.json(guides);
 }
 
 // ── POST /api/admin/guides ──────────────────────────────────────────────
-export async function POST(req: Request) {
-  const auth = await requireAdmin();
+export async function POST(req: NextRequest) {
+  const auth = await requireGuideManagementPermission();
   if (!auth.ok) return auth.res;
 
-  let body: unknown = null;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return badRequest('Invalid JSON');
+    return badRequest('無効なJSON形式です。');
   }
-  if (!body || typeof body !== 'object') return badRequest('Invalid JSON');
+  if (!body || typeof body !== 'object') return badRequest('無効なJSON形式です。');
 
   const { mainCategory, subCategory, title, content, displayOrder } = body as Record<string, unknown>;
 
-  if (!isNonEmptyString(mainCategory)) return badRequest('mainCategory is required');
-  if (!isNonEmptyString(subCategory)) return badRequest('subCategory is required');
-  if (!isNonEmptyString(title)) return badRequest('title is required');
-  if (!isNonEmptyString(content)) return badRequest('content is required');
+  if (!isNonEmptyString(mainCategory)) return badRequest('「大メニュー」は必須です。');
+  if (!isNonEmptyString(subCategory)) return badRequest('「小メニュー」は必須です。');
+  if (!isNonEmptyString(title)) return badRequest('「タイトル」は必須です。');
+  if (!isNonEmptyString(content)) return badRequest('「内容」は必須です。');
 
   const displayOrderInt = toIntOrNull(displayOrder);
   if (displayOrderInt === null || displayOrderInt < 0) {
-    return badRequest('displayOrder must be a non-negative integer');
+    return badRequest('「表示順」は0以上の整数である必要があります。');
   }
 
   const created = await prisma.guides.create({
@@ -75,55 +80,65 @@ export async function POST(req: Request) {
 }
 
 // ── PUT /api/admin/guides ───────────────────────────────────────────────
-export async function PUT(req: Request) {
-  const auth = await requireAdmin();
+export async function PUT(req: NextRequest) {
+  const auth = await requireGuideManagementPermission();
   if (!auth.ok) return auth.res;
 
-  let body: unknown = null;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return badRequest('Invalid JSON');
+    return badRequest('無効なJSON形式です。');
   }
-  if (!body || typeof body !== 'object') return badRequest('Invalid JSON');
+  if (!body || typeof body !== 'object') return badRequest('無効なJSON形式です。');
 
   const { id, mainCategory, subCategory, title, content, displayOrder } = body as Record<string, unknown>;
 
   const idInt = toIntOrNull(id);
-  if (idInt === null || idInt <= 0) return badRequest('id must be a positive integer');
+  if (idInt === null || idInt <= 0) return badRequest('IDは正の整数である必要があります。');
 
-  if (!isNonEmptyString(mainCategory)) return badRequest('mainCategory is required');
-  if (!isNonEmptyString(subCategory)) return badRequest('subCategory is required');
-  if (!isNonEmptyString(title)) return badRequest('title is required');
-  if (!isNonEmptyString(content)) return badRequest('content is required');
+  if (!isNonEmptyString(mainCategory)) return badRequest('「大メニュー」は必須です。');
+  if (!isNonEmptyString(subCategory)) return badRequest('「小メニュー」は必須です。');
+  if (!isNonEmptyString(title)) return badRequest('「タイトル」は必須です。');
+  if (!isNonEmptyString(content)) return badRequest('「内容」は必須です。');
 
   const displayOrderInt = toIntOrNull(displayOrder);
   if (displayOrderInt === null || displayOrderInt < 0) {
-    return badRequest('displayOrder must be a non-negative integer');
+    return badRequest('「表示順」は0以上の整数である必要があります。');
   }
 
-  const updated = await prisma.guides.update({
-    where: { id: idInt },
-    data: { mainCategory, subCategory, title, content, displayOrder: displayOrderInt },
-  });
-  return NextResponse.json(updated);
+  try {
+    const updated = await prisma.guides.update({
+      where: { id: idInt },
+      data: { mainCategory, subCategory, title, content, displayOrder: displayOrderInt },
+    });
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("ガイド更新エラー:", error);
+    return NextResponse.json({ message: "更新に失敗しました。指定されたIDのガイドが存在しない可能性があります。" }, { status: 500 });
+  }
 }
 
 // ── DELETE /api/admin/guides ────────────────────────────────────────────
-export async function DELETE(req: Request) {
-  const auth = await requireAdmin();
+export async function DELETE(req: NextRequest) {
+  const auth = await requireGuideManagementPermission();
   if (!auth.ok) return auth.res;
 
-  let body: unknown = null;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return badRequest('Invalid JSON');
+    return badRequest('無効なJSON形式です。');
   }
 
-  const idInt = body ? toIntOrNull((body as Record<string, unknown>).id) : null;
-  if (idInt === null || idInt <= 0) return badRequest('id must be a positive integer');
+  const idInt = body && typeof body === 'object' ? toIntOrNull((body as Record<string, unknown>).id) : null;
+  if (idInt === null || idInt <= 0) return badRequest('IDは正の整数である必要があります。');
 
-  await prisma.guides.delete({ where: { id: idInt } });
-  return NextResponse.json({ ok: true });
+  try {
+    await prisma.guides.delete({ where: { id: idInt } });
+    return NextResponse.json({ message: 'ガイドが正常に削除されました。' });
+  } catch (error) {
+    console.error("ガイド削除エラー:", error);
+    return NextResponse.json({ message: "削除に失敗しました。指定されたIDのガイドが存在しない可能性があります。" }, { status: 500 });
+  }
 }

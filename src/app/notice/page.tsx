@@ -4,6 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { ArrowLeft, ChevronRight, PlusCircle } from 'lucide-react';
+// ▼▼▼ 変更点: 型安全性のためにRole Enumをインポートします ▼▼▼
+// Client Componentではビルドエラーを避けるため、PrismaのEnumを直接インポートせず、
+// 文字列リテラルとして扱うか、別途定義します。
+// ここではsessionのroleが文字列であることを前提に直接比較します。
 
 // お知らせデータの型定義
 type Notice = {
@@ -47,6 +51,10 @@ export default function NoticesPage() {
     }
   };
 
+  // ▼▼▼ 変更点: 権限チェックのロジックを修正します ▼▼▼
+  const userRole = session?.user?.role;
+  const canCreateNotice = userRole === 'MODERATOR' || userRole === 'SUPER_ADMIN';
+
   if (isLoading) {
     return <div className="min-h-screen bg-black text-white flex items-center justify-center">ローディング中...</div>;
   }
@@ -62,7 +70,9 @@ export default function NoticesPage() {
             <ArrowLeft />
           </button>
           <h1 className="font-bold text-lg absolute left-1/2 -translate-x-1/2">お知らせ</h1>
-          {session?.user?.role === 'ADMIN' ? (
+          
+          {/* ▼▼▼ 変更点: 修正した権限チェック変数を使用します ▼▼▼ */}
+          {canCreateNotice ? (
             <button 
               onClick={() => router.push('/notice/admin')}
               className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"
@@ -70,7 +80,7 @@ export default function NoticesPage() {
               <PlusCircle />
             </button>
           ) : (
-            <div className="w-10 h-10"></div> // 버튼 영역만큼 공간 확보
+            <div className="w-10 h-10"></div> // ボタン領域만큼 공간 확보
           )}
         </header>
 

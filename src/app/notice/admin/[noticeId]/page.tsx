@@ -6,7 +6,8 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import NoticeForm from "@/components/NoticeForm";
-import type { notices } from "@prisma/client";
+// ▼▼▼ 変更点: Role Enumとnotices型をインポートします ▼▼▼
+import { Role, type notices } from "@prisma/client";
 
 async function getNotice(id: number): Promise<notices | null> {
   try {
@@ -25,7 +26,9 @@ export default async function NoticeEditAdminPage({
 }) {
   const session = await getServerSession(authOptions);
 
-  if (session?.user?.role !== 'ADMIN') {
+  // ▼▼▼ 変更点: 権限チェックを MODERATOR と SUPER_ADMIN に変更します ▼▼▼
+  const userRole = session?.user?.role;
+  if (userRole !== Role.MODERATOR && userRole !== Role.SUPER_ADMIN) {
     redirect('/notice');
   }
 

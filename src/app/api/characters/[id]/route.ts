@@ -6,6 +6,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
+import { Role } from '@prisma/client'; // Role Enumをインポートします。
 
 // ✅ Vercelビルドエラーを回避するため、URLから直接IDを解析するヘルパー関数
 function extractIdFromRequest(request: Request): number | null {
@@ -74,23 +75,34 @@ export async function PUT(request: NextRequest) {
     }
 
     const characterIdToUpdate = extractIdFromRequest(request);
-    const userId = parseInt(session.user.id, 10);
+    const currentUser = session.user; // 現在のユーザー情報を取得
 
-    if (characterIdToUpdate === null || isNaN(userId)) {
+    if (characterIdToUpdate === null) {
       return NextResponse.json({ error: '無効なIDです。'}, { status: 400 });
     }
 
     try {
-        const formData = await request.formData();
-
-        const originalCharacter = await prisma.characters.findFirst({
-            where: { id: characterIdToUpdate, author_id: userId }
+        // ▼▼▼ 変更点: まずキャラクターの所有者情報を確認します ▼▼▼
+        const characterToUpdate = await prisma.characters.findUnique({
+            where: { id: characterIdToUpdate },
+            select: { author_id: true }
         });
 
-        if (!originalCharacter) {
-            return NextResponse.json({ error: 'キャラクターが見つからないか、更新権限がありません。' }, { status: 404 });
+        if (!characterToUpdate) {
+            return NextResponse.json({ error: 'キャラクターが見つかりません。' }, { status: 404 });
         }
 
+        // ▼▼▼ 変更点: 権限チェックロジックを追加 ▼▼▼
+        const isOwner = characterToUpdate.author_id === parseInt(currentUser.id, 10);
+        const hasAdminPermission = currentUser.role === Role.CHAR_MANAGER || currentUser.role === Role.SUPER_ADMIN;
+
+        if (!isOwner && !hasAdminPermission) {
+            return NextResponse.json({ error: 'このキャラクターを編集する権限がありません。' }, { status: 403 });
+        }
+        
+        // --- 権限チェックここまで ---
+
+        const formData = await request.formData();
         const updatedCharacter = await prisma.$transaction(async (tx) => {
             const imagesToDeleteString = formData.get('imagesToDelete') as string;
             if (imagesToDeleteString) {
@@ -167,34 +179,43 @@ export async function PUT(request: NextRequest) {
     }
 }
 
-// DELETE: 特定のキャラクターを削除します (変更なし)
+// DELETE: 特定のキャラクターを削除します (権限ロジックを修正)
 export async function DELETE(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
         return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
     }
 
-    const characterId = extractIdFromRequest(request);
-    const userId = parseInt(session.user.id, 10);
+    const characterIdToDelete = extractIdFromRequest(request);
+    const currentUser = session.user; // 現在のユーザー情報を取得
 
-    if (characterId === null || isNaN(userId)) {
+    if (characterIdToDelete === null) {
         return NextResponse.json({ error: '無効なIDです。'}, { status: 400 });
     }
 
     try {
-        const character = await prisma.characters.findFirst({
-            where: {
-                id: characterId,
-                author_id: userId,
-            },
+        // ▼▼▼ 変更点: まずIDでキャラクターを検索し、所有者情報を確認します ▼▼▼
+        const characterToDelete = await prisma.characters.findUnique({
+            where: { id: characterIdToDelete },
             include: { characterImages: true }
         });
 
-        if (!character) {
-            return NextResponse.json({ error: 'キャラクターが見つからないか、削除権限がありません。' }, { status: 404 });
+        if (!characterToDelete) {
+            return NextResponse.json({ error: 'キャラクターが見つかりません。' }, { status: 404 });
+        }
+
+        // ▼▼▼ 変更点: PUTと同様の権限チェックロジックを追加します ▼▼▼
+        const isOwner = characterToDelete.author_id === parseInt(currentUser.id, 10);
+        const hasAdminPermission = currentUser.role === Role.CHAR_MANAGER || currentUser.role === Role.SUPER_ADMIN;
+
+        if (!isOwner && !hasAdminPermission) {
+            return NextResponse.json({ error: 'このキャラクターを削除する権限がありません。' }, { status: 403 });
         }
         
-        for (const img of character.characterImages) {
+        // --- 権限チェックここまで ---
+
+        // 関連する画像ファイルを物理的に削除します
+        for (const img of characterToDelete.characterImages) {
             const filePath = path.join(process.cwd(), 'public', img.imageUrl);
             try {
                 await fs.unlink(filePath);
@@ -203,8 +224,9 @@ export async function DELETE(request: NextRequest) {
             }
         }
 
+        // データベースからキャラクターを削除します
         await prisma.characters.delete({
-            where: { id: characterId },
+            where: { id: characterIdToDelete },
         });
 
         return NextResponse.json({ message: 'キャラクターが正常に削除されました。' }, { status: 200 });

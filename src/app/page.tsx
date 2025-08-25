@@ -153,7 +153,7 @@ export default function HomePage() {
             <Trophy />
           </a>
           <a
-            href="/mypage"
+            href="/MyPage"
             title="マイページ"
             className="p-2 rounded-full hover:bg-pink-500/20 hover:text-white transition-colors cursor-pointer"
           >

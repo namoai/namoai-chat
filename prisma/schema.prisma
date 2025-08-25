@@ -41,7 +41,7 @@ model users {
   bio              String?
   safetyFilter     Boolean        @default(true)
   defaultPersonaId Int?
-  role             String         @default("USER") @db.VarChar(50)
+  role             Role           @default(USER)
   characters       characters[]
   chat             chat[]
   favorites        favorites[]
@@ -165,4 +165,11 @@ model guides {
   createdAt    DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([mainCategory, subCategory])
+}
+
+enum Role {
+  USER
+  MODERATOR
+  CHAR_MANAGER
+  SUPER_ADMIN
 }
