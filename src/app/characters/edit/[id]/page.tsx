@@ -3,21 +3,48 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import CharacterForm from "@/components/CharacterForm"; // パスが異なる場合は修正してください。
-import { Role } from "@prisma/client"; // Role Enumをインポート
+import CharacterForm from "@/components/CharacterForm";
+import { Role } from "@prisma/client";
+import { User } from "next-auth"; // next-authのUser型をインポート
+
+type Visibility = "public" | "link" | "private";
+
+// キャラクターデータの型
+type CharacterData = {
+  id: number;
+  name: string;
+  description: string | null;
+  systemTemplate: string | null;
+  firstSituation: string | null;
+  firstMessage: string | null;
+  visibility: Visibility | null;
+  safetyFilter: boolean | null;
+  category: string | null;
+  hashtags: string[];
+  detailSetting: string | null;
+  author_id: number | null;
+  // ▼▼▼ 変更点: characterImagesの型にidを追加します ▼▼▼
+  characterImages: { id: number; imageUrl: string; keyword: string | null }[];
+};
+
+// セッションのユーザー情報にroleを追加した型
+interface AppUser extends User {
+  id: string;
+  role: Role;
+}
 
 export default function CharacterEditPage() {
   const router = useRouter();
   const params = useParams();
-  const { data: session, status } = useSession(); // sessionデータも取得
+  const { data: session, status } = useSession();
   const characterId = params.id as string;
 
-  const [initialData, setInitialData] = useState<any>(null); // 型をanyに設定、または適切な型定義を推奨
+  const [initialData, setInitialData] = useState<CharacterData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchCharacterData = useCallback(async () => {
-    if (!characterId || !session?.user) return; // sessionの存在も確認
+    if (!characterId || !session?.user) return;
     try {
       setLoading(true);
       const response = await fetch(`/api/characters/${characterId}`);
@@ -29,20 +56,16 @@ export default function CharacterEditPage() {
       }
       const data = await response.json();
 
-      // ▼▼▼【重要】権限チェックロジックを追加 ▼▼▼
-      const currentUser = session.user as any; // session.userの型を拡張した場合、anyは不要
+      const currentUser = session.user as AppUser;
       const isOwner = data.author_id === parseInt(currentUser.id, 10);
       const hasAdminPermission = currentUser.role === Role.CHAR_MANAGER || currentUser.role === Role.SUPER_ADMIN;
 
       if (!isOwner && !hasAdminPermission) {
-        // 権限がない場合はエラーを設定
         setError("このキャラクターを編集する権限がありません。");
-        setInitialData(null); // データは保持しない
+        setInitialData(null);
       } else {
-        // 権限がある場合のみデータをセット
         setInitialData(data);
       }
-      // ▲▲▲ ここまで ▲▲▲
 
     } catch (err) {
       console.error(err);
@@ -56,7 +79,7 @@ export default function CharacterEditPage() {
     if (status === "authenticated") {
       fetchCharacterData();
     } else if (status === "unauthenticated") {
-      router.push("/login"); // 日本語サイトに合わせて /login など適切なパスに変更
+      router.push("/login");
     }
   }, [status, fetchCharacterData, router]);
 
@@ -79,11 +102,21 @@ export default function CharacterEditPage() {
     );
   }
 
-  // initialDataが存在し、かつエラーがない場合にのみフォームを表示
   if (initialData) {
-    return <CharacterForm isEditMode={true} initialData={initialData} />;
+    const formCompatibleData = {
+      ...initialData,
+      id: initialData.id.toString(), 
+      description: initialData.description ?? undefined,
+      systemTemplate: initialData.systemTemplate ?? undefined,
+      firstSituation: initialData.firstSituation ?? undefined,
+      firstMessage: initialData.firstMessage ?? undefined,
+      visibility: (initialData.visibility ?? undefined) as Visibility | undefined,
+      safetyFilter: initialData.safetyFilter ?? undefined,
+      category: initialData.category ?? undefined,
+      detailSetting: initialData.detailSetting ?? undefined,
+    };
+    return <CharacterForm isEditMode={true} initialData={formCompatibleData} />;
   }
   
-  // initialDataがなく、エラーも表示された後、ここに到達することがある
   return null;
 }

@@ -6,7 +6,8 @@ import {
   User, ShieldCheck, BrainCircuit, LogOut, Coins, Shield,
 } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
-import { signOut } from "next-auth/react"; // ▼▼▼ 変更点: signOut関数をインポート ▼▼▼
+import { signOut } from "next-auth/react";
+import Image from "next/image"; // ▼▼▼ 変更点: next/imageのImageコンポーネントをインポート ▼▼▼
 
 // ユーザーのプロフィール画像がない場合に表示するデフォルトのSVGアイコンコンポーネント
 const DefaultAvatarIcon = ({ size = 48 }: { size?: number }) => (
@@ -58,7 +59,6 @@ const LoggedInView = ({ session }: { session: Session }) => {
   const [points, setPoints] = useState<{ total: number; loading: boolean }>({ total: 0, loading: true });
   const [isSafetyFilterOn, setIsSafetyFilterOn] = useState(true);
   const [isSafetyModalOpen, setIsSafetyModalOpen] = useState(false);
-  // ▼▼▼ 変更点: ログアウト確認モーダルのためのstateを追加 ▼▼▼
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const userRole = session?.user?.role;
@@ -174,7 +174,6 @@ const LoggedInView = ({ session }: { session: Session }) => {
         confirmText="はい"
         cancelText="いいえ"
       />
-      {/* ▼▼▼ 変更点: ログアウト専用の確認モーダルを追加 ▼▼▼ */}
       <ConfirmationModal
         isOpen={isLogoutModalOpen}
         onClose={() => setIsLogoutModalOpen(false)}
@@ -188,8 +187,9 @@ const LoggedInView = ({ session }: { session: Session }) => {
       <main className="flex flex-col gap-6">
         <div className="bg-[#1C1C1E] p-4 rounded-lg flex items-center">
           <div className="mr-4">
+            {/* ▼▼▼ 変更点: <img>を<Image>コンポーネントに変更 ▼▼▼ */}
             {session.user?.image ? (
-              <img
+              <Image
                 src={session.user.image}
                 alt="User Avatar"
                 width={48}
@@ -260,7 +260,6 @@ const LoggedInView = ({ session }: { session: Session }) => {
           </nav>
         </div>
 
-        {/* ▼▼▼ 変更点: <a>タグを<button>に変更し、onClickでモーダルを開くように変更 ▼▼▼ */}
         <button
           onClick={() => setIsLogoutModalOpen(true)}
           className="w-full flex items-center justify-center text-left p-4 bg-[#1C1C1E] rounded-lg hover:bg-red-800/50 transition-colors duration-200 cursor-pointer"

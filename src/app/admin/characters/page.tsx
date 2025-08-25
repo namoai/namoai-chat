@@ -82,7 +82,8 @@ export default function AdminCharactersPage() {
                 alert('このページにアクセスする権限がありません。');
                 router.push('/admin');
             }
-        } catch (error) {
+        } catch (err) { // ▼▼▼ 変更点: 未使用のerror変数を削除し、errを使用 ▼▼▼
+            console.error("セッション確認エラー:", err);
             router.push('/login');
         }
     };
