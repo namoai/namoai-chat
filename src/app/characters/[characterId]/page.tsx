@@ -5,8 +5,8 @@ import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Heart, MessageSquare, MoreVertical, ArrowLeft } from 'lucide-react';
+import { useSession } from 'next-auth/react'; // useSessionをインポート
 
-// ▼▼▼ 変更点 1: API応答の型定義を更新 ▼▼▼
 type Author = {
   name: string;
   nickname: string;
@@ -26,7 +26,7 @@ type CharacterDetail = {
   author: Author | null;
   _count: {
     favorites: number;
-    chat: number; // `chat`カウントを追加
+    chat: number;
   };
 };
 
@@ -34,31 +34,38 @@ export default function CharacterDetailPage() {
   const router = useRouter();
   const params = useParams<{ characterId: string }>();
   const { characterId } = params;
+  const { data: session, status: sessionStatus } = useSession(); // セッション状態を取得
 
   const [character, setCharacter] = useState<CharacterDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null); // エラーメッセージ用のstate
   const [isCreatingChat, setIsCreatingChat] = useState(false);
 
   useEffect(() => {
     if (characterId) {
       const fetchCharacter = async () => {
         setLoading(true);
+        setError(null); // フェッチ開始時にエラーをリセット
         try {
           const response = await fetch(`/api/characters/${characterId}`);
-          if (!response.ok) throw new Error("キャラクター情報の読み込みに失敗");
           const data = await response.json();
+
+          if (!response.ok) {
+            // APIからのエラーメッセージを優先して使用
+            throw new Error(data.error || "キャラクター情報の読み込みに失敗しました。");
+          }
+          
           setCharacter(data);
-        } catch (error) {
-          console.error(error);
-          alert("キャラクター情報の読み込みに失敗しました。");
-          router.back();
+        } catch (err) {
+          console.error(err);
+          setError((err as Error).message); // エラーメッセージをstateに保存
         } finally {
           setLoading(false);
         }
       };
       fetchCharacter();
     }
-  }, [characterId, router]);
+  }, [characterId]);
 
   const handleNewChat = async () => {
     setIsCreatingChat(true);
@@ -66,10 +73,11 @@ export default function CharacterDetailPage() {
       const response = await fetch('/api/chats/find-or-create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ characterId, forceCreate: true }),
+        body: JSON.stringify({ characterId: Number(characterId), forceCreate: true }),
       });
       if (!response.ok) throw new Error('新規チャットの作成に失敗');
-      router.push(`/chat/${characterId}`);
+      const chat = await response.json();
+      router.push(`/chat/${characterId}?chatId=${chat.id}`);
     } catch (error) {
       console.error(error);
       alert('新規チャットの作成に失敗しました。');
@@ -78,8 +86,25 @@ export default function CharacterDetailPage() {
     }
   };
 
-  if (loading || !character) {
+  if (loading) {
     return <div className="flex h-screen items-center justify-center bg-black text-white">ローディング中...</div>;
+  }
+
+  // ▼▼▼ 変更点: エラー発生時に専用UIを表示 ▼▼▼
+  if (error) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-black text-white p-4 text-center">
+        <p className="text-red-500 text-lg mb-4">エラー</p>
+        <p className="mb-6">{error}</p>
+        <button onClick={() => router.back()} className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">
+          前のページに戻る
+        </button>
+      </div>
+    );
+  }
+
+  if (!character) {
+    return <div className="flex h-screen items-center justify-center bg-black text-white">キャラクターが見つかりません。</div>;
   }
   
   const creationDate = new Date(character.createdAt).toLocaleDateString('ja-JP');
@@ -87,7 +112,7 @@ export default function CharacterDetailPage() {
 
   return (
     <div className="bg-black text-white min-h-screen">
-      <div className="mx-auto max-w-2xl pb-20"> {/* 下部のボタンに隠れないようにパディングを追加 */}
+      <div className="mx-auto max-w-2xl pb-20">
         <div className="relative">
           <header className="absolute top-0 left-0 right-0 z-10 flex justify-between p-4 bg-gradient-to-b from-black/60 to-transparent">
             <button onClick={() => router.back()} className="rounded-full p-1 hover:bg-black/50">
@@ -100,7 +125,7 @@ export default function CharacterDetailPage() {
           
           <div className="relative aspect-square w-full sm:aspect-[4/3]">
             <Image
-              src={character.characterImages[0]?.imageUrl || '/default-character-image.png'}
+              src={character.characterImages[0]?.imageUrl || 'https://placehold.co/600x800/1a1a1a/ffffff?text=?'}
               alt={character.name}
               fill
               className="object-cover"
@@ -118,7 +143,6 @@ export default function CharacterDetailPage() {
             <div className="flex items-center gap-2">
               <span className="font-semibold">{character.author?.nickname || '作者不明'}</span>
             </div>
-            {/* ▼▼▼ 変更点 2: チャット数といいね数を動的データに置き換え ▼▼▼ */}
             <div className="flex items-center gap-4 text-gray-400">
               <div className="flex items-center gap-1">
                 <MessageSquare size={16} />
@@ -150,21 +174,33 @@ export default function CharacterDetailPage() {
         </div>
       </div>
 
-
+      {/* ▼▼▼ 変更点: ログイン状態に応じてボタン表示を切り替え ▼▼▼ */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-black border-t border-gray-800">
         <div className="mx-auto max-w-2xl flex gap-4">
-          <Link href={`/chat/${characterId}`} className="flex-1">
-            <button className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition-colors">
-              続きから会話
+          {sessionStatus === 'authenticated' ? (
+            <>
+              <Link href={`/chat/${characterId}`} className="flex-1">
+                <button className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition-colors">
+                  続きから会話
+                </button>
+              </Link>
+              <button 
+                onClick={handleNewChat}
+                disabled={isCreatingChat}
+                className="flex-1 w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors disabled:bg-pink-800 disabled:cursor-not-allowed"
+              >
+                {isCreatingChat ? '作成中...' : '新しいチャットを開始'}
+              </button>
+            </>
+          ) : sessionStatus === 'unauthenticated' ? (
+            <button onClick={() => router.push('/login')} className="w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors">
+              チャットするにはログインが必要です
             </button>
-          </Link>
-          <button 
-            onClick={handleNewChat}
-            disabled={isCreatingChat}
-            className="flex-1 w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors disabled:bg-pink-800 disabled:cursor-not-allowed"
-          >
-            {isCreatingChat ? '作成中...' : '新しいチャットを開始'}
-          </button>
+          ) : (
+            <button className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-lg" disabled>
+              読み込み中...
+            </button>
+          )}
         </div>
       </div>
     </div>

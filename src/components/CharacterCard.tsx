@@ -17,8 +17,9 @@ export default function CharacterCard({ character }: CharacterCardProps) {
     <Link href={`/characters/${character.id}`}>
       <div className="flex-shrink-0 w-40 space-y-2 cursor-pointer">
         <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden">
+          {/* ▼▼▼ 変更点: 基本キャラクター画像を追加 ▼▼▼ */}
           <Image
-            src={character.characterImages[0]?.imageUrl || '/default-avatar.png'}
+            src={character.characterImages[0]?.imageUrl || 'https://placehold.co/300x400/1a1a1a/ffffff?text=?'}
             alt={character.name}
             fill
             className="object-cover"

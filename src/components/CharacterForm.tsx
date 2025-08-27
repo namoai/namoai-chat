@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { X } from "lucide-react";
 
-// --- 상수 및 타입 정의 (공통) ---
+// --- 定数と型定義（共通） ---
 const CATEGORIES = [
   "シミュレーション", "ロマンス", "ファンタジー/SF", "ドラマ", "武侠/時代劇", "GL", "BL",
   "ホラー/ミステリー", "アクション", "コメディ/日常", "スポーツ/学園", "その他",
@@ -29,7 +29,7 @@ const SUGGESTED_HASHTAGS = [
   "青春", "学園", "일상", "母親", "超能力", "妹",
 ];
 
-// 폼 데이터 타입
+// フォームデータ型
 type FormState = {
   name: string;
   description: string;
@@ -43,21 +43,21 @@ type FormState = {
   hashtags: string[];
 };
 
-// 이미지 데이터 타입 (기존/신규 이미지 모두 처리)
+// 画像データ型（既存・新規画像の両方を処理）
 type DisplayImage = {
-  id?: number; // 기존 이미지 ID
-  imageUrl?: string; // 기존 이미지 URL
-  file?: File; // 신규 추가 파일
+  id?: number; // 既存の画像ID
+  imageUrl?: string; // 既存の画像URL
+  file?: File; // 新規追加ファイル
   keyword: string;
 };
 
-// 컴포넌트 Props 타입
+// コンポーネントのProps型
 interface CharacterFormProps {
   isEditMode: boolean;
   initialData?: Partial<FormState & { id: string; characterImages: { id: number; imageUrl: string; keyword: string | null }[] }>;
 }
 
-// --- HashtagModal (변경 없음, 그대로 사용) ---
+// --- HashtagModal（変更なし、そのまま使用） ---
 interface HashtagModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -66,7 +66,6 @@ interface HashtagModalProps {
 }
 
 const HashtagModal = ({ isOpen, onClose, onComplete, initialHashtags }: HashtagModalProps) => {
-    // ... (기존 HashtagModal 코드와 동일)
     const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set(initialHashtags));
     const [searchTerm, setSearchTerm] = useState("");
     const [customTag, setCustomTag] = useState("");
@@ -164,7 +163,7 @@ const HashtagModal = ({ isOpen, onClose, onComplete, initialHashtags }: HashtagM
 };
 
 
-// --- 메인 폼 컴포넌트 ---
+// --- メインフォームコンポーネント ---
 export default function CharacterForm({ isEditMode, initialData }: CharacterFormProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -183,7 +182,7 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
   const [isHashtagModalOpen, setIsHashtagModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 수정 모드일 때 초기 데이터 설정
+  // 編集モードの場合、初期データを設定
   useEffect(() => {
     if (isEditMode && initialData) {
       setForm({
@@ -208,7 +207,7 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
     }
   }, [isEditMode, initialData]);
 
-  // 비로그인 사용자 리디렉션
+  // 未ログインユーザーのリダイレクト
   useEffect(() => {
     if (status === "unauthenticated") {
       alert("ログインが必要です。");
@@ -258,10 +257,17 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
   };
 
   const handleSubmit = async () => {
+    // ▼▼▼ 変更点: 유효성 검사 로직 추가 ▼▼▼
     if (!form.name.trim()) {
       alert("キャラクターの名前は必須項目です。");
       return;
     }
+    if (images.length === 0) {
+      alert("キャラクターの画像を1枚以上登録してください。");
+      return;
+    }
+    // ▲▲▲ 여기까지 ▲▲▲
+
     if (!session?.user?.id) {
       alert("ログインセッションが見つかりません。再度ログインしてください。");
       router.push('/login');
@@ -272,18 +278,18 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
 
     const formData = new FormData();
 
-    // 텍스트 데이터 추가
+    // テキストデータを追加
     Object.entries(form).forEach(([key, value]) => {
         formData.append(key, Array.isArray(value) ? JSON.stringify(value) : String(value));
     });
 
     if (isEditMode) {
-      // 수정 모드 로직
+      // 編集モードのロジック
       formData.append('imagesToDelete', JSON.stringify(imagesToDelete));
       
       let newImageIndex = 0;
       images.forEach((img) => {
-        if (img.file) { // 새로 추가된 파일만 전송
+        if (img.file) { // 新規追加されたファイルのみを送信
           formData.append(`new_image_${newImageIndex}`, img.file);
           formData.append(`new_keyword_${newImageIndex}`, img.keyword);
           newImageIndex++;
@@ -292,7 +298,7 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
       formData.append('newImageCount', String(newImageIndex));
 
     } else {
-      // 생성 모드 로직
+      // 作成モードのロジック
       formData.append("userId", session.user.id);
       formData.append("imageCount", String(images.length));
       images.forEach((imageMeta, index) => {
@@ -334,7 +340,7 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
     );
   }
 
-  // JSX 렌더링
+  // JSXレンダリング
   return (
     <>
       <div className="min-h-screen bg-black text-white px-4 py-8 max-w-4xl mx-auto font-sans">
@@ -345,7 +351,7 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
           {isEditMode ? "キャラクター修正" : "キャラクター作成"}
         </h1>
 
-        {/* --- 스텝 네비게이션 (공통 UI) --- */}
+        {/* --- ステップナビゲーション（共通UI） --- */}
         <div className="flex space-x-2 border-b border-gray-700 mb-6 text-sm overflow-x-auto">
           {["プロフィール", "キャラクター画像", "詳細情報", "開始状況", "その他設定", "ロアブック", "修正および登録"].map((label, index) => (
             <div key={label} className={`pb-2 px-2 cursor-pointer whitespace-nowrap transition-all ${step === index ? "border-b-2 border-pink-500 font-semibold" : "text-gray-400"}`} onClick={() => setStep(index)}>
@@ -354,7 +360,7 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
           ))}
         </div>
 
-        {/* --- 폼 섹션 (공통 UI) --- */}
+        {/* --- フォームセクション（共通UI） --- */}
         {step === 0 && ( /* プロフィール */
             <div className="space-y-4">
                 <Input placeholder="キャラクターの名前を入力してください" value={form.name} maxLength={20} onChange={(e) => handleChange("name", e.target.value)} className="rounded-md" />
@@ -385,7 +391,7 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
             </div>
         )}
 
-        {/* --- 나머지 스텝 (2, 3, 4)도 위와 같이 value와 onChange를 form state에 맞게 연결합니다 --- */}
+        {/* --- 残りのステップ（2, 3, 4）も上記と同様にvalueとonChangeをform stateに接続します --- */}
         {step === 2 && ( /* 詳細情報 */
             <div className="space-y-4">
                 <label className="block text-sm font-medium text-gray-200">システムテンプレート</label>
@@ -455,7 +461,7 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
         </div>
       </div>
 
-      {/* --- 모달 (공통 UI) --- */}
+      {/* --- モーダル（共通UI） --- */}
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
           <DialogContent className="sm:max-w-[425px] bg-gray-800 text-white border-gray-700">
             <DialogHeader><DialogTitle>キーワード入力</DialogTitle></DialogHeader>

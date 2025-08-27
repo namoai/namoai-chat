@@ -1,16 +1,15 @@
 "use client";
 
-import { Suspense } from 'react'; // Suspense를 import합니다.
+import { Suspense } from 'react';
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FcGoogle } from "react-icons/fc";
-import { Mail, Lock } from "lucide-react";
+import { Mail, Lock, ArrowLeft } from "lucide-react"; // ArrowLeft アイコンをインポート
 import { signIn } from "next-auth/react";
 
-// useSearchParams를 사용하는 로직을 별도의 컴포넌트로 분리합니다.
 function LoginComponent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,7 +27,6 @@ function LoginComponent() {
           alert("ログインに失敗しました。後でもう一度お試しください。");
           break;
       }
-      // 에러 메시지를 표시한 후 URL에서 에러 쿼리를 제거하여 새로고침 시 다시 표시되지 않도록 합니다.
       router.replace('/login', { scroll: false });
     }
   }, [searchParams, router]);
@@ -109,9 +107,22 @@ function LoginComponent() {
 }
 
 export default function LoginPage() {
+  const router = useRouter(); // router를 여기서도 사용하기 위해 추가
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center px-4 py-8">
-      <h1 className="text-xl font-semibold mb-6">ログイン/会員登録</h1>
+      {/* ▼▼▼ 変更点: ヘッダーを追加して「戻る」ボタンを配置 ▼▼▼ */}
+      <header className="w-full max-w-md flex items-center justify-between mb-6">
+        <button 
+          onClick={() => router.back()} 
+          className="p-2 rounded-full hover:bg-gray-700 transition-colors cursor-pointer"
+        >
+          <ArrowLeft size={24} />
+        </button>
+        <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">ログイン/会員登録</h1>
+        <div className="w-10 h-10"></div> {/* 右側のスペース確保用 */}
+      </header>
+      
       <Suspense fallback={<div className="text-white">読み込み中...</div>}>
         <LoginComponent />
       </Suspense>

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from 'next/navigation';
 import { VscChevronLeft, VscSearch } from "react-icons/vsc";
-import { BsThreeDotsVertical, BsPlusCircle } from "react-icons/bs";
+import { BsThreeDotsVertical, BsTrash } from "react-icons/bs";
 
 type ChatData = {
   id: number;
@@ -22,11 +22,15 @@ export default function ChatListPage() {
   const router = useRouter();
   const [chats, setChats] = useState<ChatData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedChatIds, setSelectedChatIds] = useState<Set<number>>(new Set());
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchChats = async () => {
       try {
-        const response = await fetch("/api/chats");
+        const response = await fetch("/api/chatlist");
         if (!response.ok) throw new Error("データ取得失敗");
         const data = await response.json();
         setChats(data);
@@ -39,21 +43,66 @@ export default function ChatListPage() {
     fetchChats();
   }, []);
 
-  const handleNewChat = async (characterId: number) => {
-    try {
-      const response = await fetch('/api/chats/find-or-create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ characterId, forceCreate: true }),
-      });
-      if (!response.ok) throw new Error('新規チャットの作成に失敗');
-      
-      router.push(`/chat/${characterId}`);
-    } catch (error) {
-      console.error(error);
-      alert('新規チャットの作成に失敗しました。');
+  // メニュー外をクリックしたときに閉じる処理
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleToggleSelection = (chatId: number) => {
+    setSelectedChatIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(chatId)) {
+        newSet.delete(chatId);
+      } else {
+        newSet.add(chatId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedChatIds.size === 0) {
+      alert('削除するチャットを選択してください。');
+      return;
+    }
+    if (confirm(`${selectedChatIds.size}件のチャット履歴を本当に削除しますか？`)) {
+      try {
+        const response = await fetch('/api/chatlist', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chatIds: Array.from(selectedChatIds) }),
+        });
+
+        if (!response.ok) throw new Error('チャットの削除に失敗しました。');
+        
+        setChats(current => current.filter(chat => !selectedChatIds.has(chat.id)));
+        alert(`${selectedChatIds.size}件のチャットを削除しました。`);
+        setIsSelectionMode(false);
+        setSelectedChatIds(new Set());
+
+      } catch (error) {
+        console.error(error);
+        alert('エラーが発生しました。');
+      }
     }
   };
+
+  const enterSelectionMode = () => {
+    setIsSelectionMode(true);
+    setIsMenuOpen(false);
+  };
+  
+  const cancelSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedChatIds(new Set());
+  };
+
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center bg-[#1c1c1e] text-gray-400">ローディング中...</div>;
@@ -62,34 +111,66 @@ export default function ChatListPage() {
   return (
     <div className="min-h-screen bg-[#1c1c1e] p-4 font-sans text-[#f2f2f7]">
       <header className="mb-5 flex items-center justify-between">
-        <button onClick={() => router.back()} className="rounded-full p-1 hover:bg-gray-700">
-          <VscChevronLeft size={24} />
-        </button>
-        <h1 className="text-lg font-semibold">チャット</h1>
-        <BsThreeDotsVertical size={20} className="cursor-pointer" />
+        {isSelectionMode ? (
+          <button onClick={cancelSelectionMode} className="text-pink-400">キャンセル</button>
+        ) : (
+          <button onClick={() => router.back()} className="rounded-full p-1 hover:bg-gray-700">
+            <VscChevronLeft size={24} />
+          </button>
+        )}
+        <h1 className="text-lg font-semibold">
+          {isSelectionMode ? `${selectedChatIds.size}件選択中` : 'チャット'}
+        </h1>
+        {isSelectionMode ? (
+          <button onClick={handleBulkDelete} className="text-pink-400 disabled:text-gray-500" disabled={selectedChatIds.size === 0}>
+            削除
+          </button>
+        ) : (
+          <div className="relative" ref={menuRef}>
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)}>
+              <BsThreeDotsVertical size={20} className="cursor-pointer" />
+            </button>
+            {isMenuOpen && (
+              <div className="absolute right-0 mt-2 w-40 bg-gray-700 rounded-md shadow-lg z-10">
+                <button onClick={enterSelectionMode} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-600">
+                  選択削除
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </header>
 
-      <div className="relative mb-6">
-        <VscSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-        <input
-          type="text"
-          placeholder="チャット検索"
-          className="w-full rounded-lg border-none bg-[#2c2c2e] p-2.5 pl-10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
-        />
-      </div>
+      {!isSelectionMode && (
+        <div className="relative mb-6">
+          <VscSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <input
+            type="text"
+            placeholder="チャット検索"
+            className="w-full rounded-lg border-none bg-[#2c2c2e] p-2.5 pl-10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
+          />
+        </div>
+      )}
 
       <main>
         {chats.length > 0 ? (
           chats.map((chat) => (
-            <div key={chat.id} className="mb-4 flex items-center justify-between rounded-xl p-2 transition-colors hover:bg-[#2c2c2e]">
-              {/* ▼▼▼ 変更点: LinkのhrefにchatIdをクエリパラメータとして追加します ▼▼▼ */}
-              <Link href={`/chat/${chat.characterId}?chatId=${chat.id}`} className="flex flex-grow items-start overflow-hidden">
+            <div key={chat.id} className={`mb-4 flex items-center justify-between rounded-xl p-2 transition-colors ${isSelectionMode ? 'hover:bg-[#2c2c2e]' : ''}`}>
+              {isSelectionMode && (
+                <input
+                  type="checkbox"
+                  checked={selectedChatIds.has(chat.id)}
+                  onChange={() => handleToggleSelection(chat.id)}
+                  className="form-checkbox h-5 w-5 bg-gray-700 border-gray-600 text-pink-500 focus:ring-pink-500 rounded mr-4"
+                />
+              )}
+              <Link href={isSelectionMode ? '#' : `/chat/${chat.characterId}?chatId=${chat.id}`} className="flex flex-grow items-start overflow-hidden">
                 <Image
                   src={chat.characters.characterImages[0]?.imageUrl || "/avatars/default.png"}
                   alt={chat.characters.name}
                   width={50}
                   height={50}
-                  className="mr-3 rounded-full"
+                  className="mr-3 rounded-full object-cover"
                 />
                 <div className="flex-grow overflow-hidden">
                   <div className="mb-1 flex items-center justify-between">
@@ -105,13 +186,6 @@ export default function ChatListPage() {
                   </p>
                 </div>
               </Link>
-              <button 
-                onClick={() => handleNewChat(chat.characterId)}
-                className="ml-4 flex-shrink-0 rounded-full p-2 text-gray-400 hover:bg-gray-600 hover:text-white"
-                title="新しいチャットを開始"
-              >
-                <BsPlusCircle size={22} />
-              </button>
             </div>
           ))
         ) : (

@@ -2,122 +2,77 @@ export const runtime = 'nodejs';
 
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import {
-  VertexAI,
-  HarmCategory,
-  HarmBlockThreshold,
-  Content,
-} from "@google-cloud/vertexai";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/nextauth";
 
-// PrismaとVertex AIを初期化
-const vertex_ai = new VertexAI({
-  project: process.env.GOOGLE_PROJECT_ID || "meta-scanner-466006-v8",
-  location: "us-central1",
-});
-
-const generativeModel = vertex_ai.getGenerativeModel({
-  model: "gemini-1.5-pro",
-  safetySettings: [
-    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-  ],
-});
-
-// ✅ Vercelビルドエラーを回避するため、URLから直接IDを解析するヘルパー関数
-function extractChatIdFromRequest(request: Request): number | null {
-  const url = new URL(request.url);
-  const idStr = url.pathname.split('/').pop();
-  if (!idStr) return null;
-  const parsedId = parseInt(idStr, 10);
-  return isNaN(parsedId) ? null : parsedId;
-}
-
-
-export async function POST(
-  request: NextRequest
-) {
-  const { message } = await request.json();
-  const numericChatId = extractChatIdFromRequest(request);
-
-  if (numericChatId === null) {
-    return NextResponse.json({ error: "無効なチャットIDです。" }, { status: 400 });
+/**
+ * GET: ログインユーザーのチャットリストを取得します
+ */
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "認証されていません。" }, { status: 401 });
   }
-
-  if (!message) {
-    return NextResponse.json({ error: "メッセージがありません。" }, { status: 400 });
-  }
+  const userId = parseInt(session.user.id, 10);
 
   try {
-    // --- 1. データベースからチャットとキャラクター情報を取得 ---
-    const chatRoom = await prisma.chat.findUnique({
-      where: { id: numericChatId },
+    const chats = await prisma.chat.findMany({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
       include: {
-        characters: true, // スキーマに合わせて `characters` をインクルード
+        characters: {
+          include: {
+            characterImages: {
+              take: 1,
+              orderBy: { displayOrder: 'asc' },
+            },
+          },
+        },
+        chat_message: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
       },
     });
+    return NextResponse.json(chats);
+  } catch (error) {
+    console.error("チャットリストの取得エラー:", error);
+    return NextResponse.json({ error: "サーバーエラーが発生しました。" }, { status: 500 });
+  }
+}
 
-    if (!chatRoom || !chatRoom.characters) {
-      return NextResponse.json({ error: "チャットまたはキャラクターが見つかりません。" }, { status: 404 });
+/**
+ * DELETE: 特定のチャット履歴を削除します（単一または複数）
+ */
+export async function DELETE(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "認証されていません。" }, { status: 401 });
+  }
+  const userId = parseInt(session.user.id, 10);
+
+  try {
+    const { chatIds } = await request.json();
+
+    if (!Array.isArray(chatIds) || chatIds.length === 0 || !chatIds.every(id => typeof id === 'number')) {
+      return NextResponse.json({ error: "無効なチャットIDリストです。" }, { status: 400 });
     }
 
-    const persona = chatRoom.characters; // DBから取得したキャラクター情報をペルソナとして使用
-
-    const systemInstruction = `
-      あなたは以下の設定を持つキャラクターとしてロールプレイを行ってください。
-      # キャラクター設定
-      - システムテンプレート: ${persona.systemTemplate || "設定なし"}
-      - 詳細設定: ${persona.detailSetting || "設定なし"}
-    `;
-
-    const dbMessages = await prisma.chat_message.findMany({
-      where: { chatId: numericChatId },
-      orderBy: { createdAt: "asc" },
+    const deleteResult = await prisma.chat.deleteMany({
+      where: {
+        id: { in: chatIds },
+        userId: userId,
+      },
     });
-
-    const chatHistory: Content[] = dbMessages.map((msg) => ({
-      role: msg.role as "user" | "model",
-      parts: [{ text: msg.content }],
-    }));
-
-    // --- 2. Vertex AIにリクエストを送信 ---
-    const chat = generativeModel.startChat({
-      history: chatHistory,
-      systemInstruction: { role: "system", parts: [{ text: systemInstruction }] },
-    });
-
-    const result = await chat.sendMessage(message);
-    const response = result.response;
-    const aiReply = response.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!aiReply) {
-      return NextResponse.json({ error: "モデルから有効な応答がありませんでした。" }, { status: 500 });
+    
+    if (deleteResult.count === 0) {
+        return NextResponse.json({ error: "チャットが見つからないか、削除権限がありません。" }, { status: 404 });
     }
 
-    // --- 3. 新しいメッセージをデータベースに保存 ---
-    await prisma.$transaction([
-      prisma.chat_message.create({
-        data: {
-          chatId: numericChatId,
-          role: "user",
-          content: message,
-        },
-      }),
-      prisma.chat_message.create({
-        data: {
-          chatId: numericChatId,
-          role: "model",
-          content: aiReply,
-        },
-      }),
-    ]);
-
-    // --- 4. AIの返信をクライアントに返す ---
-    return NextResponse.json({ reply: aiReply });
+    return NextResponse.json({ message: `${deleteResult.count}件のチャットが正常に削除されました。` }, { status: 200 });
 
   } catch (error) {
-    console.error("APIルートエラー:", error);
-    return NextResponse.json({ error: "内部サーバーエラーが発生しました。" }, { status: 500 });
+    console.error("チャット削除エラー:", error);
+    return NextResponse.json({ error: "サーバーエラーが発生しました。" }, { status: 500 });
   }
 }

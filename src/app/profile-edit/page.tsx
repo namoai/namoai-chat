@@ -4,7 +4,17 @@ import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
-import { ArrowLeft, Camera } from 'lucide-react';
+import { ArrowLeft, Camera, User } from 'lucide-react'; // User アイコンをインポート
+
+// MyPageで使われているDefaultAvatarIconコンポーネントをここでも定義
+const DefaultAvatarIcon = ({ size = 96 }: { size?: number }) => (
+  <div
+    className="rounded-full bg-gray-700 flex items-center justify-center"
+    style={{ width: size, height: size }}
+  >
+    <User size={size * 0.6} className="text-gray-400" />
+  </div>
+);
 
 export default function ProfileEditPage() {
   const router = useRouter();
@@ -60,10 +70,12 @@ export default function ProfileEditPage() {
       });
 
       if (!response.ok) throw new Error('プロファイル更新失敗');
+      
+      const updatedProfile = await response.json();
 
       await update({
-        name: nickname,
-        ...(imagePreview && { image: imagePreview })
+        name: updatedProfile.nickname,
+        image: updatedProfile.image_url,
       });
 
       alert('プロフィールを更新しました！');
@@ -82,24 +94,26 @@ export default function ProfileEditPage() {
     <div className="bg-black min-h-screen text-white">
       <div className="mx-auto max-w-2xl">
         <header className="flex items-center justify-between p-4 sticky top-0 bg-black/80 backdrop-blur-sm z-10">
-          {/* ✅ ボタンにホバー効果とスタイルを追加 */}
           <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"><ArrowLeft /></button>
           <h1 className="font-bold text-lg">プロフィール編集</h1>
-          {/* ✅ 右側のスペースを確保するための空のdiv */}
           <div className="w-10 h-10"></div>
         </header>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-6">
           <div className="flex flex-col items-center">
             <div className="relative w-24 h-24 mb-2">
-              <Image
-                src={imagePreview || '/default-avatar.png'}
-                alt="Profile Preview"
-                width={96}
-                height={96}
-                className="rounded-full object-cover w-24 h-24"
-              />
-              {/* ✅ ボタンにホバー効果とスタイルを追加 */}
+              {/* ▼▼▼ 変更点: MyPageと同様のロジックで基本画像を表示 ▼▼▼ */}
+              {imagePreview ? (
+                <Image
+                  src={imagePreview}
+                  alt="Profile Preview"
+                  width={96}
+                  height={96}
+                  className="rounded-full object-cover w-24 h-24"
+                />
+              ) : (
+                <DefaultAvatarIcon size={96} />
+              )}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -139,7 +153,6 @@ export default function ProfileEditPage() {
             />
           </div>
           
-          {/* ✅ ボタンにホバー効果とスタイルを追加 */}
           <button
             type="submit"
             className="w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors cursor-pointer"

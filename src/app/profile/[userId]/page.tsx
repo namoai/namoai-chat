@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowLeft, MoreVertical, Heart, MessageSquare, KeyRound, Mail, X } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Heart, MessageSquare, KeyRound, Mail, X, User } from 'lucide-react'; // User アイコンをインポート
 import { useSession } from 'next-auth/react';
 
 // API応答の型定義を更新
@@ -12,7 +12,7 @@ type ProfileData = {
   id: number;
   name: string;
   nickname: string;
-  email: string; // emailを追加
+  email: string;
   image_url: string | null;
   bio: string | null;
   totalMessageCount: number;
@@ -28,12 +28,21 @@ type ProfileData = {
   };
 };
 
-// ✅ anyの代わりに、パスワード用の具体的な型を定義
 type PasswordPayload = {
   currentPassword: string;
   newPassword: string;
   confirmPassword: string;
 };
+
+// MyPageと同様のDefaultAvatarIconコンポーネントを定義
+const DefaultAvatarIcon = ({ size = 80 }: { size?: number }) => (
+  <div
+    className="rounded-full bg-gray-700 flex items-center justify-center"
+    style={{ width: size, height: size }}
+  >
+    <User size={size * 0.6} className="text-gray-400" />
+  </div>
+);
 
 // パスワード変更モーダル
 const PasswordChangeModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (passwords: PasswordPayload) => Promise<void>; }) => {
@@ -55,7 +64,6 @@ const PasswordChangeModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onC
             <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-sm mx-4">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg font-bold">パスワード変更</h2>
-                    {/* ✅ ボタンにホバー効果とスタイルを追加 */}
                     <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-700 transition-colors cursor-pointer"><X size={24} /></button>
                 </div>
                 <div className="space-y-4">
@@ -64,7 +72,6 @@ const PasswordChangeModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onC
                     <input type="password" placeholder="新しいパスワード（確認）" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-gray-700 rounded-md p-2 focus:ring-pink-500 focus:border-pink-500" />
                 </div>
                 <div className="flex justify-end gap-4 mt-6">
-                    {/* ✅ ボタンにホバー効果とスタイルを追加 */}
                     <button onClick={onClose} className="border border-gray-600 hover:bg-gray-700 py-2 px-4 rounded-lg transition-colors cursor-pointer">キャンセル</button>
                     <button onClick={handleSave} disabled={isSaving} className="bg-pink-600 hover:bg-pink-700 py-2 px-4 rounded-lg disabled:bg-pink-800 transition-colors cursor-pointer">
                         {isSaving ? '保存中...' : '保存'}
@@ -105,7 +112,6 @@ export default function UserProfilePage() {
     }
   }, [params.userId]);
 
-  // メニューの外側をクリックしたときに閉じる
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -116,7 +122,6 @@ export default function UserProfilePage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ✅ anyの代わりにPasswordPayload型を使用
   const handlePasswordChange = async ({ currentPassword, newPassword, confirmPassword }: PasswordPayload) => {
     if (newPassword !== confirmPassword) {
       alert("新しいパスワードが一致しません。");
@@ -162,11 +167,9 @@ export default function UserProfilePage() {
       <div className="bg-black min-h-screen text-white">
         <div className="mx-auto max-w-3xl">
           <header className="flex items-center justify-between p-4 sticky top-0 bg-black/80 backdrop-blur-sm z-10">
-            {/* ✅ ボタンにホバー効果とスタイルを追加 */}
             <button onClick={() => router.push('/MyPage')} className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"><ArrowLeft /></button>
             <h1 className="font-bold text-lg">マイプロフィール</h1>
             <div className="relative" ref={menuRef}>
-              {/* ✅ ボタンにホバー効果とスタイルを追加 */}
               <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"><MoreVertical /></button>
               {isMenuOpen && isMyProfile && (
                 <div className="absolute right-0 mt-2 w-64 bg-[#2C2C2E] border border-gray-700 rounded-lg shadow-lg z-20">
@@ -175,7 +178,6 @@ export default function UserProfilePage() {
                   </div>
                   <ul>
                     <li>
-                      {/* ✅ ボタンにホバー効果とスタイルを追加 */}
                       <button onClick={() => { setIsModalOpen(true); setIsMenuOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-gray-700 transition-colors cursor-pointer">
                         <KeyRound size={16} /> パスワード変更
                       </button>
@@ -188,7 +190,12 @@ export default function UserProfilePage() {
           
           <main className="p-4">
             <section className="flex items-center gap-4 mb-4">
-              <Image src={profile.image_url || '/default-avatar.png'} alt={profile.nickname} width={80} height={80} className="rounded-full" />
+              {/* ▼▼▼ 変更点: MyPageと同様のロジックで基本画像を表示 ▼▼▼ */}
+              {profile.image_url ? (
+                <Image src={profile.image_url} alt={profile.nickname} width={80} height={80} className="rounded-full" />
+              ) : (
+                <DefaultAvatarIcon size={80} />
+              )}
               <div>
                 <h2 className="text-2xl font-bold">{profile.nickname}</h2>
                 <div className="flex gap-4 text-sm text-gray-400">
@@ -199,7 +206,6 @@ export default function UserProfilePage() {
             </section>
             <p className="text-gray-300 mb-4">{profile.bio || '自己紹介がありません。'}</p>
             {isMyProfile && (
-                // ✅ ボタンにホバー効果とスタイルを追加
                 <Link href="/profile-edit" className="block w-full bg-gray-800 hover:bg-gray-700 font-semibold py-2 rounded-lg mb-6 text-center transition-colors cursor-pointer">
                     プロフィール編集
                 </Link>
@@ -214,7 +220,7 @@ export default function UserProfilePage() {
                    <Link href={`/characters/${char.id}`} key={char.id} className="block group">
                      <div className="bg-[#1C1C1E] rounded-lg overflow-hidden transition-transform group-hover:scale-105">
                        <div className="relative aspect-[3/4]">
-                         <Image src={char.characterImages[0]?.imageUrl || '/default-avatar.png'} alt={char.name} fill className="object-cover" />
+                         <Image src={char.characterImages[0]?.imageUrl || 'https://placehold.co/300x400/1a1a1a/ffffff?text=?'} alt={char.name} fill className="object-cover" />
                        </div>
                        <div className="p-3">
                          <h4 className="font-semibold truncate text-white">{char.name}</h4>
