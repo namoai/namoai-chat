@@ -5,7 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from 'next/navigation';
 import { VscChevronLeft, VscSearch } from "react-icons/vsc";
-import { BsThreeDotsVertical, BsTrash } from "react-icons/bs";
+// ▼▼▼ 変更点: 未使用の `BsTrash` アイコンを削除 ▼▼▼
+import { BsThreeDotsVertical } from "react-icons/bs";
 
 type ChatData = {
   id: number;
@@ -43,7 +44,6 @@ export default function ChatListPage() {
     fetchChats();
   }, []);
 
-  // メニュー外をクリックしたときに閉じる処理
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {

@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Heart, MessageSquare, MoreVertical, ArrowLeft } from 'lucide-react';
-import { useSession } from 'next-auth/react'; // useSessionをインポート
+import { useSession } from 'next-auth/react';
 
 type Author = {
   name: string;
@@ -34,31 +34,31 @@ export default function CharacterDetailPage() {
   const router = useRouter();
   const params = useParams<{ characterId: string }>();
   const { characterId } = params;
-  const { data: session, status: sessionStatus } = useSession(); // セッション状態を取得
+  // ▼▼▼ 変更点: 未使用の `session` 変数を削除 ▼▼▼
+  const { status: sessionStatus } = useSession(); 
 
   const [character, setCharacter] = useState<CharacterDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null); // エラーメッセージ用のstate
+  const [error, setError] = useState<string | null>(null);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
 
   useEffect(() => {
     if (characterId) {
       const fetchCharacter = async () => {
         setLoading(true);
-        setError(null); // フェッチ開始時にエラーをリセット
+        setError(null);
         try {
           const response = await fetch(`/api/characters/${characterId}`);
           const data = await response.json();
 
           if (!response.ok) {
-            // APIからのエラーメッセージを優先して使用
             throw new Error(data.error || "キャラクター情報の読み込みに失敗しました。");
           }
           
           setCharacter(data);
         } catch (err) {
           console.error(err);
-          setError((err as Error).message); // エラーメッセージをstateに保存
+          setError((err as Error).message);
         } finally {
           setLoading(false);
         }
@@ -90,7 +90,6 @@ export default function CharacterDetailPage() {
     return <div className="flex h-screen items-center justify-center bg-black text-white">ローディング中...</div>;
   }
 
-  // ▼▼▼ 変更点: エラー発生時に専用UIを表示 ▼▼▼
   if (error) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-black text-white p-4 text-center">
@@ -174,7 +173,6 @@ export default function CharacterDetailPage() {
         </div>
       </div>
 
-      {/* ▼▼▼ 変更点: ログイン状態に応じてボタン表示を切り替え ▼▼▼ */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-black border-t border-gray-800">
         <div className="mx-auto max-w-2xl flex gap-4">
           {sessionStatus === 'authenticated' ? (
