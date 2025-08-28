@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Plus, Check, Trash2, Pencil } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+// import { useSearchParams } from 'next/navigation'; // エラーの原因となるため削除
+import { Plus, Check, Trash2, Pencil, ArrowLeft } from 'lucide-react';
 
 type Persona = {
   id: number;
@@ -66,38 +66,37 @@ const PersonaItem = ({ persona, onSelect, onEdit, onDelete, isSelected }: { pers
   </div>
 );
 
+// ▼▼▼【ここから修正】Suspenseとコンポーネント分離を解除し、標準APIを使用 ▼▼▼
 export default function PersonaListPage() {
-  const router = useRouter();
-  // ▼▼▼【ここから修正】URLクエリパラメータを取得するために useSearchParams を使用 ▼▼▼
-  const searchParams = useSearchParams();
-  const fromChat = searchParams.get('fromChat');
-  const characterId = searchParams.get('characterId');
-  const chatId = searchParams.get('chatId');
-  // ▲▲▲【ここまで修正】▲▲▲
-
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [modal, setModal] = useState<{ isOpen: boolean; personaToDelete: Persona | null }>({ isOpen: false, personaToDelete: null });
-
-  const fetchPersonas = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch('/api/persona');
-      if (!response.ok) throw new Error('データの読み込みに失敗しました。');
-      
-      const data = await response.json();
-      setPersonas(data.personas);
-      setSelectedId(data.defaultPersonaId);
-    } catch (error) {
-      console.error(error);
-      alert((error as Error).message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  
+  // URLクエリパラメータをstateで管理
+  const [queryParams, setQueryParams] = useState<URLSearchParams | null>(null);
 
   useEffect(() => {
+    // クライアントサイドでのみ実行されるようにし、URLSearchParamsを取得
+    setQueryParams(new URLSearchParams(window.location.search));
+
+    const fetchPersonas = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/persona');
+        if (!response.ok) throw new Error('データの読み込みに失敗しました。');
+        
+        const data = await response.json();
+        setPersonas(data.personas);
+        setSelectedId(data.defaultPersonaId);
+      } catch (error) {
+        console.error(error);
+        alert((error as Error).message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     fetchPersonas();
   }, []);
 
@@ -121,9 +120,8 @@ export default function PersonaListPage() {
   };
 
   const handleEditPersona = (id: number) => {
-    // 編集後も戻るべき場所を維持するためにクエリパラメータを渡す
-    const query = fromChat ? `?fromChat=true&characterId=${characterId}&chatId=${chatId}` : '';
-    router.push(`/persona/form/${id}${query}`);
+    const query = queryParams ? `?${queryParams.toString()}` : '';
+    window.location.href = `/persona/form/${id}${query}`;
   };
 
   const openDeleteModal = (persona: Persona) => {
@@ -147,7 +145,10 @@ export default function PersonaListPage() {
         throw new Error(errorData.error || '削除に失敗しました。');
       }
       
-      await fetchPersonas();
+      const fetchResponse = await fetch('/api/persona');
+      const data = await fetchResponse.json();
+      setPersonas(data.personas);
+      setSelectedId(data.defaultPersonaId);
 
     } catch (error) {
       console.error(error);
@@ -156,19 +157,14 @@ export default function PersonaListPage() {
       closeDeleteModal();
     }
   };
-
-  // ▼▼▼【ここから修正】戻るボタンのナビゲーションを動的に変更 ▼▼▼
+  
   const handleGoBack = () => {
-    if (fromChat && characterId && chatId) {
-      // チャット画面から来た場合は、そのチャット画面に戻る
-      router.push(`/chat/${characterId}?chatId=${chatId}`);
+    if (queryParams?.get('fromChat') && queryParams?.get('characterId') && queryParams?.get('chatId')) {
+      window.location.href = `/chat/${queryParams.get('characterId')}?chatId=${queryParams.get('chatId')}`;
     } else {
-      // それ以外の場合はマイページに戻る
-      router.push('/MyPage');
+        window.history.back();
     }
   };
-  // ▲▲▲【ここまで修正】▲▲▲
-
 
   if (isLoading) {
     return <div className="min-h-screen bg-black text-white flex items-center justify-center">ローディング中...</div>;
@@ -185,14 +181,12 @@ export default function PersonaListPage() {
       />
       <div className="bg-black min-h-screen text-white p-4">
         <header className="text-center py-4 relative">
-          {/* ▼▼▼【ここから修正】onClickイベントを新しい関数に接続 ▼▼▼ */}
           <button 
             onClick={handleGoBack} 
             className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 18L9 12L15 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <ArrowLeft size={24} />
           </button>
-          {/* ▲▲▲【ここまで修正】▲▲▲ */}
           <h1 className="text-lg font-bold">ペルソナ</h1>
         </header>
         <div className="mt-4">
@@ -212,9 +206,8 @@ export default function PersonaListPage() {
           ))}
           <button 
             onClick={() => {
-                // ペルソナ追加時もクエリパラメータを渡す
-                const query = fromChat ? `?fromChat=true&characterId=${characterId}&chatId=${chatId}` : '';
-                router.push(`/persona/form${query}`);
+                const query = queryParams ? `?${queryParams.toString()}` : '';
+                window.location.href = `/persona/form${query}`;
             }}
             className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-600 rounded-lg text-gray-400 hover:bg-gray-800 hover:border-gray-500 transition-colors cursor-pointer"
           >
@@ -226,3 +219,4 @@ export default function PersonaListPage() {
     </>
   );
 }
+// ▲▲▲【ここまで修正】▲▲▲
