@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Check, Trash2, Pencil } from 'lucide-react';
 
 type Persona = {
@@ -68,6 +68,13 @@ const PersonaItem = ({ persona, onSelect, onEdit, onDelete, isSelected }: { pers
 
 export default function PersonaListPage() {
   const router = useRouter();
+  // ▼▼▼【ここから修正】URLクエリパラメータを取得するために useSearchParams を使用 ▼▼▼
+  const searchParams = useSearchParams();
+  const fromChat = searchParams.get('fromChat');
+  const characterId = searchParams.get('characterId');
+  const chatId = searchParams.get('chatId');
+  // ▲▲▲【ここまで修正】▲▲▲
+
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -114,7 +121,9 @@ export default function PersonaListPage() {
   };
 
   const handleEditPersona = (id: number) => {
-    router.push(`/persona/form/${id}`);
+    // 編集後も戻るべき場所を維持するためにクエリパラメータを渡す
+    const query = fromChat ? `?fromChat=true&characterId=${characterId}&chatId=${chatId}` : '';
+    router.push(`/persona/form/${id}${query}`);
   };
 
   const openDeleteModal = (persona: Persona) => {
@@ -148,6 +157,19 @@ export default function PersonaListPage() {
     }
   };
 
+  // ▼▼▼【ここから修正】戻るボタンのナビゲーションを動的に変更 ▼▼▼
+  const handleGoBack = () => {
+    if (fromChat && characterId && chatId) {
+      // チャット画面から来た場合は、そのチャット画面に戻る
+      router.push(`/chat/${characterId}?chatId=${chatId}`);
+    } else {
+      // それ以外の場合はマイページに戻る
+      router.push('/MyPage');
+    }
+  };
+  // ▲▲▲【ここまで修正】▲▲▲
+
+
   if (isLoading) {
     return <div className="min-h-screen bg-black text-white flex items-center justify-center">ローディング中...</div>;
   }
@@ -163,13 +185,14 @@ export default function PersonaListPage() {
       />
       <div className="bg-black min-h-screen text-white p-4">
         <header className="text-center py-4 relative">
-          {/* ✅ cursor-pointerを追加しました */}
+          {/* ▼▼▼【ここから修正】onClickイベントを新しい関数に接続 ▼▼▼ */}
           <button 
-            onClick={() => router.push('/MyPage')} 
+            onClick={handleGoBack} 
             className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 18L9 12L15 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
+          {/* ▲▲▲【ここまで修正】▲▲▲ */}
           <h1 className="text-lg font-bold">ペルソナ</h1>
         </header>
         <div className="mt-4">
@@ -187,9 +210,12 @@ export default function PersonaListPage() {
               isSelected={selectedId === p.id}
             />
           ))}
-          {/* ✅ cursor-pointerを追加しました */}
           <button 
-            onClick={() => router.push('/persona/form')}
+            onClick={() => {
+                // ペルソナ追加時もクエリパラメータを渡す
+                const query = fromChat ? `?fromChat=true&characterId=${characterId}&chatId=${chatId}` : '';
+                router.push(`/persona/form${query}`);
+            }}
             className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-600 rounded-lg text-gray-400 hover:bg-gray-800 hover:border-gray-500 transition-colors cursor-pointer"
           >
             <Plus size={20} />

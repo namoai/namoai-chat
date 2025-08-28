@@ -111,6 +111,7 @@ model chat {
   characterId  Int
   createdAt    DateTime       @default(now())
   updatedAt    DateTime
+  userNote     String?
   characters   characters     @relation(fields: [characterId], references: [id], onDelete: Cascade)
   users        users          @relation(fields: [userId], references: [id], onDelete: Cascade)
   chat_message chat_message[]

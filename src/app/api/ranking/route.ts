@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const period = searchParams.get('period') || 'realtime'; // 'realtime', 'daily', 'weekly', 'monthly'
 
-  let startDate: Date;
+  let startDate: Date | undefined = undefined;
   const now = new Date();
 
   // ランキングの集計期間を設定します。
@@ -23,15 +23,18 @@ export async function GET(request: NextRequest) {
       break;
     case 'realtime':
     default:
-      startDate = new Date(now.setHours(now.getHours() - 1));
+      // リアルタイムは期間を定めず、全体のチャット数で集計するためstartDateは設定しない
+      startDate = undefined;
       break;
   }
 
   try {
-    // ▼▼▼ 変更点: interactionsテーブルを直接集計するように修正しました。 ▼▼▼
+    // ▼▼▼【ここから修正】chatテーブルを集計するようにクエリを変更 ▼▼▼
     const characters = await prisma.characters.findMany({
-      // 安全フィルターが必要な場合は、ここにwhere句を追加してください。
-      // where: { safetyFilter: true },
+      where: {
+        // 公開されているキャラクターのみを対象
+        visibility: 'public',
+      },
       include: {
         characterImages: {
           where: { isMain: true },
@@ -39,25 +42,29 @@ export async function GET(request: NextRequest) {
         },
         _count: {
           select: {
-            // charactersと直接関連付けられたinteractionsの数を集計します。
-            interactions: {
-              where: {
-                created_at: {
+            // charactersと関連する 'chat' の数を集計
+            chat: {
+              // startDateが設定されている場合のみ日付でフィルタリング
+              where: startDate ? {
+                createdAt: {
                   gte: startDate,
                 },
-              },
+              } : undefined,
             },
           },
         },
       },
     });
 
-    // 集計されたinteractionsの数を基準に降順でソートします。
+    // 集計された 'chat' の数を基準に降順でソートします。
     const rankedCharacters = characters
       .map(char => ({
-        ...char,
-        // chatCountを_count.interactionsの値に設定します。
-        chatCount: char._count.interactions,
+        id: char.id,
+        name: char.name,
+        description: char.description,
+        characterImages: char.characterImages,
+        // chatCountを_count.chatの値に設定します。
+        chatCount: char._count.chat, 
       }))
       .sort((a, b) => b.chatCount - a.chatCount)
       .slice(0, 50); // 上位50件のみを返します。

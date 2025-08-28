@@ -1,137 +1,145 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import Image from 'next/image';
-import Link from 'next/link'; // Link를 import합니다
-import { ArrowLeft, Settings, Plus, Camera, Mic, Send } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, Menu, Send, Quote, Asterisk, X } from 'lucide-react';
+// ▼▼▼【ここから修正】インポートパスをエイリアス `@/` に戻します ▼▼▼
+import ChatMessageParser from '@/components/ChatMessageParser';
+import ChatSettings from '@/components/ChatSettings';
+// ▲▲▲【ここまで修正】▲▲▲
 
-// (変更なし) 型定義
-type Message = {
-  role: "user" | "model";
-  parts: [{ text: string }];
-  timestamp?: string;
-};
+// 型定義
+type CharacterImageInfo = { imageUrl: string; keyword?: string | null; };
 type CharacterInfo = {
   name: string;
-  characterImages: { imageUrl: string }[];
+  firstSituation: string | null;
+  firstMessage: string | null;
+  characterImages: CharacterImageInfo[];
 };
-type DbMessage = {
-  role: string;
+type Message = {
+  id: string;
+  role: "user" | "model" | "system" | "first_situation";
   content: string;
-  createdAt: string;
+  timestamp?: string;
 };
+type DbMessage = { role: string; content: string; createdAt: string; };
 
 export default function ChatPage() {
-  const router = useRouter();
-  const params = useParams<{ characterId: string }>();
-  const searchParams = useSearchParams();
-  const { characterId } = params;
-
-  // ... (State管理とuseEffect, その他の関数は変更ありません)
-  const { status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      router.push('/login'); 
-    },
-  });
-
+  const [characterId, setCharacterId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [characterInfo, setCharacterInfo] = useState<CharacterInfo | null>(null);
   const [chatId, setChatId] = useState<number | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showChatImage, setShowChatImage] = useState(true);
+  const [isMultiImage, setIsMultiImage] = useState(true);
+  const [userNote, setUserNote] = useState('');
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const chatIdFromQuery = searchParams.get('chatId');
+    const pathSegments = window.location.pathname.split('/');
+    const id = pathSegments[pathSegments.indexOf('chat') + 1];
+    setCharacterId(id);
 
-    if (status === "authenticated" && characterId) {
+    const params = new URLSearchParams(window.location.search);
+    const chatIdFromQuery = params.get('chatId');
+    if (chatIdFromQuery) {
+      setChatId(parseInt(chatIdFromQuery, 10));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (characterId) {
       const initializeChat = async () => {
         setIsInitialLoading(true);
         try {
-          const charResponse = await fetch(`/api/characters/${characterId}`);
-          if (!charResponse.ok) throw new Error('キャラクター情報の取得に失敗');
-          const charData = await charResponse.json();
+          const charResponse = await fetch(`/api/characters/${characterId}`, { cache: 'no-store' });
+          if (!charResponse.ok) throw new Error('キャラクター情報の取得に失敗しました。');
+          const charData: CharacterInfo = await charResponse.json();
           setCharacterInfo(charData);
 
           const chatSessionResponse = await fetch('/api/chats/find-or-create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              characterId: characterId,
-              chatId: chatIdFromQuery 
-            }),
+            body: JSON.stringify({ characterId, chatId }),
+            cache: 'no-store',
           });
-          if (!chatSessionResponse.ok) throw new Error('チャットセッションの取得に失敗');
+          if (!chatSessionResponse.ok) throw new Error('チャットセッションの取得に失敗しました。');
           const chatSessionData = await chatSessionResponse.json();
           
           setChatId(chatSessionData.id);
-          const formattedMessages = chatSessionData.chat_message.map((msg: DbMessage) => ({
-            role: msg.role as "user" | "model",
-            parts: [{ text: msg.content }],
-            timestamp: new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-          }));
-          setMessages(formattedMessages);
-
+          setUserNote(chatSessionData.userNote || '');
+          
+          if (chatSessionData.chat_message.length === 0 && charData) {
+            const initialMessages: Message[] = [];
+            if (charData.firstSituation) {
+              initialMessages.push({ id: `init-situation-${Date.now()}`, role: 'first_situation', content: charData.firstSituation });
+            }
+            if (charData.firstMessage) {
+              initialMessages.push({ id: `init-message-${Date.now()}`, role: 'model', content: charData.firstMessage, timestamp: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) });
+            }
+            setMessages(initialMessages);
+          } else {
+            const formattedMessages = chatSessionData.chat_message.map((msg: DbMessage, index: number) => ({
+              id: `db-msg-${chatSessionData.id}-${index}`,
+              role: msg.role as "user" | "model",
+              content: msg.content,
+              timestamp: new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+            }));
+            setMessages(formattedMessages);
+          }
         } catch (error) {
           console.error(error);
           alert('チャットの読み込みに失敗しました。');
-          router.back();
+          window.history.back();
         } finally {
           setIsInitialLoading(false);
         }
       };
       initializeChat();
     }
-  }, [status, characterId, router, searchParams]);
+  }, [characterId, chatId]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
   useEffect(scrollToBottom, [messages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading || !chatId) return;
-
     const userMessage: Message = { 
+      id: `user-msg-${Date.now()}`,
       role: "user", 
-      parts: [{ text: input }],
+      content: input,
       timestamp: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) 
     };
-    
     setIsLoading(true);
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
+    setMessages(prev => [...prev, userMessage]);
     const messageToSend = input;
     setInput('');
-
     try {
       const response = await fetch(`/api/chat/${chatId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: messageToSend }),
       });
-
       if (!response.ok) throw new Error('APIからの応答エラー');
-
       const data = await response.json();
-      setMessages([
-        ...updatedMessages, 
-        { 
-          role: 'model', 
-          parts: [{ text: data.reply }],
-          timestamp: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) 
-        }
-      ]);
+      setMessages(prev => [...prev, { 
+        id: `model-msg-${Date.now()}`,
+        role: 'model', 
+        content: data.reply,
+        timestamp: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) 
+      }]);
     } catch (error) {
       console.error("チャットエラー:", error);
       setMessages(prev => [...prev, {
+        id: `error-msg-${Date.now()}`,
         role: 'model',
-        parts: [{ text: 'エラーが発生しました。もう一度お試しください。' }],
+        content: 'エラーが発生しました。もう一度お試しください。',
         timestamp: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
       }]);
     } finally {
@@ -139,87 +147,164 @@ export default function ChatPage() {
     }
   };
   
-  if (isInitialLoading) {
+  const handleNewChat = async () => {
+    if (!characterId) return;
+    if (!confirm('現在のチャットを終了し、新しいチャットを開始しますか？')) return;
+    try {
+      const response = await fetch('/api/chats/find-or-create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ characterId, forceNew: true }),
+      });
+      if (!response.ok) throw new Error('新しいチャットの作成に失敗しました。');
+      const newChat = await response.json();
+      window.location.href = `/chat/${characterId}?chatId=${newChat.id}`;
+    } catch (error) {
+      console.error(error);
+      alert('新しいチャットの作成に失敗しました。');
+    }
+  };
+
+  const handleSaveConversationAsTxt = () => {
+    if (!characterInfo || messages.length === 0) {
+      alert('保存する会話内容がありません。');
+      return;
+    }
+    const header = `キャラクター: ${characterInfo.name}\n保存日時: ${new Date().toLocaleString('ja-JP')}\n---\n\n`;
+    const formattedContent = messages
+      .map(msg => {
+        if (msg.role === 'user') return `ユーザー: ${msg.content}`;
+        if (msg.role === 'model') return `${characterInfo.name}: ${msg.content.replace(/\{img:\d+\}/g, '').trim()}`;
+        if (msg.role === 'first_situation') return `状況: ${msg.content}`;
+        return '';
+      })
+      .filter(line => line.length > 0)
+      .join('\n\n');
+    const blob = new Blob([header + formattedContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat_with_${characterInfo.name}_${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setIsSettingsOpen(false);
+  };
+
+  const handleSaveConversationAsPng = async () => {
+    alert('この機能は現在開発中です。');
+  };
+
+  const handleSaveNote = async (note: string) => {
+    if (chatId === null) return;
+    try {
+      const response = await fetch(`/api/chat/${chatId}/note`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userNote: note }),
+      });
+      if (!response.ok) throw new Error('ノートの保存に失敗しました。');
+      const data = await response.json();
+      setUserNote(data.userNote);
+      alert('ノートを保存しました。');
+    } catch (error) {
+      console.error(error);
+      alert((error as Error).message);
+    }
+  };
+  
+  const handleInsertMarkdown = (type: 'narration' | 'dialogue') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const currentInputValue = input;
+    const trimmedInput = currentInputValue.trimEnd();
+    const prefix = trimmedInput.length > 0 ? '\n' : '';
+    let markdown;
+    if (type === 'narration') markdown = `**`;
+    else markdown = `「」`;
+    const newValue = currentInputValue + prefix + markdown;
+    const newCursorPosition = newValue.length - 1;
+    setInput(newValue);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+    }, 0);
+  };
+
+  const handleGoBack = () => {
+    window.history.back();
+  };
+
+  if (isInitialLoading || !characterInfo) {
     return <div className="min-h-screen bg-black text-white flex justify-center items-center">チャットを準備中...</div>;
   }
   
-  if (!characterInfo) {
-    return <div className="min-h-screen bg-black text-white flex justify-center items-center">キャラクター情報が見つかりません。</div>;
-  }
-
   return (
     <div className="flex flex-col h-screen bg-black text-white">
-      {/* ▼▼▼ このヘッダー部分を修正しました ▼▼▼ */}
-      <header className="flex items-center justify-between p-3 border-b border-gray-700 bg-black/50 backdrop-blur-sm">
-        <button onClick={() => router.back()} className="p-2 hover:bg-gray-700 rounded-full">
+      <header className="flex items-center justify-between p-3 border-b border-gray-700 bg-black/50 backdrop-blur-sm sticky top-0 z-10">
+        <button onClick={handleGoBack} className="p-2 hover:bg-gray-700 rounded-full">
           <ArrowLeft size={24} />
         </button>
-        
-        {/* Linkコンポーネントでプロフィール部分をラップ */}
-        <Link href={`/characters/${characterId}`} className="flex flex-col items-center hover:opacity-80 transition-opacity">
-          <Image 
-            src={characterInfo.characterImages[0]?.imageUrl || '/default-avatar.png'} 
-            alt={characterInfo.name} 
-            width={40} height={40} className="rounded-full" 
-          />
+        <a href={`/characters/${characterId}`} className="flex flex-col items-center hover:opacity-80 transition-opacity">
+          <img src={characterInfo.characterImages[0]?.imageUrl || '/default-avatar.png'} alt={characterInfo.name} width={40} height={40} className="rounded-full object-cover" />
           <span className="text-sm font-semibold mt-1">{characterInfo.name}</span>
-        </Link>
-        
-        <button className="p-2 hover:bg-gray-700 rounded-full">
-          <Settings size={24} />
-        </button>
+        </a>
+        <button onClick={() => setIsSettingsOpen(true)} className="p-2 hover:bg-gray-700 rounded-full"><Menu size={24} /></button>
       </header>
       
-      {/* mainとfooterは変更ありません */}
-      <main className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
-        {messages.map((msg, index) => (
-          <div key={index} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-            <div className={`max-w-xs md:max-w-md lg:max-w-2xl px-4 py-2 rounded-xl ${
-                msg.role === 'user' ? 'bg-pink-600 text-white' : 'bg-gray-800 text-white'
-            }`}>
-              <p className="whitespace-pre-wrap">{msg.parts[0].text}</p>
+      <main ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
+        {messages.map((msg) => {
+          if (msg.role === 'first_situation') return (<div key={msg.id} className="text-gray-400 italic">{msg.content}</div>);
+          if (msg.role === 'system') return (<div key={msg.id} className="text-center my-4"><p className="text-sm text-gray-400 bg-gray-800/50 rounded-lg px-4 py-2 inline-block italic whitespace-pre-wrap">{msg.content}</p></div>);
+          return (
+            <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+              <div className={`max-w-xs md:max-w-md lg:max-w-2xl px-4 py-2 rounded-xl ${msg.role === 'user' ? 'bg-pink-600 text-white' : 'bg-gray-800 text-white'}`}>
+                <ChatMessageParser content={msg.content} characterImages={msg.role === 'model' ? characterInfo.characterImages.slice(1) : []} showImage={showChatImage} isMultiImage={isMultiImage} onImageClick={(url: string) => setLightboxImage(url)} />
+              </div>
+              {msg.timestamp && (<span className="text-xs text-gray-400 mt-1 px-1">{msg.timestamp}</span>)}
             </div>
-            {msg.timestamp && (
-              <span className="text-xs text-gray-400 mt-1 px-1">{msg.timestamp}</span>
-            )}
-          </div>
-        ))}
-        {isLoading && (
-            <div className="flex items-start">
-                <div className="bg-gray-800 px-4 py-3 rounded-xl">
-                    <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-white rounded-full animate-pulse [animation-delay:-0.3s]"></div>
-                        <div className="w-2 h-2 bg-white rounded-full animate-pulse [animation-delay:-0.15s]"></div>
-                        <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                    </div>
-                </div>
-            </div>
-        )}
+          );
+        })}
+        {isLoading && ( <div className="flex items-start"><div className="bg-gray-800 px-4 py-3 rounded-xl"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-white rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-white rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-white rounded-full animate-pulse"></div></div></div></div> )}
         <div ref={messagesEndRef} />
       </main>
 
-      <footer className="p-3 border-t border-gray-700 bg-black/50 backdrop-blur-sm">
+      <footer className="p-3 border-t border-gray-700 bg-black/50 backdrop-blur-sm sticky bottom-0">
+        <div className="flex gap-2 mb-2">
+            <button onClick={() => handleInsertMarkdown('narration')} className="flex items-center gap-1 px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded-md text-white"><Asterisk size={14} /> 地文</button>
+            <button onClick={() => handleInsertMarkdown('dialogue')} className="flex items-center gap-1 px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded-md text-white"><Quote size={14} /> セリフ</button>
+        </div>
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-          <button type="button" className="p-2 hover:bg-gray-700 rounded-full"><Plus size={24}/></button>
-          <button type="button" className="p-2 hover:bg-gray-700 rounded-full"><Camera size={24}/></button>
-          <button type="button" className="p-2 hover:bg-gray-700 rounded-full"><Mic size={24}/></button>
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="メッセージを入力"
-            disabled={isLoading}
-            className="flex-1 bg-gray-800 border-none rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500 disabled:opacity-50"
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !input.trim()}
-            className="bg-pink-600 hover:bg-pink-700 rounded-full p-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Send size={24} className="text-white"/>
-          </button>
+          <textarea ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder="メッセージを入力" disabled={isLoading} className="flex-1 bg-gray-800 border-none rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500 disabled:opacity-50 resize-none" rows={1} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e as any); } }} />
+          <button type="submit" disabled={isLoading || !input.trim()} className="bg-pink-600 hover:bg-pink-700 rounded-full p-2 disabled:opacity-50 disabled:cursor-not-allowed"><Send size={24} className="text-white"/></button>
         </form>
       </footer>
+
+      <ChatSettings 
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)} 
+        showChatImage={showChatImage}
+        onShowChatImageChange={setShowChatImage}
+        isMultiImage={isMultiImage}
+        onIsMultiImageChange={setIsMultiImage}
+        onNewChat={handleNewChat}
+        onSaveConversationAsTxt={handleSaveConversationAsTxt}
+        onSaveConversationAsPng={handleSaveConversationAsPng}
+        userNote={userNote}
+        onSaveNote={handleSaveNote}
+        characterId={characterId}
+        chatId={chatId}
+      />
+      
+      {lightboxImage && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4" onClick={() => setLightboxImage(null)}>
+          <div className="relative max-w-4xl max-h-[90vh]">
+            <img src={lightboxImage} alt="Full screen image" className="object-contain w-full h-full" onContextMenu={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} />
+          </div>
+          <button onClick={() => setLightboxImage(null)} className="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75"><X size={24} /></button>
+        </div>
+      )}
     </div>
   );
 }

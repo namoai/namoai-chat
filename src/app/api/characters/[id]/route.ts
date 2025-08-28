@@ -27,7 +27,16 @@ export async function GET(request: NextRequest) {
     const character = await prisma.characters.findUnique({
       where: { id: characterId },
       include: {
-        characterImages: { orderBy: { displayOrder: 'asc' } },
+        // ▼▼▼【変更点】characterImages 에서 imageUrl 과 keyword 를 명시적으로 선택합니다. ▼▼▼
+        characterImages: { 
+          select: {
+            imageUrl: true,
+            keyword: true
+          },
+          orderBy: { 
+            displayOrder: 'asc' 
+          } 
+        },
         author: { select: { id: true, name: true, nickname: true } },
         _count: { select: { favorites: true, chat: true } }
       }
@@ -37,16 +46,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'キャラクターが見つかりません。' }, { status: 404 });
     }
 
-    // ▼▼▼ 変更点:キャラクターの公開状態を確認します ▼▼▼
     if (character.visibility === 'private') {
       const session = await getServerSession(authOptions);
-      // 非公開キャラクターは、作成者本人のみ閲覧可能です
       if (session?.user?.id !== character.author_id?.toString()) {
         return NextResponse.json({ error: 'このキャラクターは非公開です。' }, { status: 403 });
       }
     }
 
-    // 公開キャラクター、または非公開キャラクターの所有者であればデータを返します
     return NextResponse.json(character);
 
   } catch (error) {
