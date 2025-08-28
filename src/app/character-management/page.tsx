@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 
 // Buttonの仮コンポーネント
-const Button = ({ children, onClick, className, variant }: { children: React.ReactNode, onClick: () => void, className?: string, variant?: string }) => (
+// FIX: 사용하지 않는 'variant' prop을 제거했습니다.
+const Button = ({ children, onClick, className }: { children: React.ReactNode, onClick: () => void, className?: string }) => (
     <button onClick={onClick} className={className}>
         {children}
     </button>
@@ -85,7 +86,6 @@ const ConfirmationModal = ({
         <div className="flex justify-end gap-4">
           <Button
             onClick={onClose}
-            variant="outline"
             className="border border-gray-600 hover:bg-gray-700 py-2 px-4 rounded-lg transition-colors"
           >
             {cancelText}

@@ -2,10 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Menu, Send, Quote, Asterisk, X } from 'lucide-react';
-// ▼▼▼【ここから修正】インポートパスをエイリアス `@/` に戻します ▼▼▼
 import ChatMessageParser from '@/components/ChatMessageParser';
 import ChatSettings from '@/components/ChatSettings';
-// ▲▲▲【ここまで修正】▲▲▲
 
 // 型定義
 type CharacterImageInfo = { imageUrl: string; keyword?: string | null; };
@@ -232,9 +230,16 @@ export default function ChatPage() {
     }, 0);
   };
 
+  // ▼▼▼【ここから修正】뒤로가기 로직을 캐릭터 상세 페이지로 명시적 이동으로 수정 ▼▼▼
   const handleGoBack = () => {
-    window.history.back();
+    if (characterId) {
+      window.location.href = `/characters/${characterId}`;
+    } else {
+      // characterId가 없는 경우를 대비한 대체 동작
+      window.history.back();
+    }
   };
+  // ▲▲▲【ここまで修正】▲▲▲
 
   if (isInitialLoading || !characterInfo) {
     return <div className="min-h-screen bg-black text-white flex justify-center items-center">チャットを準備中...</div>;
@@ -276,7 +281,7 @@ export default function ChatPage() {
             <button onClick={() => handleInsertMarkdown('dialogue')} className="flex items-center gap-1 px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded-md text-white"><Quote size={14} /> セリフ</button>
         </div>
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-          <textarea ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder="メッセージを入力" disabled={isLoading} className="flex-1 bg-gray-800 border-none rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500 disabled:opacity-50 resize-none" rows={1} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e as any); } }} />
+          <textarea ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder="メッセージを入力" disabled={isLoading} className="flex-1 bg-gray-800 border-none rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500 disabled:opacity-50 resize-none" rows={1} onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }} />
           <button type="submit" disabled={isLoading || !input.trim()} className="bg-pink-600 hover:bg-pink-700 rounded-full p-2 disabled:opacity-50 disabled:cursor-not-allowed"><Send size={24} className="text-white"/></button>
         </form>
       </footer>

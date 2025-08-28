@@ -44,13 +44,9 @@ export default function CharacterDetailPage() {
     const id = pathSegments[pathSegments.length - 1];
     setCharacterId(id);
 
-    // ▼▼▼【ここから追加】ページに入った時のリファラーを保存するロジック ▼▼▼
-    // 直前のページがチャットページで *ない* 場合のみ、リファラーを保存する
-    // これにより、チャットページから戻ってきたときに値が上書きされるのを防ぐ
     if (document.referrer && !document.referrer.includes('/chat/')) {
       sessionStorage.setItem('characterReturnPath', document.referrer);
     }
-    // ▲▲▲【ここまで追加】▲▲▲
 
   }, []);
 
@@ -66,8 +62,13 @@ export default function CharacterDetailPage() {
         }
         const data: CharacterDetail = await res.json();
         setCharacter(data);
-      } catch (err: any) {
-        setError(err?.message || '未知のエラーが発生しました。');
+      // FIX: 'any' 타입을 사용하지 않도록 수정했습니다.
+      } catch (err) {
+        if (err instanceof Error) {
+            setError(err.message);
+        } else {
+            setError('未知のエラーが発生しました。');
+        }
       } finally {
         setLoading(false);
       }
@@ -97,19 +98,14 @@ export default function CharacterDetailPage() {
     }
   };
 
-  // ▼▼▼【ここから追加】戻るボタンの処理関数 ▼▼▼
   const handleGoBack = () => {
-    // セッションストレージから保存したパスを取得
     const returnPath = sessionStorage.getItem('characterReturnPath');
     if (returnPath) {
-      // 保存したパスに移動
       window.location.href = returnPath;
     } else {
-      // 保存したパスがなければ、ホームページに移動するなどのフォールバック
       window.location.href = '/';
     }
   };
-  // ▲▲▲【ここまで追加】▲▲▲
 
   if (loading) {
     return <div className="min-h-screen bg-black text-white flex justify-center items-center">読み込み中...</div>;
@@ -131,11 +127,9 @@ export default function CharacterDetailPage() {
     <div className="bg-black min-h-screen text-white">
       <div className="mx-auto max-w-2xl pb-24">
         <header className="sticky top-0 z-10 flex items-center justify-between p-4 bg-black/80 backdrop-blur-sm">
-          {/* ▼▼▼【ここから修正】onClickイベントを handleGoBack に変更 ▼▼▼ */}
           <button onClick={handleGoBack} className="p-2 rounded-full hover:bg-gray-800 transition-colors" aria-label="戻る">
             <ArrowLeft />
           </button>
-          {/* ▲▲▲【ここまで修正】▲▲▲ */}
           <h1 className="font-bold text-lg absolute left-1/2 -translate-x-1/2">{character.name}</h1>
           {canEdit && (
             <div className="relative">
