@@ -5,6 +5,61 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { createClient } from '@supabase/supabase-js';
+// ★追加: GSM を使うためのクライアントをインポート
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager'; // ← 追加
+
+// ★追加 ───────────────────────────────────────────────────────────────
+//  ランタイムで GCP サービスアカウント認証ファイルを保証
+//  - Netlify/Vercel 等では SA JSON を BASE64/JSON の環境変数で渡し、/tmp に復元します
+// ───────────────────────────────────────────────────────────────
+async function ensureGcpCredsFile() {
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) return;
+  const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+  const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
+  if (!raw && !b64) return; // 認証ファイルを用いない構成の場合はスキップ
+
+  const fs = await import('node:fs/promises');
+  const path = '/tmp/gcp-sa.json';
+  const content = raw ?? Buffer.from(b64!, 'base64').toString('utf8');
+  // ★修正: encoding をオブジェクト形式で指定することで型エラーを解消
+  await fs.writeFile(path, content, { encoding: 'utf8' });
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = path;
+}
+
+// ★追加 ───────────────────────────────────────────────────────────────
+//  Secret Manager からシークレットを取得
+//  - プロジェクト ID は GCP_PROJECT_ID または GOOGLE_CLOUD_PROJECT を参照
+// ───────────────────────────────────────────────────────────────
+async function loadSecret(name: string, version = 'latest') {
+  const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
+  if (!projectId) throw new Error('GCP project id が存在しません');
+  const client = new SecretManagerServiceClient();
+  const [acc] = await client.accessSecretVersion({
+    name: `projects/${projectId}/secrets/${name}/versions/${version}`,
+  });
+  // ★修正: Uint8Array → Buffer に変換してから文字列化
+  return acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
+
+}
+
+// ★追加 ───────────────────────────────────────────────────────────────
+//  Supabase 関連の環境変数をランタイムで補完
+//  - 既に存在していれば変更しません（安全性のため）
+// ───────────────────────────────────────────────────────────────
+async function ensureSupabaseEnv() {
+  await ensureGcpCredsFile();
+
+  if (!process.env.SUPABASE_URL) {
+    process.env.SUPABASE_URL = await loadSecret('SUPABASE_URL');
+  }
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    process.env.SUPABASE_SERVICE_ROLE_KEY = await loadSecret('SUPABASE_SERVICE_ROLE_KEY');
+  }
+
+  // 値そのものは出力せず、存在フラグだけログに出す（機密情報の露出防止）
+  console.info('[diag] has SUPABASE_URL?', !!process.env.SUPABASE_URL);
+  console.info('[diag] has SUPABASE_SERVICE_ROLE_KEY?', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
 
 type ImageMetaData = {
   url: string;
@@ -51,6 +106,9 @@ export async function GET() {
 export async function POST(request: Request) {
   console.log('[POST] キャラクター作成処理開始');
   try {
+    // ★挿入: ランタイムでシークレットを補完（ここを最初に実行）
+    await ensureSupabaseEnv(); // ← 追加（既存ロジックの前段で実行）
+
     const formData = await request.formData();
     console.log('[POST] formData 受信成功');
 
@@ -98,6 +156,7 @@ export async function POST(request: Request) {
     const imageCount = imageCountString ? parseInt(imageCountString, 10) : 0;
     console.log(`[POST] 画像枚数: ${imageCount}`);
 
+    // ★挿入: ensureSupabaseEnv() 実行後に env を参照（存在しない場合は 500 を返す）
     const supabaseUrl = process.env.SUPABASE_URL!;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'characters';
