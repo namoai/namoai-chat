@@ -62,7 +62,7 @@ async function resolveDatabaseUrl(): Promise<string> {
     );
   }
 
-  const client = new SecretManagerServiceClient();
+  const client = new SecretManagerServiceClient({ fallback: true }); // gRPC→RESTフォールバックで安定化
   const [version] = await client.accessSecretVersion({ name });
   const payload = version.payload?.data?.toString();
   if (!payload)

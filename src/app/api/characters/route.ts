@@ -74,7 +74,7 @@ async function resolveGcpProjectId(): Promise<string> {
 // ───────────────────────────────────────────────────────────────
 async function loadSecret(name: string, version = 'latest') {
   const projectId = await resolveGcpProjectId();
-  const client = new SecretManagerServiceClient();
+  const client = new SecretManagerServiceClient({ fallback: true });
   const [acc] = await client.accessSecretVersion({
     name: `projects/${projectId}/secrets/${name}/versions/${version}`,
   });
