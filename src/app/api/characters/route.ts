@@ -27,19 +27,58 @@ async function ensureGcpCredsFile() {
 }
 
 // ★追加 ───────────────────────────────────────────────────────────────
+//  GCP プロジェクト ID を解決
+//  - 1) 環境変数: GCP_PROJECT_ID / GOOGLE_CLOUD_PROJECT / GOOGLE_PROJECT_ID
+//  - 2) SA JSON（ENV の JSON/BASE64）から project_id を抽出
+//  - 3) /tmp の SA ファイルから project_id を抽出
+// ───────────────────────────────────────────────────────────────
+async function resolveGcpProjectId(): Promise<string> {
+  // 1) ENV 優先
+  const envProject =
+    process.env.GCP_PROJECT_ID ||
+    process.env.GOOGLE_CLOUD_PROJECT ||
+    process.env.GOOGLE_PROJECT_ID; // ← Netlify のキーにも対応
+  if (envProject && envProject.trim().length > 0) return envProject.trim();
+
+  // 2) ENV に SA JSON がある場合はそこから取得
+  const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+  const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
+  try {
+    if (raw || b64) {
+      const jsonStr = raw ?? Buffer.from(b64!, 'base64').toString('utf8');
+      const parsed = JSON.parse(jsonStr);
+      if (typeof parsed?.project_id === 'string' && parsed.project_id) {
+        return parsed.project_id;
+      }
+    }
+  } catch {}
+
+  // 3) /tmp の SA ファイル（ensureGcpCredsFile 済み前提）から取得
+  try {
+    const fs = await import('node:fs/promises');
+    const path = process.env.GOOGLE_APPLICATION_CREDENTIALS || '/tmp/gcp-sa.json';
+    const buf = await fs.readFile(path, { encoding: 'utf8' });
+    const parsed = JSON.parse(buf);
+    if (typeof parsed?.project_id === 'string' && parsed.project_id) {
+      return parsed.project_id;
+    }
+  } catch {}
+
+  throw new Error('GCP project id が存在しません');
+}
+
+// ★追加 ───────────────────────────────────────────────────────────────
 //  Secret Manager からシークレットを取得
-//  - プロジェクト ID は GCP_PROJECT_ID または GOOGLE_CLOUD_PROJECT を参照
+//  - resolveGcpProjectId() でプロジェクト ID を解決
+//  - Uint8Array → Buffer 経由で UTF-8 文字列化（TS2554 回避）
 // ───────────────────────────────────────────────────────────────
 async function loadSecret(name: string, version = 'latest') {
-  const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
-  if (!projectId) throw new Error('GCP project id が存在しません');
+  const projectId = await resolveGcpProjectId();
   const client = new SecretManagerServiceClient();
   const [acc] = await client.accessSecretVersion({
     name: `projects/${projectId}/secrets/${name}/versions/${version}`,
   });
-  // ★修正: Uint8Array → Buffer に変換してから文字列化
   return acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
-
 }
 
 // ★追加 ───────────────────────────────────────────────────────────────
