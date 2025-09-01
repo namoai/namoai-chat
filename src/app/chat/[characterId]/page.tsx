@@ -1,5 +1,7 @@
 "use client";
 
+// Next.jsのナビゲーション機能を利用するためにuseRouterをインポートします
+import { useRouter } from 'next/navigation';
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Menu, Send, Quote, Asterisk, X } from 'lucide-react';
 import ChatMessageParser from '@/components/ChatMessageParser';
@@ -22,6 +24,8 @@ type Message = {
 type DbMessage = { role: string; content: string; createdAt: string; };
 
 export default function ChatPage() {
+  // useRouterフックをコンポーネント内で呼び出します
+  const router = useRouter();
   const [characterId, setCharacterId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -39,6 +43,7 @@ export default function ChatPage() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // URLからキャラクターIDとチャットIDを取得します
     const pathSegments = window.location.pathname.split('/');
     const id = pathSegments[pathSegments.indexOf('chat') + 1];
     setCharacterId(id);
@@ -55,11 +60,13 @@ export default function ChatPage() {
       const initializeChat = async () => {
         setIsInitialLoading(true);
         try {
+          // キャラクター情報を取得
           const charResponse = await fetch(`/api/characters/${characterId}`, { cache: 'no-store' });
           if (!charResponse.ok) throw new Error('キャラクター情報の取得に失敗しました。');
           const charData: CharacterInfo = await charResponse.json();
           setCharacterInfo(charData);
 
+          // チャットセッション（履歴）を取得または新規作成
           const chatSessionResponse = await fetch('/api/chats/find-or-create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -72,6 +79,7 @@ export default function ChatPage() {
           setChatId(chatSessionData.id);
           setUserNote(chatSessionData.userNote || '');
           
+          // チャット履歴がない場合は、キャラクターの初期設定メッセージを表示
           if (chatSessionData.chat_message.length === 0 && charData) {
             const initialMessages: Message[] = [];
             if (charData.firstSituation) {
@@ -82,6 +90,7 @@ export default function ChatPage() {
             }
             setMessages(initialMessages);
           } else {
+            // 既存のチャット履歴をフォーマットして表示
             const formattedMessages = chatSessionData.chat_message.map((msg: DbMessage, index: number) => ({
               id: `db-msg-${chatSessionData.id}-${index}`,
               role: msg.role as "user" | "model",
@@ -93,7 +102,8 @@ export default function ChatPage() {
         } catch (error) {
           console.error(error);
           alert('チャットの読み込みに失敗しました。');
-          window.history.back();
+          // エラーが発生した場合は前のページに戻る
+          router.back();
         } finally {
           setIsInitialLoading(false);
         }
@@ -102,9 +112,11 @@ export default function ChatPage() {
     }
   }, [characterId, chatId]);
 
+  // メッセージリストの最下部へ自動スクロール
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
   useEffect(scrollToBottom, [messages]);
 
+  // メッセージ送信処理
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading || !chatId) return;
@@ -119,6 +131,7 @@ export default function ChatPage() {
     const messageToSend = input;
     setInput('');
     try {
+      // APIにメッセージを送信し、応答を待つ
       const response = await fetch(`/api/chat/${chatId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -134,6 +147,7 @@ export default function ChatPage() {
       }]);
     } catch (error) {
       console.error("チャットエラー:", error);
+      // エラーメッセージをチャット欄に表示
       setMessages(prev => [...prev, {
         id: `error-msg-${Date.now()}`,
         role: 'model',
@@ -145,6 +159,7 @@ export default function ChatPage() {
     }
   };
   
+  // 新しいチャットを開始する処理
   const handleNewChat = async () => {
     if (!characterId) return;
     if (!confirm('現在のチャットを終了し、新しいチャットを開始しますか？')) return;
@@ -156,6 +171,7 @@ export default function ChatPage() {
       });
       if (!response.ok) throw new Error('新しいチャットの作成に失敗しました。');
       const newChat = await response.json();
+      // 新しいチャットIDでページをリロード
       window.location.href = `/chat/${characterId}?chatId=${newChat.id}`;
     } catch (error) {
       console.error(error);
@@ -163,6 +179,7 @@ export default function ChatPage() {
     }
   };
 
+  // 会話をTXTファイルとして保存
   const handleSaveConversationAsTxt = () => {
     if (!characterInfo || messages.length === 0) {
       alert('保存する会話内容がありません。');
@@ -190,10 +207,12 @@ export default function ChatPage() {
     setIsSettingsOpen(false);
   };
 
+  // 会話をPNGとして保存（現在開発中）
   const handleSaveConversationAsPng = async () => {
     alert('この機能は現在開発中です。');
   };
 
+  // ユーザーノートを保存
   const handleSaveNote = async (note: string) => {
     if (chatId === null) return;
     try {
@@ -212,6 +231,7 @@ export default function ChatPage() {
     }
   };
   
+  // 入力欄にマークダウン（地の文・セリフ）を挿入
   const handleInsertMarkdown = (type: 'narration' | 'dialogue') => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -230,23 +250,21 @@ export default function ChatPage() {
     }, 0);
   };
 
-  // ▼▼▼【ここから修正】뒤로가기 로직을 캐릭터 상세 페이지로 명시적 이동으로 수정 ▼▼▼
+  // ▼▼▼【修正点】戻るボタンの処理をNext.jsのルーター機能に変更 ▼▼▼
+  // これにより、ブラウザの履歴を正しく操作し、意図しないページ遷移を防ぎます。
   const handleGoBack = () => {
-    if (characterId) {
-      window.location.href = `/characters/${characterId}`;
-    } else {
-      // characterId가 없는 경우를 대비한 대체 동작
-      window.history.back();
-    }
+    router.back();
   };
-  // ▲▲▲【ここまで修正】▲▲▲
+  // ▲▲▲【修正完了】▲▲▲
 
+  // 初期読み込み中の表示
   if (isInitialLoading || !characterInfo) {
     return <div className="min-h-screen bg-black text-white flex justify-center items-center">チャットを準備中...</div>;
   }
   
   return (
     <div className="flex flex-col h-screen bg-black text-white">
+      {/* ヘッダー */}
       <header className="flex items-center justify-between p-3 border-b border-gray-700 bg-black/50 backdrop-blur-sm sticky top-0 z-10">
         <button onClick={handleGoBack} className="p-2 hover:bg-gray-700 rounded-full">
           <ArrowLeft size={24} />
@@ -258,6 +276,7 @@ export default function ChatPage() {
         <button onClick={() => setIsSettingsOpen(true)} className="p-2 hover:bg-gray-700 rounded-full"><Menu size={24} /></button>
       </header>
       
+      {/* メインのチャット表示エリア */}
       <main ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
         {messages.map((msg) => {
           if (msg.role === 'first_situation') return (<div key={msg.id} className="text-gray-400 italic">{msg.content}</div>);
@@ -271,10 +290,12 @@ export default function ChatPage() {
             </div>
           );
         })}
+        {/* ローディングインジケーター */}
         {isLoading && ( <div className="flex items-start"><div className="bg-gray-800 px-4 py-3 rounded-xl"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-white rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-white rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-white rounded-full animate-pulse"></div></div></div></div> )}
         <div ref={messagesEndRef} />
       </main>
 
+      {/* フッター（入力欄） */}
       <footer className="p-3 border-t border-gray-700 bg-black/50 backdrop-blur-sm sticky bottom-0">
         <div className="flex gap-2 mb-2">
             <button onClick={() => handleInsertMarkdown('narration')} className="flex items-center gap-1 px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded-md text-white"><Asterisk size={14} /> 地文</button>
@@ -286,6 +307,7 @@ export default function ChatPage() {
         </form>
       </footer>
 
+      {/* 設定パネル */}
       <ChatSettings 
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)} 
@@ -302,6 +324,7 @@ export default function ChatPage() {
         chatId={chatId}
       />
       
+      {/* 画像ライトボックス */}
       {lightboxImage && (
         <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4" onClick={() => setLightboxImage(null)}>
           <div className="relative max-w-4xl max-h-[90vh]">
