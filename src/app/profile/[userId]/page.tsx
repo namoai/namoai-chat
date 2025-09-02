@@ -187,10 +187,11 @@ const PasswordChangeModal = ({
  * App Router ではクライアントコンポーネントでも params を引数で受け取れる。
  * これにより useParams() を避け、Hook を条件で呼ぶ状況を作らない。
  */
+// ▼▼▼【修正】params.userId の型からオプショナル（?）を削除しました ▼▼▼
 export default function ProfilePage({
   params,
 }: {
-  params: { userId?: string };
+  params: { userId: string };
 }) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -385,7 +386,7 @@ export default function ProfilePage({
 
           {/* 本文 */}
           <main className="p-4">
-            <section className="flex items中心 gap-4 mb-4">
+            <section className="flex items-center gap-4 mb-4">
               {profile.image_url ? (
                 <Image
                   src={profile.image_url}
