@@ -8,7 +8,7 @@ import {
 import { useState, useEffect, type ReactNode } from "react";
 import { signOut } from "next-auth/react";
 import Image from "next/image";
-// ▼▼▼【修正点】Link と useRouter をインポートします ▼▼▼
+// ▼▼▼【修正点】useRouterはMenuItemComponentでのみ使用するため、ここでインポートします ▼▼▼
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -31,10 +31,9 @@ type ModalProps = {
   message: string;
   confirmText?: string;
   cancelText?: string;
-  isAlert?: boolean; // 確認だけでなく、単純な通知にも使えるようにします
+  isAlert?: boolean;
 };
 
-// ▼▼▼【修正点】汎用性を高めたモーダルコンポーネント ▼▼▼
 const CustomModal = ({ isOpen, onClose, onConfirm, title, message, confirmText, cancelText, isAlert }: ModalProps) => {
   if (!isOpen) return null;
   return (
@@ -57,7 +56,7 @@ const CustomModal = ({ isOpen, onClose, onConfirm, title, message, confirmText, 
 type MenuItem = {
   icon: ReactNode;
   text: string;
-  action: string | (() => void); // hrefまたはonClick関数
+  action: string | (() => void);
   badge?: string;
 };
 
@@ -96,7 +95,6 @@ const LoggedInView = ({ session }: { session: Session }) => {
 
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
-  // ▼▼▼【修正点】alertをモーダルに置き換え ▼▼▼
   const updateSafetyFilter = async (newStatus: boolean) => {
     try {
       const response = await fetch('/api/users/safety-filter', {
@@ -172,9 +170,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
     { icon: <Megaphone size={20} className="text-gray-400" />, text: "お知らせ", action: "/notice" },
   ];
 
-  // ▼▼▼【修正点】MenuItemComponentでLinkコンポーネントを使用 ▼▼▼
   const MenuItemComponent = ({ item }: { item: MenuItem | Omit<MenuItem, 'badge'> }) => {
-    const router = useRouter();
     const commonClasses = "w-full flex items-center text-left p-4 hover:bg-gray-800 transition-colors duration-200 cursor-pointer";
     const content = (
       <>
@@ -295,8 +291,6 @@ const LoggedInView = ({ session }: { session: Session }) => {
   );
 };
 
-// ログインしていないユーザー向けのビュー
-// ▼▼▼【修正点】LoggedOutViewでLinkコンポーネントを使用 ▼▼▼
 const LoggedOutView = () => {
   const menuItems = [
     { icon: <Users size={20} className="text-gray-400" />, text: "ディスコード", href: "/discord" },

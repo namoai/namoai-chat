@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation'; // useRouterをインポート
-import Link from 'next/link'; // Linkをインポート
+import Link from 'next/link';
 import { X, Settings, ChevronRight, Image as ImageIcon, Film, MessageSquare, BookUser, FileText, Trash2 } from 'lucide-react';
 
 // propsの型定義
@@ -23,8 +22,8 @@ type ChatSettingsProps = {
 type SettingItemProps = {
   icon: React.ReactNode;
   label: string;
-  onClick?: () => void; // onClickをオプショナルに
-  href?: string; // hrefプロパティを追加
+  onClick?: () => void;
+  href?: string;
   hasSwitch?: boolean;
   switchState?: boolean;
   onSwitchChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -55,25 +54,20 @@ const SettingItem = ({ icon, label, onClick, href, hasSwitch = false, switchStat
     return <button onClick={onClick} className="w-full">{content}</button>;
 };
 
-// ユーザーノートモーダル（変更なし）
+// ユーザーノートモーダル
 type NoteModalProps = {
   note: string;
   onSave: (note: string) => Promise<void>;
   onClose: () => void;
 };
 const NoteModal = ({ note, onSave, onClose }: NoteModalProps) => {
-    // ... (内容は変更なし)
     const [currentNote, setCurrentNote] = useState(note);
     const [isSaving, setIsSaving] = useState(false);
     const MAX_NOTE_LENGTH = 1000;
     const isOverLimit = currentNote.length > MAX_NOTE_LENGTH;
   
     const handleSave = async () => {
-      if (isOverLimit) {
-        // alertの代わりにUIフィードバックを検討
-        console.warn(`ユーザーノートは${MAX_NOTE_LENGTH}文字以内で入力してください。`);
-        return;
-      }
+      if (isOverLimit) return;
       setIsSaving(true);
       await onSave(currentNote);
       setIsSaving(false);
@@ -107,7 +101,7 @@ const NoteModal = ({ note, onSave, onClose }: NoteModalProps) => {
       </div>
     );
 };
-// ... (他のモーダルも変更なし)
+// 会話保存モーダル
 type SaveConversationModalProps = {
     onSaveAsTxt: () => void;
     onSaveAsPng: () => void;
@@ -155,10 +149,11 @@ export default function ChatSettings({
   characterId,
   chatId
 }: ChatSettingsProps) {
-  const router = useRouter();
+  // ▼▼▼【修正点】未使用のuseRouterを削除しました ▼▼▼
   const [view, setView] = useState<'main' | 'detail'>('main');
   const [isNoteModalOpen, setNoteModalOpen] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  // ▲▲▲【修正完了】▲▲▲
 
   useEffect(() => {
     if (!isOpen) {
@@ -172,7 +167,6 @@ export default function ChatSettings({
 
   if (!isOpen) return null;
 
-  // ペルソナページのリンクを生成
   const personaHref = characterId && chatId 
     ? `/persona/list?fromChat=true&characterId=${characterId}&chatId=${chatId}`
     : '/persona/list';
@@ -201,13 +195,11 @@ export default function ChatSettings({
         />
         <SettingItem icon={<MessageSquare size={20} />} label="会話内容を保存" onClick={() => setIsSaveModalOpen(true)} />
         <SettingItem icon={<BookUser size={20} />} label="ユーザーノート" onClick={() => setNoteModalOpen(true)} />
-        {/* ▼▼▼【修正点】SettingItemにhrefを渡すように変更 ▼▼▼ */}
         <SettingItem 
           icon={<FileText size={20} />} 
           label="ペルソナ" 
           href={personaHref}
         />
-        {/* ▲▲▲【修正完了】▲▲▲ */}
       </div>
       <div className="p-2 mt-auto border-t border-gray-700">
         <button onClick={onNewChat} className="flex items-center w-full p-3 text-left text-red-400 hover:bg-gray-700 rounded-md transition-colors">

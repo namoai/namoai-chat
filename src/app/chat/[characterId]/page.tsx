@@ -1,9 +1,9 @@
 "use client";
 
-// Next.jsのナビゲーション機能を利用するためにuseRouterとLinkをインポートします
-import { useRouter } from 'next/navigation';
-import Link from 'next/link'; // <a>タグの代わりに使用するLinkコンポーネント
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowLeft, Menu, Send, Quote, Asterisk, X } from 'lucide-react';
 import ChatMessageParser from '@/components/ChatMessageParser';
 import ChatSettings from '@/components/ChatSettings';
@@ -24,7 +24,6 @@ type Message = {
 };
 type DbMessage = { role: string; content: string; createdAt: string; };
 
-// ▼▼▼【新規追加】汎用モーダルコンポーネント ▼▼▼
 type ModalState = {
   isOpen: boolean;
   title: string;
@@ -35,6 +34,7 @@ type ModalState = {
   isAlert?: boolean;
 };
 
+// 汎用モーダルコンポーネント
 const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalState, setModalState: (state: ModalState) => void }) => {
   if (!modalState.isOpen) return null;
 
@@ -69,7 +69,6 @@ const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalSta
     </div>
   );
 };
-// ▲▲▲【追加完了】▲▲▲
 
 export default function ChatPage() {
   const router = useRouter();
@@ -151,7 +150,7 @@ export default function ChatPage() {
       };
       initializeChat();
     }
-  }, [characterId, router]); // chatIdを依存配列から削除
+  }, [characterId, chatId, router]);
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
   useEffect(scrollToBottom, [messages]);
@@ -196,7 +195,6 @@ export default function ChatPage() {
     }
   };
   
-  // ▼▼▼【修正点】confirmをモーダルに、window.location.hrefをrouter.pushに置き換え ▼▼▼
   const handleNewChat = () => {
     if (!characterId) return;
     setModalState({
@@ -214,7 +212,6 @@ export default function ChatPage() {
           if (!response.ok) throw new Error('新しいチャットの作成に失敗しました。');
           const newChat = await response.json();
           router.push(`/chat/${characterId}?chatId=${newChat.id}`);
-          // ページ遷移後にリロードして状態を完全にリセット
           router.refresh(); 
         } catch (error) {
           console.error(error);
@@ -223,9 +220,7 @@ export default function ChatPage() {
       }
     });
   };
-  // ▲▲▲【修正完了】▲▲▲
 
-  // ▼▼▼【修正点】alertをモーダルに置き換え ▼▼▼
   const handleSaveConversationAsTxt = () => {
     if (!characterInfo || messages.length === 0) {
       setModalState({ isOpen: true, title: '情報', message: '保存する会話内容がありません。', isAlert: true });
@@ -274,7 +269,6 @@ export default function ChatPage() {
       setModalState({ isOpen: true, title: 'エラー', message: (error as Error).message, isAlert: true });
     }
   };
-  // ▲▲▲【修正完了】▲▲▲
   
   const handleInsertMarkdown = (type: 'narration' | 'dialogue') => {
     const textarea = textareaRef.current;
@@ -311,7 +305,14 @@ export default function ChatPage() {
           <ArrowLeft size={24} />
         </button>
         <Link href={`/characters/${characterId}`} className="flex flex-col items-center hover:opacity-80 transition-opacity">
-          <img src={characterInfo.characterImages[0]?.imageUrl || '/default-avatar.png'} alt={characterInfo.name} width={40} height={40} className="rounded-full object-cover" />
+           <div className="relative w-10 h-10 rounded-full overflow-hidden">
+             <Image 
+                src={characterInfo.characterImages[0]?.imageUrl || '/default-avatar.png'} 
+                alt={characterInfo.name} 
+                layout="fill"
+                className="object-cover"
+             />
+           </div>
           <span className="text-sm font-semibold mt-1">{characterInfo.name}</span>
         </Link>
         <button onClick={() => setIsSettingsOpen(true)} className="p-2 hover:bg-gray-700 rounded-full"><Menu size={24} /></button>
@@ -367,8 +368,14 @@ export default function ChatPage() {
       {/* 画像ライトボックス */}
       {lightboxImage && (
         <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4" onClick={() => setLightboxImage(null)}>
-          <div className="relative max-w-4xl max-h-[90vh]">
-            <img src={lightboxImage} alt="Full screen image" className="object-contain w-full h-full" onContextMenu={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} />
+          <div className="relative w-full h-full max-w-4xl max-h-[90vh]">
+            <Image 
+              src={lightboxImage} 
+              alt="Full screen image" 
+              layout="fill"
+              className="object-contain" 
+              onClick={(e) => e.stopPropagation()} 
+            />
           </div>
           <button onClick={() => setLightboxImage(null)} className="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75"><X size={24} /></button>
         </div>

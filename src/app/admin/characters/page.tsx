@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link'; // Linkをインポート
+import Link from 'next/link';
 import Image from 'next/image';
-import { Search, MoreVertical, Edit, Trash2, Eye, EyeOff, ArrowLeft, X } from 'lucide-react';
+// ▼▼▼【修正点】未使用の 'X' アイコンを削除しました ▼▼▼
+import { Search, MoreVertical, Edit, Trash2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 
 // 型定義
 type Character = {
@@ -25,7 +26,7 @@ type ModalState = {
   isAlert?: boolean;
 };
 
-// ▼▼▼【新規追加】汎用モーダルコンポーネント ▼▼▼
+// 汎用モーダルコンポーネント
 const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalState, setModalState: (state: ModalState) => void }) => {
   if (!modalState.isOpen) return null;
 
@@ -46,8 +47,8 @@ const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalSta
               キャンセル
             </button>
           )}
-          <button 
-            onClick={handleConfirm} 
+          <button
+            onClick={handleConfirm}
             className={`px-4 py-2 ${modalState.confirmText?.includes('削除') ? 'bg-red-600 hover:bg-red-500' : 'bg-pink-600 hover:bg-pink-500'} rounded-lg transition-colors`}
           >
             {modalState.confirmText || 'OK'}
@@ -57,8 +58,6 @@ const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalSta
     </div>
   );
 };
-// ▲▲▲【追加完了】▲▲▲
-
 
 // ケバブメニューコンポーネント
 const KebabMenu = ({ character, onAction }: { character: Character, onAction: (action: string, char: Character) => void }) => {
@@ -111,11 +110,8 @@ export default function AdminCharactersPage() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  
-  // ▼▼▼【新規追加】モーダルの状態管理 ▼▼▼
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: '', message: '' });
 
-  // 権限チェック
   useEffect(() => {
     const checkSession = async () => {
         try {
@@ -137,7 +133,6 @@ export default function AdminCharactersPage() {
     checkSession();
   }, [router]);
 
-  // データ取得
   const fetchCharacters = useCallback(async (page: number, search: string) => {
     setLoading(true);
     try {
@@ -166,7 +161,6 @@ export default function AdminCharactersPage() {
     fetchCharacters(currentPage, debouncedQuery);
   }, [currentPage, debouncedQuery, fetchCharacters]);
 
-  // ▼▼▼【修正点】ケバブメニューのアクション処理をモーダルを使用するように変更 ▼▼▼
   const handleMenuAction = (action: string, char: Character) => {
     switch (action) {
       case 'toggleVisibility':
@@ -208,7 +202,7 @@ export default function AdminCharactersPage() {
             });
             if (res.ok) {
               setModalState({ isOpen: true, title: '成功', message: 'キャラクターを削除しました。', isAlert: true });
-              fetchCharacters(1, ''); // 削除後は1ページ目に戻る
+              fetchCharacters(1, '');
             } else {
               setModalState({ isOpen: true, title: 'エラー', message: '削除に失敗しました。', isAlert: true });
             }
@@ -217,7 +211,6 @@ export default function AdminCharactersPage() {
         break;
     }
   };
-  // ▲▲▲【修正完了】▲▲▲
 
   return (
     <div className="bg-black text-white min-h-screen p-4 sm:p-8">
@@ -225,7 +218,6 @@ export default function AdminCharactersPage() {
 
       <div className="max-w-7xl mx-auto">
         <header className="flex items-center mb-6">
-          {/* ▼▼▼【修正点】router.back()で前のページに戻ります ▼▼▼ */}
           <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-gray-700">
             <ArrowLeft size={24} />
           </button>
@@ -250,7 +242,6 @@ export default function AdminCharactersPage() {
             <div className="space-y-4">
               {characters.length > 0 ? characters.map(char => (
                 <div key={char.id} className="bg-gray-900 p-4 rounded-lg flex items-center gap-4 flex-wrap">
-                  {/* ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更 ▼▼▼ */}
                   <Link href={`/characters/${char.id}`} className="flex items-center gap-4 flex-grow min-w-[200px]">
                     <Image
                       src={char.characterImages[0]?.imageUrl || 'https://placehold.co/64x64/1a1a1a/ffffff?text=?'}

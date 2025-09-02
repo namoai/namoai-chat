@@ -34,31 +34,7 @@ type PasswordPayload = {
   confirmPassword: string;
 };
 
-// 汎用モーダルコンポーネント
-type ModalProps = {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  message: string;
-};
-
-const CustomModal = ({ isOpen, onClose, title, message }: ModalProps) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
-      <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-sm mx-4">
-        <h2 className="text-lg font-bold mb-4">{title}</h2>
-        <p className="text-sm text-gray-300 mb-6">{message}</p>
-        <div className="flex justify-end">
-          <button onClick={onClose} className="bg-pink-600 hover:bg-pink-700 py-2 px-4 rounded-lg">
-            OK
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
+// DefaultAvatarIconコンポーネント
 const DefaultAvatarIcon = ({ size = 80 }: { size?: number }) => (
   <div
     className="rounded-full bg-gray-700 flex items-center justify-center"
@@ -68,189 +44,141 @@ const DefaultAvatarIcon = ({ size = 80 }: { size?: number }) => (
   </div>
 );
 
-// パスワード変更モーダル
-const PasswordChangeModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (passwords: PasswordPayload) => Promise<void>; }) => {
-    const [currentPassword, setCurrentPassword] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
+// 汎用モーダルコンポーネント
+type ModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  message: string;
+  isAlert?: boolean;
+};
 
-    if (!isOpen) return null;
-
-    const handleSave = async () => {
-        setIsSaving(true);
-        await onSave({ currentPassword, newPassword, confirmPassword });
-        setIsSaving(false);
-    };
-    
-    // モーダルが開かれたときにフォームをリセット
-    useEffect(() => {
-        if (isOpen) {
-            setCurrentPassword('');
-            setNewPassword('');
-            setConfirmPassword('');
-        }
-    }, [isOpen]);
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
-            <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-sm mx-4">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg font-bold">パスワード変更</h2>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-700 transition-colors cursor-pointer"><X size={24} /></button>
-                </div>
-                <div className="space-y-4">
-                    <input type="password" placeholder="現在のパスワード" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="w-full bg-gray-700 rounded-md p-2 focus:ring-pink-500 focus:border-pink-500" />
-                    <input type="password" placeholder="新しいパスワード" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full bg-gray-700 rounded-md p-2 focus:ring-pink-500 focus:border-pink-500" />
-                    <input type="password" placeholder="新しいパスワード（確認）" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-gray-700 rounded-md p-2 focus:ring-pink-500 focus:border-pink-500" />
-                </div>
-                <div className="flex justify-end gap-4 mt-6">
-                    <button onClick={onClose} className="border border-gray-600 hover:bg-gray-700 py-2 px-4 rounded-lg transition-colors cursor-pointer">キャンセル</button>
-                    <button onClick={handleSave} disabled={isSaving} className="bg-pink-600 hover:bg-pink-700 py-2 px-4 rounded-lg disabled:bg-pink-800 transition-colors cursor-pointer">
-                        {isSaving ? '保存中...' : '保存'}
-                    </button>
-                </div>
-            </div>
+const CustomModal = ({ isOpen, onClose, title, message, isAlert }: ModalProps) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex justify-center items-center">
+      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-sm m-4">
+        <h2 className="text-xl font-bold mb-4">{title}</h2>
+        <p className="text-gray-300 mb-6 whitespace-pre-wrap">{message}</p>
+        <div className="flex justify-end">
+          <button onClick={onClose} className="px-4 py-2 bg-pink-600 hover:bg-pink-500 rounded-lg transition-colors">
+            {isAlert ? 'OK' : '閉じる'}
+          </button>
         </div>
-    );
+      </div>
+    </div>
+  );
 };
 
 
 export default function UserProfilePage() {
   const router = useRouter();
-  const params = useParams<{ userId: string }>();
+  const params = useParams();
   const { data: session } = useSession();
-  
+  const userId = params.userId as string;
+
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-  const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '' });
-  const menuRef = useRef<HTMLDivElement>(null);
-
+  const [modalState, setModalState] = useState<Omit<ModalProps, 'onClose'>>({ isOpen: false, title: '', message: '' });
+  
+  // ▼▼▼【修正点】useEffectの呼び出しを条件分岐の外に移動しました ▼▼▼
   useEffect(() => {
-    if (params.userId) {
+    // userIdが存在する場合のみデータを取得します
+    if (userId) {
       const fetchProfile = async () => {
         try {
-          const response = await fetch(`/api/profile/${params.userId}`);
-          if (!response.ok) throw new Error('プロファイル情報の読み込みに失敗');
+          const response = await fetch(`/api/profile/${userId}`);
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'プロファイルの読み込みに失敗しました。');
+          }
           const data = await response.json();
           setProfile(data);
         } catch (error) {
           console.error(error);
-          setModalState({ isOpen: true, title: 'エラー', message: (error as Error).message });
+          setModalState({ isOpen: true, title: 'エラー', message: (error as Error).message, isAlert: true });
         } finally {
           setLoading(false);
         }
       };
       fetchProfile();
+    } else {
+      // userIdがない場合はローディングを停止します
+      setLoading(false);
     }
-  }, [params.userId]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [userId]);
+  // ▲▲▲【修正完了】▲▲▲
   
-  const closeModal = () => setModalState({ isOpen: false, title: '', message: '' });
+  const closeModal = () => setModalState({ ...modalState, isOpen: false });
 
-  const handlePasswordChange = async ({ currentPassword, newPassword, confirmPassword }: PasswordPayload) => {
-    if (newPassword !== confirmPassword) {
-      setModalState({ isOpen: true, title: 'エラー', message: '新しいパスワードが一致しません。' });
-      return;
-    }
-    try {
-      const response = await fetch('/api/users/change-password', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'パスワードの変更に失敗しました。');
-      }
-      setIsPasswordModalOpen(false);
-      setModalState({ isOpen: true, title: '成功', message: 'パスワードが正常に変更されました。' });
-    } catch (error) {
-      console.error(error);
-      setModalState({ isOpen: true, title: 'エラー', message: (error as Error).message });
-    }
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+    return num;
   };
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center bg-black text-white">ローディング中...</div>;
-  }
-
-  if (!profile) {
-    return <div className="flex h-screen items-center justify-center bg-black text-white">プロファイルが見つかりません。</div>;
+    return <div className="min-h-screen bg-black text-white flex justify-center items-center">ローディング中...</div>;
   }
   
-  const isMyProfile = session?.user?.id === profile.id.toString();
+  if (!profile) {
+    return (
+        <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center">
+            <p className="text-red-500 mb-4">ユーザーが見つかりません。</p>
+            <button onClick={() => router.back()} className="text-pink-400 hover:underline">
+                戻る
+            </button>
+        </div>
+    );
+  }
 
-  const formatNumber = (num: number): string => {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
-  };
+  const isMyProfile = session?.user?.id === userId;
 
   return (
     <>
-      <CustomModal {...modalState} onClose={closeModal} />
-      <PasswordChangeModal isOpen={isPasswordModalOpen} onClose={() => setIsPasswordModalOpen(false)} onSave={handlePasswordChange} />
-      
+      <CustomModal {...modalState} isOpen={modalState.isOpen} onClose={closeModal} />
       <div className="bg-black min-h-screen text-white">
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-4xl">
           <header className="flex items-center justify-between p-4 sticky top-0 bg-black/80 backdrop-blur-sm z-10">
-            <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"><ArrowLeft /></button>
-            <h1 className="font-bold text-lg">マイプロフィール</h1>
-            <div className="relative" ref={menuRef}>
-              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"><MoreVertical /></button>
-              {isMenuOpen && isMyProfile && (
-                <div className="absolute right-0 mt-2 w-64 bg-[#2C2C2E] border border-gray-700 rounded-lg shadow-lg z-20">
-                  <div className="p-4 border-b border-gray-700">
-                    <p className="text-sm text-gray-400 flex items-center gap-2"><Mail size={14}/> {profile.email}</p>
-                  </div>
-                  <ul>
-                    <li>
-                      <button onClick={() => { setIsPasswordModalOpen(true); setIsMenuOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-gray-700 transition-colors cursor-pointer">
-                        <KeyRound size={16} /> パスワード変更
-                      </button>
-                    </li>
-                  </ul>
-                </div>
-              )}
+            <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-gray-700 transition-colors">
+              <ArrowLeft />
+            </button>
+            <h1 className="font-bold text-lg">{profile.nickname}</h1>
+            <div className="w-10">
+                {isMyProfile && (
+                    <button onClick={() => router.push('/profile-edit')} className="p-2 rounded-full hover:bg-gray-700 transition-colors">
+                        <MoreVertical />
+                    </button>
+                )}
             </div>
           </header>
-          
+
           <main className="p-4">
-            <section className="flex items-center gap-4 mb-4">
-              {profile.image_url ? (
-                <Image src={profile.image_url} alt={profile.nickname} width={80} height={80} className="rounded-full" />
-              ) : (
-                <DefaultAvatarIcon size={80} />
-              )}
-              <div>
-                <h2 className="text-2xl font-bold">{profile.nickname}</h2>
-                <div className="flex gap-4 text-sm text-gray-400">
-                  <span>フォロワー {profile._count.followers}</span>
-                  <span>フォロー {profile._count.following}</span>
+            <section className="text-center">
+                <div className="relative inline-block">
+                    {profile.image_url ? (
+                        <Image src={profile.image_url} alt={profile.nickname} width={80} height={80} className="rounded-full object-cover" />
+                    ) : (
+                        <DefaultAvatarIcon size={80} />
+                    )}
                 </div>
+              <h2 className="text-xl font-bold mt-3">{profile.nickname}</h2>
+              <p className="text-sm text-gray-400">@{profile.name}</p>
+              <div className="flex justify-center gap-6 mt-4 text-sm">
+                <span><span className="font-bold">{formatNumber(profile._count.following)}</span> フォロー中</span>
+                <span><span className="font-bold">{formatNumber(profile._count.followers)}</span> フォロワー</span>
               </div>
+              <p className="mt-4 text-base max-w-xl mx-auto">{profile.bio || "自己紹介がありません。"}</p>
+              {isMyProfile && (
+                <button onClick={() => router.push('/profile-edit')} className="mt-4 bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">
+                  プロフィール編集
+                </button>
+              )}
             </section>
-            <p className="text-gray-300 mb-4">{profile.bio || '自己紹介がありません。'}</p>
-            {isMyProfile && (
-                <Link href="/profile-edit" className="block w-full bg-gray-800 hover:bg-gray-700 font-semibold py-2 rounded-lg mb-6 text-center transition-colors cursor-pointer">
-                    プロフィール編集
-                </Link>
-            )}
-            <section>
-               <div className="flex justify-between items-center mb-4">
-                 <h3 className="font-bold">{profile.characters.length}個のキャラクター | 会話量 {formatNumber(profile.totalMessageCount)}</h3>
+
+            <section className="mt-8">
+               <div className="flex justify-between items-end mb-4">
+                 <h3 className="text-lg font-bold">{profile.characters.length}個のキャラクター | 会話量 {formatNumber(profile.totalMessageCount)}</h3>
                  <span className="text-sm text-gray-400">会話量順</span>
                </div>
                <div className="grid grid-cols-2 gap-4">
@@ -278,3 +206,4 @@ export default function UserProfilePage() {
     </>
   );
 }
+

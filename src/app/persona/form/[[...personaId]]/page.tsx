@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
@@ -13,17 +13,17 @@ type PersonaData = {
 };
 
 // モーダルコンポーネントのPropsの型定義
+// ▼▼▼【修正点】未使用のprops (onClose, isAlert) を削除しました ▼▼▼
 type ModalProps = {
   isOpen: boolean;
-  onClose: () => void;
   onConfirm: () => void;
   title: string;
   message: string;
-  isAlert?: boolean;
 };
 
 // 汎用モーダルコンポーネント
-const CustomModal = ({ isOpen, onClose, onConfirm, title, message, isAlert }: ModalProps) => {
+// ▼▼▼【修正点】propsの変更に合わせてコンポーネントを修正しました ▼▼▼
+const CustomModal = ({ isOpen, onConfirm, title, message }: ModalProps) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
@@ -55,8 +55,7 @@ export default function PersonaFormPage() {
   });
   const [isLoading, setIsLoading] = useState(isEditMode);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // ▼▼▼【修正点】モーダル用のstateを追加 ▼▼▼
-  const [modalState, setModalState] = useState<Omit<ModalProps, 'onClose' | 'onConfirm'>>({ isOpen: false, title: '', message: '' });
+  const [modalState, setModalState] = useState<Omit<ModalProps, 'onConfirm'>>({ isOpen: false, title: '', message: '' });
 
   useEffect(() => {
     if (isEditMode) {
@@ -73,14 +72,11 @@ export default function PersonaFormPage() {
           });
         } catch (error) {
           console.error(error);
-          // ▼▼▼【修正点】alertをモーダルに変更 ▼▼▼
           setModalState({
             isOpen: true,
             title: '読み込みエラー',
             message: (error as Error).message,
-            isAlert: true,
           });
-          router.push('/persona/list'); // エラー時は一覧へ
         } finally {
           setIsLoading(false);
         }
@@ -122,22 +118,17 @@ export default function PersonaFormPage() {
         throw new Error(errorData.error || '保存に失敗しました。');
       }
 
-      // ▼▼▼【修正点】alertをモーダルに変更 ▼▼▼
       setModalState({
         isOpen: true,
         title: '成功',
         message: isEditMode ? 'ペルソナが更新されました。' : 'ペルソナが作成されました。',
-        isAlert: true,
       });
-      // モーダルを閉じた後にページ遷移
     } catch (error) {
       console.error(error);
-      // ▼▼▼【修正点】alertをモーダルに変更 ▼▼▼
       setModalState({
         isOpen: true,
         title: '保存エラー',
         message: (error as Error).message,
-        isAlert: true,
       });
     } finally {
       setIsSubmitting(false);
@@ -146,7 +137,6 @@ export default function PersonaFormPage() {
   
   const handleModalConfirm = () => {
     closeModal();
-    // 成功メッセージの時だけリストページに戻る
     if (modalState.title === '成功') {
       router.push('/persona/list');
       router.refresh();
@@ -160,13 +150,13 @@ export default function PersonaFormPage() {
   return (
     <>
       <CustomModal 
-        {...modalState}
-        onClose={closeModal}
+        isOpen={modalState.isOpen}
+        title={modalState.title}
+        message={modalState.message}
         onConfirm={handleModalConfirm}
       />
       <div className="bg-black min-h-screen text-white p-4">
         <header className="flex justify-between items-center py-4">
-          {/* ▼▼▼【修正点】router.back()を使用して前のページに戻るように変更 ▼▼▼ */}
           <button 
             onClick={() => router.back()} 
             className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"
