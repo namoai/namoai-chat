@@ -4,10 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowLeft, MoreVertical, Heart, MessageSquare, KeyRound, Mail, X, User } from 'lucide-react'; // User アイコンをインポート
+import { ArrowLeft, MoreVertical, Heart, MessageSquare, KeyRound, Mail, X, User } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
-// API応答の型定義を更新
+// API応答の型定義
 type ProfileData = {
   id: number;
   name: string;
@@ -34,7 +34,31 @@ type PasswordPayload = {
   confirmPassword: string;
 };
 
-// MyPageと同様のDefaultAvatarIconコンポーネントを定義
+// 汎用モーダルコンポーネント
+type ModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  message: string;
+};
+
+const CustomModal = ({ isOpen, onClose, title, message }: ModalProps) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
+      <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-sm mx-4">
+        <h2 className="text-lg font-bold mb-4">{title}</h2>
+        <p className="text-sm text-gray-300 mb-6">{message}</p>
+        <div className="flex justify-end">
+          <button onClick={onClose} className="bg-pink-600 hover:bg-pink-700 py-2 px-4 rounded-lg">
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const DefaultAvatarIcon = ({ size = 80 }: { size?: number }) => (
   <div
     className="rounded-full bg-gray-700 flex items-center justify-center"
@@ -58,6 +82,15 @@ const PasswordChangeModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onC
         await onSave({ currentPassword, newPassword, confirmPassword });
         setIsSaving(false);
     };
+    
+    // モーダルが開かれたときにフォームをリセット
+    useEffect(() => {
+        if (isOpen) {
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+        }
+    }, [isOpen]);
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
@@ -91,7 +124,8 @@ export default function UserProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '' });
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -104,6 +138,7 @@ export default function UserProfilePage() {
           setProfile(data);
         } catch (error) {
           console.error(error);
+          setModalState({ isOpen: true, title: 'エラー', message: (error as Error).message });
         } finally {
           setLoading(false);
         }
@@ -121,10 +156,12 @@ export default function UserProfilePage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+  
+  const closeModal = () => setModalState({ isOpen: false, title: '', message: '' });
 
   const handlePasswordChange = async ({ currentPassword, newPassword, confirmPassword }: PasswordPayload) => {
     if (newPassword !== confirmPassword) {
-      alert("新しいパスワードが一致しません。");
+      setModalState({ isOpen: true, title: 'エラー', message: '新しいパスワードが一致しません。' });
       return;
     }
     try {
@@ -137,11 +174,11 @@ export default function UserProfilePage() {
       if (!response.ok) {
         throw new Error(result.error || 'パスワードの変更に失敗しました。');
       }
-      alert('パスワードが正常に変更されました。');
-      setIsModalOpen(false);
+      setIsPasswordModalOpen(false);
+      setModalState({ isOpen: true, title: '成功', message: 'パスワードが正常に変更されました。' });
     } catch (error) {
       console.error(error);
-      alert((error as Error).message);
+      setModalState({ isOpen: true, title: 'エラー', message: (error as Error).message });
     }
   };
 
@@ -163,11 +200,13 @@ export default function UserProfilePage() {
 
   return (
     <>
-      <PasswordChangeModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handlePasswordChange} />
+      <CustomModal {...modalState} onClose={closeModal} />
+      <PasswordChangeModal isOpen={isPasswordModalOpen} onClose={() => setIsPasswordModalOpen(false)} onSave={handlePasswordChange} />
+      
       <div className="bg-black min-h-screen text-white">
         <div className="mx-auto max-w-3xl">
           <header className="flex items-center justify-between p-4 sticky top-0 bg-black/80 backdrop-blur-sm z-10">
-            <button onClick={() => router.push('/MyPage')} className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"><ArrowLeft /></button>
+            <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"><ArrowLeft /></button>
             <h1 className="font-bold text-lg">マイプロフィール</h1>
             <div className="relative" ref={menuRef}>
               <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"><MoreVertical /></button>
@@ -178,7 +217,7 @@ export default function UserProfilePage() {
                   </div>
                   <ul>
                     <li>
-                      <button onClick={() => { setIsModalOpen(true); setIsMenuOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-gray-700 transition-colors cursor-pointer">
+                      <button onClick={() => { setIsPasswordModalOpen(true); setIsMenuOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-gray-700 transition-colors cursor-pointer">
                         <KeyRound size={16} /> パスワード変更
                       </button>
                     </li>
@@ -190,7 +229,6 @@ export default function UserProfilePage() {
           
           <main className="p-4">
             <section className="flex items-center gap-4 mb-4">
-              {/* ▼▼▼ 変更点: MyPageと同様のロジックで基本画像を表示 ▼▼▼ */}
               {profile.image_url ? (
                 <Image src={profile.image_url} alt={profile.nickname} width={80} height={80} className="rounded-full" />
               ) : (

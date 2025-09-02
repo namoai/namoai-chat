@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image'; // next/image をインポートします。
+// Next.jsのナビゲーション機能とImageコンポーネントをインポートします
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
 import { ChevronDown, Heart, MessageSquare, ArrowLeft } from 'lucide-react';
 
 // キャラクターのデータ型を定義します。
@@ -11,12 +14,13 @@ type Character = {
   description: string | null;
   hashtags: string[];
   characterImages: { imageUrl: string }[];
-  _count?: { // _countが常に存在するとは限らないため、オプショナル（?）にします。
+  _count?: { // APIからの応答に_countが含まれない場合も考慮し、オプショナルにします
     favorites: number;
     interactions: number;
   };
 };
 
+// ソートオプションの型を定義します
 type SortOption = {
   key: 'newest' | 'popular' | 'likes';
   label: string;
@@ -29,6 +33,9 @@ const sortOptions: SortOption[] = [
 ];
 
 export default function CharListPage() {
+  // ▼▼▼【修正点】useRouterを使用します ▼▼▼
+  const router = useRouter();
+
   const [characters, setCharacters] = useState<Character[]>([]);
   const [tags, setTags] = useState<string[]>(['全体']);
   const [activeTag, setActiveTag] = useState('全体');
@@ -65,7 +72,8 @@ export default function CharListPage() {
     <div className="bg-black min-h-screen text-white">
       <div className="sticky top-0 bg-black z-10 p-4">
         <header className="relative flex justify-center items-center mb-4">
-            <button onClick={() => window.history.back()} className="absolute left-0 p-2 rounded-full hover:bg-pink-500/20 hover:text-white transition-colors cursor-pointer">
+            {/* ▼▼▼【修正点】router.back()で前のページに戻ります ▼▼▼ */}
+            <button onClick={() => router.back()} className="absolute left-0 p-2 rounded-full hover:bg-pink-500/20 transition-colors">
               <ArrowLeft size={24} />
             </button>
             <h1 className="text-xl font-bold">キャラクター一覧</h1>
@@ -75,7 +83,7 @@ export default function CharListPage() {
             <button
               key={tag}
               onClick={() => setActiveTag(tag)}
-              className={`inline-block px-4 py-2 mr-2 rounded-full text-sm font-semibold transition-colors cursor-pointer ${
+              className={`inline-block px-4 py-2 mr-2 rounded-full text-sm font-semibold transition-colors ${
                 activeTag === tag ? 'bg-pink-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
               }`}
             >
@@ -88,7 +96,7 @@ export default function CharListPage() {
       <div className="p-4">
         <div className="flex justify-end mb-4">
           <div className="relative">
-            <button onClick={() => setIsSortMenuOpen(!isSortMenuOpen)} className="flex items-center text-sm text-gray-300 hover:text-white transition-colors cursor-pointer">
+            <button onClick={() => setIsSortMenuOpen(!isSortMenuOpen)} className="flex items-center text-sm text-gray-300 hover:text-white transition-colors">
               {activeSort.label}
               <ChevronDown size={16} className={`ml-1 transition-transform ${isSortMenuOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -98,7 +106,7 @@ export default function CharListPage() {
                   <button
                     key={option.key}
                     onClick={() => handleSortChange(option)}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 cursor-pointer"
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700"
                   >
                     {option.label}
                   </button>
@@ -113,11 +121,12 @@ export default function CharListPage() {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {characters.map(char => (
-              <a href={`/characters/${char.id}`} key={char.id} className="group cursor-pointer">
+              // ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更 ▼▼▼
+              <Link href={`/characters/${char.id}`} key={char.id} className="group">
                 <div className="relative aspect-square bg-gray-800 rounded-lg overflow-hidden">
-                  <Image 
-                    src={char.characterImages[0]?.imageUrl || 'https://placehold.co/300x300/1a1a1a/ffffff?text=?'} 
-                    alt={char.name} 
+                  <Image
+                    src={char.characterImages[0]?.imageUrl || 'https://placehold.co/300x300/1a1a1a/ffffff?text=?'}
+                    alt={char.name}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform"
                     sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
@@ -126,7 +135,6 @@ export default function CharListPage() {
                 <h3 className="mt-2 font-bold truncate">{char.name}</h3>
                 <p className="text-sm text-gray-400 truncate h-10">{char.description}</p>
                 <div className="flex items-center text-xs text-gray-500 mt-1">
-                  {/* ▼▼▼ 変更点: Optional Chaining (?.) と Nullish Coalescing (??) を使用してエラーを防止します ▼▼▼ */}
                   <div className="flex items-center mr-2">
                     <MessageSquare size={12} className="mr-1" /> {char._count?.interactions ?? 0}
                   </div>
@@ -134,7 +142,7 @@ export default function CharListPage() {
                     <Heart size={12} className="mr-1" /> {char._count?.favorites ?? 0}
                   </div>
                 </div>
-              </a>
+              </Link>
             ))}
           </div>
         )}

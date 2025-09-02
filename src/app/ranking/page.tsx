@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// useRouterフックは削除済み、ブラウザ標準機能を使用
+// ▼▼▼【修正点】useRouter と Link をインポートします ▼▼▼
+import { useRouter } from "next/navigation";
+import Link from 'next/link';
 import { Crown, Flame, MessageSquare, ArrowLeft } from "lucide-react";
-import Image from "next/image"; // ← next/image を利用して最適化
+import Image from "next/image";
 
 // キャラクターのデータ型
 type RankedCharacter = {
@@ -11,13 +13,15 @@ type RankedCharacter = {
   name: string;
   description: string | null;
   characterImages: { imageUrl: string }[];
-  chatCount: number; // APIから受け取ったチャット数
+  chatCount: number;
 };
 
 // タブの種類
 type Period = "realtime" | "daily" | "weekly" | "monthly";
 
 export default function RankingPage() {
+  // ▼▼▼【修正点】useRouterを使用します ▼▼▼
+  const router = useRouter();
   const [ranking, setRanking] = useState<RankedCharacter[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Period>("realtime");
@@ -32,7 +36,7 @@ export default function RankingPage() {
         setRanking(data);
       } catch (error) {
         console.error(error);
-        setRanking([]); // エラー発生時は空にする
+        setRanking([]);
       } finally {
         setLoading(false);
       }
@@ -58,10 +62,10 @@ export default function RankingPage() {
 
   return (
     <div className="bg-black min-h-screen text-white p-4">
-      {/* ヘッダーに「戻る」ボタン */}
       <header className="relative flex justify-center items-center mb-6">
+        {/* ▼▼▼【修正点】router.back() を使用します ▼▼▼ */}
         <button
-          onClick={() => window.history.back()}
+          onClick={() => router.back()}
           className="absolute left-0 p-2 rounded-full hover:bg-pink-500/20 hover:text-white transition-colors cursor-pointer"
         >
           <ArrowLeft size={24} />
@@ -69,47 +73,22 @@ export default function RankingPage() {
         <h1 className="text-2xl font-bold text-pink-500">ランキング</h1>
       </header>
 
-      {/* ランキング期間選択タブ */}
       <div className="flex justify-center space-x-2 mb-6">
-        <button
-          onClick={() => setActiveTab("realtime")}
-          className={getTabClassName("realtime")}
-        >
-          リアルタイム
-        </button>
-        <button
-          onClick={() => setActiveTab("daily")}
-          className={getTabClassName("daily")}
-        >
-          日間
-        </button>
-        <button
-          onClick={() => setActiveTab("weekly")}
-          className={getTabClassName("weekly")}
-        >
-          週間
-        </button>
-        <button
-          onClick={() => setActiveTab("monthly")}
-          className={getTabClassName("monthly")}
-        >
-          月間
-        </button>
+        <button onClick={() => setActiveTab("realtime")} className={getTabClassName("realtime")}>リアルタイム</button>
+        <button onClick={() => setActiveTab("daily")} className={getTabClassName("daily")}>日間</button>
+        <button onClick={() => setActiveTab("weekly")} className={getTabClassName("weekly")}>週間</button>
+        <button onClick={() => setActiveTab("monthly")} className={getTabClassName("monthly")}>月間</button>
       </div>
 
-      {/* ランキング一覧 */}
       <div className="space-y-4">
         {loading ? (
-          <p className="text-center text-gray-500">
-            ランキングを読み込んでいます...
-          </p>
+          <p className="text-center text-gray-500">ランキングを読み込んでいます...</p>
         ) : ranking.length > 0 ? (
           ranking.map((char, index) => {
-            const src =
-              char.characterImages[0]?.imageUrl ||
-              "https://placehold.co/100x100/1a1a1a/ffffff?text=?";
+            const src = char.characterImages[0]?.imageUrl || "https://placehold.co/100x100/1a1a1a/ffffff?text=?";
             return (
-              <a
+              // ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更します ▼▼▼
+              <Link
                 href={`/characters/${char.id}`}
                 key={char.id}
                 className="flex items-center bg-gray-900 p-3 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
@@ -118,17 +97,12 @@ export default function RankingPage() {
                   {index < 3 ? (
                     <Crown size={24} className={getRankColor(index)} />
                   ) : (
-                    <span
-                      className={`text-lg font-bold w-8 text-center ${getRankColor(
-                        index
-                      )}`}
-                    >
+                    <span className={`text-lg font-bold w-8 text-center ${getRankColor(index)}`}>
                       {index + 1}
                     </span>
                   )}
                 </div>
 
-                {/* ここを next/image に置換 */}
                 <div className="relative w-16 h-16 mr-4 flex-shrink-0">
                   <Image
                     src={src}
@@ -146,7 +120,6 @@ export default function RankingPage() {
                   </p>
                 </div>
 
-                {/* チャット数表示 */}
                 <div className="flex items-center text-gray-400 flex-shrink-0 ml-4">
                   {activeTab === "realtime" ? (
                     <Flame size={16} className="mr-1 text-pink-400" />
@@ -157,7 +130,7 @@ export default function RankingPage() {
                     {char.chatCount}
                   </span>
                 </div>
-              </a>
+              </Link>
             );
           })
         ) : (

@@ -7,7 +7,10 @@ import {
 } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
 import { signOut } from "next-auth/react";
-import Image from "next/image"; // ▼▼▼ 変更点: next/imageのImageコンポーネントをインポート ▼▼▼
+import Image from "next/image";
+// ▼▼▼【修正点】Link と useRouter をインポートします ▼▼▼
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 // ユーザーのプロフィール画像がない場合に表示するデフォルトのSVGアイコンコンポーネント
 const DefaultAvatarIcon = ({ size = 48 }: { size?: number }) => (
@@ -20,26 +23,30 @@ const DefaultAvatarIcon = ({ size = 48 }: { size?: number }) => (
 );
 
 // 確認モーダルコンポーネントの型定義
-type ConfirmationModalProps = {
+type ModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
   title: string;
   message: string;
-  confirmText: string;
-  cancelText: string;
+  confirmText?: string;
+  cancelText?: string;
+  isAlert?: boolean; // 確認だけでなく、単純な通知にも使えるようにします
 };
 
-const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirmText, cancelText }: ConfirmationModalProps) => {
+// ▼▼▼【修正点】汎用性を高めたモーダルコンポーネント ▼▼▼
+const CustomModal = ({ isOpen, onClose, onConfirm, title, message, confirmText, cancelText, isAlert }: ModalProps) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
       <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-sm mx-4">
         <h2 className="text-lg font-bold mb-4">{title}</h2>
         <p className="text-sm text-gray-300 mb-6">{message}</p>
-        <div className="flex justify-end gap-4">
-          <button onClick={onClose} className="border border-gray-600 hover:bg-gray-700 py-2 px-4 rounded-lg">{cancelText}</button>
-          <button onClick={onConfirm} className="bg-pink-600 hover:bg-pink-700 py-2 px-4 rounded-lg">{confirmText}</button>
+        <div className={`flex ${isAlert ? 'justify-end' : 'justify-end gap-4'}`}>
+          {!isAlert && (
+            <button onClick={onClose} className="border border-gray-600 hover:bg-gray-700 py-2 px-4 rounded-lg">{cancelText || 'キャンセル'}</button>
+          )}
+          <button onClick={onConfirm} className={`bg-pink-600 hover:bg-pink-700 py-2 px-4 rounded-lg`}>{confirmText || 'OK'}</button>
         </div>
       </div>
     </div>
@@ -58,12 +65,10 @@ type MenuItem = {
 const LoggedInView = ({ session }: { session: Session }) => {
   const [points, setPoints] = useState<{ total: number; loading: boolean }>({ total: 0, loading: true });
   const [isSafetyFilterOn, setIsSafetyFilterOn] = useState(true);
-  const [isSafetyModalOpen, setIsSafetyModalOpen] = useState(false);
-  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [modalState, setModalState] = useState<Omit<ModalProps, 'onClose'>>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   const userRole = session?.user?.role;
   const isAdmin = userRole && userRole !== 'USER';
-
 
   useEffect(() => {
     const fetchData = async () => {
@@ -89,6 +94,9 @@ const LoggedInView = ({ session }: { session: Session }) => {
     fetchData();
   }, []);
 
+  const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
+
+  // ▼▼▼【修正点】alertをモーダルに置き換え ▼▼▼
   const updateSafetyFilter = async (newStatus: boolean) => {
     try {
       const response = await fetch('/api/users/safety-filter', {
@@ -100,21 +108,52 @@ const LoggedInView = ({ session }: { session: Session }) => {
 
       const data = await response.json();
       setIsSafetyFilterOn(data.safetyFilter);
-      alert(`セーフティフィルターを${newStatus ? 'ON' : 'OFF'}にしました。`);
+      setModalState({
+        isOpen: true,
+        title: '成功',
+        message: `セーフティフィルターを${newStatus ? 'ON' : 'OFF'}にしました。`,
+        onConfirm: closeModal,
+        isAlert: true,
+      });
     } catch (error) {
       console.error(error);
-      alert('エラーが発生しました。');
-    } finally {
-      setIsSafetyModalOpen(false);
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: 'エラーが発生しました。',
+        onConfirm: closeModal,
+        isAlert: true,
+      });
     }
   };
 
   const handleSafetyFilterToggle = () => {
     if (isSafetyFilterOn) {
-      setIsSafetyModalOpen(true);
+      setModalState({
+        isOpen: true,
+        title: "年齢確認",
+        message: "あなたは成人ですか？ 「はい」を選択すると、成人向けコンテンツが表示される可能性があります。",
+        confirmText: "はい",
+        cancelText: "いいえ",
+        onConfirm: () => {
+          updateSafetyFilter(false);
+          closeModal();
+        },
+      });
     } else {
       updateSafetyFilter(true);
     }
+  };
+
+  const handleLogout = () => {
+    setModalState({
+      isOpen: true,
+      title: "ログアウト",
+      message: "本当にログアウトしますか？",
+      confirmText: "はい",
+      cancelText: "いいえ",
+      onConfirm: () => signOut({ callbackUrl: '/' }),
+    });
   };
 
   const myMenuItems: MenuItem[] = [
@@ -133,7 +172,9 @@ const LoggedInView = ({ session }: { session: Session }) => {
     { icon: <Megaphone size={20} className="text-gray-400" />, text: "お知らせ", action: "/notice" },
   ];
 
+  // ▼▼▼【修正点】MenuItemComponentでLinkコンポーネントを使用 ▼▼▼
   const MenuItemComponent = ({ item }: { item: MenuItem | Omit<MenuItem, 'badge'> }) => {
+    const router = useRouter();
     const commonClasses = "w-full flex items-center text-left p-4 hover:bg-gray-800 transition-colors duration-200 cursor-pointer";
     const content = (
       <>
@@ -151,9 +192,9 @@ const LoggedInView = ({ session }: { session: Session }) => {
 
     if (typeof item.action === 'string') {
       return (
-        <a href={item.action} className={commonClasses}>
+        <Link href={item.action} className={commonClasses}>
           {content}
-        </a>
+        </Link>
       );
     }
     return (
@@ -165,29 +206,11 @@ const LoggedInView = ({ session }: { session: Session }) => {
 
   return (
     <>
-      <ConfirmationModal
-        isOpen={isSafetyModalOpen}
-        onClose={() => setIsSafetyModalOpen(false)}
-        onConfirm={() => updateSafetyFilter(false)}
-        title="年齢確認"
-        message="あなたは成人ですか？ 「はい」を選択すると、成人向けコンテンツが表示される可能性があります。"
-        confirmText="はい"
-        cancelText="いいえ"
-      />
-      <ConfirmationModal
-        isOpen={isLogoutModalOpen}
-        onClose={() => setIsLogoutModalOpen(false)}
-        onConfirm={() => signOut({ callbackUrl: '/' })}
-        title="ログアウト"
-        message="本当にログアウトしますか？"
-        confirmText="はい"
-        cancelText="いいえ"
-      />
+      <CustomModal {...modalState} onClose={closeModal} />
 
       <main className="flex flex-col gap-6">
         <div className="bg-[#1C1C1E] p-4 rounded-lg flex items-center">
           <div className="mr-4">
-            {/* ▼▼▼ 変更点: <img>を<Image>コンポーネントに変更 ▼▼▼ */}
             {session.user?.image ? (
               <Image
                 src={session.user.image}
@@ -210,15 +233,15 @@ const LoggedInView = ({ session }: { session: Session }) => {
               )}
             </div>
           </div>
-          <a
+          <Link
             href={`/profile/${session.user?.id}`}
             className="bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-lg transition-colors duration-200"
           >
             マイプロフィール
-          </a>
+          </Link>
         </div>
 
-        <a
+        <Link
           href="/points"
           className="w-full bg-[#1C1C1E] p-4 rounded-lg flex items-center justify-between cursor-pointer hover:bg-gray-800 transition-colors duration-200"
         >
@@ -232,16 +255,16 @@ const LoggedInView = ({ session }: { session: Session }) => {
             </span>
             <ChevronRight size={20} className="text-gray-400" />
           </div>
-        </a>
+        </Link>
 
         {isAdmin && (
           <div className="bg-[#1C1C1E] rounded-lg">
             <div className="px-4 pt-4 pb-2"><h2 className="text-xs text-gray-500">管理</h2></div>
             <nav>
-              <a href="/admin" className="w-full flex items-center text-left p-4 hover:bg-gray-800 transition-colors duration-200 cursor-pointer">
+              <Link href="/admin" className="w-full flex items-center text-left p-4 hover:bg-gray-800 transition-colors duration-200 cursor-pointer">
                 <Shield size={20} className="text-gray-400" />
                 <span className="ml-4 text-base">管理パネル</span>
-              </a>
+              </Link>
             </nav>
           </div>
         )}
@@ -261,7 +284,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
         </div>
 
         <button
-          onClick={() => setIsLogoutModalOpen(true)}
+          onClick={handleLogout}
           className="w-full flex items-center justify-center text-left p-4 bg-[#1C1C1E] rounded-lg hover:bg-red-800/50 transition-colors duration-200 cursor-pointer"
         >
           <LogOut size={20} className="text-red-500 mr-3" />
@@ -273,6 +296,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
 };
 
 // ログインしていないユーザー向けのビュー
+// ▼▼▼【修正点】LoggedOutViewでLinkコンポーネントを使用 ▼▼▼
 const LoggedOutView = () => {
   const menuItems = [
     { icon: <Users size={20} className="text-gray-400" />, text: "ディスコード", href: "/discord" },
@@ -281,20 +305,20 @@ const LoggedOutView = () => {
   ];
   return (
     <main className="flex flex-col gap-6">
-      <a
+      <Link
         href="/login"
         className="w-full bg-[#1C1C1E] p-4 rounded-lg flex items-center cursor-pointer hover:bg-gray-800 transition-colors duration-200"
       >
         <div className="bg-pink-500 p-3 rounded-full mr-4"><Heart size={24} className="text-white" fill="white" /></div>
         <div className="text-left"><p className="font-semibold">ログインして始める</p></div>
         <ChevronRight size={20} className="text-gray-400 ml-auto" />
-      </a>
+      </Link>
 
       <div className="bg-[#1C1C1E] rounded-lg">
         <div className="px-4 pt-4 pb-2"><h2 className="text-xs text-gray-500">コミュニケーション・案内</h2></div>
         <nav className="flex flex-col">
           {menuItems.map((item, index) => (
-            <a
+            <Link
               key={index}
               href={item.href}
               className="w-full flex items-center text-left p-4 hover:bg-gray-800 transition-colors duration-200 cursor-pointer"
@@ -302,7 +326,7 @@ const LoggedOutView = () => {
               {item.icon}
               <span className="ml-4 text-base">{item.text}</span>
               {item.badge && (<span className="ml-auto text-sm text-pink-400 font-semibold">{item.badge}</span>)}
-            </a>
+            </Link>
           ))}
         </nav>
       </div>

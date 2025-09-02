@@ -1,11 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-// import { useRouter } from "next/navigation"; // エラーのためコメントアウト
-// import Image from "next/image"; // エラーのためコメントアウト
-// import Link from "next/link"; // Linkをインポート
-// import { useSession } from "next-auth/react"; // エラーのためコメントアウト
-// import { Button } from "@/components/ui/button"; // 外部コンポーネントのためコメントアウト
+// Next.jsのナビゲーション機能をインポートします
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ArrowLeft,
   Plus,
@@ -19,13 +17,11 @@ import {
 } from "lucide-react";
 
 // Buttonの仮コンポーネント
-// FIX: 사용하지 않는 'variant' prop을 제거했습니다.
 const Button = ({ children, onClick, className }: { children: React.ReactNode, onClick: () => void, className?: string }) => (
     <button onClick={onClick} className={className}>
         {children}
     </button>
 );
-
 
 // APIから受け取るキャラクターリストの型
 type CharacterSummary = {
@@ -189,8 +185,8 @@ const KebabMenu = ({
 };
 
 export default function CharacterManagementPage() {
-  // const router = useRouter(); // エラーのためuseRouterを削除
-  // const { status } = useSession(); // エラーのためuseSessionを削除
+  // ▼▼▼【修正点】useRouterを使用します ▼▼▼
+  const router = useRouter(); 
   
   const [characters, setCharacters] = useState<CharacterSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -240,18 +236,15 @@ export default function CharacterManagementPage() {
     }
   }, [showNotification]);
 
-  // ▼▼▼【ここから修正】useEffectの認証チェックロジックを簡素化 ▼▼▼
   useEffect(() => {
-    // useSessionがコメントアウトされているため、直接キャラクターをフェッチします。
-    // 本来は認証状態を確認してから実行する必要があります。
     fetchCharacters();
   }, [fetchCharacters]);
-  // ▲▲▲【ここまで修正】▲▲▲
 
   const handleMenuAction = async (action: string, char: CharacterSummary) => {
     switch (action) {
       case "edit":
-        window.location.href = `/characters/edit/${char.id}`;
+        // ▼▼▼【修正点】router.pushでページ遷移します ▼▼▼
+        router.push(`/characters/edit/${char.id}`);
         break;
       case "delete":
         setConfirmModal({
@@ -281,7 +274,8 @@ export default function CharacterManagementPage() {
           const data = await response.json();
           setCopiedCharacterData(data);
           showNotification(`「${data.name}」をコピーしました。`, "success");
-        } catch (error) {
+        } catch (error)
+          {
           console.error(error);
           showNotification("エラー: コピーに失敗しました。", "error");
         }
@@ -352,7 +346,6 @@ export default function CharacterManagementPage() {
     return characters.filter((char) => char.visibility === targetVisibility);
   }, [characters, activeTab]);
 
-  // ▼▼▼【ここから修正】ローディング状態のチェックを簡素化 ▼▼▼
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white flex justify-center items-center">
@@ -360,7 +353,6 @@ export default function CharacterManagementPage() {
       </div>
     );
   }
-  // ▲▲▲【ここまで修正】▲▲▲
 
   return (
     <div className="min-h-screen bg-black text-white p-4 font-sans max-w-4xl mx-auto">
@@ -388,15 +380,17 @@ export default function CharacterManagementPage() {
       />
 
       <header className="flex items-center justify-between py-4">
+        {/* ▼▼▼【修正点】router.back()を使用します ▼▼▼ */}
         <button
-          onClick={() => window.history.back()}
+          onClick={() => router.back()}
           className="p-2 rounded-full hover:bg-gray-800"
         >
           <ArrowLeft size={24} />
         </button>
         <h1 className="text-lg font-bold">キャラクター管理</h1>
+        {/* ▼▼▼【修正点】router.pushでページ遷移します ▼▼▼ */}
         <button
-          onClick={() => window.location.href = "/characters/create"}
+          onClick={() => router.push("/characters/create")}
           className="p-2 rounded-full text-pink-500 hover:bg-gray-800"
         >
           <Plus size={24} />
@@ -426,7 +420,8 @@ export default function CharacterManagementPage() {
               key={char.id}
               className="bg-[#1C1C1E] p-3 rounded-lg flex items-center gap-4"
             >
-              <a href={`/characters/${char.id}`} className="flex-grow flex items-center gap-4 min-w-0">
+              {/* ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更 ▼▼▼ */}
+              <Link href={`/characters/${char.id}`} className="flex-grow flex items-center gap-4 min-w-0">
                 <img
                   src={
                     char.characterImages[0]?.imageUrl ||
@@ -451,10 +446,11 @@ export default function CharacterManagementPage() {
                     </div>
                   </div>
                 </div>
-              </a>
+              </Link>
               
+              {/* ▼▼▼【修正点】router.pushでページ遷移します ▼▼▼ */}
               <button 
-                onClick={() => window.location.href = `/characters/${char.id}`}
+                onClick={() => router.push(`/characters/${char.id}`)}
                 className="bg-pink-500 hover:bg-pink-600 transition-colors cursor-pointer text-white text-sm font-bold py-2 px-4 rounded-lg flex-shrink-0"
               >
                 キャラクタページ

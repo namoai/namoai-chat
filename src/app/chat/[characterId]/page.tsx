@@ -1,7 +1,8 @@
 "use client";
 
-// Next.jsのナビゲーション機能を利用するためにuseRouterをインポートします
+// Next.jsのナビゲーション機能を利用するためにuseRouterとLinkをインポートします
 import { useRouter } from 'next/navigation';
+import Link from 'next/link'; // <a>タグの代わりに使用するLinkコンポーネント
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Menu, Send, Quote, Asterisk, X } from 'lucide-react';
 import ChatMessageParser from '@/components/ChatMessageParser';
@@ -23,8 +24,54 @@ type Message = {
 };
 type DbMessage = { role: string; content: string; createdAt: string; };
 
+// ▼▼▼【新規追加】汎用モーダルコンポーネント ▼▼▼
+type ModalState = {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+  confirmText?: string;
+  isAlert?: boolean;
+};
+
+const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalState, setModalState: (state: ModalState) => void }) => {
+  if (!modalState.isOpen) return null;
+
+  const handleClose = () => {
+    modalState.onCancel?.();
+    setModalState({ ...modalState, isOpen: false });
+  };
+  const handleConfirm = () => {
+    modalState.onConfirm?.();
+    setModalState({ ...modalState, isOpen: false });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex justify-center items-center">
+      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-sm m-4">
+        <h2 className="text-xl font-bold mb-4">{modalState.title}</h2>
+        <p className="text-gray-300 mb-6">{modalState.message}</p>
+        <div className={`flex ${modalState.isAlert ? 'justify-end' : 'justify-between'} gap-4`}>
+          {!modalState.isAlert && (
+            <button onClick={handleClose} className="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors">
+              キャンセル
+            </button>
+          )}
+          <button 
+            onClick={handleConfirm} 
+            className={`px-4 py-2 ${modalState.confirmText?.includes('開始') ? 'bg-red-600 hover:bg-red-500' : 'bg-pink-600 hover:bg-pink-500'} rounded-lg transition-colors`}
+          >
+            {modalState.confirmText || 'OK'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+// ▲▲▲【追加完了】▲▲▲
+
 export default function ChatPage() {
-  // useRouterフックをコンポーネント内で呼び出します
   const router = useRouter();
   const [characterId, setCharacterId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -38,12 +85,12 @@ export default function ChatPage() {
   const [isMultiImage, setIsMultiImage] = useState(true);
   const [userNote, setUserNote] = useState('');
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: '', message: '' });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // URLからキャラクターIDとチャットIDを取得します
     const pathSegments = window.location.pathname.split('/');
     const id = pathSegments[pathSegments.indexOf('chat') + 1];
     setCharacterId(id);
@@ -60,13 +107,11 @@ export default function ChatPage() {
       const initializeChat = async () => {
         setIsInitialLoading(true);
         try {
-          // キャラクター情報を取得
           const charResponse = await fetch(`/api/characters/${characterId}`, { cache: 'no-store' });
           if (!charResponse.ok) throw new Error('キャラクター情報の取得に失敗しました。');
           const charData: CharacterInfo = await charResponse.json();
           setCharacterInfo(charData);
 
-          // チャットセッション（履歴）を取得または新規作成
           const chatSessionResponse = await fetch('/api/chats/find-or-create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -79,7 +124,6 @@ export default function ChatPage() {
           setChatId(chatSessionData.id);
           setUserNote(chatSessionData.userNote || '');
           
-          // チャット履歴がない場合は、キャラクターの初期設定メッセージを表示
           if (chatSessionData.chat_message.length === 0 && charData) {
             const initialMessages: Message[] = [];
             if (charData.firstSituation) {
@@ -90,7 +134,6 @@ export default function ChatPage() {
             }
             setMessages(initialMessages);
           } else {
-            // 既存のチャット履歴をフォーマットして表示
             const formattedMessages = chatSessionData.chat_message.map((msg: DbMessage, index: number) => ({
               id: `db-msg-${chatSessionData.id}-${index}`,
               role: msg.role as "user" | "model",
@@ -101,22 +144,18 @@ export default function ChatPage() {
           }
         } catch (error) {
           console.error(error);
-          alert('チャットの読み込みに失敗しました。');
-          // エラーが発生した場合は前のページに戻る
-          router.back();
+          setModalState({ isOpen: true, title: 'エラー', message: 'チャットの読み込みに失敗しました。', isAlert: true, onConfirm: () => router.back() });
         } finally {
           setIsInitialLoading(false);
         }
       };
       initializeChat();
     }
-  }, [characterId, chatId]);
+  }, [characterId, router]); // chatIdを依存配列から削除
 
-  // メッセージリストの最下部へ自動スクロール
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
   useEffect(scrollToBottom, [messages]);
 
-  // メッセージ送信処理
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading || !chatId) return;
@@ -131,7 +170,6 @@ export default function ChatPage() {
     const messageToSend = input;
     setInput('');
     try {
-      // APIにメッセージを送信し、応答を待つ
       const response = await fetch(`/api/chat/${chatId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -147,7 +185,6 @@ export default function ChatPage() {
       }]);
     } catch (error) {
       console.error("チャットエラー:", error);
-      // エラーメッセージをチャット欄に表示
       setMessages(prev => [...prev, {
         id: `error-msg-${Date.now()}`,
         role: 'model',
@@ -159,30 +196,39 @@ export default function ChatPage() {
     }
   };
   
-  // 新しいチャットを開始する処理
-  const handleNewChat = async () => {
+  // ▼▼▼【修正点】confirmをモーダルに、window.location.hrefをrouter.pushに置き換え ▼▼▼
+  const handleNewChat = () => {
     if (!characterId) return;
-    if (!confirm('現在のチャットを終了し、新しいチャットを開始しますか？')) return;
-    try {
-      const response = await fetch('/api/chats/find-or-create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ characterId, forceNew: true }),
-      });
-      if (!response.ok) throw new Error('新しいチャットの作成に失敗しました。');
-      const newChat = await response.json();
-      // 新しいチャットIDでページをリロード
-      window.location.href = `/chat/${characterId}?chatId=${newChat.id}`;
-    } catch (error) {
-      console.error(error);
-      alert('新しいチャットの作成に失敗しました。');
-    }
+    setModalState({
+      isOpen: true,
+      title: '確認',
+      message: '現在のチャットを終了し、新しいチャットを開始しますか？',
+      confirmText: '開始する',
+      onConfirm: async () => {
+        try {
+          const response = await fetch('/api/chats/find-or-create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ characterId, forceNew: true }),
+          });
+          if (!response.ok) throw new Error('新しいチャットの作成に失敗しました。');
+          const newChat = await response.json();
+          router.push(`/chat/${characterId}?chatId=${newChat.id}`);
+          // ページ遷移後にリロードして状態を完全にリセット
+          router.refresh(); 
+        } catch (error) {
+          console.error(error);
+          setModalState({ isOpen: true, title: 'エラー', message: '新しいチャットの作成に失敗しました。', isAlert: true });
+        }
+      }
+    });
   };
+  // ▲▲▲【修正完了】▲▲▲
 
-  // 会話をTXTファイルとして保存
+  // ▼▼▼【修正点】alertをモーダルに置き換え ▼▼▼
   const handleSaveConversationAsTxt = () => {
     if (!characterInfo || messages.length === 0) {
-      alert('保存する会話内容がありません。');
+      setModalState({ isOpen: true, title: '情報', message: '保存する会話内容がありません。', isAlert: true });
       return;
     }
     const header = `キャラクター: ${characterInfo.name}\n保存日時: ${new Date().toLocaleString('ja-JP')}\n---\n\n`;
@@ -206,13 +252,11 @@ export default function ChatPage() {
     URL.revokeObjectURL(url);
     setIsSettingsOpen(false);
   };
-
-  // 会話をPNGとして保存（現在開発中）
+  
   const handleSaveConversationAsPng = async () => {
-    alert('この機能は現在開発中です。');
+    setModalState({ isOpen: true, title: '情報', message: 'この機能は現在開発中です。', isAlert: true });
   };
-
-  // ユーザーノートを保存
+  
   const handleSaveNote = async (note: string) => {
     if (chatId === null) return;
     try {
@@ -224,14 +268,14 @@ export default function ChatPage() {
       if (!response.ok) throw new Error('ノートの保存に失敗しました。');
       const data = await response.json();
       setUserNote(data.userNote);
-      alert('ノートを保存しました。');
+      setModalState({ isOpen: true, title: '成功', message: 'ノートを保存しました。', isAlert: true });
     } catch (error) {
       console.error(error);
-      alert((error as Error).message);
+      setModalState({ isOpen: true, title: 'エラー', message: (error as Error).message, isAlert: true });
     }
   };
+  // ▲▲▲【修正完了】▲▲▲
   
-  // 入力欄にマークダウン（地の文・セリフ）を挿入
   const handleInsertMarkdown = (type: 'narration' | 'dialogue') => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -250,29 +294,26 @@ export default function ChatPage() {
     }, 0);
   };
 
-  // ▼▼▼【修正点】戻るボタンの処理をNext.jsのルーター機能に変更 ▼▼▼
-  // これにより、ブラウザの履歴を正しく操作し、意図しないページ遷移を防ぎます。
   const handleGoBack = () => {
     router.back();
   };
-  // ▲▲▲【修正完了】▲▲▲
 
-  // 初期読み込み中の表示
   if (isInitialLoading || !characterInfo) {
     return <div className="min-h-screen bg-black text-white flex justify-center items-center">チャットを準備中...</div>;
   }
   
   return (
     <div className="flex flex-col h-screen bg-black text-white">
+      <ConfirmationModal modalState={modalState} setModalState={setModalState} />
       {/* ヘッダー */}
       <header className="flex items-center justify-between p-3 border-b border-gray-700 bg-black/50 backdrop-blur-sm sticky top-0 z-10">
         <button onClick={handleGoBack} className="p-2 hover:bg-gray-700 rounded-full">
           <ArrowLeft size={24} />
         </button>
-        <a href={`/characters/${characterId}`} className="flex flex-col items-center hover:opacity-80 transition-opacity">
+        <Link href={`/characters/${characterId}`} className="flex flex-col items-center hover:opacity-80 transition-opacity">
           <img src={characterInfo.characterImages[0]?.imageUrl || '/default-avatar.png'} alt={characterInfo.name} width={40} height={40} className="rounded-full object-cover" />
           <span className="text-sm font-semibold mt-1">{characterInfo.name}</span>
-        </a>
+        </Link>
         <button onClick={() => setIsSettingsOpen(true)} className="p-2 hover:bg-gray-700 rounded-full"><Menu size={24} /></button>
       </header>
       
@@ -290,7 +331,6 @@ export default function ChatPage() {
             </div>
           );
         })}
-        {/* ローディングインジケーター */}
         {isLoading && ( <div className="flex items-start"><div className="bg-gray-800 px-4 py-3 rounded-xl"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-white rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-white rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-white rounded-full animate-pulse"></div></div></div></div> )}
         <div ref={messagesEndRef} />
       </main>

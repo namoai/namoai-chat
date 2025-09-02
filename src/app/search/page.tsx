@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
+// ▼▼▼【修正点】useRouter と Link をインポートします ▼▼▼
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ArrowLeft, Search, X } from "lucide-react";
-import Image from "next/image"; // ← next/image を使用して最適化
+import Image from "next/image";
 
 // キャラクターのデータ型
 type SearchResult = {
@@ -18,6 +21,8 @@ type SearchResult = {
 };
 
 export default function SearchPage() {
+  // ▼▼▼【修正点】useRouterを使用します ▼▼▼
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [popularKeywords, setPopularKeywords] = useState<string[]>([]);
@@ -93,8 +98,9 @@ export default function SearchPage() {
     <div className="bg-black min-h-screen text-white p-4">
       {/* ヘッダー（戻る + 検索フォーム） */}
       <header className="flex items-center mb-6">
+        {/* ▼▼▼【修正点】router.back() を使用します ▼▼▼ */}
         <button
-          onClick={() => window.history.back()}
+          onClick={() => router.back()}
           className="p-2 mr-2 rounded-full hover:bg-pink-500/20 hover:text-white transition-colors cursor-pointer"
         >
           <ArrowLeft size={24} />
@@ -129,12 +135,12 @@ export default function SearchPage() {
                   char.characterImages[0]?.imageUrl ||
                   "https://placehold.co/100x100/1a1a1a/ffffff?text=?";
                 return (
-                  <a
+                  // ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更します ▼▼▼
+                  <Link
                     href={`/characters/${char.id}`}
                     key={char.id}
                     className="flex items-start bg-gray-900 p-3 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
                   >
-                    {/* img → next/image に変更 */}
                     <div className="relative w-16 h-16 mr-4 flex-shrink-0">
                       <Image
                         src={src}
@@ -160,7 +166,7 @@ export default function SearchPage() {
                         ))}
                       </div>
                     </div>
-                  </a>
+                  </Link>
                 );
               })}
             </div>

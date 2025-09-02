@@ -23,7 +23,6 @@ type CharacterData = {
   hashtags: string[];
   detailSetting: string | null;
   author_id: number | null;
-  // ▼▼▼ 変更点: characterImagesの型にidを追加します ▼▼▼
   characterImages: { id: number; imageUrl: string; keyword: string | null }[];
 };
 
@@ -95,9 +94,11 @@ export default function CharacterEditPage() {
     return (
         <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center">
             <p className="text-red-500 mb-4">{error}</p>
+            {/* ▼▼▼【修正点】onClickでrouter.pushを使用します ▼▼▼ */}
             <button onClick={() => router.push('/MyPage')} className="text-pink-400 hover:underline">
                 マイページに戻る
             </button>
+            {/* ▲▲▲【修正完了】▲▲▲ */}
         </div>
     );
   }

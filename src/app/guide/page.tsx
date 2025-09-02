@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ChevronRight, ArrowLeft, Edit } from 'lucide-react';
-import type { Session } from 'next-auth'; // Sessionの型定義をインポート
+import type { Session } from 'next-auth';
 
 // ガイドデータの型定義
 type Guide = {
@@ -30,6 +32,7 @@ const AccordionMenu = ({ title, children, isOpen, onClick }: { title: string, ch
 );
 
 export default function GuidePage() {
+  const router = useRouter(); // useRouterフックを使用
   const [guides, setGuides] = useState<StructuredGuides>({});
   const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({});
@@ -86,18 +89,21 @@ export default function GuidePage() {
     <div className="bg-black min-h-screen text-white flex flex-col">
       <header className="sticky top-0 bg-black z-10 p-4 border-b border-gray-800 flex items-center justify-between">
         <div className="flex items-center">
-          {/* ▼▼▼ 変更点: ボタンをマイページへのリンクに変更しました ▼▼▼ */}
-          <a href="/MyPage" className="p-2 mr-4 rounded-full hover:bg-pink-500/20 transition-colors cursor-pointer">
+          {/* ▼▼▼【修正点】<a>タグを<button>とrouter.back()に変更 ▼▼▼ */}
+          <button onClick={() => router.back()} className="p-2 mr-4 rounded-full hover:bg-pink-500/20 transition-colors cursor-pointer">
             <ArrowLeft size={24} />
-          </a>
+          </button>
+          {/* ▲▲▲【修正完了】▲▲▲ */}
           <h1 className="text-xl font-bold">ユーザーガイド</h1>
         </div>
+        {/* ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更 ▼▼▼ */}
         {session?.user?.role === 'ADMIN' && (
-          <a href="/admin/guides" className="flex items-center bg-pink-600 hover:bg-pink-700 text-white text-sm font-bold py-2 px-4 rounded-lg transition-colors">
+          <Link href="/admin/guides" className="flex items-center bg-pink-600 hover:bg-pink-700 text-white text-sm font-bold py-2 px-4 rounded-lg transition-colors">
             <Edit size={16} className="mr-2" />
             ガイド管理
-          </a>
+          </Link>
         )}
+        {/* ▲▲▲【修正完了】▲▲▲ */}
       </header>
       
       <div className="flex flex-grow">

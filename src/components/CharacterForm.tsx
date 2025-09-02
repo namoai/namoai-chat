@@ -43,11 +43,11 @@ type FormState = {
   hashtags: string[];
 };
 
-// 画像データ型（既存・新規画像の両方を処理）
+// 画像データ型
 type DisplayImage = {
-  id?: number; // 既存の画像ID
-  imageUrl?: string; // 既存の画像URL
-  file?: File; // 新規追加ファイル
+  id?: number;
+  imageUrl?: string;
+  file?: File;
   keyword: string;
 };
 
@@ -57,14 +57,46 @@ interface CharacterFormProps {
   initialData?: Partial<FormState & { id: string; characterImages: { id: number; imageUrl: string; keyword: string | null }[] }>;
 }
 
-// --- HashtagModal（変更なし、そのまま使用） ---
+// モーダルの状態の型
+type ModalState = {
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm?: () => void;
+};
+
+// ▼▼▼【新規追加】通知モーダルコンポーネント ▼▼▼
+const NotificationModal = ({ modalState, setModalState }: { modalState: ModalState, setModalState: (state: ModalState) => void }) => {
+    if (!modalState.isOpen) return null;
+
+    const handleConfirm = () => {
+        modalState.onConfirm?.();
+        setModalState({ isOpen: false, title: '', message: '' });
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex justify-center items-center">
+            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-sm m-4">
+                <h2 className="text-xl font-bold mb-4">{modalState.title}</h2>
+                <p className="text-gray-300 mb-6">{modalState.message}</p>
+                <div className="flex justify-end">
+                    <Button onClick={handleConfirm} className="bg-pink-600 hover:bg-pink-500">
+                        確認
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+};
+// ▲▲▲【追加完了】▲▲▲
+
+// HashtagModal（変更なし）
 interface HashtagModalProps {
   isOpen: boolean;
   onClose: () => void;
   onComplete: (hashtags: string[]) => void;
   initialHashtags: string[];
 }
-
 const HashtagModal = ({ isOpen, onClose, onComplete, initialHashtags }: HashtagModalProps) => {
     const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set(initialHashtags));
     const [searchTerm, setSearchTerm] = useState("");
@@ -181,8 +213,8 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [isHashtagModalOpen, setIsHashtagModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: '', message: '' });
 
-  // 編集モードの場合、初期データを設定
   useEffect(() => {
     if (isEditMode && initialData) {
       setForm({
@@ -207,11 +239,14 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
     }
   }, [isEditMode, initialData]);
 
-  // 未ログインユーザーのリダイレクト
   useEffect(() => {
     if (status === "unauthenticated") {
-      alert("ログインが必要です。");
-      router.push("/login");
+        setModalState({
+            isOpen: true,
+            title: 'ログインが必要です',
+            message: 'この機能を利用するにはログインが必要です。ログインページに移動します。',
+            onConfirm: () => router.push("/login"),
+        });
     }
   }, [status, router]);
 
@@ -222,7 +257,7 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length + images.length > 10) {
-      alert("画像は最大10枚までアップロードできます。");
+      setModalState({ isOpen: true, title: 'アップロード上限', message: '画像は最大10枚までアップロードできます。' });
       return;
     }
     const newImages: DisplayImage[] = files.map((file) => ({ file, keyword: "" }));
@@ -257,48 +292,39 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
   };
 
   const handleSubmit = async () => {
-    // ▼▼▼ 変更点: 유효성 검사 로직 추가 ▼▼▼
     if (!form.name.trim()) {
-      alert("キャラクターの名前は必須項目です。");
+      setModalState({ isOpen: true, title: '入力エラー', message: 'キャラクターの名前は必須項目です。' });
       return;
     }
     if (images.length === 0) {
-      alert("キャラクターの画像を1枚以上登録してください。");
+      setModalState({ isOpen: true, title: '入力エラー', message: 'キャラクターの画像を1枚以上登録してください。' });
       return;
     }
-    // ▲▲▲ 여기까지 ▲▲▲
-
     if (!session?.user?.id) {
-      alert("ログインセッションが見つかりません。再度ログインしてください。");
-      router.push('/login');
-      return;
+        setModalState({ isOpen: true, title: 'セッションエラー', message: 'ログインセッションが見つかりません。再度ログインしてください。', onConfirm: () => router.push('/login') });
+        return;
     }
     if (isSubmitting) return;
     setIsSubmitting(true);
 
     const formData = new FormData();
 
-    // テキストデータを追加
     Object.entries(form).forEach(([key, value]) => {
         formData.append(key, Array.isArray(value) ? JSON.stringify(value) : String(value));
     });
 
     if (isEditMode) {
-      // 編集モードのロジック
       formData.append('imagesToDelete', JSON.stringify(imagesToDelete));
-      
       let newImageIndex = 0;
       images.forEach((img) => {
-        if (img.file) { // 新規追加されたファイルのみを送信
+        if (img.file) {
           formData.append(`new_image_${newImageIndex}`, img.file);
           formData.append(`new_keyword_${newImageIndex}`, img.keyword);
           newImageIndex++;
         }
       });
       formData.append('newImageCount', String(newImageIndex));
-
     } else {
-      // 作成モードのロジック
       formData.append("userId", session.user.id);
       formData.append("imageCount", String(images.length));
       images.forEach((imageMeta, index) => {
@@ -322,36 +348,38 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
 
       const result = await response.json();
       console.log("サーバー応答:", result);
-      alert(isEditMode ? "キャラクター情報が更新されました。" : "キャラクターが正常に登録されました！");
-      router.push("/MyPage"); 
+      setModalState({
+        isOpen: true,
+        title: '成功',
+        message: isEditMode ? "キャラクター情報が更新されました。" : "キャラクターが正常に登録されました！",
+        onConfirm: () => router.push("/MyPage"),
+      });
+
     } catch (error) {
       console.error(isEditMode ? "キャラクター更新失敗:" : "キャラクター登録失敗:", error);
-      alert(`エラー: ${error instanceof Error ? error.message : "不明なエラーが発生しました。"}`);
+      setModalState({ isOpen: true, title: 'エラー', message: `エラー: ${error instanceof Error ? error.message : "不明なエラーが発生しました。"}`});
     } finally {
       setIsSubmitting(false);
     }
   };
 
   if (status === "loading") {
-    return (
-      <div className="min-h-screen bg-black text-white flex justify-center items-center">
-        <p>ローディング中...</p>
-      </div>
-    );
+    return <div className="min-h-screen bg-black text-white flex justify-center items-center"><p>ローディング中...</p></div>;
   }
 
-  // JSXレンダリング
   return (
     <>
+      <NotificationModal modalState={modalState} setModalState={setModalState} />
       <div className="min-h-screen bg-black text-white px-4 py-8 max-w-4xl mx-auto font-sans">
+        {/* ▼▼▼【修正点】router.back() を使用して前のページに戻ります ▼▼▼ */}
         <button onClick={() => router.back()} className="mb-4 text-pink-400 hover:underline cursor-pointer">
           ← 戻る
         </button>
+        {/* ▲▲▲【修正完了】▲▲▲ */}
         <h1 className="text-xl font-bold mb-4">
           {isEditMode ? "キャラクター修正" : "キャラクター作成"}
         </h1>
 
-        {/* --- ステップナビゲーション（共通UI） --- */}
         <div className="flex space-x-2 border-b border-gray-700 mb-6 text-sm overflow-x-auto">
           {["プロフィール", "キャラクター画像", "詳細情報", "開始状況", "その他設定", "ロアブック", "修正および登録"].map((label, index) => (
             <div key={label} className={`pb-2 px-2 cursor-pointer whitespace-nowrap transition-all ${step === index ? "border-b-2 border-pink-500 font-semibold" : "text-gray-400"}`} onClick={() => setStep(index)}>
@@ -360,15 +388,14 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
           ))}
         </div>
 
-        {/* --- フォームセクション（共通UI） --- */}
-        {step === 0 && ( /* プロフィール */
+        {step === 0 && (
             <div className="space-y-4">
                 <Input placeholder="キャラクターの名前を入力してください" value={form.name} maxLength={20} onChange={(e) => handleChange("name", e.target.value)} className="rounded-md" />
                 <Textarea placeholder="キャラクター紹介文を入力してください" value={form.description} maxLength={250} onChange={(e) => handleChange("description", e.target.value)} className="h-32 rounded-md" />
             </div>
         )}
 
-        {step === 1 && ( /* キャラクター画像 */
+        {step === 1 && (
             <div className="p-4">
                 <label className="block text-sm font-medium text-gray-200">キャラクター画像</label>
                 <input type="file" accept="image/*" multiple onChange={handleImageChange} className="mt-2 block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
@@ -390,9 +417,8 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
                 </div>
             </div>
         )}
-
-        {/* --- 残りのステップ（2, 3, 4）も上記と同様にvalueとonChangeをform stateに接続します --- */}
-        {step === 2 && ( /* 詳細情報 */
+        
+        {step === 2 && (
             <div className="space-y-4">
                 <label className="block text-sm font-medium text-gray-200">システムテンプレート</label>
                 <select className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm text-black" value={form.systemTemplate} onChange={(e) => handleChange("systemTemplate", e.target.value)}>
@@ -404,14 +430,14 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
             </div>
         )}
 
-        {step === 3 && ( /* 開始状況 */
+        {step === 3 && (
             <div className="space-y-4">
                 <Textarea placeholder="最初の状況を入力してください" value={form.firstSituation} maxLength={1000} className="h-40 rounded-md" onChange={(e) => handleChange("firstSituation", e.target.value)} />
                 <Textarea placeholder="キャラクターの最初のメッセージを入力してください" value={form.firstMessage} maxLength={500} className="h-32 rounded-md" onChange={(e) => handleChange("firstMessage", e.target.value)} />
             </div>
         )}
 
-        {step === 4 && ( /* その他設定 */
+        {step === 4 && (
             <div className="p-4 space-y-6">
                 <div>
                     <span className="block text-sm font-medium text-gray-200 mb-2">公開範囲</span>
@@ -461,7 +487,6 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
         </div>
       </div>
 
-      {/* --- モーダル（共通UI） --- */}
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
           <DialogContent className="sm:max-w-[425px] bg-gray-800 text-white border-gray-700">
             <DialogHeader><DialogTitle>キーワード入力</DialogTitle></DialogHeader>

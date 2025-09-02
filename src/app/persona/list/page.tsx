@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-// import { useSearchParams } from 'next/navigation'; // エラーの原因となるため削除
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Plus, Check, Trash2, Pencil, ArrowLeft } from 'lucide-react';
 
 type Persona = {
@@ -12,74 +13,55 @@ type Persona = {
   description: string;
 };
 
-// 確認モーダルコンポーネント
-const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }: { isOpen: boolean; onClose: () => void; onConfirm: () => void; title: string; message: string; }) => {
-    if (!isOpen) return null;
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
-            <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-sm mx-4">
-                <h2 className="text-lg font-bold mb-4">{title}</h2>
-                <p className="text-sm text-gray-300 mb-6 whitespace-pre-wrap">{message}</p>
-                <div className="flex justify-end gap-4">
-                    <button onClick={onClose} className="border border-gray-600 hover:bg-gray-700 py-2 px-4 rounded-lg transition-colors cursor-pointer">キャンセル</button>
-                    <button onClick={onConfirm} className="bg-red-600 hover:bg-red-700 py-2 px-4 rounded-lg transition-colors cursor-pointer">削除</button>
-                </div>
-            </div>
-        </div>
-    );
+// モーダル用のProps型定義
+type ModalState = {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  onClose: () => void;
+  confirmText?: string;
+  isAlert?: boolean;
 };
 
-
-const PersonaItem = ({ persona, onSelect, onEdit, onDelete, isSelected }: { persona: Persona; onSelect: (id: number) => void; onEdit: (id: number) => void; onDelete: (persona: Persona) => void; isSelected: boolean; }) => (
-  <div 
-    onClick={() => onSelect(persona.id)}
-    className={`p-4 rounded-lg cursor-pointer transition-all border relative ${isSelected ? 'bg-pink-500/20 border-pink-500' : 'bg-gray-800 border-gray-700 hover:border-gray-600'}`}
-  >
-    <div className="flex justify-between items-start">
-        <div className="flex-grow">
-            <div className="flex items-center gap-2">
-                <h3 className="font-bold text-white">{persona.nickname}</h3>
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${isSelected ? 'border-pink-500 bg-pink-500' : 'border-gray-500'}`}>
-                    {isSelected && <Check size={14} className="text-white" />}
-                </div>
-            </div>
-            <p className="text-sm text-gray-400 mt-1">{persona.gender || '未設定'} | {persona.age ? `${persona.age}歳` : '未設定'}</p>
-            <p className="text-sm text-gray-300 mt-2 pr-16 truncate">{persona.description}</p>
+// 汎用モーダルコンポーネント
+const CustomModal = ({ state }: { state: ModalState }) => {
+  if (!state.isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
+      <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-sm mx-4">
+        <h2 className="text-lg font-bold mb-4">{state.title}</h2>
+        <p className="text-sm text-gray-300 mb-6 whitespace-pre-wrap">{state.message}</p>
+        <div className={`flex justify-end gap-4`}>
+          {!state.isAlert && (
+            <button onClick={state.onClose} className="border border-gray-600 hover:bg-gray-700 py-2 px-4 rounded-lg transition-colors cursor-pointer">キャンセル</button>
+          )}
+          <button onClick={state.onConfirm} className={`${state.confirmText === '削除' ? 'bg-red-600 hover:bg-red-700' : 'bg-pink-600 hover:bg-pink-700'} py-2 px-4 rounded-lg transition-colors cursor-pointer`}>
+            {state.confirmText || 'OK'}
+          </button>
         </div>
-        <div className="absolute top-3 right-3 flex gap-1">
-            <button 
-                onClick={(e) => { e.stopPropagation(); onEdit(persona.id); }} 
-                className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors cursor-pointer"
-                aria-label={`${persona.nickname}を編集`}
-            >
-                <Pencil size={16} />
-            </button>
-            <button 
-                onClick={(e) => { e.stopPropagation(); onDelete(persona); }} 
-                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-gray-700 rounded-full transition-colors cursor-pointer"
-                aria-label={`${persona.nickname}を削除`}
-            >
-                <Trash2 size={16} />
-            </button>
-        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
-// ▼▼▼【ここから修正】Suspenseとコンポーネント分離を解除し、標準APIを使用 ▼▼▼
-export default function PersonaListPage() {
+// 本体コンポーネント
+function PersonaListComponent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [modal, setModal] = useState<{ isOpen: boolean; personaToDelete: Persona | null }>({ isOpen: false, personaToDelete: null });
-  
-  // URLクエリパラメータをstateで管理
-  const [queryParams, setQueryParams] = useState<URLSearchParams | null>(null);
+  const [modalState, setModalState] = useState<ModalState>({
+    isOpen: false, title: '', message: '', onConfirm: () => {}, onClose: () => {}
+  });
+
+  const fromChat = searchParams.get('fromChat') === 'true';
+  const characterId = searchParams.get('characterId');
+  const chatId = searchParams.get('chatId');
 
   useEffect(() => {
-    // クライアントサイドでのみ実行されるようにし、URLSearchParamsを取得
-    setQueryParams(new URLSearchParams(window.location.search));
-
     const fetchPersonas = async () => {
       try {
         setIsLoading(true);
@@ -90,15 +72,24 @@ export default function PersonaListPage() {
         setPersonas(data.personas);
         setSelectedId(data.defaultPersonaId);
       } catch (error) {
-        console.error(error);
-        alert((error as Error).message);
+        setModalState({
+          isOpen: true,
+          title: 'エラー',
+          message: (error as Error).message,
+          isAlert: true,
+          onConfirm: () => setModalState(prev => ({...prev, isOpen: false})),
+          onClose: () => {}
+        });
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchPersonas();
   }, []);
+
+  const closeModal = () => {
+    setModalState(prev => ({ ...prev, isOpen: false }));
+  };
 
   const handleSelectPersona = async (id: number) => {
     if (id === selectedId) return;
@@ -113,33 +104,32 @@ export default function PersonaListPage() {
       });
       if (!response.ok) throw new Error('基本ペルソナの設定に失敗しました。');
     } catch (error) {
-      console.error(error);
-      alert((error as Error).message);
       setSelectedId(originalSelectedId);
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: (error as Error).message,
+        isAlert: true,
+        onConfirm: closeModal,
+        onClose: closeModal,
+      });
     }
   };
 
-  const handleEditPersona = (id: number) => {
-    const query = queryParams ? `?${queryParams.toString()}` : '';
-    window.location.href = `/persona/form/${id}${query}`;
-  };
-
   const openDeleteModal = (persona: Persona) => {
-    setModal({ isOpen: true, personaToDelete: persona });
+    setModalState({
+      isOpen: true,
+      title: 'ペルソナ削除',
+      message: `「${persona.nickname}」を本当に削除しますか？\nこの操作は元に戻せません。`,
+      confirmText: '削除',
+      onConfirm: () => handleDeletePersona(persona.id),
+      onClose: closeModal,
+    });
   };
 
-  const closeDeleteModal = () => {
-    setModal({ isOpen: false, personaToDelete: null });
-  };
-
-  const handleDeletePersona = async () => {
-    if (!modal.personaToDelete) return;
-
+  const handleDeletePersona = async (id: number) => {
     try {
-      const response = await fetch(`/api/persona/${modal.personaToDelete.id}`, {
-        method: 'DELETE',
-      });
-
+      const response = await fetch(`/api/persona/${id}`, { method: 'DELETE' });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || '削除に失敗しました。');
@@ -149,20 +139,25 @@ export default function PersonaListPage() {
       const data = await fetchResponse.json();
       setPersonas(data.personas);
       setSelectedId(data.defaultPersonaId);
-
     } catch (error) {
-      console.error(error);
-      alert((error as Error).message);
+       setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: (error as Error).message,
+        isAlert: true,
+        onConfirm: closeModal,
+        onClose: closeModal,
+      });
     } finally {
-      closeDeleteModal();
+      closeModal();
     }
   };
   
   const handleGoBack = () => {
-    if (queryParams?.get('fromChat') && queryParams?.get('characterId') && queryParams?.get('chatId')) {
-      window.location.href = `/chat/${queryParams.get('characterId')}?chatId=${queryParams.get('chatId')}`;
+    if (fromChat && characterId && chatId) {
+      router.push(`/chat/${characterId}?chatId=${chatId}`);
     } else {
-        window.history.back();
+      router.back();
     }
   };
 
@@ -170,15 +165,11 @@ export default function PersonaListPage() {
     return <div className="min-h-screen bg-black text-white flex items-center justify-center">ローディング中...</div>;
   }
 
+  const personaQuery = searchParams.toString();
+
   return (
     <>
-      <ConfirmationModal
-        isOpen={modal.isOpen}
-        onClose={closeDeleteModal}
-        onConfirm={handleDeletePersona}
-        title="ペルソナ削除"
-        message={`「${modal.personaToDelete?.nickname}」を本当に削除しますか？\nこの操作は元に戻せません。`}
-      />
+      <CustomModal state={modalState} />
       <div className="bg-black min-h-screen text-white p-4">
         <header className="text-center py-4 relative">
           <button 
@@ -195,28 +186,47 @@ export default function PersonaListPage() {
         </div>
         <main className="mt-6 space-y-4">
           {personas.map(p => (
-            <PersonaItem 
-              key={p.id} 
-              persona={p} 
-              onSelect={handleSelectPersona} 
-              onEdit={handleEditPersona}
-              onDelete={openDeleteModal}
-              isSelected={selectedId === p.id}
-            />
+            <div 
+              key={p.id}
+              onClick={() => handleSelectPersona(p.id)}
+              className={`p-4 rounded-lg cursor-pointer transition-all border relative ${selectedId === p.id ? 'bg-pink-500/20 border-pink-500' : 'bg-gray-800 border-gray-700 hover:border-gray-600'}`}
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex-grow">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-white">{p.nickname}</h3>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${selectedId === p.id ? 'border-pink-500 bg-pink-500' : 'border-gray-500'}`}>
+                      {selectedId === p.id && <Check size={14} className="text-white" />}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-400 mt-1">{p.gender || '未設定'} | {p.age ? `${p.age}歳` : '未設定'}</p>
+                  <p className="text-sm text-gray-300 mt-2 pr-16 truncate">{p.description}</p>
+                </div>
+                <div className="absolute top-3 right-3 flex gap-1">
+                  <Link href={`/persona/form/${p.id}?${personaQuery}`} onClick={(e) => e.stopPropagation()} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors cursor-pointer">
+                    <Pencil size={16} />
+                  </Link>
+                  <button onClick={(e) => { e.stopPropagation(); openDeleteModal(p); }} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-gray-700 rounded-full transition-colors cursor-pointer">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
           ))}
-          <button 
-            onClick={() => {
-                const query = queryParams ? `?${queryParams.toString()}` : '';
-                window.location.href = `/persona/form${query}`;
-            }}
-            className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-600 rounded-lg text-gray-400 hover:bg-gray-800 hover:border-gray-500 transition-colors cursor-pointer"
-          >
+          <Link href={`/persona/form?${personaQuery}`} className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-600 rounded-lg text-gray-400 hover:bg-gray-800 hover:border-gray-500 transition-colors cursor-pointer">
             <Plus size={20} />
             ペルソナ追加
-          </button>
+          </Link>
         </main>
       </div>
     </>
   );
 }
-// ▲▲▲【ここまで修正】▲▲▲
+
+export default function PersonaListPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">読み込み中...</div>}>
+      <PersonaListComponent />
+    </Suspense>
+  );
+}

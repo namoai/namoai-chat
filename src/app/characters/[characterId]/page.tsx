@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+// Next.jsのナビゲーション機能をインポートします
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Heart, MessageSquare, MoreVertical, ArrowLeft } from 'lucide-react';
 
 /** 型定義 */
@@ -30,7 +33,11 @@ type CharacterDetail = {
 };
 
 export default function CharacterDetailPage() {
+  // ▼▼▼【修正点】useRouterを使用します ▼▼▼
+  const router = useRouter();
+
   const [characterId, setCharacterId] = useState<string | null>(null);
+  // セッション関連は動作確認のため仮の値を設定
   const sessionStatus = 'authenticated';
   const session = { user: { id: '1', role: 'USER' } };
 
@@ -43,11 +50,6 @@ export default function CharacterDetailPage() {
     const pathSegments = window.location.pathname.split('/');
     const id = pathSegments[pathSegments.length - 1];
     setCharacterId(id);
-
-    if (document.referrer && !document.referrer.includes('/chat/')) {
-      sessionStorage.setItem('characterReturnPath', document.referrer);
-    }
-
   }, []);
 
   useEffect(() => {
@@ -62,7 +64,6 @@ export default function CharacterDetailPage() {
         }
         const data: CharacterDetail = await res.json();
         setCharacter(data);
-      // FIX: 'any' 타입을 사용하지 않도록 수정했습니다.
       } catch (err) {
         if (err instanceof Error) {
             setError(err.message);
@@ -89,7 +90,8 @@ export default function CharacterDetailPage() {
       });
       if (!res.ok) throw new Error('チャットセッションの作成に失敗しました。');
       const chat = await res.json();
-      window.location.href = `/chat/${characterId}?chatId=${chat.id}`;
+      // ▼▼▼【修正点】router.pushでページ遷移します ▼▼▼
+      router.push(`/chat/${characterId}?chatId=${chat.id}`);
     } catch (err) {
       console.error(err);
       alert('チャットの開始に失敗しました。');
@@ -98,13 +100,9 @@ export default function CharacterDetailPage() {
     }
   };
 
+  // ▼▼▼【修正点】router.back()で前のページに戻ります ▼▼▼
   const handleGoBack = () => {
-    const returnPath = sessionStorage.getItem('characterReturnPath');
-    if (returnPath) {
-      window.location.href = returnPath;
-    } else {
-      window.location.href = '/';
-    }
+    router.back();
   };
 
   if (loading) {
@@ -195,11 +193,12 @@ export default function CharacterDetailPage() {
         <div className="mx-auto max-w-2xl flex gap-4">
           {sessionStatus === 'authenticated' ? (
             <>
-              <a href={`/chat/${characterId}`} className="flex-1">
+              {/* ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更 ▼▼▼ */}
+              <Link href={`/chat/${characterId}`} className="flex-1">
                 <button className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition-colors">
                   続きから会話
                 </button>
-              </a>
+              </Link>
               <button
                 onClick={handleNewChat}
                 disabled={isCreatingChat}
@@ -210,7 +209,8 @@ export default function CharacterDetailPage() {
             </>
           ) : (
             <button
-              onClick={() => window.location.href = '/login'}
+              // ▼▼▼【修正点】router.pushでページ遷移します ▼▼▼
+              onClick={() => router.push('/login')}
               className="w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors"
             >
               チャットするにはログインが必要です
