@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+// ▼▼▼【修正】未使用の`useRef`を削除しました ▼▼▼
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowLeft, MoreVertical, Heart, MessageSquare, KeyRound, Mail, X, User } from 'lucide-react';
+// ▼▼▼【修正】未使用のアイコン`KeyRound`, `Mail`, `X`を削除しました ▼▼▼
+import { ArrowLeft, MoreVertical, Heart, MessageSquare, User } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
 // API応答の型定義
@@ -28,11 +30,12 @@ type ProfileData = {
   };
 };
 
-type PasswordPayload = {
-  currentPassword: string;
-  newPassword: string;
-  confirmPassword: string;
-};
+// ▼▼▼【修正】未使用の`PasswordPayload`型を削除しました ▼▼▼
+// type PasswordPayload = {
+//   currentPassword: string;
+//   newPassword: string;
+//   confirmPassword: string;
+// };
 
 // DefaultAvatarIconコンポーネント
 const DefaultAvatarIcon = ({ size = 80 }: { size?: number }) => (
@@ -81,7 +84,6 @@ export default function UserProfilePage() {
   const [loading, setLoading] = useState(true);
   const [modalState, setModalState] = useState<Omit<ModalProps, 'onClose'>>({ isOpen: false, title: '', message: '' });
   
-  // ▼▼▼【修正点】useEffectの呼び出しを条件分岐の外に移動しました ▼▼▼
   useEffect(() => {
     // userIdが存在する場合のみデータを取得します
     if (userId) {
@@ -107,7 +109,6 @@ export default function UserProfilePage() {
       setLoading(false);
     }
   }, [userId]);
-  // ▲▲▲【修正完了】▲▲▲
   
   const closeModal = () => setModalState({ ...modalState, isOpen: false });
 
@@ -206,3 +207,4 @@ export default function UserProfilePage() {
     </>
   );
 }
+
