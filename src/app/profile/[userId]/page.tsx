@@ -8,6 +8,12 @@ import Link from 'next/link';
 import { ArrowLeft, MoreVertical, Heart, MessageSquare, KeyRound, Mail, X, User } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
+/**
+ * プロフィールページ（クライアントコンポーネント）
+ * - React Hooks は必ずコンポーネント最上位で呼び出す（条件分岐で囲まない）
+ * - 下記実装は Hook を最上位で呼び出し、useEffect 内部で分岐するため、rules-of-hooks に適合
+ */
+
 // API応答の型定義
 type ProfileData = {
   id: number;
@@ -29,7 +35,7 @@ type ProfileData = {
   };
 };
 
-// ▼▼▼【修正】この型はパスワード変更機能で使用されています ▼▼▼
+// ▼▼▼【補足】この型はパスワード変更機能で使用されています ▼▼▼
 type PasswordPayload = {
   currentPassword: string;
   newPassword: string;
@@ -127,10 +133,11 @@ export default function UserProfilePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '' });
-  // ▼▼▼【修正】useRefはメニューの外部クリック検出で使用されています ▼▼▼
+  // ▼▼▼【注意】useRef は最上位で宣言し、イベント内で参照します（Hook の順序を守る）▼▼▼
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // ▼▼▼【重要】Hook を条件で囲まず、内部で分岐するため rules-of-hooks に準拠 ▼▼▼
     if (params.userId) {
       const fetchProfile = async () => {
         try {
@@ -146,6 +153,8 @@ export default function UserProfilePage() {
         }
       };
       fetchProfile();
+    } else {
+      setLoading(false);
     }
   }, [params.userId]);
 

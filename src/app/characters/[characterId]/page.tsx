@@ -5,6 +5,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Heart, MessageSquare, MoreVertical, ArrowLeft } from 'lucide-react';
+// ▼▼▼【修正】next/image を使用して <img> 警告を解消します ▼▼▼
+import Image from 'next/image';
 
 /** 型定義 */
 type Author = {
@@ -114,7 +116,7 @@ export default function CharacterDetailPage() {
   }
 
   if (!character) {
-    return <div className="min-h-screen bg-black text-white flex justify-center items-center">キャラクターが見つかりません。</div>;
+    return <div className="min-h-screen bg-black text-white flex justify中心 items-center">キャラクターが見つかりません。</div>;
   }
 
   const canEdit =
@@ -139,11 +141,14 @@ export default function CharacterDetailPage() {
         </header>
 
         <main>
+          {/* ▼▼▼【修正】<img> を next/image(fill) に置換し最適化 ▼▼▼ */}
           <div className="relative w-full aspect-[4/3]">
-            <img
+            <Image
               src={character.characterImages[0]?.imageUrl || 'https://placehold.co/800x600/1a1a1a/ffffff?text=?'}
               alt={character.name}
-              className="object-cover w-full h-full"
+              fill
+              className="object-cover"
+              priority
             />
           </div>
 
@@ -193,9 +198,9 @@ export default function CharacterDetailPage() {
         <div className="mx-auto max-w-2xl flex gap-4">
           {sessionStatus === 'authenticated' ? (
             <>
-              {/* ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更 ▼▼▼ */}
+              {/* ▼▼▼【参考】リンク遷移は機能維持のまま ▼▼▼ */}
               <Link href={`/chat/${characterId}`} className="flex-1">
-                <button className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition-colors">
+                <button className="w-full bg-gray-700 text白 font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition-colors">
                   続きから会話
                 </button>
               </Link>

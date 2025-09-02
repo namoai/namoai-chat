@@ -15,6 +15,8 @@ import {
   Copy,
   Upload,
 } from "lucide-react";
+// ▼▼▼【修正】next/image を使用して <img> 警告を解消します ▼▼▼
+import Image from "next/image";
 
 // Buttonの仮コンポーネント
 const Button = ({ children, onClick, className }: { children: React.ReactNode, onClick: () => void, className?: string }) => (
@@ -420,9 +422,9 @@ export default function CharacterManagementPage() {
               key={char.id}
               className="bg-[#1C1C1E] p-3 rounded-lg flex items-center gap-4"
             >
-              {/* ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更 ▼▼▼ */}
+              {/* ▼▼▼【修正】<img> を next/image に置換して最適化 ▼▼▼ */}
               <Link href={`/characters/${char.id}`} className="flex-grow flex items-center gap-4 min-w-0">
-                <img
+                <Image
                   src={
                     char.characterImages[0]?.imageUrl ||
                     "https://placehold.co/64x64/1C1C1E/FFFFFF?text=..."
