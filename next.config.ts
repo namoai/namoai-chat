@@ -4,16 +4,16 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'placehold.co',
-        port: '',
-        pathname: '/**',
+        protocol: "https",
+        hostname: "**",   // ✅ すべての https ドメインを許可
+        port: "",
+        pathname: "/**",
       },
       {
-        protocol: 'https',
-        hostname: 'drifsxbtlkulgapaokno.supabase.co', // Supabase 도메인 추가
-        port: '',
-        pathname: '/**',
+        protocol: "http",
+        hostname: "**",   // ✅ 必要なら http も許可
+        port: "",
+        pathname: "/**",
       },
     ],
   },
