@@ -8,9 +8,10 @@ import {
 import { useState, useEffect, type ReactNode } from "react";
 import { signOut } from "next-auth/react";
 import Image from "next/image";
-// ▼▼▼【修正点】useRouterはMenuItemComponentでのみ使用するため、ここでインポートします ▼▼▼
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+
+// ▼▼▼【修正】未使用のuseRouterのインポートを削除しました ▼▼▼
+// import { useRouter } from 'next/navigation';
 
 // ユーザーのプロフィール画像がない場合に表示するデフォルトのSVGアイコンコンポーネント
 const DefaultAvatarIcon = ({ size = 48 }: { size?: number }) => (
@@ -364,3 +365,4 @@ export default function MyPage() {
     </div>
   );
 }
+
