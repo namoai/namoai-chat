@@ -4,6 +4,7 @@
  * プロフィールページ（クライアントコンポーネント）
  * - 重要: React Hooks は「常に最上位で」呼び出す（条件分岐で囲まない）
  * - 分岐は useEffect の「内部」で行う（userId 未定義などの早期 return は effect 内）
+ * - ESLint: no-explicit-any を満たすため、catch は unknown で受けて安全にメッセージ抽出
  * - 画像は next/image を使用（外部ドメインは next.config.ts の images.remotePatterns で許可）
  */
 
@@ -48,6 +49,10 @@ type PasswordPayload = {
   confirmPassword: string;
 };
 
+/** エラーメッセージ抽出ユーティリティ（unknown → string） */
+const toErrorMessage = (e: unknown): string =>
+  e instanceof Error ? e.message : typeof e === "string" ? e : "不明なエラーが発生しました。";
+
 /** 汎用モーダル */
 const CustomModal = ({
   isOpen,
@@ -79,7 +84,7 @@ const CustomModal = ({
   );
 };
 
-/** デフォルトアバター */
+/** デフォルトアバター（画像未設定時の疑似アイコン） */
 const DefaultAvatarIcon = ({ size = 80 }: { size?: number }) => (
   <div
     className="rounded-full bg-gray-700 flex items-center justify-center"
@@ -89,7 +94,7 @@ const DefaultAvatarIcon = ({ size = 80 }: { size?: number }) => (
   </div>
 );
 
-/** パスワード変更モーダル（コンポーネント内の Hook は最上位で呼ばれるので問題なし） */
+/** パスワード変更モーダル（内部の Hook は最上位で呼ばれるためルールに適合） */
 const PasswordChangeModal = ({
   isOpen,
   onClose,
@@ -104,7 +109,7 @@ const PasswordChangeModal = ({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // 開く度に初期化
+  // モーダルを開く度にフィールド初期化
   useEffect(() => {
     if (isOpen) {
       setCurrentPassword("");
@@ -179,9 +184,8 @@ const PasswordChangeModal = ({
 };
 
 /**
- * ★ Hooks を条件で囲まないために
- * - App Router ではクライアントコンポーネントでも params を引数で受け取れる
- * - これにより useParams() を避けられ、条件付きで Hook を呼ぶ状況を作らない
+ * App Router ではクライアントコンポーネントでも params を引数で受け取れる。
+ * これにより useParams() を避け、Hook を条件で呼ぶ状況を作らない。
  */
 export default function ProfilePage({
   params,
@@ -191,7 +195,7 @@ export default function ProfilePage({
   const router = useRouter();
   const { data: session } = useSession();
 
-  // ▼▼▼ Hook はここで「常に」宣言（条件で囲まない）▼▼▼
+  // Hook は「常に」最上位で宣言（条件で囲まない）
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
@@ -203,7 +207,7 @@ export default function ProfilePage({
   });
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // ▼▼▼ useEffect は常に呼ぶ。内部で userId の有無を判定 ▼▼▼
+  // データ取得（useEffect 自体は無条件で呼ぶ。内部で userId を検証）
   useEffect(() => {
     const userId = params?.userId;
     if (!userId) {
@@ -225,17 +229,18 @@ export default function ProfilePage({
         setModal((m) => ({ ...m, isOpen: false }));
         const res = await fetch(`/api/profile/${userId}`, { cache: "no-store" });
         if (!res.ok) {
-          const j = await res.json().catch(() => ({}));
+          const j = (await res.json().catch(() => ({}))) as { error?: string };
           throw new Error(j.error || "プロファイルの読み込みに失敗しました。");
         }
-        const data: ProfileData = await res.json();
+        const data = (await res.json()) as ProfileData;
         if (!aborted) setProfile(data);
-      } catch (e: any) {
+      } catch (e: unknown) {
+        const msg = toErrorMessage(e);
         if (!aborted)
           setModal({
             isOpen: true,
             title: "エラー",
-            message: e?.message ?? "不明なエラーが発生しました。",
+            message: msg,
           });
       } finally {
         if (!aborted) setLoading(false);
@@ -245,9 +250,9 @@ export default function ProfilePage({
     return () => {
       aborted = true;
     };
-  }, [params?.userId]); // ← 依存は OK（Hook 自体は無条件で呼んでいる）
+  }, [params?.userId]);
 
-  // メニューの外側クリックで閉じる（こちらも無条件で Hook を呼ぶ）
+  // メニューの外側クリックで閉じる
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -282,15 +287,16 @@ export default function ProfilePage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
-      const j = await res.json().catch(() => ({}));
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(j.error || "パスワードの変更に失敗しました。");
       setPwdModalOpen(false);
       setModal({ isOpen: true, title: "成功", message: "パスワードを更新しました。" });
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const msg = toErrorMessage(e);
       setModal({
         isOpen: true,
         title: "エラー",
-        message: e?.message ?? "不明なエラーが発生しました。",
+        message: msg,
       });
     }
   };
@@ -379,7 +385,7 @@ export default function ProfilePage({
 
           {/* 本文 */}
           <main className="p-4">
-            <section className="flex items-center gap-4 mb-4">
+            <section className="flex items中心 gap-4 mb-4">
               {profile.image_url ? (
                 <Image
                   src={profile.image_url}
