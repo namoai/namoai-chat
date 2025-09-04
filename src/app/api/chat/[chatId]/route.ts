@@ -32,6 +32,9 @@ export async function POST(request: Request, context: any) {
   }
 
   const chatId = parseInt(String(chatIdStr), 10);
+  if (isNaN(chatId)) {
+    return NextResponse.json({ error: "無効なチャットIDです。" }, { status: 400 });
+  }
   const userId = parseInt(String(session.user.id), 10);
 
   const { message, settings } = await request.json();
@@ -110,6 +113,7 @@ export async function POST(request: Request, context: any) {
       }
     }
     const char = chatRoom.characters;
+    // ▼▼▼【コード改善】不要な変数の再宣言を削除し、既存の 'boostMultiplier' を使用します。▼▼▼
     let boostInstruction = "";
     if (boostMultiplier > 1.0) {
       boostInstruction = `\n# 追加指示
@@ -143,6 +147,10 @@ export async function POST(request: Request, context: any) {
   } catch (error) {
     console.error("チャットAPIエラー:", error);
     const errorMessage = error instanceof Error ? error.message : "内部サーバーエラーが発生しました。";
+    if (error instanceof Error && error.message === "ポイントが不足しています。") {
+        return NextResponse.json({ error: error.message }, { status: 402 });
+    }
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
+
