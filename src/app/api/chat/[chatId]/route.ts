@@ -18,17 +18,17 @@ const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
-// ▼▼▼ 【修正箇所】POST関数の2番目の引数の型定義を修正しました ▼▼▼
+// ▼▼▼ 【修正箇所】POST関数の引数定義をNext.jsの正式な方式に修正しました ▼▼▼
 export async function POST(
     request: NextRequest,
-    context: { params: { chatId: string } }
+    { params }: { params: { chatId: string } }
 ) {
     const session = await getServerSession(authOptions);
     if (!session || !session.user?.id) {
         return NextResponse.json({ error: "認証が必要です。" }, { status: 401 });
     }
 
-    const chatId = parseInt(context.params.chatId, 10); // contextからchatIdを取得
+    const chatId = parseInt(params.chatId, 10); // paramsから直接chatIdを取得
     const userId = parseInt(session.user.id, 10);
     const { message, settings } = await request.json();
 
