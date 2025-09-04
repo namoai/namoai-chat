@@ -123,7 +123,12 @@ model chat_message {
   role      String   @db.VarChar(255)
   content   String
   createdAt DateTime @default(now())
+  turnId    Int?
+  version   Int      @default(1)
+  isActive  Boolean  @default(true)
   chat      chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, turnId, isActive])
 }
 
 model follows {

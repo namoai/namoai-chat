@@ -153,13 +153,17 @@ function PersonaListComponent() {
     }
   };
   
+  // ▼▼▼【修正】戻るロジックを修正 ▼▼▼
   const handleGoBack = () => {
     if (fromChat && characterId && chatId) {
-      router.push(`/chat/${characterId}?chatId=${chatId}`);
+      // チャットルームから来た場合、replaceを使用して閲覧履歴を残さずに戻ります。
+      router.replace(`/chat/${characterId}?chatId=${chatId}`);
     } else {
+      // その他の場合（マイページなど）、標準の戻る機能を使用します。
       router.back();
     }
   };
+  // ▲▲▲【修正完了】▲▲▲
 
   if (isLoading) {
     return <div className="min-h-screen bg-black text-white flex items-center justify-center">ローディング中...</div>;
