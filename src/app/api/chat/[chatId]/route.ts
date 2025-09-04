@@ -18,37 +18,42 @@ const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
-
-// --- 新規メッセージ作成または再生成 (POST) ---
-export async function POST(request: NextRequest) {
+export async function POST(
+    request: NextRequest,
+    { params }: { params: { chatId: string } }
+) {
     const session = await getServerSession(authOptions);
     if (!session || !session.user?.id) {
         return NextResponse.json({ error: "認証が必要です。" }, { status: 401 });
     }
-    const userId = parseInt(session.user.id);
 
-    const { chatId, turnId, settings } = await request.json();
+    const chatId = parseInt(params.chatId, 10);
+    const userId = parseInt(session.user.id, 10);
+    const { message, settings } = await request.json();
 
-    if (!chatId || !turnId) {
-        return NextResponse.json({ error: "チャットIDとターンIDは必須です。" }, { status: 400 });
+    if (!message) {
+        return NextResponse.json({ error: "メッセージは必須です。" }, { status: 400 });
     }
 
     try {
-        // ポイント消費ロジック（新規メッセージと同様）
+        // --- ポイント消費ロジック ---
         const boostMultiplier = settings?.responseBoostMultiplier || 1.0;
         const boostCostMap: { [key: number]: number } = { 1.5: 1, 3.0: 2, 5.0: 4 };
         const boostCost = boostCostMap[boostMultiplier] || 0;
-        const totalPointsToConsume = 1 + boostCost; // 再生成にもコストがかかる
+        const totalPointsToConsume = 1 + boostCost;
 
         await prisma.$transaction(async (tx) => {
             const userPointsRecord = await tx.points.findUnique({ where: { user_id: userId } });
             const currentUserPoints = (userPointsRecord?.free_points || 0) + (userPointsRecord?.paid_points || 0);
-            if (currentUserPoints < totalPointsToConsume) throw new Error("ポイントが不足しています。");
-            
+            if (currentUserPoints < totalPointsToConsume) {
+                throw new Error("ポイントが不足しています。");
+            }
             let remainingCost = totalPointsToConsume;
-            let freePointsAfter = Math.max(0, (userPointsRecord?.free_points || 0) - remainingCost);
+            // ▼▼▼ 【修正箇所】'let'を'const'に変更しました ▼▼▼
+            const freePointsAfter = Math.max(0, (userPointsRecord?.free_points || 0) - remainingCost);
             remainingCost = Math.max(0, remainingCost - (userPointsRecord?.free_points || 0));
-            let paidPointsAfter = Math.max(0, (userPointsRecord?.paid_points || 0) - remainingCost);
+            // ▼▼▼ 【修正箇所】'let'を'const'に変更しました ▼▼▼
+            const paidPointsAfter = Math.max(0, (userPointsRecord?.paid_points || 0) - remainingCost);
             
             await tx.points.update({
                 where: { user_id: userId },
@@ -56,12 +61,40 @@ export async function POST(request: NextRequest) {
             });
         });
 
+
         const chatRoom = await prisma.chat.findUnique({
             where: { id: chatId },
             include: { characters: true, users: { select: { defaultPersonaId: true } } },
         });
 
-        if (!chatRoom || !chatRoom.characters) return NextResponse.json({ error: "チャットまたはキャラクターが見つかりません。" }, { status: 404 });
+        if (!chatRoom || !chatRoom.characters) {
+            return NextResponse.json({ error: "チャットまたはキャラクターが見つかりません。" }, { status: 404 });
+        }
+
+        // ユーザーメッセージをDBに保存し、turnIdを取得
+        const userMessage = await prisma.chat_message.create({
+            data: {
+                chatId: chatId,
+                role: 'user',
+                content: message,
+                version: 1,
+                isActive: true,
+            }
+        });
+        await prisma.chat_message.update({
+            where: { id: userMessage.id },
+            data: { turnId: userMessage.id },
+        });
+
+        // --- AI応答生成 ---
+        const history = await prisma.chat_message.findMany({
+            where: { chatId: chatId, isActive: true, id: { not: userMessage.id } },
+            orderBy: { createdAt: 'asc' },
+        });
+        const chatHistory: Content[] = history.map(msg => ({
+            role: msg.role as 'user' | 'model',
+            parts: [{ text: msg.content }],
+        }));
         
         // システムプロンプト構築
         let userPersonaInfo = "";
@@ -74,132 +107,34 @@ export async function POST(request: NextRequest) {
         if (boostMultiplier > 1.0) {
             boostInstruction = `\n# 追加指示\n- 今回の応答に限り、通常よりも意図的に長く、約${boostMultiplier}倍の詳細な内容で返答してください。`;
         }
-        const systemInstructionText = `${char.systemTemplate || ''}\n${userPersonaInfo}\n${boostInstruction}`.trim();
+        const systemInstructionText = [char.systemTemplate, userPersonaInfo, boostInstruction].filter(Boolean).join('\n\n');
 
-
-        // turnIdまでの会話履歴を取得
-        const historyMessages = await prisma.chat_message.findMany({
-            where: {
-                chatId: chatId,
-                isActive: true,
-                createdAt: { lt: (await prisma.chat_message.findUnique({ where: { id: turnId } }))!.createdAt },
-            },
-            orderBy: { createdAt: 'asc' },
-        });
-        const userMessageForTurn = await prisma.chat_message.findUnique({ where: { id: turnId } });
-        if (!userMessageForTurn) throw new Error("対象のメッセージが見つかりません。");
-
-        const chatHistory: Content[] = [...historyMessages, userMessageForTurn].map(msg => ({
-            role: msg.role as "user" | "model",
-            parts: [{ text: msg.content }],
-        }));
-
-        // AIモデル呼び出し
         const generativeModel = vertex_ai.getGenerativeModel({ model: "gemini-2.5-pro", safetySettings });
-        const chat = generativeModel.startChat({ history: chatHistory, systemInstruction: { role: "system", parts: [{ text: systemInstructionText }] } });
-        const result = await chat.sendMessage("Continue"); // 最後のメッセージに続いて生成
-        const aiReply = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!aiReply) throw new Error("モデルから有効な応答がありませんでした。");
-        
-        // 既存のバージョンを非アクティブ化
-        const latestVersion = await prisma.chat_message.findFirst({
-            where: { turnId: turnId, role: 'model' },
-            orderBy: { version: 'desc' }
-        });
-        await prisma.chat_message.updateMany({
-            where: { turnId: turnId, role: 'model' },
-            data: { isActive: false }
-        });
+        const chat = generativeModel.startChat({ history: chatHistory, systemInstruction: systemInstructionText });
+        const result = await chat.sendMessage(message);
 
-        // 新しいバージョンを保存
-        const newMessage = await prisma.chat_message.create({
+        const aiReply = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!aiReply) {
+            throw new Error("モデルから有効な応答がありませんでした。");
+        }
+
+        const modelMessage = await prisma.chat_message.create({
             data: {
                 chatId: chatId,
                 role: 'model',
                 content: aiReply,
-                turnId: turnId,
-                version: (latestVersion?.version || 0) + 1,
+                turnId: userMessage.id,
+                version: 1,
                 isActive: true,
             }
         });
-
-        return NextResponse.json({ newMessage });
+        
+        return NextResponse.json({ newMessages: [userMessage, modelMessage] });
 
     } catch (error) {
-        console.error("再生成APIエラー:", error);
+        console.error("チャットAPIエラー:", error);
         const errorMessage = error instanceof Error ? error.message : "内部サーバーエラーが発生しました。";
         return NextResponse.json({ error: errorMessage }, { status: 500 });
-    }
-}
-
-// --- メッセージの編集または表示バージョンの切り替え (PUT) ---
-export async function PUT(request: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "認証が必要です。" }, { status: 401 });
-
-    const { messageId, newContent, turnId, activeMessageId } = await request.json();
-
-    try {
-        // 表示バージョンの切り替え
-        if (turnId && activeMessageId) {
-            await prisma.$transaction([
-                prisma.chat_message.updateMany({
-                    where: { turnId: turnId, role: 'model' },
-                    data: { isActive: false },
-                }),
-                prisma.chat_message.update({
-                    where: { id: activeMessageId },
-                    data: { isActive: true },
-                }),
-            ]);
-            return NextResponse.json({ success: true });
-        }
-
-        // メッセージ内容の編集
-        if (messageId && newContent) {
-            const updatedMessage = await prisma.chat_message.update({
-                where: { id: messageId },
-                data: { content: newContent },
-            });
-            return NextResponse.json(updatedMessage);
-        }
-
-        return NextResponse.json({ error: "無効なリクエストです。" }, { status: 400 });
-    } catch (error) {
-        console.error("メッセージ更新APIエラー:", error);
-        return NextResponse.json({ error: "更新に失敗しました。" }, { status: 500 });
-    }
-}
-
-// --- メッセージの削除 (DELETE) ---
-export async function DELETE(request: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "認証が必要です。" }, { status: 401 });
-
-    const { messageId } = await request.json();
-    if (!messageId) return NextResponse.json({ error: "メッセージIDが必要です。" }, { status: 400 });
-
-    try {
-        const messageToDelete = await prisma.chat_message.findUnique({ where: { id: messageId } });
-        if (!messageToDelete) return NextResponse.json({ error: "メッセージが見つかりません。" }, { status: 404 });
-
-        // ユーザーメッセージが削除された場合、関連するAIメッセージも全て削除
-        if (messageToDelete.role === 'user') {
-            await prisma.chat_message.deleteMany({
-                where: {
-                    OR: [
-                        { id: messageId },
-                        { turnId: messageId, role: 'model' }
-                    ]
-                }
-            });
-        } else { // AIメッセージのみ削除
-            await prisma.chat_message.delete({ where: { id: messageId } });
-        }
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error("メッセージ削除APIエラー:", error);
-        return NextResponse.json({ error: "削除に失敗しました。" }, { status: 500 });
     }
 }
 
