@@ -18,16 +18,17 @@ const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
+// ▼▼▼ 【修正箇所】POST関数の2番目の引数の型定義を修正しました ▼▼▼
 export async function POST(
     request: NextRequest,
-    { params }: { params: { chatId: string } }
+    context: { params: { chatId: string } }
 ) {
     const session = await getServerSession(authOptions);
     if (!session || !session.user?.id) {
         return NextResponse.json({ error: "認証が必要です。" }, { status: 401 });
     }
 
-    const chatId = parseInt(params.chatId, 10);
+    const chatId = parseInt(context.params.chatId, 10); // contextからchatIdを取得
     const userId = parseInt(session.user.id, 10);
     const { message, settings } = await request.json();
 
@@ -49,10 +50,8 @@ export async function POST(
                 throw new Error("ポイントが不足しています。");
             }
             let remainingCost = totalPointsToConsume;
-            // ▼▼▼ 【修正箇所】'let'を'const'に変更しました ▼▼▼
             const freePointsAfter = Math.max(0, (userPointsRecord?.free_points || 0) - remainingCost);
             remainingCost = Math.max(0, remainingCost - (userPointsRecord?.free_points || 0));
-            // ▼▼▼ 【修正箇所】'let'を'const'に変更しました ▼▼▼
             const paidPointsAfter = Math.max(0, (userPointsRecord?.paid_points || 0) - remainingCost);
             
             await tx.points.update({
