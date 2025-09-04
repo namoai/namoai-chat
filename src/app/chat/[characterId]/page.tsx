@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+// ▼▼▼ 【修正】'useMemo'を削除し、'useCallback'を追加 ▼▼▼
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowLeft, Menu, Send, X, Edit3, Trash2, RefreshCw, ChevronLeft, ChevronRight, Check, WandSparkles } from 'lucide-react';
+// ▼▼▼ 【修正】未使用の'Check', 'WandSparkles'を削除 ▼▼▼
+import { ArrowLeft, Menu, Send, X, Edit3, Trash2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import ChatMessageParser from '@/components/ChatMessageParser';
 import ChatSettings, { GenerationSettings, ChatStyleSettings } from '@/components/ChatSettings';
 
@@ -132,7 +134,8 @@ export default function ChatPage() {
         if (savedStyleSettings) { setChatStyleSettings(JSON.parse(savedStyleSettings)); }
     }, []);
 
-    const fetchUserPoints = async () => {
+    // ▼▼▼ 【修正】useCallbackでラップし、不要な再生成を防ぐ ▼▼▼
+    const fetchUserPoints = useCallback(async () => {
         if (!session?.user.id) return;
         try {
             const response = await fetch(`/api/points`);
@@ -144,11 +147,12 @@ export default function ChatPage() {
             console.error(error);
             setUserPoints(0);
         }
-    };
+    }, [session]);
 
+    // ▼▼▼ 【修正】依存配列に 'fetchUserPoints' を追加 ▼▼▼
     useEffect(() => {
         fetchUserPoints();
-    }, [session]);
+    }, [fetchUserPoints]);
 
     useEffect(() => {
         if (characterId) {
@@ -372,7 +376,8 @@ export default function ChatPage() {
             body: JSON.stringify({ turnId: turnId, activeMessageId: newActiveMessageId }),
         }).catch(err => console.error("バージョン切り替えのDB更新に失敗:", err));
     };
-    
+
+    // ▼▼▼ 【追加】エラーログに基づき、handleNewChat関数を追加 ▼▼▼
     const handleNewChat = () => {
         if (!characterId) return;
         setModalState({
@@ -383,14 +388,15 @@ export default function ChatPage() {
               if (!response.ok) throw new Error('新しいチャットの作成に失敗しました。');
               const newChat = await response.json();
               router.push(`/chat/${characterId}?chatId=${newChat.id}`);
-              router.refresh(); 
+              // ページをリロードして新しいチャットを完全に読み込む
+              window.location.reload();
             } catch (error) {
-              setModalState({ isOpen: true, title: 'エラー', message: '新しいチャットの作成に失敗しました。', isAlert: true });
+              setModalState({ isOpen: true, title: 'エラー', message: (error as Error).message || '新しいチャットの作成に失敗しました。', isAlert: true });
             }
           }
         });
     };
-
+    
     const handleSaveConversationAsTxt = () => {
         if (!characterInfo || rawMessages.length === 0) { setModalState({ isOpen: true, title: '情報', message: '保存する会話内容がありません。', isAlert: true }); return; }
         const header = `キャラクター: ${characterInfo.name}\n保存日時: ${new Date().toLocaleString('ja-JP')}\n---\n\n`;
@@ -496,13 +502,11 @@ export default function ChatPage() {
                                         )}
                                         
                                         <div className="flex items-center justify-between w-full max-w-xs md:max-w-md lg:max-w-2xl mt-1 h-6 text-gray-400">
-                                            {/* ▼▼▼【レイアウト修正】ホバー時に表示されるように戻しました。▼▼▼ */}
                                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button onClick={() => handleEditStart(activeModelMessage)} className="p-1 hover:text-pink-400"><Edit3 size={14} /></button>
                                                 <button onClick={() => handleDelete(activeModelMessage.id)} className="p-1 hover:text-red-500"><Trash2 size={14} /></button>
                                                 {turnIndex === turns.length - 1 && <button onClick={() => handleRegenerate(turn)} className="p-1 hover:text-green-400"><RefreshCw size={14} /></button>}
                                             </div>
-                                            {/* ▲▲▲ 修正完了 ▲▲▲ */}
 
                                             {/* バージョン切り替え (右側) */}
                                             {turn.modelMessages.length > 1 && (
@@ -554,4 +558,3 @@ export default function ChatPage() {
         </div>
     );
 }
-
