@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import CharacterForm from "@/components/CharacterForm";
+// ▼▼▼【エラー修正】コンポーネントのインポートパスを相対パスに修正しました ▼▼▼
+import CharacterForm from "../../../../components/CharacterForm";
 import { Role } from "@prisma/client";
-import { User } from "next-auth"; // next-authのUser型をインポート
+import { User } from "next-auth"; 
 
 type Visibility = "public" | "link" | "private";
 
-// キャラクターデータの型
+// キャラクターデータ型にlorebooksを追加
 type CharacterData = {
   id: number;
   name: string;
@@ -24,9 +25,9 @@ type CharacterData = {
   detailSetting: string | null;
   author_id: number | null;
   characterImages: { id: number; imageUrl: string; keyword: string | null }[];
+  lorebooks: { id: number; content: string; keywords: string[] }[]; // ロアブックの型を追加
 };
 
-// セッションのユーザー情報にroleを追加した型
 interface AppUser extends User {
   id: string;
   role: Role;
@@ -94,11 +95,9 @@ export default function CharacterEditPage() {
     return (
         <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center">
             <p className="text-red-500 mb-4">{error}</p>
-            {/* ▼▼▼【修正点】onClickでrouter.pushを使用します ▼▼▼ */}
             <button onClick={() => router.push('/MyPage')} className="text-pink-400 hover:underline">
                 マイページに戻る
             </button>
-            {/* ▲▲▲【修正完了】▲▲▲ */}
         </div>
     );
   }
@@ -121,3 +120,4 @@ export default function CharacterEditPage() {
   
   return null;
 }
+

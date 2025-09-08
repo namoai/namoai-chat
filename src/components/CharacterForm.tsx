@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, JSXElementConstructor, ReactElement, ReactNode, ReactPortal } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { X } from "lucide-react";
+import { X, Plus, Trash2, GripVertical } from "lucide-react";
 
 // --- 定数と型定義（共通） ---
 const CATEGORIES = [
@@ -26,10 +26,15 @@ const SUGGESTED_HASHTAGS = [
   "策略", "疲弊", "貴族", "獣人", "誘惑", "破滅", "異世界", "メイド", "学校",
   "絶望", "人妻", "幼馴染", "ショタ", "研究員", "ツンデレ", "シミュレーション",
   "巨乳", "年上", "シスコン", "ヤンデレ", "魔王", "アイドル", "チャット",
-  "青春", "学園", "일상", "母親", "超能力", "妹",
+  "青春", "学園", "日常", "母親", "超能力", "妹",
 ];
 
-// フォームデータ型
+type Lorebook = {
+  id?: number;
+  content: string;
+  keywords: string[];
+};
+
 type FormState = {
   name: string;
   description: string;
@@ -41,9 +46,10 @@ type FormState = {
   safetyFilter: boolean;
   category: string;
   hashtags: string[];
+  firstSituationDate: string;
+  firstSituationPlace: string;
 };
 
-// 画像データ型
 type DisplayImage = {
   id?: number;
   imageUrl?: string;
@@ -51,13 +57,15 @@ type DisplayImage = {
   keyword: string;
 };
 
-// コンポーネントのProps型
 interface CharacterFormProps {
   isEditMode: boolean;
-  initialData?: Partial<FormState & { id: string; characterImages: { id: number; imageUrl: string; keyword: string | null }[] }>;
+  initialData?: Partial<FormState & {
+    id: string;
+    characterImages: { id: number; imageUrl: string; keyword: string | null }[],
+    lorebooks: Lorebook[]
+  }>;
 }
 
-// モーダルの状態の型
 type ModalState = {
     isOpen: boolean;
     title: string;
@@ -65,15 +73,12 @@ type ModalState = {
     onConfirm?: () => void;
 };
 
-// ▼▼▼【新規追加】通知モーダルコンポーネント ▼▼▼
 const NotificationModal = ({ modalState, setModalState }: { modalState: ModalState, setModalState: (state: ModalState) => void }) => {
     if (!modalState.isOpen) return null;
-
     const handleConfirm = () => {
         modalState.onConfirm?.();
         setModalState({ isOpen: false, title: '', message: '' });
     };
-
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex justify-center items-center">
             <div className="bg-gray-800 rounded-lg p-6 w-full max-w-sm m-4">
@@ -88,9 +93,7 @@ const NotificationModal = ({ modalState, setModalState }: { modalState: ModalSta
         </div>
     );
 };
-// ▲▲▲【追加完了】▲▲▲
 
-// HashtagModal（変更なし）
 interface HashtagModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -181,7 +184,7 @@ const HashtagModal = ({ isOpen, onClose, onComplete, initialHashtags }: HashtagM
                 disabled={isLimitReached}
                 className="flex-grow bg-gray-700 border-gray-600 focus:ring-red-500 text-white disabled:opacity-50"
               />
-              <Button onClick={handleAddCustomTag} disabled={isLimitReached} className="bg-gray-600 hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed">
+              <Button onClick={handleAddCustomTag} disabled={isLimitReached || !customTag} className="bg-gray-600 hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed">
                 追加
               </Button>
             </div>
@@ -195,20 +198,23 @@ const HashtagModal = ({ isOpen, onClose, onComplete, initialHashtags }: HashtagM
 };
 
 
-// --- メインフォームコンポーネント ---
 export default function CharacterForm({ isEditMode, initialData }: CharacterFormProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
 
   const [step, setStep] = useState(0);
+  
   const [form, setForm] = useState<FormState>({
     name: "", description: "", systemTemplate: "", detailSetting: "",
     firstSituation: "", firstMessage: "", visibility: "public",
     safetyFilter: true, category: "", hashtags: [],
+    firstSituationDate: "",
+    firstSituationPlace: "",
   });
+  const [lorebooks, setLorebooks] = useState<Lorebook[]>([]);
+  
   const [images, setImages] = useState<DisplayImage[]>([]);
   const [imagesToDelete, setImagesToDelete] = useState<number[]>([]);
-
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [isHashtagModalOpen, setIsHashtagModalOpen] = useState(false);
@@ -228,6 +234,8 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
         safetyFilter: initialData.safetyFilter ?? true,
         category: initialData.category || "",
         hashtags: initialData.hashtags || [],
+        firstSituationDate: initialData.firstSituationDate ? new Date(initialData.firstSituationDate).toISOString().split('T')[0] : "",
+        firstSituationPlace: initialData.firstSituationPlace || "",
       });
       setImages(
         initialData.characterImages?.map((img) => ({
@@ -236,6 +244,7 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
           keyword: img.keyword || "",
         })) || []
       );
+      setLorebooks(initialData.lorebooks || []);
     }
   }, [isEditMode, initialData]);
 
@@ -253,7 +262,43 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
   const handleChange = (field: keyof FormState, value: string | boolean | string[]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
+  
+  const handleAddLorebook = () => {
+    if (lorebooks.length >= 100) {
+      setModalState({ isOpen: true, title: '上限到達', message: 'ロアブックは最大100個まで作成できます。' });
+      return;
+    }
+    setLorebooks(prev => [...prev, { content: "", keywords: [] }]);
+  };
 
+  const handleDeleteLorebook = (index: number) => {
+    setLorebooks(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleLorebookContentChange = (index: number, content: string) => {
+    setLorebooks(prev => prev.map((lore, i) => i === index ? { ...lore, content } : lore));
+  };
+
+  const handleAddKeyword = (index: number, keyword: string) => {
+    if (!keyword.trim()) return;
+    const newLorebooks = [...lorebooks];
+    const currentKeywords = newLorebooks[index].keywords;
+    if (currentKeywords.length >= 5) {
+      setModalState({ isOpen: true, title: '上限到達', message: 'キーワードは1つの項目に最大5個まで登録できます。'});
+      return;
+    }
+    if (!currentKeywords.includes(keyword.trim())) {
+      newLorebooks[index].keywords.push(keyword.trim());
+      setLorebooks(newLorebooks);
+    }
+  };
+
+  const handleDeleteKeyword = (lorebookIndex: number, keywordIndex: number) => {
+    const newLorebooks = [...lorebooks];
+    newLorebooks[lorebookIndex].keywords.splice(keywordIndex, 1);
+    setLorebooks(newLorebooks);
+  };
+  
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length + images.length > 10) {
@@ -313,6 +358,8 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
         formData.append(key, Array.isArray(value) ? JSON.stringify(value) : String(value));
     });
 
+    formData.append('lorebooks', JSON.stringify(lorebooks));
+
     if (isEditMode) {
       formData.append('imagesToDelete', JSON.stringify(imagesToDelete));
       let newImageIndex = 0;
@@ -346,8 +393,6 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
         throw new Error(errorData.message || "サーバーリクエストに失敗しました。");
       }
 
-      const result = await response.json();
-      console.log("サーバー応答:", result);
       setModalState({
         isOpen: true,
         title: '成功',
@@ -366,46 +411,46 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
   if (status === "loading") {
     return <div className="min-h-screen bg-black text-white flex justify-center items-center"><p>ローディング中...</p></div>;
   }
+  
+  const STEPS = ["プロフィール", "キャラクター画像", "詳細情報", "開始状況", "その他設定", "ロアブック", "修正および登録"];
 
   return (
     <>
       <NotificationModal modalState={modalState} setModalState={setModalState} />
       <div className="min-h-screen bg-black text-white px-4 py-8 max-w-4xl mx-auto font-sans">
-        {/* ▼▼▼【修正点】router.back() を使用して前のページに戻ります ▼▼▼ */}
         <button onClick={() => router.back()} className="mb-4 text-pink-400 hover:underline cursor-pointer">
           ← 戻る
         </button>
-        {/* ▲▲▲【修正完了】▲▲▲ */}
         <h1 className="text-xl font-bold mb-4">
           {isEditMode ? "キャラクター修正" : "キャラクター作成"}
         </h1>
 
         <div className="flex space-x-2 border-b border-gray-700 mb-6 text-sm overflow-x-auto">
-          {["プロフィール", "キャラクター画像", "詳細情報", "開始状況", "その他設定", "ロアブック", "修正および登録"].map((label, index) => (
+          {STEPS.map((label, index) => (
             <div key={label} className={`pb-2 px-2 cursor-pointer whitespace-nowrap transition-all ${step === index ? "border-b-2 border-pink-500 font-semibold" : "text-gray-400"}`} onClick={() => setStep(index)}>
               {label}
             </div>
           ))}
         </div>
 
-        {step === 0 && (
+        <div style={{ display: step === 0 ? 'block' : 'none' }}>
             <div className="space-y-4">
                 <Input placeholder="キャラクターの名前を入力してください" value={form.name} maxLength={20} onChange={(e) => handleChange("name", e.target.value)} className="rounded-md" />
                 <Textarea placeholder="キャラクター紹介文を入力してください" value={form.description} maxLength={250} onChange={(e) => handleChange("description", e.target.value)} className="h-32 rounded-md" />
             </div>
-        )}
+        </div>
 
-        {step === 1 && (
+        <div style={{ display: step === 1 ? 'block' : 'none' }}>
             <div className="p-4">
                 <label className="block text-sm font-medium text-gray-200">キャラクター画像</label>
-                <input type="file" accept="image/*" multiple onChange={handleImageChange} className="mt-2 block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                <input type="file" accept="image/*" multiple onChange={handleImageChange} className="mt-2 block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100" />
                 <p className="text-xs text-gray-500 mt-1">画像ファイルを選択してください（最大10枚まで）。</p>
                 <div className="mt-4 flex flex-wrap gap-4">
                 {images.map((img, idx) => (
                     <div key={img.id || `new-${idx}`} className="relative w-24 h-24">
                         <div onClick={() => openImageModal(idx)} className="w-full h-full border rounded overflow-hidden cursor-pointer">
                             <Image src={img.file ? URL.createObjectURL(img.file) : img.imageUrl!} alt={`image-${idx}`} width={96} height={96} className="object-cover w-full h-full" />
-                            <div className="absolute bottom-0 bg-black bg-opacity-60 text-xs text-white w-full text-center px-1 py-0.5 truncate">
+                            <div className="absolute bottom-0 bg-black bg-opacity-60 text-xs text-white w-full text-center px-1 py-0-5 truncate">
                             {idx === 0 ? "基本画像" : img.keyword || "クリックで入力"}
                             </div>
                         </div>
@@ -416,42 +461,46 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
                 ))}
                 </div>
             </div>
-        )}
+        </div>
         
-        {step === 2 && (
+        <div style={{ display: step === 2 ? 'block' : 'none' }}>
             <div className="space-y-4">
                 <label className="block text-sm font-medium text-gray-200">システムテンプレート</label>
-                <select className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm text-black" value={form.systemTemplate} onChange={(e) => handleChange("systemTemplate", e.target.value)}>
+                <select className="mt-1 block w-full rounded-md border-gray-700 bg-gray-800 py-2 px-3 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-pink-500 sm:text-sm" value={form.systemTemplate} onChange={(e) => handleChange("systemTemplate", e.target.value)}>
                     <option value="">テンプレートを選択...</option>
                     <option value="template1">テンプレート1</option>
                     <option value="template2">テンプレート2</option>
                 </select>
                 <Textarea placeholder="キャラクターの詳細設定（外見・性格・背景など）" value={form.detailSetting} className="h-48 rounded-md" maxLength={5000} onChange={(e) => handleChange("detailSetting", e.target.value)} />
+                {/* ▼▼▼【エラー修正】JSX内で`{}`を使用して文字列を正しく表示します ▼▼▼ */}
+                <p className="text-xs text-gray-400">{'`{{char}}` と `{{user}}` を使用して、キャラクター名とユーザー名を動的に挿入できます。'}</p>
             </div>
-        )}
+        </div>
 
-        {step === 3 && (
+        <div style={{ display: step === 3 ? 'block' : 'none' }}>
             <div className="space-y-4">
                 <Textarea placeholder="最初の状況を入力してください" value={form.firstSituation} maxLength={1000} className="h-40 rounded-md" onChange={(e) => handleChange("firstSituation", e.target.value)} />
                 <Textarea placeholder="キャラクターの最初のメッセージを入力してください" value={form.firstMessage} maxLength={500} className="h-32 rounded-md" onChange={(e) => handleChange("firstMessage", e.target.value)} />
+                {/* ▼▼▼【エラー修正】JSX内で`{}`を使用して文字列を正しく表示します ▼▼▼ */}
+                <p className="text-xs text-gray-400">{'`{{char}}` と `{{user}}` を使用して、キャラクター名とユーザー名を動的に挿入できます。'}</p>
             </div>
-        )}
+        </div>
 
-        {step === 4 && (
+        <div style={{ display: step === 4 ? 'block' : 'none' }}>
             <div className="p-4 space-y-6">
                 <div>
                     <span className="block text-sm font-medium text-gray-200 mb-2">公開範囲</span>
                     <div className="flex flex-wrap gap-x-4 gap-y-2">
-                    <label className="inline-flex items-center"><input type="radio" name="visibility" value="public" checked={form.visibility === "public"} onChange={() => handleChange("visibility", "public")} className="form-radio text-pink-500" /><span className="ml-2">公開</span></label>
-                    <label className="inline-flex items-center"><input type="radio" name="visibility" value="private" checked={form.visibility === "private"} onChange={() => handleChange("visibility", "private")} className="form-radio text-pink-500" /><span className="ml-2">非公開</span></label>
-                    <label className="inline-flex items-center"><input type="radio" name="visibility" value="link" checked={form.visibility === "link"} onChange={() => handleChange("visibility", "link")} className="form-radio text-pink-500" /><span className="ml-2">リンク限定公開</span></label>
+                    <label className="inline-flex items-center"><input type="radio" name="visibility" value="public" checked={form.visibility === "public"} onChange={() => handleChange("visibility", "public")} className="form-radio text-pink-500 bg-gray-700 border-gray-600" /><span className="ml-2">公開</span></label>
+                    <label className="inline-flex items-center"><input type="radio" name="visibility" value="private" checked={form.visibility === "private"} onChange={() => handleChange("visibility", "private")} className="form-radio text-pink-500 bg-gray-700 border-gray-600" /><span className="ml-2">非公開</span></label>
+                    <label className="inline-flex items-center"><input type="radio" name="visibility" value="link" checked={form.visibility === "link"} onChange={() => handleChange("visibility", "link")} className="form-radio text-pink-500 bg-gray-700 border-gray-600" /><span className="ml-2">リンク限定公開</span></label>
                     </div>
                 </div>
                 <div className="flex items-center">
                     <span className="text-sm font-medium text-gray-200 mr-4">セーフティフィルター</span>
                     <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" checked={form.safetyFilter} onChange={() => handleChange("safetyFilter", !form.safetyFilter)} />
-                    <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-red-500 rounded-full peer peer-checked:bg-red-500 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                    <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-checked:bg-pink-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
                     <span className="ml-3 text-sm text-gray-200">{form.safetyFilter ? "On" : "Off"}</span>
                     </label>
                 </div>
@@ -460,7 +509,7 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
                     <p className="text-xs text-gray-400 mb-3">キャラクターが活動するテーマを選択してください。</p>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                     {CATEGORIES.map((category) => (
-                        <button key={category} onClick={() => handleChange("category", category)} className={`py-3 px-2 rounded-md transition-colors text-center text-sm ${form.category === category ? "bg-red-500 font-bold" : "bg-gray-700 hover:bg-gray-600"}`}>
+                        <button key={category} type="button" onClick={() => handleChange("category", category)} className={`py-3 px-2 rounded-md transition-colors text-center text-sm ${form.category === category ? "bg-pink-600 font-bold" : "bg-gray-700 hover:bg-gray-600"}`}>
                         {category}
                         </button>
                     ))}
@@ -470,18 +519,65 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
                     <h3 className="font-bold text-base mb-2">ハッシュタグ</h3>
                     <p className="text-xs text-gray-400 mb-3">最大5個、最小1個以上のタグを選択してください。</p>
                     <div onClick={() => setIsHashtagModalOpen(true)} className="bg-gray-800 border border-gray-700 rounded-md p-3 min-h-[48px] cursor-pointer flex flex-wrap gap-2 items-center">
-                    {form.hashtags.length === 0 ? (<span className="text-gray-500">ハッシュタグを登録してください。</span>) : (form.hashtags.map((tag) => (<span key={tag} className="bg-red-500 text-white text-sm font-semibold px-2 py-1 rounded">#{tag}</span>)))}
+                    {form.hashtags.length === 0 ? (<span className="text-gray-500">ハッシュタグを登録してください。</span>) : (form.hashtags.map((tag) => (<span key={tag} className="bg-pink-500 text-white text-sm font-semibold px-2 py-1 rounded">#{tag}</span>)))}
                     </div>
                 </div>
             </div>
-        )}
+        </div>
 
-        <div className="mt-6 flex justify-end">
-            {step < 6 ? (
-              <Button className="bg-pink-500 hover:bg-pink-600 cursor-pointer" onClick={() => setStep(step + 1)}>次の段階へ</Button>
+        <div style={{ display: step === 5 ? 'block' : 'none' }}>
+            <div className="space-y-4">
+                <div className="p-4 bg-gray-800 rounded-lg">
+                    <h3 className="font-bold text-lg">ロアブック</h3>
+                    <p className="text-sm text-gray-400 mt-1">
+                        世界観、設定、人物情報などをキーワードと紐付けてAIに記憶させます。(最大100件)<br />
+                        <span className="text-pink-400 font-semibold">最大5個のロアブックを同時に使用でき、上位のロアブックが優先的に適用されます。</span>
+                    </p>
+                </div>
+                {lorebooks.map((lore, index) => (
+                    <LorebookItem 
+                        key={index} 
+                        lorebook={lore} 
+                        index={index} 
+                        onContentChange={handleLorebookContentChange} 
+                        onAddKeyword={handleAddKeyword} 
+                        onDeleteKeyword={handleDeleteKeyword} 
+                        onDeleteLorebook={handleDeleteLorebook} />
+                ))}
+                <Button onClick={handleAddLorebook} disabled={lorebooks.length >= 100} className="w-full border-2 border-dashed border-gray-600 hover:bg-gray-700 text-gray-400">
+                    <Plus className="mr-2 h-4 w-4" /> ロアブックを追加
+                </Button>
+            </div>
+        </div>
+
+        <div style={{ display: step === 6 ? 'block' : 'none' }}>
+            <div className="space-y-6">
+                <div className="p-4 bg-gray-800 rounded-lg">
+                    <h3 className="font-bold text-lg">キャラクター情報</h3>
+                    <p className="text-sm text-gray-400 mt-1">キャラクターの追加情報を入力します。</p>
+                </div>
+                <div>
+                    <label htmlFor="firstSituationDate" className="block text-sm font-medium text-gray-300 mb-2">日付</label>
+                    <Input id="firstSituationDate" type="date" value={form.firstSituationDate} onChange={(e) => handleChange("firstSituationDate", e.target.value)} />
+                </div>
+                <div>
+                    <label htmlFor="firstSituationPlace" className="block text-sm font-medium text-gray-300 mb-2">場所</label>
+                    <Input id="firstSituationPlace" type="text" placeholder="場所を入力してください" value={form.firstSituationPlace} onChange={(e) => handleChange("firstSituationPlace", e.target.value)} />
+                </div>
+            </div>
+        </div>
+        
+        <div className="mt-8 flex justify-between items-center">
+            <Button variant="outline" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0}>
+                前の段階へ
+            </Button>
+            {step < STEPS.length - 1 ? (
+              <Button className="bg-pink-500 hover:bg-pink-600 cursor-pointer" onClick={() => setStep(s => Math.min(STEPS.length - 1, s + 1))}>
+                次の段階へ
+              </Button>
             ) : (
               <Button className="bg-pink-500 hover:bg-pink-600 cursor-pointer disabled:opacity-50" onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? (isEditMode ? "保存中..." : "登録中...") : (isEditMode ? "保存" : "登録")}
+                {isSubmitting ? (isEditMode ? "保存中..." : "登録中...") : (isEditMode ? "保存する" : "登録する")}
               </Button>
             )}
         </div>
@@ -505,4 +601,54 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
       <HashtagModal isOpen={isHashtagModalOpen} onClose={() => setIsHashtagModalOpen(false)} initialHashtags={form.hashtags} onComplete={(newHashtags) => { handleChange("hashtags", newHashtags); }} />
     </>
   );
+}
+
+interface LorebookItemProps {
+    lorebook: Lorebook;
+    index: number;
+    onContentChange: (index: number, content: string) => void;
+    onAddKeyword: (index: number, keyword: string) => void;
+    onDeleteKeyword: (lorebookIndex: number, keywordIndex: number) => void;
+    onDeleteLorebook: (index: number) => void;
+}
+
+function LorebookItem({ lorebook, index, onContentChange, onAddKeyword, onDeleteKeyword, onDeleteLorebook }: LorebookItemProps) {
+    const [currentKeyword, setCurrentKeyword] = useState("");
+
+    const handleAdd = () => {
+      onAddKeyword(index, currentKeyword);
+      setCurrentKeyword("");
+    };
+
+    return (
+      <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700 space-y-4">
+        <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2 text-gray-400"><GripVertical size={16} className="cursor-grab" /><h4 className="font-semibold text-white">ロアブック #{index + 1}</h4></div>
+            <div className="flex gap-2"><Button variant="ghost" size="sm" onClick={() => onDeleteLorebook(index)} className="text-red-500 hover:bg-red-500/10 hover:text-red-400"><Trash2 size={16} /> <span className="ml-1">削除</span></Button></div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">内容</label>
+          <Textarea value={lorebook.content} onChange={(e) => onContentChange(index, e.target.value)} placeholder="キャラクターが思い出すべき設定や情報を入力します。" className="h-24" maxLength={500} />
+          {/* ▼▼▼【エラー修正】JSX内で`{}`を使用して文字列を正しく表示します ▼▼▼ */}
+          <p className="text-xs text-right text-gray-400 mt-1">{'`{{char}}` と `{{user}}` が使用できます。'}</p>
+        </div>
+
+        <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">キーワード (最大5個)</label>
+            <div className="flex gap-2">
+                <Input value={currentKeyword} onChange={(e) => setCurrentKeyword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAdd())} placeholder="キーワードを入力して追加" disabled={lorebook.keywords.length >= 5} />
+                <Button onClick={handleAdd} disabled={!currentKeyword.trim() || lorebook.keywords.length >= 5}>追加</Button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-3">
+            {lorebook.keywords.map((kw, kwIndex) => (
+                <div key={kwIndex} className="bg-pink-500/20 text-pink-300 text-sm px-2 py-1 rounded-md flex items-center gap-1">
+                {kw}
+                <button onClick={() => onDeleteKeyword(index, kwIndex)} className="text-pink-300 hover:text-white"><X size={14} /></button>
+                </div>
+            ))}
+            </div>
+        </div>
+      </div>
+    );
 }

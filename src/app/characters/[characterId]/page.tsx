@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-// Next.jsのナビゲーション機能をインポートします
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
+import { useSession, SessionProvider } from 'next-auth/react'; 
 import Link from 'next/link';
 import { Heart, MessageSquare, MoreVertical, ArrowLeft } from 'lucide-react';
-// ▼▼▼【修正】next/image を使用して <img> 警告を解消します ▼▼▼
-import Image from 'next/image';
+// ▼▼▼【修正】コンポーネントへの相対パスを再度修正します ▼▼▼
+import Comments from '../../../../src/components/Comments';
 
 /** 型定義 */
 type Author = {
@@ -32,27 +32,22 @@ type CharacterDetail = {
     favorites: number;
     chat: number;
   };
+  isFavorited?: boolean;
 };
 
-export default function CharacterDetailPage() {
-  // ▼▼▼【修正点】useRouterを使用します ▼▼▼
+function CharacterDetailPageContent() {
   const router = useRouter();
+  const params = useParams();
+  const characterId = params.characterId as string;
 
-  const [characterId, setCharacterId] = useState<string | null>(null);
-  // セッション関連は動作確認のため仮の値を設定
-  const sessionStatus = 'authenticated';
-  const session = { user: { id: '1', role: 'USER' } };
+  const { data: session, status: sessionStatus } = useSession();
 
   const [character, setCharacter] = useState<CharacterDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
-
-  useEffect(() => {
-    const pathSegments = window.location.pathname.split('/');
-    const id = pathSegments[pathSegments.length - 1];
-    setCharacterId(id);
-  }, []);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
 
   useEffect(() => {
     if (!characterId) return;
@@ -66,17 +61,41 @@ export default function CharacterDetailPage() {
         }
         const data: CharacterDetail = await res.json();
         setCharacter(data);
+        setIsLiked(data.isFavorited || false);
+        setLikeCount(data._count.favorites);
       } catch (err) {
-        if (err instanceof Error) {
-            setError(err.message);
-        } else {
-            setError('未知のエラーが発生しました。');
-        }
+        setError(err instanceof Error ? err.message : '未知のエラーが発生しました。');
       } finally {
         setLoading(false);
       }
     })();
   }, [characterId]);
+
+  const handleLike = async () => {
+    if (sessionStatus !== 'authenticated') {
+      router.push('/login');
+      return;
+    }
+
+    const originalLiked = isLiked;
+    const originalLikeCount = likeCount;
+    setIsLiked(!originalLiked);
+    setLikeCount(originalLikeCount + (!originalLiked ? 1 : -1));
+
+    try {
+      const res = await fetch(`/api/characters/${characterId}/like`, { method: 'POST' });
+      if (!res.ok) {
+        setIsLiked(originalLiked);
+        setLikeCount(originalLikeCount);
+        throw new Error('いいねの更新に失敗しました。');
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : 'エラーが発生しました。');
+      setIsLiked(originalLiked);
+      setLikeCount(originalLikeCount);
+    }
+  };
 
   const handleNewChat = async () => {
     if (!characterId) return;
@@ -92,7 +111,6 @@ export default function CharacterDetailPage() {
       });
       if (!res.ok) throw new Error('チャットセッションの作成に失敗しました。');
       const chat = await res.json();
-      // ▼▼▼【修正点】router.pushでページ遷移します ▼▼▼
       router.push(`/chat/${characterId}?chatId=${chat.id}`);
     } catch (err) {
       console.error(err);
@@ -102,53 +120,29 @@ export default function CharacterDetailPage() {
     }
   };
 
-  // ▼▼▼【修正点】router.back()で前のページに戻ります ▼▼▼
-  const handleGoBack = () => {
-    router.back();
-  };
+  const handleGoBack = () => router.back();
 
-  if (loading) {
-    return <div className="min-h-screen bg-black text-white flex justify-center items-center">読み込み中...</div>;
-  }
+  if (loading) return <div className="min-h-screen bg-black text-white flex justify-center items-center">読み込み中...</div>;
+  if (error) return <div className="min-h-screen bg-black text-white flex justify-center items-center">エラー: {error}</div>;
+  if (!character) return <div className="min-h-screen bg-black text-white flex justify-center items-center">キャラクターが見つかりません。</div>;
 
-  if (error) {
-    return <div className="min-h-screen bg-black text-white flex justify-center items-center">エラー: {error}</div>;
-  }
-
-  if (!character) {
-    return <div className="min-h-screen bg-black text-white flex justify中心 items-center">キャラクターが見つかりません。</div>;
-  }
-
-  const canEdit =
-    session?.user?.id === character.author?.id?.toString() ||
-    session?.user?.role === 'SUPER_ADMIN';
+  const canEdit = session?.user?.id === character.author?.id?.toString() || session?.user?.role === 'SUPER_ADMIN';
 
   return (
     <div className="bg-black min-h-screen text-white">
       <div className="mx-auto max-w-2xl pb-24">
         <header className="sticky top-0 z-10 flex items-center justify-between p-4 bg-black/80 backdrop-blur-sm">
-          <button onClick={handleGoBack} className="p-2 rounded-full hover:bg-gray-800 transition-colors" aria-label="戻る">
-            <ArrowLeft />
-          </button>
+          <button onClick={handleGoBack} className="p-2 rounded-full hover:bg-gray-800 transition-colors" aria-label="戻る"><ArrowLeft /></button>
           <h1 className="font-bold text-lg absolute left-1/2 -translate-x-1/2">{character.name}</h1>
-          {canEdit && (
-            <div className="relative">
-              <button className="p-2 rounded-full hover:bg-gray-800 transition-colors" aria-label="メニュー">
-                <MoreVertical />
-              </button>
-            </div>
-          )}
+          {canEdit && <div className="relative"><button className="p-2 rounded-full hover:bg-gray-800 transition-colors" aria-label="メニュー"><MoreVertical /></button></div>}
         </header>
 
         <main>
-          {/* ▼▼▼【修正】<img> を next/image(fill) に置換し最適化 ▼▼▼ */}
           <div className="relative w-full aspect-[4/3]">
-            <Image
+            <img
               src={character.characterImages[0]?.imageUrl || 'https://placehold.co/800x600/1a1a1a/ffffff?text=?'}
               alt={character.name}
-              fill
-              className="object-cover"
-              priority
+              className="object-cover w-full h-full"
             />
           </div>
 
@@ -156,14 +150,16 @@ export default function CharacterDetailPage() {
             <div className="flex justify-between items-center">
               <div>
                 <h2 className="text-2xl font-bold">{character.name}</h2>
-                <p className="text-sm text-gray-400">
-                  作成者: {character.author?.nickname || '不明'}
-                </p>
+                <p className="text-sm text-gray-400">作成者: {character.author?.nickname || '不明'}</p>
               </div>
               <div className="flex items-center gap-4">
-                <button className="flex items-center gap-1 text-gray-400 hover:text-white" aria-label="お気に入り数">
-                  <Heart size={20} />
-                  <span>{character._count.favorites}</span>
+                <button
+                  onClick={handleLike}
+                  className={`flex items-center gap-1 transition-colors ${isLiked ? 'text-pink-500' : 'text-gray-400 hover:text-white'}`}
+                  aria-label="お気に入り"
+                >
+                  <Heart size={20} fill={isLiked ? 'currentColor' : 'none'} />
+                  <span>{likeCount}</span>
                 </button>
                 <div className="flex items-center gap-1 text-gray-400" aria-label="チャット数">
                   <MessageSquare size={20} />
@@ -173,23 +169,16 @@ export default function CharacterDetailPage() {
             </div>
 
             <div className="flex flex-wrap gap-2 my-4">
-              {character.hashtags.map((tag) => (
-                <span
-                  key={tag}
-                  className="bg-gray-800 text-pink-400 text-xs font-semibold px-2.5 py-1 rounded-full"
-                >
-                  #{tag}
-                </span>
-              ))}
+              {character.hashtags.map((tag) => <span key={tag} className="bg-gray-800 text-pink-400 text-xs font-semibold px-2.5 py-1 rounded-full">#{tag}</span>)}
             </div>
 
-            <p className="text-gray-300 whitespace-pre-wrap">
-              {character.description}
-            </p>
-
-            <div className="mt-6 border-t border-gray-800 pt-4">
-              <h3 className="font-bold mb-4">コメント ({/* 仮の数 */ 408})</h3>
-            </div>
+            <p className="text-gray-300 whitespace-pre-wrap">{character.description}</p>
+            
+            <Comments 
+              characterId={characterId} 
+              characterAuthorId={character.author?.id ?? null}
+              session={session}
+            />
           </div>
         </main>
       </div>
@@ -198,26 +187,15 @@ export default function CharacterDetailPage() {
         <div className="mx-auto max-w-2xl flex gap-4">
           {sessionStatus === 'authenticated' ? (
             <>
-              {/* ▼▼▼【参考】リンク遷移は機能維持のまま ▼▼▼ */}
               <Link href={`/chat/${characterId}`} className="flex-1">
-                <button className="w-full bg-gray-700 text白 font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition-colors">
-                  続きから会話
-                </button>
+                <button className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition-colors">続きから会話</button>
               </Link>
-              <button
-                onClick={handleNewChat}
-                disabled={isCreatingChat}
-                className="flex-1 w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors disabled:bg-pink-800 disabled:cursor-not-allowed"
-              >
+              <button onClick={handleNewChat} disabled={isCreatingChat} className="flex-1 w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors disabled:bg-pink-800 disabled:cursor-not-allowed">
                 {isCreatingChat ? '作成中...' : '新しいチャットを開始'}
               </button>
             </>
           ) : (
-            <button
-              // ▼▼▼【修正点】router.pushでページ遷移します ▼▼▼
-              onClick={() => router.push('/login')}
-              className="w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors"
-            >
+            <button onClick={() => router.push('/login')} className="w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors">
               チャットするにはログインが必要です
             </button>
           )}
@@ -226,3 +204,13 @@ export default function CharacterDetailPage() {
     </div>
   );
 }
+
+// SessionProviderでラップしてuseSessionを使えるようにする
+export default function CharacterDetailPage() {
+  return (
+    <SessionProvider>
+      <CharacterDetailPageContent />
+    </SessionProvider>
+  );
+}
+

@@ -8,6 +8,12 @@ import { createClient } from '@supabase/supabase-js';
 // ★追加: GSM を使うためのクライアントをインポート
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager'; // ← 追加
 
+// ▼▼▼【新規追加】ロアブックの型定義
+type LorebookData = {
+  content: string;
+  keywords: string[];
+};
+
 // ★追加 ───────────────────────────────────────────────────────────────
 //  ランタイムで GCP サービスアカウント認証ファイルを保証
 //  - Netlify/Vercel 等では SA JSON を BASE64/JSON の環境変数で渡し、/tmp に復元します
@@ -107,6 +113,7 @@ type ImageMetaData = {
   displayOrder: number;
 };
 
+// GET: ユーザーが作成したキャラクターの一覧を取得します
 export async function GET() {
   console.log('[GET] キャラクター一覧取得開始');
   const session = await getServerSession(authOptions);
@@ -129,7 +136,8 @@ export async function GET() {
           take: 1,
         },
         _count: {
-          select: { favorites: true, interactions: true },
+          // ▼▼▼【修正】interactions を chat に変更します ▼▼▼
+          select: { favorites: true, chat: true },
         },
       },
     });
@@ -142,6 +150,7 @@ export async function GET() {
   }
 }
 
+// POST: 新しいキャラクターを作成します
 export async function POST(request: Request) {
   console.log('[POST] キャラクター作成処理開始');
   try {
@@ -150,7 +159,13 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     console.log('[POST] formData 受信成功');
-
+    
+    // ▼▼▼【新規追加】ロアブックと追加情報をフォームデータからパースします
+    const lorebooksString = formData.get('lorebooks') as string;
+    const lorebooks: LorebookData[] = lorebooksString ? JSON.parse(lorebooksString) : [];
+    const firstSituationDate = formData.get('firstSituationDate') as string;
+    const firstSituationPlace = formData.get('firstSituationPlace') as string;
+    
     const userIdString = formData.get('userId') as string;
     console.log(`[POST] userId: ${userIdString}`);
 
@@ -195,7 +210,6 @@ export async function POST(request: Request) {
     const imageCount = imageCountString ? parseInt(imageCountString, 10) : 0;
     console.log(`[POST] 画像枚数: ${imageCount}`);
 
-    // ★挿入: ensureSupabaseEnv() 実行後に env を参照（存在しない場合は 500 を返す）
     const supabaseUrl = process.env.SUPABASE_URL!;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'characters';
@@ -249,6 +263,7 @@ export async function POST(request: Request) {
       });
     }
 
+    // ▼▼▼【修正】characterDataにロアブック関連のフィールドを追加します
     const characterData = {
       name,
       description,
@@ -260,6 +275,8 @@ export async function POST(request: Request) {
       category,
       hashtags,
       detailSetting,
+      firstSituationDate: firstSituationDate ? new Date(firstSituationDate) : null,
+      firstSituationPlace: firstSituationPlace,
       author: {
         connect: { id: userId },
       },
@@ -267,8 +284,10 @@ export async function POST(request: Request) {
 
     console.log('[POST] DBトランザクション開始');
     const newCharacter = await prisma.$transaction(async (tx) => {
+      // 1. キャラクター本体を作成
       const character = await tx.characters.create({ data: characterData });
 
+      // 2. 画像メタデータを保存
       if (imageMetas.length > 0) {
         await tx.character_images.createMany({
           data: imageMetas.map((meta) => ({
@@ -280,10 +299,22 @@ export async function POST(request: Request) {
           })),
         });
       }
+      
+      // 3. ▼▼▼【新規追加】ロアブックデータを保存
+      if (lorebooks.length > 0) {
+          await tx.lorebooks.createMany({
+              data: lorebooks.map(lore => ({
+                  content: lore.content,
+                  keywords: lore.keywords,
+                  characterId: character.id,
+              }))
+          });
+      }
 
+      // 4. 最終的なキャラクターデータを取得
       return await tx.characters.findUnique({
         where: { id: character.id },
-        include: { characterImages: true },
+        include: { characterImages: true, lorebooks: true }, // ロアブックも含む
       });
     });
 

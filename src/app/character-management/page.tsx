@@ -1,9 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-// Next.jsのナビゲーション機能をインポートします
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+// ▼▼▼【修正】Next.jsのナビゲーション機能とイメージコンポーネントを標準的なWeb APIに置き換えます ▼▼▼
 import {
   ArrowLeft,
   Plus,
@@ -15,8 +13,6 @@ import {
   Copy,
   Upload,
 } from "lucide-react";
-// ▼▼▼【修正】next/image を使用して <img> 警告を解消します ▼▼▼
-import Image from "next/image";
 
 // Buttonの仮コンポーネント
 const Button = ({ children, onClick, className }: { children: React.ReactNode, onClick: () => void, className?: string }) => (
@@ -32,7 +28,7 @@ type CharacterSummary = {
   visibility: string | null;
   characterImages: { imageUrl: string }[];
   _count: {
-    interactions: number;
+    chat: number;
     favorites: number;
   };
 };
@@ -187,9 +183,6 @@ const KebabMenu = ({
 };
 
 export default function CharacterManagementPage() {
-  // ▼▼▼【修正点】useRouterを使用します ▼▼▼
-  const router = useRouter(); 
-  
   const [characters, setCharacters] = useState<CharacterSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("全体");
@@ -245,8 +238,8 @@ export default function CharacterManagementPage() {
   const handleMenuAction = async (action: string, char: CharacterSummary) => {
     switch (action) {
       case "edit":
-        // ▼▼▼【修正点】router.pushでページ遷移します ▼▼▼
-        router.push(`/characters/edit/${char.id}`);
+        // ▼▼▼【修正】router.push を window.location.href に変更します ▼▼▼
+        window.location.href = `/characters/edit/${char.id}`;
         break;
       case "delete":
         setConfirmModal({
@@ -382,17 +375,17 @@ export default function CharacterManagementPage() {
       />
 
       <header className="flex items-center justify-between py-4">
-        {/* ▼▼▼【修正点】router.back()を使用します ▼▼▼ */}
+        {/* ▼▼▼【修正】router.back() を window.history.back() に変更します ▼▼▼ */}
         <button
-          onClick={() => router.back()}
+          onClick={() => window.history.back()}
           className="p-2 rounded-full hover:bg-gray-800"
         >
           <ArrowLeft size={24} />
         </button>
         <h1 className="text-lg font-bold">キャラクター管理</h1>
-        {/* ▼▼▼【修正点】router.pushでページ遷移します ▼▼▼ */}
+        {/* ▼▼▼【修正】router.push を window.location.href に変更します ▼▼▼ */}
         <button
-          onClick={() => router.push("/characters/create")}
+          onClick={() => window.location.href = "/characters/create"}
           className="p-2 rounded-full text-pink-500 hover:bg-gray-800"
         >
           <Plus size={24} />
@@ -422,9 +415,10 @@ export default function CharacterManagementPage() {
               key={char.id}
               className="bg-[#1C1C1E] p-3 rounded-lg flex items-center gap-4"
             >
-              {/* ▼▼▼【修正】<img> を next/image に置換して最適化 ▼▼▼ */}
-              <Link href={`/characters/${char.id}`} className="flex-grow flex items-center gap-4 min-w-0">
-                <Image
+              {/* ▼▼▼【修正】Link コンポーネントを a タグに置き換えます ▼▼▼ */}
+              <a href={`/characters/${char.id}`} className="flex-grow flex items-center gap-4 min-w-0">
+                {/* ▼▼▼【修正】Image コンポーネントを img タグに置き換えます ▼▼▼ */}
+                <img
                   src={
                     char.characterImages[0]?.imageUrl ||
                     "https://placehold.co/64x64/1C1C1E/FFFFFF?text=..."
@@ -440,7 +434,7 @@ export default function CharacterManagementPage() {
                     <span>{getVisibilityText(char.visibility)}</span>
                     <div className="flex items-center gap-1">
                       <MessageSquare size={12} />
-                      <span>{char._count?.interactions || 0}</span>
+                      <span>{char._count?.chat || 0}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Heart size={12} />
@@ -448,11 +442,11 @@ export default function CharacterManagementPage() {
                     </div>
                   </div>
                 </div>
-              </Link>
+              </a>
               
-              {/* ▼▼▼【修正点】router.pushでページ遷移します ▼▼▼ */}
+              {/* ▼▼▼【修正】router.push を window.location.href に変更します ▼▼▼ */}
               <button 
-                onClick={() => router.push(`/characters/${char.id}`)}
+                onClick={() => window.location.href = `/characters/${char.id}`}
                 className="bg-pink-500 hover:bg-pink-600 transition-colors cursor-pointer text-white text-sm font-bold py-2 px-4 rounded-lg flex-shrink-0"
               >
                 キャラクタページ
@@ -473,3 +467,4 @@ export default function CharacterManagementPage() {
     </div>
   );
 }
+

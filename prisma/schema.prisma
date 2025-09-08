@@ -8,25 +8,29 @@ datasource db {
 }
 
 model characters {
-  id              Int                @id @default(autoincrement())
-  name            String
-  description     String?
-  systemTemplate  String?
-  firstSituation  String?
-  firstMessage    String?
-  visibility      String?
-  safetyFilter    Boolean?
-  category        String?
-  hashtags        String[]
-  detailSetting   String?
-  author_id       Int?
-  createdAt       DateTime           @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime           @default(now()) @db.Timestamptz(6)
-  characterImages character_images[]
-  author          users?             @relation(fields: [author_id], references: [id])
-  chat            chat[]
-  favorites       favorites[]
-  interactions    interactions[]
+  id                  Int                @id @default(autoincrement())
+  name                String
+  description         String?
+  systemTemplate      String?
+  firstSituation      String?
+  firstMessage        String?
+  visibility          String?
+  safetyFilter        Boolean?
+  category            String?
+  hashtags            String[]
+  detailSetting       String?
+  author_id           Int?
+  createdAt           DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime           @default(now()) @db.Timestamptz(6)
+  firstSituationDate  DateTime?          @db.Timestamptz(6)
+  firstSituationPlace String?
+  characterImages     character_images[]
+  author              users?             @relation(fields: [author_id], references: [id])
+  chat                chat[]
+  comments            comments[]
+  favorites           favorites[]
+  interactions        interactions[]
+  lorebooks           lorebooks[]
 }
 
 model users {
@@ -44,6 +48,7 @@ model users {
   role             Role           @default(USER)
   characters       characters[]
   chat             chat[]
+  comments         comments[]
   favorites        favorites[]
   following        follows[]      @relation("follower")
   followers        follows[]      @relation("following")
@@ -171,6 +176,31 @@ model guides {
   createdAt    DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([mainCategory, subCategory])
+}
+
+model lorebooks {
+  id          Int        @id @default(autoincrement())
+  content     String
+  keywords    String[]
+  characterId Int
+  characters  characters @relation(fields: [characterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model comments {
+  id             Int        @id @default(autoincrement())
+  content        String
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime
+  characterId    Int
+  authorId       Int
+  parentId       Int?
+  users          users      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  characters     characters @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  comments       comments?  @relation("commentsTocomments", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_comments comments[] @relation("commentsTocomments")
+
+  @@index([authorId])
+  @@index([characterId])
 }
 
 enum Role {
