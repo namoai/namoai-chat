@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
-// ▼▼▼【修正】lucide-reactから必要なアイコンをすべてインポートします ▼▼▼
-import { Heart, MessageSquare, MoreVertical, ArrowLeft, Send, Edit, Trash2 } from 'lucide-react';
+// ▼▼▼【修正】使用しない'MessageSquare'アイコンを削除してビルドエラーを解消します ▼▼▼
+import { Heart, MoreVertical, ArrowLeft, Send, Edit, Trash2 } from 'lucide-react';
 
 // ###################################################################################
 // ### Commentsコンポーネントをこのファイルに統合                                     ###
