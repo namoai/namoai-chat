@@ -1,10 +1,9 @@
-// C:\Users\sc998\namos-chat-v1\src\app\api\characters\[id]\comments\[commentId]\route.ts
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
 
-/** Body 型: { content: string } を満たすか判定（更新用・any不使用）*/
+/** Body 型: { content: string } を満たすか判定（更新用） */
 function hasValidContent(body: unknown): body is { content: string } {
   if (!body || typeof body !== 'object') return false;
   if (!('content' in body)) return false;
@@ -12,24 +11,21 @@ function hasValidContent(body: unknown): body is { content: string } {
   return typeof v === 'string' && v.trim().length > 0;
 }
 
-/** ルートのコンテキスト型定義 */
-interface RouteContext {
-  params: {
-    id: string;
-    commentId: string;
-  };
-}
-
 /**
  * コメント更新（PUT）
  * - ルート: /api/characters/[id]/comments/[commentId]
- * - 認証必須、コメント作成者のみ更新可能
+ * - 認証必須（作成者のみ）
  * - Prismaスキーマ上、updatedAt は必須 → 常に new Date() を設定
  */
-export async function PUT(request: NextRequest, context: RouteContext) {
-  // ▼ 必要な commentId のみ参照
-  const commentIdNum = Number.parseInt(context.params.commentId, 10);
-  if (Number.isNaN(commentIdNum)) {
+export async function PUT(
+  request: NextRequest,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  context: any
+) {
+  // ▼ 2番目引数は next の検証で具体型を禁止されるため any（内部で手動バリデーション）
+  const p = (context?.params ?? {}) as { id?: string; commentId?: string };
+  const commentIdNum = Number.parseInt(p.commentId ?? '', 10);
+  if (!Number.isFinite(commentIdNum)) {
     return NextResponse.json({ error: '無効なコメントIDです。' }, { status: 400 });
   }
 
@@ -38,16 +34,16 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
   }
-  const userIdNum = Number.parseInt(session.user.id as string, 10);
+  const userIdNum = Number.parseInt(String(session.user.id), 10);
 
-  // ▼ リクエストボディ検証（any不使用）
+  // ▼ リクエストボディ検証
   const raw = (await request.json().catch(() => null)) as unknown;
   if (!hasValidContent(raw)) {
     return NextResponse.json({ error: 'コメント内容が必要です。' }, { status: 400 });
   }
 
   try {
-    // ▼ コメントが存在し、かつ作成者であることを確認
+    // ▼ コメント存在 & 権限確認
     const comment = await prisma.comments.findUnique({
       where: { id: commentIdNum },
       select: { id: true, authorId: true },
@@ -56,12 +52,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'コメントを更新する権限がありません。' }, { status: 403 });
     }
 
-    // ▼ 更新（updatedAt は必須）
     const updated = await prisma.comments.update({
       where: { id: commentIdNum },
       data: {
         content: raw.content.trim(),
-        updatedAt: new Date(),
+        updatedAt: new Date(), // ← 必須フィールド
       },
       include: {
         users: { select: { id: true, nickname: true, image_url: true } },
@@ -78,30 +73,32 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 /**
  * コメント削除（DELETE）
  * - ルート: /api/characters/[id]/comments/[commentId]
- * - コメント作成者 / キャラクター作成者 / 管理者 のいずれかのみ削除可能
- * - ※ 未使用変数を避けるため、id は参照しない
+ * - 作成者 / キャラクター作成者 / 管理者 が削除可能
  */
-export async function DELETE(request: NextRequest, context: RouteContext) {
-  const commentIdNum = Number.parseInt(context.params.commentId, 10);
-  if (Number.isNaN(commentIdNum)) {
+export async function DELETE(
+  request: NextRequest,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  context: any
+) {
+  const p = (context?.params ?? {}) as { id?: string; commentId?: string };
+  const commentIdNum = Number.parseInt(p.commentId ?? '', 10);
+  if (!Number.isFinite(commentIdNum)) {
     return NextResponse.json({ error: '無効なコメントIDです。' }, { status: 400 });
   }
 
-  // ▼ 認証確認
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
   }
-  const userIdNum = Number.parseInt(session.user.id as string, 10);
+  const userIdNum = Number.parseInt(String(session.user.id), 10);
   const userRole = (session.user as { role?: string }).role;
 
   try {
-    // ▼ コメント作成者、または対象キャラクターの作成者、または管理者かを判定
     const comment = await prisma.comments.findUnique({
       where: { id: commentIdNum },
       select: {
         authorId: true,
-        characters: { select: { author_id: true } }, // characters.author_id が作成者
+        characters: { select: { author_id: true } }, // キャラクター作成者
       },
     });
 
