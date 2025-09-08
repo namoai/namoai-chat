@@ -1,8 +1,14 @@
-// src/app/api/characters/[id]/comments/[commentId]/route.ts
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
+import { Role } from '@prisma/client';
+
+// セッションユーザーの型を拡張
+interface ExtendedUser {
+  id?: string | null;
+  role?: Role | null;
+}
 
 /**
  * コメント更新（PUT）
@@ -11,9 +17,10 @@ import { prisma } from '@/lib/prisma';
  */
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string; commentId: string } }
+  context: { params: { commentId: string } }
 ) {
-  const { id, commentId } = context.params;
+  // ▼▼▼【修正】未使用の'id'変数を削除します ▼▼▼
+  const { commentId } = context.params;
 
   // 認証確認
   const session = await getServerSession(authOptions);
@@ -28,8 +35,9 @@ export async function PUT(
   }
 
   try {
-    const body = await request.json().catch(() => ({}));
-    const content: unknown = (body as any).content;
+    // ▼▼▼【修正】'any'型を避け、リクエストボディの型を明示的に定義します ▼▼▼
+    const body: { content?: unknown } = await request.json().catch(() => ({}));
+    const { content } = body;
 
     if (typeof content !== 'string' || content.trim().length === 0) {
       return NextResponse.json({ error: 'コメント内容が必要です。' }, { status: 400 });
@@ -71,9 +79,9 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string; commentId: string } }
+  context: { params: { commentId: string } }
 ) {
-  const { id, commentId } = context.params;
+  const { commentId } = context.params;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -81,11 +89,11 @@ export async function DELETE(
   }
 
   const commentIdNum = Number.parseInt(commentId, 10);
-  const characterIdNum = Number.parseInt(id, 10);
   const userIdNum = Number.parseInt(session.user.id as string, 10);
-  const userRole = (session.user as any).role;
+  // ▼▼▼【修正】'any'型を避け、拡張したユーザー型を使用します ▼▼▼
+  const userRole = (session.user as ExtendedUser).role;
 
-  if (Number.isNaN(commentIdNum) || Number.isNaN(characterIdNum)) {
+  if (Number.isNaN(commentIdNum)) {
     return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
   }
 
@@ -119,3 +127,4 @@ export async function DELETE(
     return NextResponse.json({ error: 'コメントの削除に失敗しました。' }, { status: 500 });
   }
 }
+
