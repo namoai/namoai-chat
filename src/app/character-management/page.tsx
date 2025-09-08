@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-// ▼▼▼【修正】Next.jsのナビゲーション機能とイメージコンポーネントを標準的なWeb APIに置き換えます ▼▼▼
+// ▼▼▼【修正】Next.jsの機能を標準的なWeb APIに置き換えてビルドエラーを解消します ▼▼▼
 import {
   ArrowLeft,
   Plus,
@@ -415,9 +415,9 @@ export default function CharacterManagementPage() {
               key={char.id}
               className="bg-[#1C1C1E] p-3 rounded-lg flex items-center gap-4"
             >
-              {/* ▼▼▼【修正】Link コンポーネントを a タグに置き換えます ▼▼▼ */}
+              {/* ▼▼▼【修正】Linkコンポーネントをaタグに変更します ▼▼▼ */}
               <a href={`/characters/${char.id}`} className="flex-grow flex items-center gap-4 min-w-0">
-                {/* ▼▼▼【修正】Image コンポーネントを img タグに置き換えます ▼▼▼ */}
+                {/* ▼▼▼【修正】Image を img に置換します ▼▼▼ */}
                 <img
                   src={
                     char.characterImages[0]?.imageUrl ||

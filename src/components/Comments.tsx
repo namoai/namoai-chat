@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from 'react';
+// ▼▼▼【修正】next/image のインポートを削除してビルドエラーを解消します ▼▼▼
 import { Send, MoreVertical, Edit, Trash2 } from 'lucide-react';
 import { Session } from 'next-auth'; // Session型をインポート
 
@@ -31,7 +32,7 @@ export default function Comments({ characterId, characterAuthorId, session }: Co
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // ▼▼▼【追加】編集関連のstate ▼▼▼
+  // ▼▼▼【追加】編集関連のstate
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editedContent, setEditedContent] = useState('');
   const [activeMenu, setActiveMenu] = useState<number | null>(null);
@@ -77,7 +78,7 @@ export default function Comments({ characterId, characterAuthorId, session }: Co
     }
   };
 
-  // ▼▼▼【追加】コメント削除ハンドラ ▼▼▼
+  // ▼▼▼【追加】コメント削除ハンドラ
   const handleDelete = async (commentId: number) => {
     if (!window.confirm('本当にこのコメントを削除しますか？')) return;
     try {
@@ -94,14 +95,14 @@ export default function Comments({ characterId, characterAuthorId, session }: Co
     }
   };
   
-  // ▼▼▼【追加】編集開始ハンドラ ▼▼▼
+  // ▼▼▼【追加】編集開始ハンドラ
   const handleEditStart = (comment: Comment) => {
     setEditingCommentId(comment.id);
     setEditedContent(comment.content);
     setActiveMenu(null);
   };
 
-  // ▼▼▼【追加】コメント更新ハンドラ ▼▼▼
+  // ▼▼▼【追加】コメント更新ハンドラ
   const handleUpdate = async (e: FormEvent) => {
     e.preventDefault();
     if (!editedContent.trim() || !editingCommentId) return;
@@ -152,6 +153,7 @@ export default function Comments({ characterId, characterAuthorId, session }: Co
 
           return (
             <div key={comment.id} className="flex gap-3">
+              {/* ▼▼▼【修正】Imageコンポーネントを標準のimgタグに変更します ▼▼▼ */}
               <img src={comment.users.image_url || 'https://placehold.co/40x40/1a1a1a/ffffff?text=?'} alt={comment.users.nickname} width={40} height={40} className="rounded-full mt-1 w-10 h-10 object-cover" />
               <div className='flex-1'>
                 {editingCommentId === comment.id ? (

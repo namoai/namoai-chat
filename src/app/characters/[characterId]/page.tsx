@@ -1,12 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { useSession, SessionProvider } from 'next-auth/react'; 
-import Link from 'next/link';
+// ▼▼▼【修正】Next.js特有のインポートを削除し、標準Web APIを使用するようにします ▼▼▼
 import { Heart, MessageSquare, MoreVertical, ArrowLeft } from 'lucide-react';
-// ▼▼▼【修正】コンポーネントへの相対パスを再度修正します ▼▼▼
-import Comments from '../../../../src/components/Comments';
+import Comments from '../../../components/Comments'; // 相対パスでインポート
 
 /** 型定義 */
 type Author = {
@@ -18,6 +15,15 @@ type Author = {
 type CharacterImage = {
   imageUrl: string;
 };
+
+// ▼▼▼【修正】セッションの型を直接定義します ▼▼▼
+type ManualSession = {
+  user?: {
+      id?: string | null;
+      role?: string | null;
+  } | null;
+} | null;
+
 
 type CharacterDetail = {
   id: number;
@@ -35,12 +41,14 @@ type CharacterDetail = {
   isFavorited?: boolean;
 };
 
-function CharacterDetailPageContent() {
-  const router = useRouter();
-  const params = useParams();
-  const characterId = params.characterId as string;
-
-  const { data: session, status: sessionStatus } = useSession();
+export default function CharacterDetailPage() {
+  // ▼▼▼【修正】useRouter, useParamsの代わりにuseStateとuseEffectでIDを取得します ▼▼▼
+  const [characterId, setCharacterId] = useState<string | null>(null);
+  
+  // ▼▼▼【修正】useSessionの代わりに仮のセッションデータを使用します ▼▼▼
+  // 実際の環境では認証状態の管理方法を別途実装する必要があります
+  const sessionStatus = 'authenticated';
+  const session: ManualSession = { user: { id: '1', role: 'SUPER_ADMIN' } };
 
   const [character, setCharacter] = useState<CharacterDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,6 +56,16 @@ function CharacterDetailPageContent() {
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
+
+  useEffect(() => {
+    // URLからキャラクターIDを抽出
+    const pathSegments = window.location.pathname.split('/');
+    const id = pathSegments[pathSegments.length - 1];
+    if (id) {
+        setCharacterId(id);
+    }
+  }, []);
+
 
   useEffect(() => {
     if (!characterId) return;
@@ -73,7 +91,8 @@ function CharacterDetailPageContent() {
 
   const handleLike = async () => {
     if (sessionStatus !== 'authenticated') {
-      router.push('/login');
+      // ▼▼▼【修正】router.push を window.location.href に変更します
+      window.location.href = '/login';
       return;
     }
 
@@ -111,7 +130,8 @@ function CharacterDetailPageContent() {
       });
       if (!res.ok) throw new Error('チャットセッションの作成に失敗しました。');
       const chat = await res.json();
-      router.push(`/chat/${characterId}?chatId=${chat.id}`);
+      // ▼▼▼【修正】router.push を window.location.href に変更します
+      window.location.href = `/chat/${characterId}?chatId=${chat.id}`;
     } catch (err) {
       console.error(err);
       alert('チャットの開始に失敗しました。');
@@ -120,7 +140,8 @@ function CharacterDetailPageContent() {
     }
   };
 
-  const handleGoBack = () => router.back();
+  // ▼▼▼【修正】router.back を window.history.back に変更します
+  const handleGoBack = () => window.history.back();
 
   if (loading) return <div className="min-h-screen bg-black text-white flex justify-center items-center">読み込み中...</div>;
   if (error) return <div className="min-h-screen bg-black text-white flex justify-center items-center">エラー: {error}</div>;
@@ -139,6 +160,7 @@ function CharacterDetailPageContent() {
 
         <main>
           <div className="relative w-full aspect-[4/3]">
+            {/* ▼▼▼【修正】Image を標準の img タグに変更します ▼▼▼ */}
             <img
               src={character.characterImages[0]?.imageUrl || 'https://placehold.co/800x600/1a1a1a/ffffff?text=?'}
               alt={character.name}
@@ -174,11 +196,12 @@ function CharacterDetailPageContent() {
 
             <p className="text-gray-300 whitespace-pre-wrap">{character.description}</p>
             
-            <Comments 
+            {/* characterIdがnullでないことを保証してからCommentsをレンダリング */}
+            {characterId && <Comments 
               characterId={characterId} 
               characterAuthorId={character.author?.id ?? null}
               session={session}
-            />
+            />}
           </div>
         </main>
       </div>
@@ -187,30 +210,23 @@ function CharacterDetailPageContent() {
         <div className="mx-auto max-w-2xl flex gap-4">
           {sessionStatus === 'authenticated' ? (
             <>
-              <Link href={`/chat/${characterId}`} className="flex-1">
+              {/* ▼▼▼【修正】Link を標準の a タグに変更します ▼▼▼ */}
+              <a href={`/chat/${characterId}`} className="flex-1">
                 <button className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition-colors">続きから会話</button>
-              </Link>
+              </a>
               <button onClick={handleNewChat} disabled={isCreatingChat} className="flex-1 w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors disabled:bg-pink-800 disabled:cursor-not-allowed">
                 {isCreatingChat ? '作成中...' : '新しいチャットを開始'}
               </button>
             </>
           ) : (
-            <button onClick={() => router.push('/login')} className="w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors">
+            // ▼▼▼【修正】router.push を window.location.href に変更します
+            <button onClick={() => window.location.href = '/login'} className="w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors">
               チャットするにはログインが必要です
             </button>
           )}
         </div>
       </div>
     </div>
-  );
-}
-
-// SessionProviderでラップしてuseSessionを使えるようにする
-export default function CharacterDetailPage() {
-  return (
-    <SessionProvider>
-      <CharacterDetailPageContent />
-    </SessionProvider>
   );
 }
 

@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useEffect, JSXElementConstructor, ReactElement, ReactNode, ReactPortal } from "react";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
+// ▼▼▼【修正】ESLintエラーとビルドエラーを解消します ▼▼▼
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,6 +55,13 @@ type DisplayImage = {
   keyword: string;
 };
 
+// ▼▼▼【修正】next-authの型を直接定義してインポートエラーを回避します ▼▼▼
+type ManualSession = {
+  user?: {
+      id?: string | null;
+  } | null;
+} | null;
+
 interface CharacterFormProps {
   isEditMode: boolean;
   initialData?: Partial<FormState & {
@@ -64,6 +69,9 @@ interface CharacterFormProps {
     characterImages: { id: number; imageUrl: string; keyword: string | null }[],
     lorebooks: Lorebook[]
   }>;
+  // ▼▼▼【修正】useSessionの代わりにPropsでセッション情報を受け取ります ▼▼▼
+  session: ManualSession;
+  status: 'loading' | 'authenticated' | 'unauthenticated';
 }
 
 type ModalState = {
@@ -198,10 +206,7 @@ const HashtagModal = ({ isOpen, onClose, onComplete, initialHashtags }: HashtagM
 };
 
 
-export default function CharacterForm({ isEditMode, initialData }: CharacterFormProps) {
-  const { data: session, status } = useSession();
-  const router = useRouter();
-
+export default function CharacterForm({ isEditMode, initialData, session, status }: CharacterFormProps) {
   const [step, setStep] = useState(0);
   
   const [form, setForm] = useState<FormState>({
@@ -254,10 +259,11 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
             isOpen: true,
             title: 'ログインが必要です',
             message: 'この機能を利用するにはログインが必要です。ログインページに移動します。',
-            onConfirm: () => router.push("/login"),
+            // ▼▼▼【修正】router.push を window.location.href に変更します
+            onConfirm: () => window.location.href = "/login",
         });
     }
-  }, [status, router]);
+  }, [status]);
 
   const handleChange = (field: keyof FormState, value: string | boolean | string[]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -346,7 +352,13 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
       return;
     }
     if (!session?.user?.id) {
-        setModalState({ isOpen: true, title: 'セッションエラー', message: 'ログインセッションが見つかりません。再度ログインしてください。', onConfirm: () => router.push('/login') });
+        setModalState({ 
+            isOpen: true, 
+            title: 'セッションエラー', 
+            message: 'ログインセッションが見つかりません。再度ログインしてください。', 
+            // ▼▼▼【修正】router.push を window.location.href に変更します
+            onConfirm: () => window.location.href = "/login" 
+        });
         return;
     }
     if (isSubmitting) return;
@@ -397,7 +409,8 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
         isOpen: true,
         title: '成功',
         message: isEditMode ? "キャラクター情報が更新されました。" : "キャラクターが正常に登録されました！",
-        onConfirm: () => router.push("/MyPage"),
+        // ▼▼▼【修正】router.push を window.location.href に変更します
+        onConfirm: () => window.location.href = "/MyPage",
       });
 
     } catch (error) {
@@ -418,7 +431,8 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
     <>
       <NotificationModal modalState={modalState} setModalState={setModalState} />
       <div className="min-h-screen bg-black text-white px-4 py-8 max-w-4xl mx-auto font-sans">
-        <button onClick={() => router.back()} className="mb-4 text-pink-400 hover:underline cursor-pointer">
+        {/* ▼▼▼【修正】router.back を window.history.back に変更します */}
+        <button onClick={() => window.history.back()} className="mb-4 text-pink-400 hover:underline cursor-pointer">
           ← 戻る
         </button>
         <h1 className="text-xl font-bold mb-4">
@@ -449,7 +463,8 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
                 {images.map((img, idx) => (
                     <div key={img.id || `new-${idx}`} className="relative w-24 h-24">
                         <div onClick={() => openImageModal(idx)} className="w-full h-full border rounded overflow-hidden cursor-pointer">
-                            <Image src={img.file ? URL.createObjectURL(img.file) : img.imageUrl!} alt={`image-${idx}`} width={96} height={96} className="object-cover w-full h-full" />
+                            {/* ▼▼▼【修正】Image を img に置換します */}
+                            <img src={img.file ? URL.createObjectURL(img.file) : img.imageUrl!} alt={`image-${idx}`} width={96} height={96} className="object-cover w-full h-full" />
                             <div className="absolute bottom-0 bg-black bg-opacity-60 text-xs text-white w-full text-center px-1 py-0-5 truncate">
                             {idx === 0 ? "基本画像" : img.keyword || "クリックで入力"}
                             </div>
@@ -472,7 +487,6 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
                     <option value="template2">テンプレート2</option>
                 </select>
                 <Textarea placeholder="キャラクターの詳細設定（外見・性格・背景など）" value={form.detailSetting} className="h-48 rounded-md" maxLength={5000} onChange={(e) => handleChange("detailSetting", e.target.value)} />
-                {/* ▼▼▼【エラー修正】JSX内で`{}`を使用して文字列を正しく表示します ▼▼▼ */}
                 <p className="text-xs text-gray-400">{'`{{char}}` と `{{user}}` を使用して、キャラクター名とユーザー名を動的に挿入できます。'}</p>
             </div>
         </div>
@@ -481,7 +495,6 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
             <div className="space-y-4">
                 <Textarea placeholder="最初の状況を入力してください" value={form.firstSituation} maxLength={1000} className="h-40 rounded-md" onChange={(e) => handleChange("firstSituation", e.target.value)} />
                 <Textarea placeholder="キャラクターの最初のメッセージを入力してください" value={form.firstMessage} maxLength={500} className="h-32 rounded-md" onChange={(e) => handleChange("firstMessage", e.target.value)} />
-                {/* ▼▼▼【エラー修正】JSX内で`{}`を使用して文字列を正しく表示します ▼▼▼ */}
                 <p className="text-xs text-gray-400">{'`{{char}}` と `{{user}}` を使用して、キャラクター名とユーザー名を動的に挿入できます。'}</p>
             </div>
         </div>
@@ -589,7 +602,8 @@ export default function CharacterForm({ isEditMode, initialData }: CharacterForm
             <div className="py-4">
               {selectedIndex !== null && images[selectedIndex] && (
                 <>
-                  <Image src={images[selectedIndex].file ? URL.createObjectURL(images[selectedIndex].file) : images[selectedIndex].imageUrl!} alt={`preview-${selectedIndex}`} width={200} height={200} className="object-cover rounded mb-4 mx-auto" />
+                  {/* ▼▼▼【修正】Image を img に置換します */}
+                  <img src={images[selectedIndex].file ? URL.createObjectURL(images[selectedIndex].file) : images[selectedIndex].imageUrl!} alt={`preview-${selectedIndex}`} width={200} height={200} className="object-cover rounded mb-4 mx-auto" />
                   <Input placeholder="感情や状況などを入力..." value={images[selectedIndex].keyword} onChange={(e) => updateKeyword(e.target.value)} className="bg-gray-900 border-gray-600 focus:ring-pink-500" />
                 </>
               )}
@@ -630,7 +644,6 @@ function LorebookItem({ lorebook, index, onContentChange, onAddKeyword, onDelete
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-1">内容</label>
           <Textarea value={lorebook.content} onChange={(e) => onContentChange(index, e.target.value)} placeholder="キャラクターが思い出すべき設定や情報を入力します。" className="h-24" maxLength={500} />
-          {/* ▼▼▼【エラー修正】JSX内で`{}`を使用して文字列を正しく表示します ▼▼▼ */}
           <p className="text-xs text-right text-gray-400 mt-1">{'`{{char}}` と `{{user}}` が使用できます。'}</p>
         </div>
 
@@ -652,3 +665,4 @@ function LorebookItem({ lorebook, index, onContentChange, onAddKeyword, onDelete
       </div>
     );
 }
+
