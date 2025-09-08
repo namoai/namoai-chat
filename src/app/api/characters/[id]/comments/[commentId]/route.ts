@@ -1,98 +1,124 @@
-import { NextResponse } from 'next/server';
+// C:\Users\sc998\namos-chat-v1\src\app\api\characters\[id]\comments\[commentId]\route.ts
+import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
-import { Role } from '@prisma/client';
 
-interface Params {
-  params: {
-    id: string; // キャラクターID
-    commentId: string; // コメントID
-  };
+/** Body 型: { content: string } を満たすか判定（更新用・any不使用） */
+function hasValidContent(body: unknown): body is { content: string } {
+  if (!body || typeof body !== 'object') return false;
+  if (!('content' in body)) return false;
+  const v = (body as { content?: unknown }).content;
+  return typeof v === 'string' && v.trim().length > 0;
 }
 
-// PUT: コメントを更新
-export async function PUT(request: Request, { params }: Params) {
+/**
+ * コメント更新（PUT）
+ * - ルート: /api/characters/[id]/comments/[commentId]
+ * - 認証必須、コメント作成者のみ更新可能
+ * - Prismaスキーマ上、updatedAt は必須 → 常に new Date() を設定
+ */
+export async function PUT(
+  request: NextRequest,
+  context: { params: { id: string; commentId: string } }
+) {
+  // ▼ 未使用変数警告を避けるため、必要な commentId のみ参照
+  const commentIdNum = Number.parseInt(context.params.commentId, 10);
+  if (Number.isNaN(commentIdNum)) {
+    return NextResponse.json({ error: '無効なコメントIDです。' }, { status: 400 });
+  }
+
+  // ▼ 認証確認
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
   }
+  const userIdNum = Number.parseInt(session.user.id as string, 10);
 
-  const commentId = parseInt(params.commentId, 10);
-  const userId = parseInt(session.user.id, 10);
-  const { content } = await request.json();
-
-  if (isNaN(commentId)) {
-    return NextResponse.json({ error: '無効なコメントIDです。' }, { status: 400 });
-  }
-  if (!content) {
+  // ▼ リクエストボディ検証（any不使用）
+  const raw = (await request.json().catch(() => null)) as unknown;
+  if (!hasValidContent(raw)) {
     return NextResponse.json({ error: 'コメント内容が必要です。' }, { status: 400 });
   }
 
   try {
-    const comment = await prisma.comments.findUnique({ where: { id: commentId } });
-    if (!comment) {
-      return NextResponse.json({ error: 'コメントが見つかりません。' }, { status: 404 });
-    }
-    // 自分のコメントかチェック
-    if (comment.authorId !== userId) {
-      return NextResponse.json({ error: 'このコメントを編集する権限がありません。' }, { status: 403 });
+    // ▼ コメントが存在し、かつ作成者であることを確認
+    const comment = await prisma.comments.findUnique({
+      where: { id: commentIdNum },
+      select: { id: true, authorId: true },
+    });
+    if (!comment || comment.authorId !== userIdNum) {
+      return NextResponse.json({ error: 'コメントを更新する権限がありません。' }, { status: 403 });
     }
 
-    const updatedComment = await prisma.comments.update({
-      where: { id: commentId },
-      data: { content, updatedAt: new Date() },
-      include: { users: { select: { id: true, nickname: true, image_url: true } } },
+    // ▼ 更新（updatedAt は必須）
+    const updated = await prisma.comments.update({
+      where: { id: commentIdNum },
+      data: {
+        content: raw.content.trim(),
+        updatedAt: new Date(),
+      },
+      include: {
+        users: { select: { id: true, nickname: true, image_url: true } },
+      },
     });
 
-    return NextResponse.json(updatedComment);
+    return NextResponse.json(updated, { status: 200 });
   } catch (error) {
     console.error('コメント更新エラー:', error);
-    return NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });
+    return NextResponse.json({ error: 'コメントの更新に失敗しました。' }, { status: 500 });
   }
 }
 
-// DELETE: コメントを削除
-export async function DELETE(request: Request, { params }: Params) {
+/**
+ * コメント削除（DELETE）
+ * - ルート: /api/characters/[id]/comments/[commentId]
+ * - コメント作成者 / キャラクター作成者 / 管理者 のいずれかのみ削除可能
+ * - ※ 未使用変数を避けるため、id は参照しない
+ */
+export async function DELETE(
+  request: NextRequest,
+  context: { params: { id: string; commentId: string } }
+) {
+  const commentIdNum = Number.parseInt(context.params.commentId, 10);
+  if (Number.isNaN(commentIdNum)) {
+    return NextResponse.json({ error: '無効なコメントIDです。' }, { status: 400 });
+  }
+
+  // ▼ 認証確認
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id || !session.user.role) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
   }
-
-  const characterId = parseInt(params.id, 10);
-  const commentId = parseInt(params.commentId, 10);
-  const userId = parseInt(session.user.id, 10);
-  const userRole = session.user.role as Role;
-
-  if (isNaN(commentId) || isNaN(characterId)) {
-    return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
-  }
+  const userIdNum = Number.parseInt(session.user.id as string, 10);
+  const userRole = (session.user as { role?: string }).role;
 
   try {
-    const comment = await prisma.comments.findUnique({ where: { id: commentId } });
+    // ▼ コメント作成者、または対象キャラクターの作成者、または管理者かを判定
+    const comment = await prisma.comments.findUnique({
+      where: { id: commentIdNum },
+      select: {
+        authorId: true,
+        characters: { select: { author_id: true } }, // characters.author_id が作成者
+      },
+    });
+
     if (!comment) {
       return NextResponse.json({ error: 'コメントが見つかりません。' }, { status: 404 });
     }
 
-    const character = await prisma.characters.findUnique({ where: { id: characterId } });
-    if (!character) {
-        return NextResponse.json({ error: 'キャラクターが見つかりません。' }, { status: 404 });
-    }
-
-    // 権限チェック
-    const isCommentAuthor = comment.authorId === userId;
-    const isCharacterAuthor = character.author_id === userId;
-    const isAdmin = userRole === Role.CHAR_MANAGER || userRole === Role.SUPER_ADMIN;
+    const isCommentAuthor = comment.authorId === userIdNum;
+    const isCharacterAuthor = comment.characters?.author_id === userIdNum;
+    const isAdmin = userRole === 'CHAR_MANAGER' || userRole === 'SUPER_ADMIN';
 
     if (!isCommentAuthor && !isCharacterAuthor && !isAdmin) {
-      return NextResponse.json({ error: 'このコメントを削除する権限がありません。' }, { status: 403 });
+      return NextResponse.json({ error: 'コメントを削除する権限がありません。' }, { status: 403 });
     }
 
-    await prisma.comments.delete({ where: { id: commentId } });
-
+    await prisma.comments.delete({ where: { id: commentIdNum } });
     return NextResponse.json({ message: 'コメントが削除されました。' }, { status: 200 });
   } catch (error) {
     console.error('コメント削除エラー:', error);
-    return NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });
+    return NextResponse.json({ error: 'コメントの削除に失敗しました。' }, { status: 500 });
   }
 }
