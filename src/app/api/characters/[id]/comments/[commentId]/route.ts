@@ -4,12 +4,20 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
 
-/** Body 型: { content: string } を満たすか判定（更新用・any不使用） */
+/** Body 型: { content: string } を満たすか判定（更新用・any不使用）*/
 function hasValidContent(body: unknown): body is { content: string } {
   if (!body || typeof body !== 'object') return false;
   if (!('content' in body)) return false;
   const v = (body as { content?: unknown }).content;
   return typeof v === 'string' && v.trim().length > 0;
+}
+
+/** ルートのコンテキスト型定義 */
+interface RouteContext {
+  params: {
+    id: string;
+    commentId: string;
+  };
 }
 
 /**
@@ -18,11 +26,8 @@ function hasValidContent(body: unknown): body is { content: string } {
  * - 認証必須、コメント作成者のみ更新可能
  * - Prismaスキーマ上、updatedAt は必須 → 常に new Date() を設定
  */
-export async function PUT(
-  request: NextRequest,
-  context: { params: { id: string; commentId: string } }
-) {
-  // ▼ 未使用変数警告を避けるため、必要な commentId のみ参照
+export async function PUT(request: NextRequest, context: RouteContext) {
+  // ▼ 必要な commentId のみ参照
   const commentIdNum = Number.parseInt(context.params.commentId, 10);
   if (Number.isNaN(commentIdNum)) {
     return NextResponse.json({ error: '無効なコメントIDです。' }, { status: 400 });
@@ -76,10 +81,7 @@ export async function PUT(
  * - コメント作成者 / キャラクター作成者 / 管理者 のいずれかのみ削除可能
  * - ※ 未使用変数を避けるため、id は参照しない
  */
-export async function DELETE(
-  request: NextRequest,
-  context: { params: { id: string; commentId: string } }
-) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
   const commentIdNum = Number.parseInt(context.params.commentId, 10);
   if (Number.isNaN(commentIdNum)) {
     return NextResponse.json({ error: '無効なコメントIDです。' }, { status: 400 });

@@ -1,3 +1,5 @@
+// /api/characters/[id]/comments/route.ts
+
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
@@ -16,16 +18,20 @@ function hasValidContent(body: unknown): body is { content: string } {
   return typeof v === 'string' && v.trim().length > 0;
 }
 
+/** ルートのコンテキスト型定義 */
+interface RouteContext {
+  params: {
+    id: string;
+  };
+}
+
 /**
  * コメント一覧取得（GET）
  * - ルート: /api/characters/[id]/comments
  * - クエリ: ?take=20&cursor=123
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
-  // ▼ 文字列IDを数値へ（未使用変数を作らないように直接参照）
+export async function GET(request: NextRequest, context: RouteContext) {
+  // ▼ 文字列IDを数値へ
   const characterId = Number.parseInt(context.params.id, 10);
   if (Number.isNaN(characterId)) {
     return NextResponse.json({ error: '無効なキャラクターIDです。' }, { status: 400 });
@@ -73,10 +79,7 @@ export async function GET(
  * - 認証必須
  * - Body: { content: string }
  */
-export async function POST(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, context: RouteContext) {
   const characterId = Number.parseInt(context.params.id, 10);
   if (Number.isNaN(characterId)) {
     return NextResponse.json({ error: '無効なキャラクターIDです。' }, { status: 400 });
