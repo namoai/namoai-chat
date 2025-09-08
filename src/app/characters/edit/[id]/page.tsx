@@ -3,14 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-// ▼▼▼【エラー修正】コンポーネントのインポートパスを相対パスに修正しました ▼▼▼
 import CharacterForm from "../../../../components/CharacterForm";
 import { Role } from "@prisma/client";
 import { User } from "next-auth"; 
 
 type Visibility = "public" | "link" | "private";
 
-// キャラクターデータ型にlorebooksを追加
 type CharacterData = {
   id: number;
   name: string;
@@ -25,7 +23,7 @@ type CharacterData = {
   detailSetting: string | null;
   author_id: number | null;
   characterImages: { id: number; imageUrl: string; keyword: string | null }[];
-  lorebooks: { id: number; content: string; keywords: string[] }[]; // ロアブックの型を追加
+  lorebooks: { id: number; content: string; keywords: string[] }[];
 };
 
 interface AppUser extends User {
@@ -58,7 +56,9 @@ export default function CharacterEditPage() {
 
       const currentUser = session.user as AppUser;
       const isOwner = data.author_id === parseInt(currentUser.id, 10);
-      const hasAdminPermission = currentUser.role === Role.CHAR_MANAGER || currentUser.role === Role.SUPER_ADMIN;
+      const hasAdminPermission =
+        currentUser.role === Role.CHAR_MANAGER ||
+        currentUser.role === Role.SUPER_ADMIN;
 
       if (!isOwner && !hasAdminPermission) {
         setError("このキャラクターを編集する権限がありません。");
@@ -66,10 +66,11 @@ export default function CharacterEditPage() {
       } else {
         setInitialData(data);
       }
-
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : "不明なエラーが発生しました。");
+      setError(
+        err instanceof Error ? err.message : "不明なエラーが発生しました。"
+      );
     } finally {
       setLoading(false);
     }
@@ -93,31 +94,43 @@ export default function CharacterEditPage() {
 
   if (error) {
     return (
-        <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center">
-            <p className="text-red-500 mb-4">{error}</p>
-            <button onClick={() => router.push('/MyPage')} className="text-pink-400 hover:underline">
-                マイページに戻る
-            </button>
-        </div>
+      <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center">
+        <p className="text-red-500 mb-4">{error}</p>
+        <button
+          onClick={() => router.push("/MyPage")}
+          className="text-pink-400 hover:underline"
+        >
+          マイページに戻る
+        </button>
+      </div>
     );
   }
 
   if (initialData) {
     const formCompatibleData = {
       ...initialData,
-      id: initialData.id.toString(), 
+      id: initialData.id.toString(),
       description: initialData.description ?? undefined,
       systemTemplate: initialData.systemTemplate ?? undefined,
       firstSituation: initialData.firstSituation ?? undefined,
       firstMessage: initialData.firstMessage ?? undefined,
-      visibility: (initialData.visibility ?? undefined) as Visibility | undefined,
+      visibility: (initialData.visibility ?? undefined) as
+        | Visibility
+        | undefined,
       safetyFilter: initialData.safetyFilter ?? undefined,
       category: initialData.category ?? undefined,
       detailSetting: initialData.detailSetting ?? undefined,
     };
-    return <CharacterForm isEditMode={true} initialData={formCompatibleData} />;
+
+    return (
+      <CharacterForm
+        isEditMode={true}
+        initialData={formCompatibleData}
+        session={session}
+        status={status}
+      />
+    );
   }
-  
+
   return null;
 }
-
