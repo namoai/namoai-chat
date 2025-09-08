@@ -1,7 +1,8 @@
 "use client";
 
-// ▼▼▼【修正】ESLintエラーとビルドエラーを解消します ▼▼▼
 import { useState, useEffect } from "react";
+// ▼▼▼【修正】コンパイルエラーを解消するため、next/imageのインポートを削除します ▼▼▼
+// import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,7 +56,6 @@ type DisplayImage = {
   keyword: string;
 };
 
-// ▼▼▼【修正】next-authの型を直接定義してインポートエラーを回避します ▼▼▼
 type ManualSession = {
   user?: {
       id?: string | null;
@@ -69,7 +69,6 @@ interface CharacterFormProps {
     characterImages: { id: number; imageUrl: string; keyword: string | null }[],
     lorebooks: Lorebook[]
   }>;
-  // ▼▼▼【修正】useSessionの代わりにPropsでセッション情報を受け取ります ▼▼▼
   session: ManualSession;
   status: 'loading' | 'authenticated' | 'unauthenticated';
 }
@@ -259,7 +258,6 @@ export default function CharacterForm({ isEditMode, initialData, session, status
             isOpen: true,
             title: 'ログインが必要です',
             message: 'この機能を利用するにはログインが必要です。ログインページに移動します。',
-            // ▼▼▼【修正】router.push を window.location.href に変更します
             onConfirm: () => window.location.href = "/login",
         });
     }
@@ -356,7 +354,6 @@ export default function CharacterForm({ isEditMode, initialData, session, status
             isOpen: true, 
             title: 'セッションエラー', 
             message: 'ログインセッションが見つかりません。再度ログインしてください。', 
-            // ▼▼▼【修正】router.push を window.location.href に変更します
             onConfirm: () => window.location.href = "/login" 
         });
         return;
@@ -409,7 +406,6 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         isOpen: true,
         title: '成功',
         message: isEditMode ? "キャラクター情報が更新されました。" : "キャラクターが正常に登録されました！",
-        // ▼▼▼【修正】router.push を window.location.href に変更します
         onConfirm: () => window.location.href = "/MyPage",
       });
 
@@ -431,7 +427,6 @@ export default function CharacterForm({ isEditMode, initialData, session, status
     <>
       <NotificationModal modalState={modalState} setModalState={setModalState} />
       <div className="min-h-screen bg-black text-white px-4 py-8 max-w-4xl mx-auto font-sans">
-        {/* ▼▼▼【修正】router.back を window.history.back に変更します */}
         <button onClick={() => window.history.back()} className="mb-4 text-pink-400 hover:underline cursor-pointer">
           ← 戻る
         </button>
@@ -463,7 +458,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                 {images.map((img, idx) => (
                     <div key={img.id || `new-${idx}`} className="relative w-24 h-24">
                         <div onClick={() => openImageModal(idx)} className="w-full h-full border rounded overflow-hidden cursor-pointer">
-                            {/* ▼▼▼【修正】Image を img に置換します */}
+                            {/* ▼▼▼【修正】Imageコンポーネントを標準のimgタグに戻します ▼▼▼ */}
                             <img src={img.file ? URL.createObjectURL(img.file) : img.imageUrl!} alt={`image-${idx}`} width={96} height={96} className="object-cover w-full h-full" />
                             <div className="absolute bottom-0 bg-black bg-opacity-60 text-xs text-white w-full text-center px-1 py-0-5 truncate">
                             {idx === 0 ? "基本画像" : img.keyword || "クリックで入力"}
@@ -602,8 +597,8 @@ export default function CharacterForm({ isEditMode, initialData, session, status
             <div className="py-4">
               {selectedIndex !== null && images[selectedIndex] && (
                 <>
-                  {/* ▼▼▼【修正】Image を img に置換します */}
-                  <img src={images[selectedIndex].file ? URL.createObjectURL(images[selectedIndex].file) : images[selectedIndex].imageUrl!} alt={`preview-${selectedIndex}`} width={200} height={200} className="object-cover rounded mb-4 mx-auto" />
+                  {/* ▼▼▼【修正】Imageコンポーネントを標準のimgタグに戻します ▼▼▼ */}
+                  <img src={images[selectedIndex].file ? URL.createObjectURL(images[selectedIndex].file!) : images[selectedIndex].imageUrl!} alt={`preview-${selectedIndex}`} width={200} height={200} className="object-cover rounded mb-4 mx-auto" />
                   <Input placeholder="感情や状況などを入力..." value={images[selectedIndex].keyword} onChange={(e) => updateKeyword(e.target.value)} className="bg-gray-900 border-gray-600 focus:ring-pink-500" />
                 </>
               )}
