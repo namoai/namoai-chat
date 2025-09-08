@@ -1,23 +1,203 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-// ▼▼▼【修正】コンパイルエラーを解消するため、next/imageのインポートを削除し、標準のimgタグを使用します ▼▼▼
-// import Image from 'next/image';
-import { Heart, MessageSquare, MoreVertical, ArrowLeft } from 'lucide-react';
-// ▼▼▼【修正】コンパイルエラーを解消するため、Commentsコンポーネントをファイル内に直接定義します ▼▼▼
-// import Comments from '../../../components/Comments';
+import React, { useState, useEffect, FormEvent } from 'react';
+// ▼▼▼【修正】lucide-reactから必要なアイコンをすべてインポートします ▼▼▼
+import { Heart, MessageSquare, MoreVertical, ArrowLeft, Send, Edit, Trash2 } from 'lucide-react';
 
-// --- Placeholder for Comments Component ---
-// 実際のプロジェクトでは、この部分を削除して元のimport文を使用してください。
-const Comments = ({ characterId, characterAuthorId, session }: { characterId: string, characterAuthorId: number | null, session: any }) => {
+// ###################################################################################
+// ### Commentsコンポーネントをこのファイルに統合                                     ###
+// ###################################################################################
+
+// ▼▼▼【修正】セッションの型をページ全体で共有するためにManualSessionを使用します ▼▼▼
+type ManualSession = {
+  user?: {
+      id?: string | null;
+      role?: string | null;
+  } | null;
+} | null;
+
+// Commentsコンポーネント用の型定義
+type CommentUser = {
+  id: number;
+  nickname: string;
+  image_url: string | null;
+};
+
+type Comment = {
+  id: number;
+  content: string;
+  createdAt: string;
+  users: CommentUser;
+};
+
+interface CommentsProps {
+  characterId: string | null;
+  characterAuthorId: number | null;
+  session: ManualSession;
+}
+
+function Comments({ characterId, characterAuthorId, session }: CommentsProps) {
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editedContent, setEditedContent] = useState('');
+  const [activeMenu, setActiveMenu] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchComments = async () => {
+      if (!characterId) return;
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/characters/${characterId}/comments`);
+        if (!res.ok) throw new Error('コメントの読み込みに失敗しました。');
+        const data: Comment[] = await res.json();
+        setComments(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '不明なエラー');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchComments();
+  }, [characterId]);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!newComment.trim() || isSubmitting || !session?.user?.id) return;
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/characters/${characterId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newComment }),
+      });
+      if (!res.ok) throw new Error('コメントの投稿に失敗しました。');
+      const createdComment: Comment = await res.json();
+      setComments([createdComment, ...comments]);
+      setNewComment('');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'コメント投稿中にエラーが発生しました。');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (commentId: number) => {
+    if (!window.confirm('本当にこのコメントを削除しますか？')) return;
+    try {
+      const res = await fetch(`/api/characters/${characterId}/comments/${commentId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'コメントの削除に失敗しました。');
+      }
+      setComments(comments.filter((comment) => comment.id !== commentId));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '削除中にエラーが発生しました。');
+    }
+  };
+
+  const handleEditStart = (comment: Comment) => {
+    setEditingCommentId(comment.id);
+    setEditedContent(comment.content);
+    setActiveMenu(null);
+  };
+
+  const handleUpdate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editedContent.trim() || !editingCommentId) return;
+    
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/characters/${characterId}/comments/${editingCommentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: editedContent }),
+      });
+      if (!res.ok) throw new Error('コメントの更新に失敗しました。');
+      const updatedComment: Comment = await res.json();
+      setComments(comments.map((c) => (c.id === editingCommentId ? updatedComment : c)));
+      setEditingCommentId(null);
+      setEditedContent('');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '更新中にエラーが発生しました。');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="mt-6 border-t border-gray-800 pt-4">
-      <h3 className="font-bold mb-4">コメント</h3>
-      <p className="text-gray-400">コメントセクションはここに表示されます。</p>
+      <h3 className="font-bold mb-4">コメント ({comments.length})</h3>
+      {session?.user && (
+        <form onSubmit={handleSubmit} className="flex gap-2 mb-6">
+          <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="コメントを追加..." className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500" disabled={isSubmitting} />
+          <button type="submit" className="bg-pink-600 p-3 rounded-lg hover:bg-pink-700 disabled:bg-gray-500" disabled={isSubmitting || !newComment.trim()}><Send size={20} /></button>
+        </form>
+      )}
+      {loading && <p>コメントを読み込み中...</p>}
+      {error && <p className="text-red-500">エラー: {error}</p>}
+      <div className="space-y-4">
+        {comments.map((comment) => {
+          const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
+          const currentUserRole = session?.user?.role;
+          const isCommentAuthor = comment.users.id === currentUserId;
+          const isCharacterAuthor = characterAuthorId === currentUserId;
+          const isAdmin = currentUserRole === 'CHAR_MANAGER' || currentUserRole === 'SUPER_ADMIN';
+          const canEdit = isCommentAuthor;
+          const canDelete = isCommentAuthor || isCharacterAuthor || isAdmin;
+
+          return (
+            <div key={comment.id} className="flex gap-3">
+              <img src={comment.users.image_url || 'https://placehold.co/40x40/1a1a1a/ffffff?text=?'} alt={comment.users.nickname} width={40} height={40} className="rounded-full mt-1 w-10 h-10 object-cover" />
+              <div className='flex-1'>
+                {editingCommentId === comment.id ? (
+                  <form onSubmit={handleUpdate}>
+                    <input type="text" value={editedContent} onChange={(e) => setEditedContent(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-pink-500" autoFocus />
+                    <div className="flex gap-2 mt-2">
+                      <button type="submit" disabled={isSubmitting} className="text-xs bg-pink-600 hover:bg-pink-700 px-3 py-1 rounded">保存</button>
+                      <button type="button" onClick={() => setEditingCommentId(null)} className="text-xs bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded">キャンセル</button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-baseline gap-2">
+                        <p className="font-bold text-sm">{comment.users.nickname}</p>
+                        <p className="text-xs text-gray-500">{new Date(comment.createdAt).toLocaleString('ja-JP')}</p>
+                      </div>
+                      {(canEdit || canDelete) && (
+                        <div className="relative">
+                          <button onClick={() => setActiveMenu(activeMenu === comment.id ? null : comment.id)} className="p-1 rounded-full hover:bg-gray-700"><MoreVertical size={16}/></button>
+                          {activeMenu === comment.id && (
+                            <div className="absolute right-0 top-6 bg-gray-800 rounded-md shadow-lg z-10 w-28">
+                              {canEdit && <button onClick={() => handleEditStart(comment)} className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-700 rounded-t-md"><Edit size={14}/> 編集</button>}
+                              {canDelete && <button onClick={() => handleDelete(comment.id)} className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-gray-700 rounded-b-md"><Trash2 size={14}/> 削除</button>}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-gray-300 whitespace-pre-wrap text-sm">{comment.content}</p>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
-};
-// --- End of Placeholder ---
+}
+
+// ###################################################################################
+// ### CharacterDetailPageコンポーネント                                            ###
+// ###################################################################################
 
 /** 型定義 */
 type Author = {
@@ -29,14 +209,6 @@ type Author = {
 type CharacterImage = {
   imageUrl: string;
 };
-
-type ManualSession = {
-  user?: {
-      id?: string | null;
-      role?: string | null;
-  } | null;
-} | null;
-
 
 type CharacterDetail = {
   id: number;
@@ -56,162 +228,119 @@ type CharacterDetail = {
 
 export default function CharacterDetailPage() {
   const [characterId, setCharacterId] = useState<string | null>(null);
-  
-  const sessionStatus = 'authenticated';
-  const session: ManualSession = { user: { id: '1', role: 'SUPER_ADMIN' } };
-
   const [character, setCharacter] = useState<CharacterDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [session, setSession] = useState<ManualSession>(null);
+  const [sessionStatus, setSessionStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
   const [isCreatingChat, setIsCreatingChat] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
 
   useEffect(() => {
-    // URLからキャラクターIDを抽出
-    const pathSegments = window.location.pathname.split('/');
-    const id = pathSegments[pathSegments.length - 1];
-    if (id) {
-        setCharacterId(id);
-    }
+    const path = window.location.pathname;
+    const id = path.split('/').pop();
+    if (id) setCharacterId(id);
+
+    // TODO: 実際のセッション取得ロジックに置き換える必要があります
+    // ここではダミーのセッションを設定します
+    setSession({ user: { id: '1', role: 'USER' } }); 
+    setSessionStatus('authenticated');
   }, []);
 
-
   useEffect(() => {
-    if (!characterId) return;
-    (async () => {
+    const fetchCharacter = async () => {
+      if (!characterId) return;
       try {
         setLoading(true);
-        const res = await fetch(`/api/characters/${characterId}`, { cache: 'no-store' });
-        if (!res.ok) {
-          const e = await res.json().catch(() => ({}));
-          throw new Error(e.error || 'キャラクターの読み込みに失敗しました。');
-        }
-        const data: CharacterDetail = await res.json();
+        const res = await fetch(`/api/characters/${characterId}`);
+        if (!res.ok) throw new Error('キャラクター情報の読み込みに失敗しました。');
+        const data = await res.json();
         setCharacter(data);
-        setIsLiked(data.isFavorited || false);
-        setLikeCount(data._count.favorites);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : '未知のエラーが発生しました。');
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '不明なエラーが発生しました。');
       } finally {
         setLoading(false);
       }
-    })();
+    };
+    fetchCharacter();
   }, [characterId]);
 
-  const handleLike = async () => {
-    if (sessionStatus !== 'authenticated') {
-      window.location.href = '/login';
-      return;
-    }
-
-    const originalLiked = isLiked;
-    const originalLikeCount = likeCount;
-    setIsLiked(!originalLiked);
-    setLikeCount(originalLikeCount + (!originalLiked ? 1 : -1));
-
+  const handleFavorite = async () => {
+    if (!character) return;
     try {
-      const res = await fetch(`/api/characters/${characterId}/like`, { method: 'POST' });
-      if (!res.ok) {
-        setIsLiked(originalLiked);
-        setLikeCount(originalLikeCount);
-        throw new Error('いいねの更新に失敗しました。');
-      }
-    } catch (err) {
-      console.error(err);
-      alert(err instanceof Error ? err.message : 'エラーが発生しました。');
-      setIsLiked(originalLiked);
-      setLikeCount(originalLikeCount);
+      const method = character.isFavorited ? 'DELETE' : 'POST';
+      const res = await fetch(`/api/characters/${character.id}/favorite`, { method });
+      if (!res.ok) throw new Error('お気に入り登録に失敗しました。');
+      setCharacter((prev) => prev ? { ...prev, isFavorited: !prev.isFavorited, _count: { ...prev._count, favorites: prev.isFavorited ? prev._count.favorites - 1 : prev._count.favorites + 1 } } : null);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'エラー');
     }
   };
-
+  
   const handleNewChat = async () => {
-    if (!characterId) return;
-    setIsCreatingChat(true);
-    try {
-      const res = await fetch('/api/chats/find-or-create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          characterId: Number(characterId),
-          forceNew: true,
-        }),
-      });
-      if (!res.ok) throw new Error('チャットセッションの作成に失敗しました。');
-      const chat = await res.json();
-      window.location.href = `/chat/${characterId}?chatId=${chat.id}`;
-    } catch (err) {
-      console.error(err);
-      alert('チャットの開始に失敗しました。');
-    } finally {
-      setIsCreatingChat(false);
-    }
+      if (!characterId) return;
+      setIsCreatingChat(true);
+      try {
+          const res = await fetch('/api/chat/new', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ characterId: parseInt(characterId, 10) }),
+          });
+          if (!res.ok) {
+              const errorData = await res.json();
+              throw new Error(errorData.message || 'チャットの作成に失敗しました。');
+          }
+          const { chatId } = await res.json();
+          window.location.href = `/chat/${chatId}`;
+      } catch (err) {
+          alert(err instanceof Error ? err.message : 'チャットの開始中にエラーが発生しました。');
+      } finally {
+          setIsCreatingChat(false);
+      }
   };
 
-  const handleGoBack = () => window.history.back();
-
-  if (loading) return <div className="min-h-screen bg-black text-white flex justify-center items-center">読み込み中...</div>;
-  if (error) return <div className="min-h-screen bg-black text-white flex justify-center items-center">エラー: {error}</div>;
-  if (!character) return <div className="min-h-screen bg-black text-white flex justify-center items-center">キャラクターが見つかりません。</div>;
-
-  const canEdit = session?.user?.id === character.author?.id?.toString() || session?.user?.role === 'SUPER_ADMIN';
-
+  if (loading) return <div className="min-h-screen bg-black text-white flex justify-center items-center"><p>読み込み中...</p></div>;
+  if (error) return <div className="min-h-screen bg-black text-white flex justify-center items-center"><p>エラー: {error}</p></div>;
+  if (!character) return <div className="min-h-screen bg-black text-white flex justify-center items-center"><p>キャラクターが見つかりません。</p></div>;
+  
   return (
-    <div className="bg-black min-h-screen text-white">
-      <div className="mx-auto max-w-2xl pb-24">
-        <header className="sticky top-0 z-10 flex items-center justify-between p-4 bg-black/80 backdrop-blur-sm">
-          <button onClick={handleGoBack} className="p-2 rounded-full hover:bg-gray-800 transition-colors" aria-label="戻る"><ArrowLeft /></button>
-          <h1 className="font-bold text-lg absolute left-1/2 -translate-x-1/2">{character.name}</h1>
-          {canEdit && <div className="relative"><button className="p-2 rounded-full hover:bg-gray-800 transition-colors" aria-label="メニュー"><MoreVertical /></button></div>}
-        </header>
-
-        <main>
-          <div className="relative w-full aspect-[4/3]">
-            {/* ▼▼▼【修正】Imageコンポーネントを標準のimgタグに戻します。▼▼▼ */}
-            <img
-              src={character.characterImages[0]?.imageUrl || 'https://placehold.co/800x600/1a1a1a/ffffff?text=?'}
-              alt={character.name}
-              className="object-cover w-full h-full"
-            />
+    <div className="bg-black text-white min-h-screen font-sans">
+      <header className="fixed top-0 left-0 right-0 bg-black bg-opacity-80 backdrop-blur-sm z-10 flex items-center justify-between p-4">
+          <button onClick={() => window.history.back()} className="p-2 rounded-full hover:bg-gray-800"><ArrowLeft size={24} /></button>
+          <div className="flex items-center gap-2">
+            <button onClick={handleFavorite} className="p-2 rounded-full hover:bg-gray-800"><Heart size={24} className={character.isFavorited ? 'text-pink-500 fill-current' : ''} /></button>
+            <button className="p-2 rounded-full hover:bg-gray-800"><MoreVertical size={24} /></button>
           </div>
-
-          <div className="p-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold">{character.name}</h2>
-                <p className="text-sm text-gray-400">作成者: {character.author?.nickname || '不明'}</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={handleLike}
-                  className={`flex items-center gap-1 transition-colors ${isLiked ? 'text-pink-500' : 'text-gray-400 hover:text-white'}`}
-                  aria-label="お気に入り"
-                >
-                  <Heart size={20} fill={isLiked ? 'currentColor' : 'none'} />
-                  <span>{likeCount}</span>
-                </button>
-                <div className="flex items-center gap-1 text-gray-400" aria-label="チャット数">
-                  <MessageSquare size={20} />
-                  <span>{character._count.chat}</span>
-                </div>
-              </div>
+      </header>
+      <div className="pt-20 pb-28">
+        <main className="max-w-2xl mx-auto px-4">
+          <div className="text-center mb-6">
+            <div className="relative inline-block">
+                <img src={character.characterImages[0]?.imageUrl || 'https://placehold.co/128x128/1a1a1a/ffffff?text=?'} alt={character.name} width={128} height={128} className="w-32 h-32 rounded-lg object-cover mx-auto shadow-lg" />
             </div>
-
-            <div className="flex flex-wrap gap-2 my-4">
-              {character.hashtags.map((tag) => <span key={tag} className="bg-gray-800 text-pink-400 text-xs font-semibold px-2.5 py-1 rounded-full">#{tag}</span>)}
-            </div>
-
-            <p className="text-gray-300 whitespace-pre-wrap">{character.description}</p>
-            
-            {characterId && <Comments 
+            <h1 className="text-3xl font-bold mt-4">{character.name}</h1>
+            <p className="text-gray-400 mt-1">作成者: {character.author?.nickname || '不明'}</p>
+          </div>
+          <div className="flex justify-center items-center gap-6 text-sm text-gray-400 my-4">
+              <div className="text-center"><div className="font-bold text-white">{character._count.favorites}</div><div>お気に入り</div></div>
+              <div className="text-center"><div className="font-bold text-white">{character._count.chat}</div><div>チャット</div></div>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2 my-4">
+              {character.hashtags.map(tag => <span key={tag} className="bg-gray-800 text-pink-400 text-xs font-semibold px-3 py-1 rounded-full">#{tag}</span>)}
+          </div>
+          <p className="text-gray-300 my-6 whitespace-pre-wrap">{character.description}</p>
+          <div className="text-xs text-gray-500 text-center">
+              <p>作成日: {new Date(character.createdAt).toLocaleDateString()}</p>
+              <p>最終更新日: {new Date(character.updatedAt).toLocaleDateString()}</p>
+          </div>
+          <div>
+            <Comments 
               characterId={characterId} 
               characterAuthorId={character.author?.id ?? null}
               session={session}
-            />}
+            />
           </div>
         </main>
       </div>
-
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-black border-t border-gray-800">
         <div className="mx-auto max-w-2xl flex gap-4">
           {sessionStatus === 'authenticated' ? (
@@ -225,7 +354,7 @@ export default function CharacterDetailPage() {
             </>
           ) : (
             <button onClick={() => window.location.href = '/login'} className="w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors">
-              チャットするにはログインが必要です
+              ログインしてチャットを開始
             </button>
           )}
         </div>
