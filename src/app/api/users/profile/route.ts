@@ -5,9 +5,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-// ▼▼▼【修正】 Supabaseクライアントをインポートします。 ▼▼▼
 import { createClient } from '@supabase/supabase-js';
-// ▼▼▼【追加】 キャラクター作成APIと同様にSecret Manager関連の機能をインポートします。 ▼▼▼
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 
 // ▼▼▼【追加】 キャラクター作成APIと同様のヘルパー関数をここに追加します。 ▼▼▼
@@ -91,7 +89,6 @@ export async function GET() {
     return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
   }
   const ユーザーID = parseInt(セッション.user.id, 10);
-
   try {
     const ユーザー = await prisma.users.findUnique({
       where: { id: ユーザーID },
@@ -110,7 +107,6 @@ export async function GET() {
 
 // PUT: ユーザーのプロフィール情報を更新します
 export async function PUT(リクエスト: Request) {
-  // ▼▼▼【追加】キャラクター作成時と同様に、Supabaseの環境変数を読み込みます ▼▼▼
   await ensureSupabaseEnv();
 
   const セッション = await getServerSession(authOptions);
@@ -127,11 +123,10 @@ export async function PUT(リクエスト: Request) {
 
     let 画像URL: string | undefined = undefined;
 
-    // ▼▼▼【修正】S3ロジックをSupabaseロジックに全面的に置き換えます ▼▼▼
     if (画像ファイル && 画像ファイル.size > 0) {
       const supabaseUrl = process.env.SUPABASE_URL!;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-      const バケット名 = 'usersImage'; // ユーザーからリクエストされた 'usersImage' バケットを使用します
+      const バケット名 = 'usersImage';
 
       if (!supabaseUrl || !serviceRoleKey) {
         console.error('[PUT] 環境変数不足: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
@@ -140,12 +135,13 @@ export async function PUT(リクエスト: Request) {
 
       const supabaseクライアント = createClient(supabaseUrl, serviceRoleKey);
       
-      const ファイル名 = `${Date.now()}-${画像ファイル.name.replace(/\s/g, '_')}`;
-      const オブジェクトキー = `avatars/${ファイル名}`; // avatarsフォルダ内に保存
+      // 元のファイル名から英数字、ドット、ハイフン、アンダースコア以外を全てアンダースコア(_)に置換
+      const 安全なファイル名 = 画像ファイル.name.replace(/[^\w.\-]/g, '_');
+      const ファイル名 = `${Date.now()}-${安全なファイル名}`;
+      const オブジェクトキー = `avatars/${ファイル名}`;
       
       const バッファ = Buffer.from(await 画像ファイル.arrayBuffer());
 
-      // Supabase Storageにファイルをアップロード
       const { error: アップロードエラー } = await supabaseクライアント.storage
         .from(バケット名)
         .upload(オブジェクトキー, バッファ, {
@@ -155,10 +151,12 @@ export async function PUT(リクエスト: Request) {
 
       if (アップロードエラー) {
         console.error(`[PUT] Supabaseアップロード失敗:`, アップロードエラー);
+        // ▼▼▼【修正】残っていた韓国語のコメントを日本語に修正しました。▼▼▼
+        // エラーオブジェクト全体をログに出力して詳細を確認
+        console.error(アップロードエラー); 
         return NextResponse.json({ message: '画像アップロードに失敗しました。' }, { status: 500 });
       }
 
-      // アップロードしたファイルの公開URLを取得
       const { data: 公開URLデータ } = supabaseクライアント.storage.from(バケット名).getPublicUrl(オブジェクトキー);
       画像URL = 公開URLデータ.publicUrl;
     }
