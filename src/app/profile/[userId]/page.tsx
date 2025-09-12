@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, MoreVertical, Heart, MessageSquare, User, Share2, ShieldBan, ShieldCheck, Edit, KeyRound, X, UserMinus } from 'lucide-react';
+// ▼▼▼【修正】Next.jsのImageコンポーネントをインポートします ▼▼▼
+import Image from 'next/image';
 
 // 型定義
 type FollowUser = {
@@ -70,7 +72,8 @@ const UserListModal = ({ title, users, onClose, isLoading, onUnblock, showUnbloc
                         <div key={user.id} className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-gray-700 transition-colors">
                             <a href={`/profile/${user.id}`} className="flex items-center gap-3 flex-grow">
                                 {user.image_url ? (
-                                    <img src={user.image_url} alt={user.nickname} className="w-10 h-10 rounded-full object-cover" />
+                                    // ▼▼▼【修正】imgタグをNext.jsのImageコンポーネントに変更 ▼▼▼
+                                    <Image src={user.image_url} alt={user.nickname} width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
                                 ) : (
                                     <DefaultAvatarIcon size={40} />
                                 )}
@@ -172,7 +175,6 @@ export default function UserProfilePage() {
       return;
     }
     
-    // 他のユーザーのプロフィールページでブロック/解除する場合
     if (profile && targetUserId === profile.id) {
         const originalBlockedState = profile.isBlocked;
         setProfile(prev => prev ? { ...prev, isBlocked: !originalBlockedState } : null);
@@ -188,7 +190,6 @@ export default function UserProfilePage() {
           setShowMenu(false);
         }
     } 
-    // ブロックリストモーダルから解除する場合
     else {
         try {
             const response = await fetch(`/api/profile/${targetUserId}/block`, { method: 'POST' });
@@ -212,14 +213,17 @@ export default function UserProfilePage() {
       setIsModalLoading(true);
       setShowMenu(false);
       try {
-          // ▼▼▼【修正】APIエンドポイントを新しいパス構造に合わせます ▼▼▼
           const endpoint = type === 'blocked' 
               ? `/api/profile/${userId}/blocked-users` 
               : `/api/profile/${userId}/${type}`;
           const response = await fetch(endpoint);
           if (!response.ok) throw new Error('リストの読み込みに失敗しました。');
-          const users = await response.json();
-          setModalState({ type, users });
+          
+          // ▼▼▼【修正】APIレスポンスの構造に合わせてデータを正しく抽出します ▼▼▼
+          const data = await response.json();
+          const userList = data.followers || data.following || data.blockedUsers || [];
+          
+          setModalState({ type, users: userList });
       } catch (err) {
           alert(err instanceof Error ? err.message : 'エラー');
           setModalState(null);
@@ -295,7 +299,8 @@ export default function UserProfilePage() {
           <main className="p-4">
             <section>
               <div className="flex items-start gap-4">
-                {profile.image_url ? ( <img src={profile.image_url} alt={profile.nickname} className="rounded-full object-cover w-20 h-20" /> ) : ( <DefaultAvatarIcon size={80} /> )}
+                 {/* ▼▼▼【修正】imgタグをImageコンポーネントに、widthとheightを追加 ▼▼▼ */}
+                {profile.image_url ? ( <Image src={profile.image_url} alt={profile.nickname} width={80} height={80} className="rounded-full object-cover w-20 h-20" /> ) : ( <DefaultAvatarIcon size={80} /> )}
                 <div className="flex-1">
                   <h2 className="text-xl font-bold">{profile.nickname}</h2>
                   <div className="flex gap-4 text-sm text-gray-400 mt-1">
@@ -326,7 +331,14 @@ export default function UserProfilePage() {
                    <a href={`/characters/${char.id}`} key={char.id} className="block group">
                      <div className="bg-[#1C1C1E] rounded-lg overflow-hidden transition-transform group-hover:scale-105">
                        <div className="relative aspect-[3/4]">
-                         <img src={char.characterImages[0]?.imageUrl || 'https://placehold.co/300x400/1a1a1a/ffffff?text=?'} alt={char.name} className="object-cover w-full h-full" />
+                         {/* ▼▼▼【修正】imgタグをImageコンポーネントに、fillとstyleを追加し、プレースホルダーURLを安全なものに変更 ▼▼▼ */}
+                         <Image 
+                            src={char.characterImages[0]?.imageUrl || 'https://via.placeholder.com/300x400'} 
+                            alt={char.name} 
+                            fill
+                            style={{ objectFit: 'cover' }}
+                            sizes="(max-width: 768px) 50vw, 33vw"
+                         />
                        </div>
                        <div className="p-3">
                          <h4 className="font-semibold truncate text-white">{char.name}</h4>
@@ -347,4 +359,3 @@ export default function UserProfilePage() {
     </>
   );
 }
-

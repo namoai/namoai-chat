@@ -14,14 +14,21 @@ type LorebookData = {
   keywords: string[];
 };
 
+// リクエストからIDを抽出するヘルパー関数
 function extractIdFromRequest(request: Request): number | null {
   const url = new URL(request.url);
-  const idStr = url.pathname.split('/').pop();
+  // nextjs 13.5.0以降、 context.paramsが使えないためURLから直接抽出
+  const idStr = url.pathname.split('/api/characters/')[1]?.split('/')[0];
   if (!idStr) return null;
   const parsedId = parseInt(idStr, 10);
   return isNaN(parsedId) ? null : parsedId;
 }
 
+/**
+ * 特定のキャラクター詳細情報を取得 (GET)
+ * @param request - NextRequestオブジェクト
+ * @returns - キャラクター詳細情報またはエラーメッセージ
+ */
 export async function GET(request: NextRequest) {
   const characterId = extractIdFromRequest(request);
   if (characterId === null) {
@@ -29,9 +36,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // セッション情報を取得して、現在のユーザーIDを特定
     const session = await getServerSession(authOptions);
     const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
 
+    // キャラクターの基本情報をデータベースから取得
     const character = await prisma.characters.findUnique({
       where: { id: characterId },
       include: {
@@ -45,16 +54,18 @@ export async function GET(request: NextRequest) {
             displayOrder: 'asc' 
           } 
         },
-        author: { select: { id: true, name: true, nickname: true } },
+        author: { select: { id: true, name: true, nickname: true, image_url: true } },
         _count: { select: { favorites: true, chat: true } },
         lorebooks: true,
       }
     });
 
+    // キャラクターが存在しない場合のエラーハンドリング
     if (!character) {
       return NextResponse.json({ error: 'キャラクターが見つかりません。' }, { status: 404 });
     }
     
+    // ブロック関係の確認
     if (currentUserId && character.author_id) {
         const isBlocked = await prisma.block.findUnique({
             where: {
@@ -69,13 +80,36 @@ export async function GET(request: NextRequest) {
         }
     }
 
+    // 非公開キャラクターのアクセス制御
     if (character.visibility === 'private') {
       if (!currentUserId || currentUserId !== character.author_id) {
         return NextResponse.json({ error: 'このキャラクターは非公開です。' }, { status: 403 });
       }
     }
 
-    return NextResponse.json(character);
+    // ▼▼▼【修正箇所】▼▼▼
+    // ログインしているユーザーがいいねしているか確認
+    let isFavorited = false;
+    if (currentUserId) {
+      const favorite = await prisma.favorites.findUnique({
+        where: {
+          user_id_character_id: {
+            user_id: currentUserId,
+            character_id: characterId,
+          },
+        },
+      });
+      // favoriteが見つかれば isFavorited を true に設定
+      isFavorited = !!favorite;
+    }
+
+    // 最終的なレスポンスオブジェクトに isFavorited を追加
+    const responseData = {
+      ...character,
+      isFavorited, // boolean値をレスポンスに含める
+    };
+
+    return NextResponse.json(responseData);
 
   } catch (error) {
     console.error('キャラクター詳細の取得エラー:', error);
@@ -260,4 +294,3 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });
     }
 }
-
