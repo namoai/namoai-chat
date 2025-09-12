@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
-import { Heart, MoreVertical, ArrowLeft, Send, Edit, Trash2, User, ShieldBan } from 'lucide-react';
+// ▼▼▼【修正】未使用の 'User' アイコンをインポートから削除
+import { Heart, MoreVertical, ArrowLeft, Send, Edit, Trash2, ShieldBan } from 'lucide-react';
+// ▼▼▼【修正】Next.js の Image コンポーネントをインポート
+import Image from 'next/image';
 
 type ManualSession = {
   user?: {
@@ -154,7 +157,8 @@ function Comments({ characterId, characterAuthorId, session }: CommentsProps) {
           return (
             <div key={comment.id} className="flex gap-3">
               <a href={`/profile/${comment.users.id}`}>
-                <img src={comment.users.image_url || 'https://placehold.co/40x40/1a1a1a/ffffff?text=?'} alt={comment.users.nickname} width={40} height={40} className="rounded-full mt-1 w-10 h-10 object-cover" />
+                {/* ▼▼▼【修正】<img> を <Image> に変更し、width と height を指定 */}
+                <Image src={comment.users.image_url || 'https://placehold.co/40x40/1a1a1a/ffffff?text=?'} alt={comment.users.nickname} width={40} height={40} className="rounded-full mt-1 w-10 h-10 object-cover" />
               </a>
               <div className='flex-1'>
                 {editingCommentId === comment.id ? (
@@ -365,10 +369,13 @@ export default function CharacterDetailPage() {
       
       <div className="pb-28 pt-16"> 
         <div className="relative w-[40rem] h-[40rem] mx-auto rounded-xl overflow-hidden">
-           <img 
+            {/* ▼▼▼【修正】<img> を <Image> に変更し、fill と style で親要素にフィットさせる */}
+            <Image 
               src={character.characterImages[0]?.imageUrl || 'https://placehold.co/640x640/1a1a1a/ffffff?text=?'} 
               alt={character.name} 
-              className="w-full h-full object-cover" 
+              fill
+              style={{ objectFit: 'cover' }}
+              priority // LCP(Largest Contentful Paint)改善のため、priority属性を追加
             />
         </div>
 
@@ -377,9 +384,12 @@ export default function CharacterDetailPage() {
             <h1 className="text-2xl font-bold text-white">{character.name}</h1>
             {character.author ? (
               <a href={`/profile/${character.author.id}`} className="mt-2 inline-flex items-center gap-2">
-                <img 
+                {/* ▼▼▼【修正】<img> を <Image> に変更し、width と height を指定 */}
+                <Image 
                   src={character.author.image_url || 'https://placehold.co/24x24/1a1a1a/ffffff?text=?'} 
                   alt={character.author.nickname || ''}
+                  width={24}
+                  height={24}
                   className="w-6 h-6 rounded-full object-cover"
                 />
                 <span className="text-sm font-semibold text-gray-300 hover:underline">
@@ -389,7 +399,8 @@ export default function CharacterDetailPage() {
             ) : (
               <div className="mt-2 inline-flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-gray-700"></div>
-                <span className="text-sm text-gray-400">'不明な作成者'</span>
+                {/* ▼▼▼【修正】シングルクォート(')を &apos; に変更してエラーを解消 */}
+                <span className="text-sm text-gray-400">&apos;不明な作成者&apos;</span>
               </div>
             )}
           </div>
@@ -435,4 +446,3 @@ export default function CharacterDetailPage() {
     </div>
   );
 }
-

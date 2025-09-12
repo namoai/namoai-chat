@@ -113,6 +113,12 @@ type ImageMetaData = {
   displayOrder: number;
 };
 
+// ▼▼▼【修正】where句の型を定義し、'any'タイプエラーを解消
+interface CharactersWhereClause {
+  visibility?: 'public';
+  author_id?: number | { notIn: number[] };
+}
+
 // GET: ユーザーが作成した、または公開されているキャラクターの一覧を取得します
 export async function GET(request: Request) {
   console.log('[GET] キャラクター一覧取得開始');
@@ -123,7 +129,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const mode = searchParams.get('mode'); // 'my' or other values for different lists
     
-    let whereClause: any = {
+    let whereClause: CharactersWhereClause = {
         visibility: 'public', // デフォルトは公開キャラクター
     };
 
