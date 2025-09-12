@@ -1,10 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
-// ▼▼▼【修正】未使用の 'User' アイコンをインポートから削除
 import { Heart, MoreVertical, ArrowLeft, Send, Edit, Trash2, ShieldBan } from 'lucide-react';
-// ▼▼▼【修正】Next.js の Image コンポーネントをインポート
-import Image from 'next/image';
+// import Image from 'next/image';
 
 type ManualSession = {
   user?: {
@@ -126,7 +124,7 @@ function Comments({ characterId, characterAuthorId, session }: CommentsProps) {
       setComments(comments.map((c) => (c.id === editingCommentId ? updatedComment : c)));
       setEditingCommentId(null);
       setEditedContent('');
-    } catch (err) {
+    } catch (err) { 
       alert(err instanceof Error ? err.message : '更新中にエラーが発生しました。');
     } finally {
       setIsSubmitting(false);
@@ -157,8 +155,7 @@ function Comments({ characterId, characterAuthorId, session }: CommentsProps) {
           return (
             <div key={comment.id} className="flex gap-3">
               <a href={`/profile/${comment.users.id}`}>
-                {/* ▼▼▼【修正】安全なPNG形式のプレースホルダーに変更 */}
-                <Image src={comment.users.image_url || 'https://via.placeholder.com/40'} alt={comment.users.nickname} width={40} height={40} className="rounded-full mt-1 w-10 h-10 object-cover" />
+                <img src={comment.users.image_url || 'https://placehold.co/40x40/1a1a1a/ffffff?text=?'} alt={comment.users.nickname} width={40} height={40} className="rounded-full mt-1 w-10 h-10 object-cover" />
               </a>
               <div className='flex-1'>
                 {editingCommentId === comment.id ? (
@@ -268,7 +265,6 @@ export default function CharacterDetailPage() {
         const res = await fetch(`/api/characters/${characterId}`);
         if (!res.ok) {
           const errorData = await res.json();
-          // 403エラー(アクセス拒否)を特別にハンドリングします
           if (res.status === 403) {
              throw new Error(errorData.error || 'このキャラクターへのアクセスは許可されていません。');
           }
@@ -368,13 +364,11 @@ export default function CharacterDetailPage() {
       </header>
       
       <div className="pb-28 pt-16"> 
-        <div className="relative w-[40rem] h-[40rem] mx-auto rounded-xl overflow-hidden">
-            <Image 
-              src={character.characterImages[0]?.imageUrl || 'https://via.placeholder.com/640'} 
+        <div className="relative w-full max-w-2xl mx-auto aspect-square rounded-xl overflow-hidden">
+            <img 
+              src={character.characterImages[0]?.imageUrl || 'https://placehold.co/640x640/1a1a1a/ffffff?text=?'} 
               alt={character.name} 
-              fill
-              style={{ objectFit: 'cover' }}
-              priority // LCP(Largest Contentful Paint)改善のため、priority属性を追加
+              className="w-full h-full object-cover"
             />
         </div>
 
@@ -383,9 +377,8 @@ export default function CharacterDetailPage() {
             <h1 className="text-2xl font-bold text-white">{character.name}</h1>
             {character.author ? (
               <a href={`/profile/${character.author.id}`} className="mt-2 inline-flex items-center gap-2">
-                {/* ▼▼▼【修正】安全なPNG形式のプレースホルダーに変更 */}
-                <Image 
-                  src={character.author.image_url || 'https://via.placeholder.com/24'} 
+                <img 
+                  src={character.author.image_url || 'https://placehold.co/24x24/1a1a1a/ffffff?text=?'} 
                   alt={character.author.nickname || ''}
                   width={24}
                   height={24}
