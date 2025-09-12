@@ -3,14 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 
-export async function POST(request: Request, { params }: { params: { userId: string } }) {
+// ▼▼▼【修正】関数の第二引数を Next.js の規約に合わせて context オブジェクトとして受け取るように変更
+export async function POST(request: Request, context: { params: { userId: string } }) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
         return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
     }
 
     try {
-        const targetUserId = parseInt(params.userId, 10);
+        // ▼▼▼【修正】context.params から動的パラメータ(userId)を取得するように変更
+        const targetUserId = parseInt(context.params.userId, 10);
         const currentUserId = parseInt(session.user.id, 10);
 
         if (isNaN(targetUserId)) {
@@ -55,4 +57,3 @@ export async function POST(request: Request, { params }: { params: { userId: str
         return NextResponse.json({ error: '処理中にエラーが発生しました。' }, { status: 500 });
     }
 }
-
