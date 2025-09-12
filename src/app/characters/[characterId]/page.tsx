@@ -1,14 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
-// ▼▼▼【修正】使用しない'MessageSquare'アイコンを削除してビルドエラーを解消します ▼▼▼
-import { Heart, MoreVertical, ArrowLeft, Send, Edit, Trash2 } from 'lucide-react';
+import { Heart, MoreVertical, ArrowLeft, Send, Edit, Trash2, User, ShieldBan } from 'lucide-react';
 
-// ###################################################################################
-// ### Commentsコンポーネントをこのファイルに統合                                     ###
-// ###################################################################################
-
-// ▼▼▼【修正】セッションの型をページ全体で共有するためにManualSessionを使用します ▼▼▼
 type ManualSession = {
   user?: {
       id?: string | null;
@@ -16,7 +10,6 @@ type ManualSession = {
   } | null;
 } | null;
 
-// Commentsコンポーネント用の型定義
 type CommentUser = {
   id: number;
   nickname: string;
@@ -53,10 +46,16 @@ function Comments({ characterId, characterAuthorId, session }: CommentsProps) {
         setLoading(true);
         const res = await fetch(`/api/characters/${characterId}/comments`);
         if (!res.ok) throw new Error('コメントの読み込みに失敗しました。');
-        const data: Comment[] = await res.json();
-        setComments(data);
+        const data = await res.json();
+        
+        if (Array.isArray(data)) {
+          setComments(data);
+        } else {
+          setComments([]);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : '不明なエラー');
+        setComments([]);
       } finally {
         setLoading(false);
       }
@@ -154,21 +153,23 @@ function Comments({ characterId, characterAuthorId, session }: CommentsProps) {
 
           return (
             <div key={comment.id} className="flex gap-3">
-              <img src={comment.users.image_url || 'https://placehold.co/40x40/1a1a1a/ffffff?text=?'} alt={comment.users.nickname} width={40} height={40} className="rounded-full mt-1 w-10 h-10 object-cover" />
+              <a href={`/profile/${comment.users.id}`}>
+                <img src={comment.users.image_url || 'https://placehold.co/40x40/1a1a1a/ffffff?text=?'} alt={comment.users.nickname} width={40} height={40} className="rounded-full mt-1 w-10 h-10 object-cover" />
+              </a>
               <div className='flex-1'>
                 {editingCommentId === comment.id ? (
-                  <form onSubmit={handleUpdate}>
-                    <input type="text" value={editedContent} onChange={(e) => setEditedContent(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-pink-500" autoFocus />
-                    <div className="flex gap-2 mt-2">
-                      <button type="submit" disabled={isSubmitting} className="text-xs bg-pink-600 hover:bg-pink-700 px-3 py-1 rounded">保存</button>
-                      <button type="button" onClick={() => setEditingCommentId(null)} className="text-xs bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded">キャンセル</button>
-                    </div>
-                  </form>
+                   <form onSubmit={handleUpdate}>
+                     <input type="text" value={editedContent} onChange={(e) => setEditedContent(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-pink-500" autoFocus />
+                     <div className="flex gap-2 mt-2">
+                       <button type="submit" disabled={isSubmitting} className="text-xs bg-pink-600 hover:bg-pink-700 px-3 py-1 rounded">保存</button>
+                       <button type="button" onClick={() => setEditingCommentId(null)} className="text-xs bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded">キャンセル</button>
+                     </div>
+                   </form>
                 ) : (
                   <>
                     <div className="flex items-center justify-between">
                       <div className="flex items-baseline gap-2">
-                        <p className="font-bold text-sm">{comment.users.nickname}</p>
+                        <a href={`/profile/${comment.users.id}`} className="font-bold text-sm hover:underline">{comment.users.nickname}</a>
                         <p className="text-xs text-gray-500">{new Date(comment.createdAt).toLocaleString('ja-JP')}</p>
                       </div>
                       {(canEdit || canDelete) && (
@@ -195,15 +196,11 @@ function Comments({ characterId, characterAuthorId, session }: CommentsProps) {
   );
 }
 
-// ###################################################################################
-// ### CharacterDetailPageコンポーネント                                            ###
-// ###################################################################################
-
-/** 型定義 */
 type Author = {
   id: number;
   name: string;
   nickname: string;
+  image_url: string | null; 
 };
 
 type CharacterImage = {
@@ -240,10 +237,23 @@ export default function CharacterDetailPage() {
     const id = path.split('/').pop();
     if (id) setCharacterId(id);
 
-    // TODO: 実際のセッション取得ロジックに置き換える必要があります
-    // ここではダミーのセッションを設定します
-    setSession({ user: { id: '1', role: 'USER' } }); 
-    setSessionStatus('authenticated');
+    const fetchSession = async () => {
+        try {
+            const res = await fetch('/api/auth/session');
+            const data = await res.json();
+            if (res.ok && data?.user) {
+                setSession(data);
+                setSessionStatus('authenticated');
+            } else {
+                setSession(null);
+                setSessionStatus('unauthenticated');
+            }
+        } catch {
+            setSession(null);
+            setSessionStatus('unauthenticated');
+        }
+    };
+    fetchSession();
   }, []);
 
   useEffect(() => {
@@ -252,8 +262,20 @@ export default function CharacterDetailPage() {
       try {
         setLoading(true);
         const res = await fetch(`/api/characters/${characterId}`);
-        if (!res.ok) throw new Error('キャラクター情報の読み込みに失敗しました。');
+        if (!res.ok) {
+          const errorData = await res.json();
+          // 403エラー(アクセス拒否)を特別にハンドリングします
+          if (res.status === 403) {
+             throw new Error(errorData.error || 'このキャラクターへのアクセスは許可されていません。');
+          }
+          throw new Error(errorData.error || 'キャラクター情報の読み込みに失敗しました。');
+        }
         const data = await res.json();
+        
+        if (!data.hashtags) {
+          data.hashtags = [];
+        }
+
         setCharacter(data);
       } catch (e) {
         setError(e instanceof Error ? e.message : '不明なエラーが発生しました。');
@@ -270,7 +292,20 @@ export default function CharacterDetailPage() {
       const method = character.isFavorited ? 'DELETE' : 'POST';
       const res = await fetch(`/api/characters/${character.id}/favorite`, { method });
       if (!res.ok) throw new Error('お気に入り登録に失敗しました。');
-      setCharacter((prev) => prev ? { ...prev, isFavorited: !prev.isFavorited, _count: { ...prev._count, favorites: prev.isFavorited ? prev._count.favorites - 1 : prev._count.favorites + 1 } } : null);
+      setCharacter((prev) => 
+        prev 
+        ? { 
+            ...prev, 
+            isFavorited: !prev.isFavorited, 
+            _count: { 
+              ...prev._count, 
+              favorites: prev.isFavorited 
+                ? prev._count.favorites - 1 
+                : prev._count.favorites + 1 
+            } 
+          } 
+        : null
+      );
     } catch (e) {
       alert(e instanceof Error ? e.message : 'エラー');
     }
@@ -298,8 +333,24 @@ export default function CharacterDetailPage() {
       }
   };
 
-  if (loading) return <div className="min-h-screen bg-black text-white flex justify-center items-center"><p>読み込み中...</p></div>;
-  if (error) return <div className="min-h-screen bg-black text-white flex justify-center items-center"><p>エラー: {error}</p></div>;
+  if (loading || sessionStatus === 'loading') return <div className="min-h-screen bg-black text-white flex justify-center items-center"><p>読み込み中...</p></div>;
+  
+  if (error) {
+    const isBlockedError = error.includes('ブロックされている');
+    return (
+        <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center p-4 text-center">
+            {isBlockedError && <ShieldBan size={48} className="text-red-500 mb-4" />}
+            <h2 className="text-xl font-bold mb-2">
+                {isBlockedError ? 'アクセスできません' : 'エラー'}
+            </h2>
+            <p className="text-gray-400 mb-6">{error}</p>
+            <button onClick={() => window.history.back()} className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">
+                戻る
+            </button>
+        </div>
+    );
+  }
+
   if (!character) return <div className="min-h-screen bg-black text-white flex justify-center items-center"><p>キャラクターが見つかりません。</p></div>;
   
   return (
@@ -311,23 +362,45 @@ export default function CharacterDetailPage() {
             <button className="p-2 rounded-full hover:bg-gray-800"><MoreVertical size={24} /></button>
           </div>
       </header>
-      <div className="pt-20 pb-28">
-        <main className="max-w-2xl mx-auto px-4">
-          <div className="text-center mb-6">
-            <div className="relative inline-block">
-                <img src={character.characterImages[0]?.imageUrl || 'https://placehold.co/128x128/1a1a1a/ffffff?text=?'} alt={character.name} width={128} height={128} className="w-32 h-32 rounded-lg object-cover mx-auto shadow-lg" />
-            </div>
-            <h1 className="text-3xl font-bold mt-4">{character.name}</h1>
-            <p className="text-gray-400 mt-1">作成者: {character.author?.nickname || '不明'}</p>
+      
+      <div className="pb-28 pt-16"> 
+        <div className="relative w-[40rem] h-[40rem] mx-auto rounded-xl overflow-hidden">
+           <img 
+              src={character.characterImages[0]?.imageUrl || 'https://placehold.co/640x640/1a1a1a/ffffff?text=?'} 
+              alt={character.name} 
+              className="w-full h-full object-cover" 
+            />
+        </div>
+
+        <main className="max-w-2xl mx-auto px-4 relative z-10">
+          <div className="text-center mb-6 mt-4">
+            <h1 className="text-2xl font-bold text-white">{character.name}</h1>
+            {character.author ? (
+              <a href={`/profile/${character.author.id}`} className="mt-2 inline-flex items-center gap-2">
+                <img 
+                  src={character.author.image_url || 'https://placehold.co/24x24/1a1a1a/ffffff?text=?'} 
+                  alt={character.author.nickname || ''}
+                  className="w-6 h-6 rounded-full object-cover"
+                />
+                <span className="text-sm font-semibold text-gray-300 hover:underline">
+                  {character.author.nickname || '不明'}
+                </span>
+              </a>
+            ) : (
+              <div className="mt-2 inline-flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-gray-700"></div>
+                <span className="text-sm text-gray-400">'不明な作成者'</span>
+              </div>
+            )}
           </div>
           <div className="flex justify-center items-center gap-6 text-sm text-gray-400 my-4">
-              <div className="text-center"><div className="font-bold text-white">{character._count.favorites}</div><div>お気に入り</div></div>
-              <div className="text-center"><div className="font-bold text-white">{character._count.chat}</div><div>チャット</div></div>
+              <div className="text-center"><div className="font-bold text-white">{character._count.favorites.toLocaleString()}</div><div>お気に入り</div></div>
+              <div className="text-center"><div className="font-bold text-white">{character._count.chat.toLocaleString()}</div><div>チャット</div></div>
           </div>
           <div className="flex flex-wrap justify-center gap-2 my-4">
               {character.hashtags.map(tag => <span key={tag} className="bg-gray-800 text-pink-400 text-xs font-semibold px-3 py-1 rounded-full">#{tag}</span>)}
           </div>
-          <p className="text-gray-300 my-6 whitespace-pre-wrap">{character.description}</p>
+          <p className="text-gray-300 my-6 whitespace-pre-wrap text-center">{character.description}</p>
           <div className="text-xs text-gray-500 text-center">
               <p>作成日: {new Date(character.createdAt).toLocaleDateString()}</p>
               <p>最終更新日: {new Date(character.updatedAt).toLocaleDateString()}</p>

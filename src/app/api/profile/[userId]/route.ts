@@ -1,88 +1,100 @@
-export const runtime = 'nodejs';
-
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/nextauth';
 
-// ✅ Vercelビルドエラーを回避するため、URLから直接IDを解析するヘルパー関数
 function extractUserIdFromRequest(request: Request): number | null {
   const url = new URL(request.url);
-  const idStr = url.pathname.split('/').pop();
+  // /api/profile/1 -> 1を抽出
+  const idStr = url.pathname.split('/')[3]; 
   if (!idStr) return null;
   const parsedId = parseInt(idStr, 10);
   return isNaN(parsedId) ? null : parsedId;
 }
 
 export async function GET(request: NextRequest) {
-  const userId = extractUserIdFromRequest(request);
-  
-  if (userId === null) {
+  const profileUserId = extractUserIdFromRequest(request);
+  if (profileUserId === null) {
     return NextResponse.json({ error: '無効なユーザーIDです。' }, { status: 400 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const listType = searchParams.get('list'); // 'followers' または 'following'
+
   try {
-    // 1. ユーザーの基本情報を取得
+    // リスト取得リクエストを処理します
+    if (listType === 'followers') {
+        const followers = await prisma.follows.findMany({
+            where: { followingId: profileUserId },
+            select: { follower: { select: { id: true, nickname: true, image_url: true } } }
+        });
+        return NextResponse.json(followers.map(f => f.follower));
+    }
+
+    if (listType === 'following') {
+        const following = await prisma.follows.findMany({
+            where: { followerId: profileUserId },
+            select: { following: { select: { id: true, nickname: true, image_url: true } } }
+        });
+        return NextResponse.json(following.map(f => f.following));
+    }
+
+    // 通常のプロフィール情報取得ロジック
+    const session = await getServerSession(authOptions);
+    const viewingUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
+
     const user = await prisma.users.findUnique({
-      where: { id: userId },
+      where: { id: profileUserId },
       select: {
-        id: true,
-        name: true,
-        nickname: true,
-        email: true,
-        image_url: true,
-        bio: true,
+        id: true, name: true, nickname: true, image_url: true, bio: true,
       }
     });
 
     if (!user) {
       return NextResponse.json({ error: 'ユーザーが見つかりません。' }, { status: 404 });
     }
-
-    // 2. フォロワー数とフォロー数を直接カウント
-    const followerCount = await prisma.follows.count({
-      where: { followingId: userId }
-    });
-    const followingCount = await prisma.follows.count({
-      where: { followerId: userId }
-    });
-
-    // 3. ユーザーが作成したキャラクターリストを取得
-    const characters = await prisma.characters.findMany({
-      where: { author_id: userId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        characterImages: { where: { isMain: true }, take: 1 },
-        _count: {
-          select: { favorites: true, chat: true }
-        }
-      }
-    });
     
-    // 4. 全体の会話量を計算
-    const totalMessageCount = await prisma.chat_message.count({
-        where: {
-            chat: {
-                characters: {
-                    author_id: userId
-                }
+    const [followerCount, followingCount, characters, totalMessageCount, followRelation, blockRelation] = await Promise.all([
+        prisma.follows.count({ where: { followingId: profileUserId } }),
+        prisma.follows.count({ where: { followerId: profileUserId } }),
+        prisma.characters.findMany({
+            where: { author_id: profileUserId },
+            orderBy: { createdAt: 'desc' },
+            include: {
+                characterImages: { where: { isMain: true }, take: 1 },
+                _count: { select: { favorites: true, chat: true } }
             }
-        }
-    });
-
-    // 返すデータの構造を修正します
+        }),
+        prisma.chat_message.count({
+            where: { chat: { characters: { author_id: profileUserId } } }
+        }),
+        viewingUserId && viewingUserId !== profileUserId 
+            ? prisma.follows.findUnique({ where: { followerId_followingId: { followerId: viewingUserId, followingId: profileUserId } } })
+            : Promise.resolve(null),
+        viewingUserId && viewingUserId !== profileUserId
+            ? prisma.block.findUnique({ where: { blockerId_blockingId: { blockerId: viewingUserId, blockingId: profileUserId } } })
+            : Promise.resolve(null)
+    ]);
+    
     const profileData = {
       ...user,
       characters,
       totalMessageCount,
-      _count: { // _countオブジェクトでラップ
-        followers: followerCount,
-        following: followingCount,
-      }
+      _count: { followers: followerCount, following: followingCount, },
+      isFollowing: !!followRelation,
+      isBlocked: !!blockRelation,
     };
 
     return NextResponse.json(profileData);
-
+    
   } catch (error) {
-    console.error('プロファイルデータの取得エラー:', error);
+    console.error('プロファイルAPIエラー:', error);
+    if (error instanceof Error) {
+        if (error.message.includes('relation "Block" does not exist')) {
+            return NextResponse.json({ error: 'サーバーエラー: Blockテーブルがデータベースに存在しません。' }, { status: 500 });
+        }
+    }
     return NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });
   }
 }
+

@@ -113,33 +113,54 @@ type ImageMetaData = {
   displayOrder: number;
 };
 
-// GET: ユーザーが作成したキャラクターの一覧を取得します
-export async function GET() {
+// GET: ユーザーが作成した、または公開されているキャラクターの一覧を取得します
+export async function GET(request: Request) {
   console.log('[GET] キャラクター一覧取得開始');
   const session = await getServerSession(authOptions);
-
-  if (!session?.user?.id) {
-    console.warn('[GET] 認証エラー: セッションなし');
-    return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
-  }
+  const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
 
   try {
-    const userId = parseInt(session.user.id, 10);
-    console.log(`[GET] ユーザーID: ${userId}`);
+    const { searchParams } = new URL(request.url);
+    const mode = searchParams.get('mode'); // 'my' or other values for different lists
+    
+    let whereClause: any = {
+        visibility: 'public', // デフォルトは公開キャラクター
+    };
+
+    // ▼▼▼【追加】ブロックしている作者のIDリストを取得します ▼▼▼
+    let blockedAuthorIds: number[] = [];
+    if (currentUserId) {
+        const blocks = await prisma.block.findMany({
+            where: { blockerId: currentUserId },
+            select: { blockingId: true }
+        });
+        blockedAuthorIds = blocks.map(b => b.blockingId);
+        
+        // ブロックした作者を除外する条件を追加
+        whereClause.author_id = {
+            notIn: blockedAuthorIds,
+        };
+    }
+    
+    // もし'my'モードなら、自分のキャラクターのみを取得するように条件を上書き
+    if (mode === 'my' && currentUserId) {
+        whereClause = { author_id: currentUserId };
+    }
 
     const characters = await prisma.characters.findMany({
-      where: { author_id: userId },
-      orderBy: { id: 'desc' },
+      where: whereClause,
+      orderBy: { createdAt: 'desc' }, // 例: 新着順
       include: {
         characterImages: {
           orderBy: { displayOrder: 'asc' },
+          where: { isMain: true },
           take: 1,
         },
         _count: {
-          // ▼▼▼【修正】interactions を chat に変更します ▼▼▼
           select: { favorites: true, chat: true },
         },
       },
+      take: 20 // 例: 20件取得
     });
 
     console.log(`[GET] キャラクター取得件数: ${characters.length}`);
@@ -149,6 +170,7 @@ export async function GET() {
     return NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });
   }
 }
+
 
 // POST: 新しいキャラクターを作成します
 export async function POST(request: Request) {

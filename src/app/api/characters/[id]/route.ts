@@ -8,9 +8,8 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { Role } from '@prisma/client';
 
-// ▼▼▼【追加】ロアブックの型定義 ▼▼▼
 type LorebookData = {
-  id?: number; // 既存のロアブックはIDを持つ可能性があります
+  id?: number;
   content: string;
   keywords: string[];
 };
@@ -23,7 +22,6 @@ function extractIdFromRequest(request: Request): number | null {
   return isNaN(parsedId) ? null : parsedId;
 }
 
-// GET: 特定のキャラクターの詳細情報を取得します（公開・非公開をハンドリング）
 export async function GET(request: NextRequest) {
   const characterId = extractIdFromRequest(request);
   if (characterId === null) {
@@ -31,13 +29,15 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const session = await getServerSession(authOptions);
+    const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
+
     const character = await prisma.characters.findUnique({
       where: { id: characterId },
       include: {
-        // ▼▼▼【修正】取得するデータにロアブックを追加します ▼▼▼
         characterImages: { 
           select: {
-            id: true, // 編集のためにIDも取得
+            id: true,
             imageUrl: true,
             keyword: true
           },
@@ -47,18 +47,30 @@ export async function GET(request: NextRequest) {
         },
         author: { select: { id: true, name: true, nickname: true } },
         _count: { select: { favorites: true, chat: true } },
-        lorebooks: true, // ロアブックデータを取得
+        lorebooks: true,
       }
     });
 
     if (!character) {
       return NextResponse.json({ error: 'キャラクターが見つかりません。' }, { status: 404 });
     }
+    
+    if (currentUserId && character.author_id) {
+        const isBlocked = await prisma.block.findUnique({
+            where: {
+                blockerId_blockingId: {
+                    blockerId: currentUserId,
+                    blockingId: character.author_id
+                }
+            }
+        });
+        if (isBlocked) {
+            return NextResponse.json({ error: 'この製作者はブロックされているため、キャラクターを表示できません。' }, { status: 403 });
+        }
+    }
 
     if (character.visibility === 'private') {
-      const session = await getServerSession(authOptions);
-      // user.idはstringなので、numberに変換して比較します
-      if (session?.user?.id !== character.author_id?.toString()) {
+      if (!currentUserId || currentUserId !== character.author_id) {
         return NextResponse.json({ error: 'このキャラクターは非公開です。' }, { status: 403 });
       }
     }
@@ -67,11 +79,16 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('キャラクター詳細の取得エラー:', error);
+    if (error instanceof Error && error.message.includes("relation \"Block\" does not exist")) {
+        return NextResponse.json({ 
+            error: 'サーバーエラー: Blockテーブルがデータベースに存在しません。DBスキーマを確認してください。' 
+        }, { status: 500 });
+    }
     return NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });
   }
 }
 
-// PUT: キャラクター情報を更新します
+// PUT, DELETE メソッドは変更ありません
 export async function PUT(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -104,15 +121,12 @@ export async function PUT(request: NextRequest) {
         
         const formData = await request.formData();
 
-        // ▼▼▼【修正】ロアブックと追加情報をフォームデータからパースします ▼▼▼
         const lorebooksString = formData.get('lorebooks') as string;
         const lorebooks: LorebookData[] = lorebooksString ? JSON.parse(lorebooksString) : [];
         const firstSituationDate = formData.get('firstSituationDate') as string;
         const firstSituationPlace = formData.get('firstSituationPlace') as string;
 
-        // トランザクション内でキャラクター、ロアブック、画像を更新します
         const updatedCharacter = await prisma.$transaction(async (tx) => {
-            // 画像削除処理 (既存のコード)
             const imagesToDeleteString = formData.get('imagesToDelete') as string;
             if (imagesToDeleteString) {
                 const imagesToDelete: number[] = JSON.parse(imagesToDeleteString);
@@ -129,7 +143,6 @@ export async function PUT(request: NextRequest) {
                 }
             }
             
-            // 新規画像追加処理 (既存のコード)
             const newImageCountString = formData.get('newImageCount') as string;
             const newImageCount = newImageCountString ? parseInt(newImageCountString, 10) : 0;
             const newImageMetas: { characterId: number; imageUrl: string; keyword: string; isMain: boolean; displayOrder: number; }[] = [];
@@ -157,12 +170,9 @@ export async function PUT(request: NextRequest) {
                 await tx.character_images.createMany({ data: newImageMetas });
             }
             
-            // ▼▼▼【新規追加】ロアブック更新ロジック ▼▼▼
-            // 1. 既存のロアブックをすべて削除します
             await tx.lorebooks.deleteMany({
                 where: { characterId: characterIdToUpdate },
             });
-            // 2. 新しいロアブックリストを登録します
             if (lorebooks.length > 0) {
                 await tx.lorebooks.createMany({
                     data: lorebooks.map(lore => ({
@@ -173,7 +183,6 @@ export async function PUT(request: NextRequest) {
                 });
             }
 
-            // キャラクター本体の情報を更新します
             return await tx.characters.update({
                 where: { id: characterIdToUpdate },
                 data: {
@@ -187,7 +196,6 @@ export async function PUT(request: NextRequest) {
                     category: formData.get('category') as string,
                     hashtags: JSON.parse(formData.get('hashtags') as string || '[]'),
                     detailSetting: formData.get('detailSetting') as string,
-                    // ▼▼▼【追加】日付と場所のデータを更新します ▼▼▼
                     firstSituationDate: firstSituationDate ? new Date(firstSituationDate) : null,
                     firstSituationPlace: firstSituationPlace,
                 }
@@ -202,7 +210,6 @@ export async function PUT(request: NextRequest) {
     }
 }
 
-// DELETE: 特定のキャラクターを削除します (変更なし)
 export async function DELETE(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -242,7 +249,6 @@ export async function DELETE(request: NextRequest) {
             }
         }
         
-        // characterが削除されると、`onDelete: Cascade`設定により、関連するlorebooksも自動的に削除されます。
         await prisma.characters.delete({
             where: { id: characterIdToDelete },
         });
@@ -254,3 +260,4 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });
     }
 }
+

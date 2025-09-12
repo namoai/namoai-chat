@@ -5,9 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/nextauth";
 
-/**
- * GET: ログインユーザーのチャットリストを取得します
- */
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -16,8 +13,25 @@ export async function GET() {
   const userId = parseInt(session.user.id, 10);
 
   try {
+    // ▼▼▼【追加】ブロック機能のロジック ▼▼▼
+    let blockedAuthorIds: number[] = [];
+    const blocks = await prisma.block.findMany({
+        where: { blockerId: userId },
+        select: { blockingId: true }
+    });
+    blockedAuthorIds = blocks.map(b => b.blockingId);
+    // ▲▲▲【追加】ロジックここまで ▲▲▲
+
     const chats = await prisma.chat.findMany({
-      where: { userId },
+      where: { 
+        userId,
+        // ▼▼▼【追加】チャット相手のキャラクターがブロックした作者のものでないことを確認 ▼▼▼
+        characters: {
+          author_id: {
+            notIn: blockedAuthorIds
+          }
+        }
+      },
       orderBy: { updatedAt: 'desc' },
       include: {
         characters: {
@@ -41,9 +55,6 @@ export async function GET() {
   }
 }
 
-/**
- * DELETE: 特定のチャット履歴を削除します（単一または複数）
- */
 export async function DELETE(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {

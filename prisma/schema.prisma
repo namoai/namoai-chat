@@ -34,28 +34,30 @@ model characters {
 }
 
 model users {
-  id               Int            @id @default(autoincrement())
-  email            String         @unique
-  password         String
-  name             String
-  phone            String         @unique
-  nickname         String         @unique
-  created_at       DateTime?      @default(now()) @db.Timestamp(6)
-  image_url        String?
-  bio              String?
-  safetyFilter     Boolean        @default(true)
-  defaultPersonaId Int?
-  role             Role           @default(USER)
-  characters       characters[]
-  chat             chat[]
-  comments         comments[]
-  favorites        favorites[]
-  following        follows[]      @relation("follower")
-  followers        follows[]      @relation("following")
-  interactions     interactions[]
-  personas         personas[]
-  points           points?
-  sessions         sessions[]
+  id                            Int            @id @default(autoincrement())
+  email                         String         @unique
+  password                      String
+  name                          String
+  phone                         String         @unique
+  nickname                      String         @unique
+  created_at                    DateTime?      @default(now()) @db.Timestamp(6)
+  image_url                     String?
+  bio                           String?
+  safetyFilter                  Boolean        @default(true)
+  defaultPersonaId              Int?
+  role                          Role           @default(USER)
+  Block_Block_blockerIdTousers  Block[]        @relation("Block_blockerIdTousers")
+  Block_Block_blockingIdTousers Block[]        @relation("Block_blockingIdTousers")
+  characters                    characters[]
+  chat                          chat[]
+  comments                      comments[]
+  favorites                     favorites[]
+  following                     follows[]      @relation("follower")
+  followers                     follows[]      @relation("following")
+  interactions                  interactions[]
+  personas                      personas[]
+  points                        points?
+  sessions                      sessions[]
 }
 
 model character_images {
@@ -201,6 +203,16 @@ model comments {
 
   @@index([authorId])
   @@index([characterId])
+}
+
+model Block {
+  blockerId                     Int
+  blockingId                    Int
+  createdAt                     DateTime @default(now())
+  users_Block_blockerIdTousers  users    @relation("Block_blockerIdTousers", fields: [blockerId], references: [id], onDelete: Cascade)
+  users_Block_blockingIdTousers users    @relation("Block_blockingIdTousers", fields: [blockingId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockingId])
 }
 
 enum Role {
