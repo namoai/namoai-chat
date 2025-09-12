@@ -14,7 +14,7 @@ type ModalProps = {
   message: string;
 };
 
-const CustomModal = ({ isOpen, onClose, title, message }: ModalProps) => {
+const カスタムモーダル = ({ isOpen, onClose, title, message }: ModalProps) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
@@ -31,8 +31,8 @@ const CustomModal = ({ isOpen, onClose, title, message }: ModalProps) => {
   );
 };
 
-// デフォルトアバター
-const DefaultAvatarIcon = ({ size = 96 }: { size?: number }) => (
+// デフォルトアバターアイコン
+const デフォルトアバターアイコン = ({ size = 96 }: { size?: number }) => (
   <div
     className="rounded-full bg-gray-700 flex items-center justify-center"
     style={{ width: size, height: size }}
@@ -41,136 +41,137 @@ const DefaultAvatarIcon = ({ size = 96 }: { size?: number }) => (
   </div>
 );
 
-export default function ProfileEditPage() {
-  const router = useRouter();
-  const { data: session, update } = useSession();
+export default function プロフィール編集ページ() {
+  const ルーター = useRouter();
+  const { data: セッション, update: セッション更新 } = useSession();
 
-  const [nickname, setNickname] = useState('');
-  const [bio, setBio] = useState('');
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '' });
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [ニックネーム, setニックネーム] = useState('');
+  const [自己紹介, set自己紹介] = useState('');
+  const [画像プレビュー, set画像プレビュー] = useState<string | null>(null);
+  const [画像ファイル, set画像ファイル] = useState<File | null>(null);
+  const [読み込み中, set読み込み中] = useState(true);
+  const [送信中, set送信中] = useState(false);
+  const [モーダル状態, setモーダル状態] = useState({ isOpen: false, title: '', message: '' });
+  const ファイル入力Ref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const プロフィール取得 = async () => {
       try {
-        const response = await fetch('/api/users/profile');
-        if (!response.ok) throw new Error('プロファイル読み込み失敗');
-        const data = await response.json();
-        setNickname(data.nickname || '');
-        setBio(data.bio || '');
-        setImagePreview(data.image_url || null);
-      } catch (error) {
-        console.error(error);
-        setModalState({ isOpen: true, title: 'エラー', message: (error as Error).message });
+        const レスポンス = await fetch('/api/users/profile');
+        if (!レスポンス.ok) throw new Error('プロファイル読み込み失敗');
+        const データ = await レスポンス.json();
+        setニックネーム(データ.nickname || '');
+        set自己紹介(データ.bio || '');
+        set画像プレビュー(データ.image_url || null);
+      } catch (エラー) {
+        console.error(エラー);
+        setモーダル状態({ isOpen: true, title: 'エラー', message: (エラー as Error).message });
       } finally {
-        setLoading(false);
+        set読み込み中(false);
       }
     };
-    fetchProfile();
+    プロフィール取得();
   }, []);
   
-  const closeModal = () => setModalState({ isOpen: false, title: '', message: '' });
+  const モーダルを閉じる = () => setモーダル状態({ isOpen: false, title: '', message: '' });
 
-  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
+  const 画像変更ハンドラ = (イベント: ChangeEvent<HTMLInputElement>) => {
+    if (イベント.target.files && イベント.target.files[0]) {
+      const ファイル = イベント.target.files[0];
+      set画像ファイル(ファイル);
+      set画像プレビュー(URL.createObjectURL(ファイル));
     }
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  const 送信ハンドラ = async (イベント: FormEvent<HTMLFormElement>) => {
+    イベント.preventDefault();
+    set送信中(true);
     
-    const formData = new FormData();
-    formData.append('nickname', nickname);
-    formData.append('bio', bio);
-    if (imageFile) {
-      formData.append('image', imageFile);
+    const フォームデータ = new FormData();
+    フォームデータ.append('nickname', ニックネーム);
+    フォームデータ.append('bio', 自己紹介);
+    if (画像ファイル) {
+      フォームデータ.append('image', 画像ファイル);
     }
 
     try {
-      const response = await fetch('/api/users/profile', {
+      const レスポンス = await fetch('/api/users/profile', {
         method: 'PUT',
-        body: formData,
+        body: フォームデータ,
       });
 
-      if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'プロファイル更新失敗');
+      if (!レスポンス.ok) {
+          const エラーデータ = await レスポンス.json();
+          throw new Error(エラーデータ.error || 'プロファイル更新失敗');
       }
       
-      const updatedProfile = await response.json();
+      const 更新後のプロフィール = await レスポンス.json();
 
-      await update({
-        name: updatedProfile.nickname,
-        image: updatedProfile.image_url,
+      // Next-Authのセッション情報を更新
+      await セッション更新({
+        name: 更新後のプロフィール.user.nickname,
+        image: 更新後のプロフィール.user.image_url,
       });
       
-      setModalState({ 
+      setモーダル状態({ 
           isOpen: true, 
           title: '成功', 
           message: 'プロフィールを更新しました！',
       });
       
-      // モーダルが閉じた後にページ遷移
+      // 1.5秒後にプロフィールページへ遷移
       setTimeout(() => {
-        router.push(`/profile/${session?.user?.id}`);
+        ルーター.push(`/profile/${セッション?.user?.id}`);
       }, 1500);
 
-    } catch (error) {
-      console.error(error);
-      setModalState({ isOpen: true, title: 'エラー', message: (error as Error).message });
+    } catch (エラー) {
+      console.error(エラー);
+      setモーダル状態({ isOpen: true, title: 'エラー', message: (エラー as Error).message });
     } finally {
-        setIsSubmitting(false);
+        set送信中(false);
     }
   };
 
-  if (loading) {
+  if (読み込み中) {
     return <div className="flex h-screen items-center justify-center bg-black text-white">ローディング中...</div>;
   }
 
   return (
     <>
-      <CustomModal {...modalState} onClose={closeModal} />
+      <カスタムモーダル {...モーダル状態} onClose={モーダルを閉じる} />
       <div className="bg-black min-h-screen text-white">
         <div className="mx-auto max-w-2xl">
           <header className="flex items-center justify-between p-4 sticky top-0 bg-black/80 backdrop-blur-sm z-10">
-            <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"><ArrowLeft /></button>
+            <button onClick={() => ルーター.back()} className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"><ArrowLeft /></button>
             <h1 className="font-bold text-lg">プロフィール編集</h1>
             <div className="w-10 h-10"></div>
           </header>
 
-          <form onSubmit={handleSubmit} className="p-4 space-y-6">
+          <form onSubmit={送信ハンドラ} className="p-4 space-y-6">
             <div className="flex flex-col items-center">
               <div className="relative w-24 h-24 mb-2">
-                {imagePreview ? (
+                {画像プレビュー ? (
                   <Image
-                    src={imagePreview}
+                    src={画像プレビュー}
                     alt="Profile Preview"
                     width={96}
                     height={96}
                     className="rounded-full object-cover w-24 h-24"
                   />
                 ) : (
-                  <DefaultAvatarIcon size={96} />
+                  <デフォルトアバターアイコン size={96} />
                 )}
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => ファイル入力Ref.current?.click()}
                   className="absolute bottom-0 right-0 bg-gray-700 p-2 rounded-full hover:bg-gray-600 transition-colors cursor-pointer"
                 >
                   <Camera size={16} />
                 </button>
                 <input
                   type="file"
-                  ref={fileInputRef}
-                  onChange={handleImageChange}
+                  ref={ファイル入力Ref}
+                  onChange={画像変更ハンドラ}
                   accept="image/*"
                   className="hidden"
                 />
@@ -182,8 +183,8 @@ export default function ProfileEditPage() {
               <input
                 id="nickname"
                 type="text"
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
+                value={ニックネーム}
+                onChange={(e) => setニックネーム(e.target.value)}
                 className="w-full bg-gray-800 border-gray-700 rounded-md p-2 focus:ring-pink-500 focus:border-pink-500"
               />
             </div>
@@ -192,8 +193,8 @@ export default function ProfileEditPage() {
               <label htmlFor="bio" className="block text-sm font-medium text-gray-400 mb-1">自己紹介</label>
               <textarea
                 id="bio"
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
+                value={自己紹介}
+                onChange={(e) => set自己紹介(e.target.value)}
                 rows={4}
                 className="w-full bg-gray-800 border-gray-700 rounded-md p-2 focus:ring-pink-500 focus:border-pink-500"
               />
@@ -201,10 +202,10 @@ export default function ProfileEditPage() {
             
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={送信中}
               className="w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 disabled:bg-pink-800 transition-colors cursor-pointer"
             >
-              {isSubmitting ? '保存中...' : '保存'}
+              {送信中 ? '保存中...' : '保存'}
             </button>
           </form>
         </div>
