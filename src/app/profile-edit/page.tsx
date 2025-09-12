@@ -14,7 +14,8 @@ type ModalProps = {
   message: string;
 };
 
-const カスタムモーダル = ({ isOpen, onClose, title, message }: ModalProps) => {
+// ▼▼▼【修正】コンポーネント名を大文字のアルファベットで始まるように変更 (カスタムモーダル -> CustomModal) ▼▼▼
+const CustomModal = ({ isOpen, onClose, title, message }: ModalProps) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
@@ -32,7 +33,8 @@ const カスタムモーダル = ({ isOpen, onClose, title, message }: ModalProp
 };
 
 // デフォルトアバターアイコン
-const デフォルトアバターアイコン = ({ size = 96 }: { size?: number }) => (
+// ▼▼▼【修正】コンポーネント名を大文字のアルファベットで始まるように変更 (デフォルトアバターアイコン -> DefaultAvatarIcon) ▼▼▼
+const DefaultAvatarIcon = ({ size = 96 }: { size?: number }) => (
   <div
     className="rounded-full bg-gray-700 flex items-center justify-center"
     style={{ width: size, height: size }}
@@ -41,7 +43,8 @@ const デフォルトアバターアイコン = ({ size = 96 }: { size?: number 
   </div>
 );
 
-export default function プロフィール編集ページ() {
+// ▼▼▼【修正】Reactのルールに従い、コンポーネント名を大文字のアルファベットで始まるように変更します。▼▼▼
+export default function ProfileEditPage() {
   const ルーター = useRouter();
   const { data: セッション, update: セッション更新 } = useSession();
 
@@ -138,7 +141,7 @@ export default function プロフィール編集ページ() {
 
   return (
     <>
-      <カスタムモーダル {...モーダル状態} onClose={モーダルを閉じる} />
+      <CustomModal {...モーダル状態} onClose={モーダルを閉じる} />
       <div className="bg-black min-h-screen text-white">
         <div className="mx-auto max-w-2xl">
           <header className="flex items-center justify-between p-4 sticky top-0 bg-black/80 backdrop-blur-sm z-10">
@@ -159,7 +162,7 @@ export default function プロフィール編集ページ() {
                     className="rounded-full object-cover w-24 h-24"
                   />
                 ) : (
-                  <デフォルトアバターアイコン size={96} />
+                  <DefaultAvatarIcon size={96} />
                 )}
                 <button
                   type="button"
