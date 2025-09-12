@@ -2,18 +2,32 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/nextauth';
+// プロジェクト構成に合わせてパスを調整してください（authOptionsの所在）
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 /**
- * フォロー切替エンドポイント
- * - モデル: follows（主キーは @@id([followerId, followingId]) の複合キー）
- * - 注意: where 条件は「followerId_followingId」を用いる
+ * RouteContext（自前定義）
+ * - Next.js のルートハンドラ第2引数には公式の型が公開されていないため、
+ *   ここでは必要最小限の型のみ宣言し、関数内で as キャストする。
  */
-export async function POST(
-  _req: NextRequest,
-  { params }: { params: { userId: string } }
-) {
+type RouteContext = {
+  params: {
+    userId: string;
+  };
+};
+
+/**
+ * フォロー切替エンドポイント
+ * - 第二引数に明示的な「具体型」を付けると Next.js の型検証に弾かれるため、
+ *   ここでは unknown とし、関数内で最小限のキャストのみ行う。
+ * - follows モデルは複合主キー @@id([followerId, followingId]) を使用。
+ *   → where は followerId_followingId を用いる。
+ */
+export async function POST(req: NextRequest, context: unknown) {
+  // --- params の安全な取り出し（最小限の型アサーション） ---
+  const { userId } = (context as RouteContext).params;
+
   // --- 認証チェック ---
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -21,7 +35,7 @@ export async function POST(
   }
 
   // --- パラメータ検証 ---
-  const targetUserId = Number(params.userId);
+  const targetUserId = Number(userId);
   const currentUserId = Number(session.user.id);
 
   if (!Number.isInteger(targetUserId)) {
@@ -32,10 +46,9 @@ export async function POST(
   }
 
   try {
-    // --- 既存レコードを複合キーで検索 ---
+    // --- 既存レコード確認（複合キーでユニーク検索） ---
     const existing = await prisma.follows.findUnique({
       where: {
-        // ✅ 複合PK/ユニークキーは「<fieldA>_<fieldB>」名のオブジェクトで指定
         followerId_followingId: {
           followerId: currentUserId,
           followingId: targetUserId,
@@ -44,7 +57,7 @@ export async function POST(
     });
 
     if (existing) {
-      // --- フォロー中 → 解除（delete も同じ複合キーで指定）
+      // --- フォロー中 → 解除 ---
       await prisma.follows.delete({
         where: {
           followerId_followingId: {
@@ -53,25 +66,29 @@ export async function POST(
           },
         },
       });
+
       const newFollowerCount = await prisma.follows.count({
         where: { followingId: targetUserId },
       });
+
       return NextResponse.json({
         message: 'フォローを解除しました。',
         isFollowing: false,
         newFollowerCount,
       });
     } else {
-      // --- 未フォロー → 登録
+      // --- 未フォロー → 追加 ---
       await prisma.follows.create({
         data: {
           followerId: currentUserId,
           followingId: targetUserId,
         },
       });
+
       const newFollowerCount = await prisma.follows.count({
         where: { followingId: targetUserId },
       });
+
       return NextResponse.json({
         message: 'フォローしました。',
         isFollowing: true,
