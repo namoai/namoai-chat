@@ -26,6 +26,13 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'ユーザーが見つかりません。' }, { status: 404 });
     }
 
+  
+    // ユーザーにパスワードが設定されているかを確認します。
+    // OAuthなどで登録したユーザーはパスワードがnullの場合があるため、このチェックが必要です。
+    if (!user.password) {
+      return NextResponse.json({ error: 'パスワードが設定されていないため、変更できません。SNSアカウントでログインしている可能性があります。' }, { status: 400 });
+    }
+
     const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isPasswordValid) {
       return NextResponse.json({ error: '現在のパスワードが正しくありません。' }, { status: 400 });
