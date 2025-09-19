@@ -1,16 +1,37 @@
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from '@/lib/prisma';
 import bcrypt from "bcrypt";
+import { PrismaClient } from "@prisma/client";
+import { randomBytes } from 'crypto';
+
+// --- ▼▼▼ ここからが重要 ▼▼▼ ---
+// PrismaAdapterが期待するモデル名(user, accountなど)と、
+// 実際のスキーマのモデル名(users, sessionsなど)の不一致を解決するためのプロキシオブジェクトを作成します。
+const adapterPrisma = {
+  ...prisma,
+  user: prisma.users,
+  account: prisma.account,
+  session: prisma.session,
+  verificationToken: prisma.verificationToken,
+} as unknown as PrismaClient;
+// --- ▲▲▲ ここまで ▲▲▲ ---
+
 
 // NextAuthの設定をオブジェクトとして定義し、エクスポートします。
-// これにより、他のサーバーサイドのファイルでこの設定を再利用できます。
 export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(adapterPrisma),
+
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      // --- ▼▼▼【最重要修正点】▼▼▼ ---
+      // 既に同じメールアドレスを持つアカウント（例：ID/PWで作成）が存在する場合でも、
+      // Googleアカウントとのリンクを許可するためのオプションです。これがOAuthAccountNotLinkedエラーを解決します。
+      allowDangerousEmailAccountLinking: true,
     }),
     CredentialsProvider({
       name: "Credentials",
@@ -27,13 +48,8 @@ export const authOptions: NextAuthOptions = {
           where: { email: credentials.email },
         });
 
-        if (!user) {
-          throw new Error("登録されていないユーザーです。");
-        }
-
-        // user.password가 null이 아닌 경우에만 bcrypt.compare를 호출합니다.
-        if (!user.password) {
-            throw new Error("このアカウントはパスワードでログインできません。");
+        if (!user || !user.password) {
+          throw new Error("登録されていないか、パスワードでのログインが許可されていません。");
         }
 
         const isPasswordValid = await bcrypt.compare(
@@ -50,57 +66,82 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           nickname: user.nickname,
-          role: user.role, // ✨ ユーザーの役割(role)を返すように追加
+          role: user.role,
         };
       },
     }),
   ],
+
   session: {
     strategy: "jwt",
   },
+
   callbacks: {
-    // ✅ このjwtコールバックを修正しました
+    async signIn({ user, account }) {
+      if (account?.provider === 'google') {
+        const { email, name, image } = user;
+  
+        if (!email) {
+          return false;
+        }
+  
+        let dbUser = await prisma.users.findUnique({ 
+          where: { email } 
+        });
+  
+        if (!dbUser) {
+          let newNickname = name || `user_${randomBytes(4).toString('hex')}`;
+          
+          const existingUserWithNickname = await prisma.users.findUnique({ where: { nickname: newNickname } });
+          
+          if (existingUserWithNickname) {
+            newNickname = `${newNickname}_${randomBytes(4).toString('hex')}`;
+          }
+
+          await prisma.users.create({
+            data: {
+              email,
+              name: name || "New User",
+              nickname: newNickname,
+              image_url: image,
+              emailVerified: new Date(),
+            },
+          });
+        }
+        return true;
+      }
+      return true;
+    },
+
     async jwt({ token, user }) {
-      // 1. 初回サインイン時（userオブジェクトが存在する場合）
       if (user) {
         token.id = user.id;
-        token.nickname = user.nickname;
-        token.role = user.role;
-        return token;
-      }
-
-      // 2. 既存のセッションで、トークンにrole情報がない場合 (例: Googleログイン後など)
-      //    DBからユーザー情報を取得してトークンに追加します。
-      if (!token.role) {
         const dbUser = await prisma.users.findUnique({
-          where: { id: parseInt(token.id, 10) }, // token.idは文字列なので数値に変換
+          where: { id: parseInt(user.id, 10) },
         });
         if (dbUser) {
-          token.role = dbUser.role;
-          token.nickname = dbUser.nickname;
+            token.nickname = dbUser.nickname;
+            token.role = dbUser.role;
         }
       }
-      
       return token;
     },
+
     async session({ session, token }) {
-      // セッションオブジェクトのユーザー情報に、トークンの情報を反映
       if (session.user) {
         session.user.id = token.id;
         session.user.nickname = token.nickname;
-        session.user.role = token.role; // ✨ セッションに役割(role)情報を追加
-        session.user.name = token.nickname as string; // 表示名をニックネームに設定
+        session.user.role = token.role;
+        session.user.name = token.nickname as string;
       }
       return session;
     },
   },
+
   pages: {
     signIn: "/login",
   },
+  
   secret: process.env.NEXTAUTH_SECRET,
 };
 
-// 定義した設定オブジェクトを使ってNextAuthを初期化します
-const handler = NextAuth(authOptions);
-
-export { handler as GET, handler as POST };
