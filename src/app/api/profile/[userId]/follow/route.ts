@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 // プロジェクト構成に合わせてパスを調整してください（authOptionsの所在）
-import { authOptions } from '@/lib/auth';
+import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
 
 /**

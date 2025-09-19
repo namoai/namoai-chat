@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { VertexAI, HarmCategory, HarmBlockThreshold, Content } from "@google-cloud/vertexai";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions } from "@/lib/nextauth"; 
 
 // VertexAIクライアントの初期化
 const vertex_ai = new VertexAI({
