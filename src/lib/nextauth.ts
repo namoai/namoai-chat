@@ -1,5 +1,6 @@
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import NextAuth, { NextAuthOptions } from "next-auth";
+// 修正1: 未使用の 'NextAuth' のインポートを削除しました。
+import { type NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from '@/lib/prisma';
@@ -7,7 +8,6 @@ import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
 import { randomBytes } from 'crypto';
 
-// --- ▼▼▼ ここからが重要 ▼▼▼ ---
 // PrismaAdapterが期待するモデル名(user, accountなど)と、
 // 実際のスキーマのモデル名(users, sessionsなど)の不一致を解決するためのプロキシオブジェクトを作成します。
 const adapterPrisma = {
@@ -17,7 +17,6 @@ const adapterPrisma = {
   session: prisma.session,
   verificationToken: prisma.verificationToken,
 } as unknown as PrismaClient;
-// --- ▲▲▲ ここまで ▲▲▲ ---
 
 
 // NextAuthの設定をオブジェクトとして定義し、エクスポートします。
@@ -28,9 +27,7 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      // --- ▼▼▼【最重要修正点】▼▼▼ ---
-      // 既に同じメールアドレスを持つアカウント（例：ID/PWで作成）が存在する場合でも、
-      // Googleアカウントとのリンクを許可するためのオプションです。これがOAuthAccountNotLinkedエラーを解決します。
+      // 既に同じメールアドレスを持つアカウントが存在する場合でも、Googleアカウントとのリンクを許可します。
       allowDangerousEmailAccountLinking: true,
     }),
     CredentialsProvider({
@@ -84,8 +81,9 @@ export const authOptions: NextAuthOptions = {
         if (!email) {
           return false;
         }
-  
-        let dbUser = await prisma.users.findUnique({ 
+        
+        // 修正2: 'let' を 'const' に変更しました (ESLint prefer-constルール対応)
+        const dbUser = await prisma.users.findUnique({ 
           where: { email } 
         });
   
