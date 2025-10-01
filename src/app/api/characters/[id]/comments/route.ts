@@ -17,44 +17,32 @@ function hasValidContent(body: unknown): body is { content: string } {
 
 /**
  * コメント一覧取得（GET）
- * - /api/characters/[id]/comments?take=20&cursor=123
  */
 export async function GET(
   request: NextRequest,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  context: any
+  { params }: { params: { id: string } } // ★ 変更点: contextの代わりにparamsを直接受け取ります
 ) {
-  const characterId = Number.parseInt(String(context?.params?.id ?? ''), 10);
+  const characterId = Number.parseInt(params.id, 10); // ★ 変更点: context経由ではなく、直接params.idを使用します。
   if (!Number.isFinite(characterId)) {
     return NextResponse.json({ error: '無効なキャラクターIDです。' }, { status: 400 });
   }
 
   const url = new URL(request.url);
   const takeRaw = url.searchParams.get('take');
-  const cursorRaw = url.searchParams.get('cursor');
-
-  let take = Number.parseInt(takeRaw ?? '20', 10);
-  if (!Number.isFinite(take) || take < 1) take = 20;
-  if (take > 100) take = 100;
-
-  const args: Prisma.commentsFindManyArgs = {
-    where: { characterId },
-    take,
-    orderBy: { createdAt: 'asc' },
-    include: {
-      users: { select: { id: true, nickname: true, image_url: true } },
-    },
-  };
-
-  const cursorId = Number.parseInt(cursorRaw ?? '', 10);
-  if (Number.isFinite(cursorId)) {
-    args.cursor = { id: cursorId };
-    args.skip = 1;
-  }
+  const take = Number.isFinite(Number(takeRaw)) ? Number(takeRaw) : 20;
 
   try {
-    const comments = await prisma.comments.findMany(args);
-    return NextResponse.json({ comments }, { status: 200 });
+    const comments = await prisma.comments.findMany({
+      where: { characterId },
+      take,
+      orderBy: { createdAt: 'asc' },
+      include: {
+        users: {
+          select: { id: true, nickname: true, image_url: true },
+        },
+      },
+    });
+    return NextResponse.json({ comments });
   } catch (error) {
     console.error('コメント一覧取得エラー:', error);
     return NextResponse.json({ error: 'コメント一覧の取得に失敗しました。' }, { status: 500 });
@@ -63,15 +51,12 @@ export async function GET(
 
 /**
  * コメント作成（POST）
- * - 認証必須 / Body: { content }
- * - Prismaスキーマの都合で updatedAt は必須
  */
 export async function POST(
   request: NextRequest,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  context: any
+  { params }: { params: { id: string } } // ★ 変更点: contextの代わりにparamsを直接受け取ります
 ) {
-  const characterId = Number.parseInt(String(context?.params?.id ?? ''), 10);
+  const characterId = Number.parseInt(params.id, 10); // ★ 変更点: context経由ではなく、直接params.idを使用します。
   if (!Number.isFinite(characterId)) {
     return NextResponse.json({ error: '無効なキャラクターIDです。' }, { status: 400 });
   }
@@ -93,10 +78,11 @@ export async function POST(
         content: raw.content.trim(),
         characterId,
         authorId: Number.parseInt(user.id, 10),
-        updatedAt: new Date(), // ← 必須
       },
       include: {
-        users: { select: { id: true, nickname: true, image_url: true } },
+        users: {
+          select: { id: true, nickname: true, image_url: true },
+        },
       },
     });
     return NextResponse.json(created, { status: 201 });
@@ -105,3 +91,4 @@ export async function POST(
     return NextResponse.json({ error: 'コメントの作成に失敗しました。' }, { status: 500 });
   }
 }
+

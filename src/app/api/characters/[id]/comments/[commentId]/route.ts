@@ -19,12 +19,9 @@ function hasValidContent(body: unknown): body is { content: string } {
  */
 export async function PUT(
   request: NextRequest,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  context: any
+  { params }: { params: { id: string, commentId: string } } // ★ 変更点
 ) {
-  // ▼ 2番目引数は next の検証で具体型を禁止されるため any（内部で手動バリデーション）
-  const p = (context?.params ?? {}) as { id?: string; commentId?: string };
-  const commentIdNum = Number.parseInt(p.commentId ?? '', 10);
+  const commentIdNum = Number.parseInt(params.commentId ?? '', 10); // ★ 変更点
   if (!Number.isFinite(commentIdNum)) {
     return NextResponse.json({ error: '無効なコメントIDです。' }, { status: 400 });
   }
@@ -77,11 +74,9 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  context: any
+  { params }: { params: { id: string, commentId: string } } // ★ 変更点
 ) {
-  const p = (context?.params ?? {}) as { id?: string; commentId?: string };
-  const commentIdNum = Number.parseInt(p.commentId ?? '', 10);
+  const commentIdNum = Number.parseInt(params.commentId ?? '', 10); // ★ 変更点
   if (!Number.isFinite(commentIdNum)) {
     return NextResponse.json({ error: '無効なコメントIDです。' }, { status: 400 });
   }

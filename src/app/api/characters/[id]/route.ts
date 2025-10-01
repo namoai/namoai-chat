@@ -14,24 +14,18 @@ type LorebookData = {
   keywords: string[];
 };
 
-// リクエストからIDを抽出するヘルパー関数
-function extractIdFromRequest(request: Request): number | null {
-  const url = new URL(request.url);
-  // nextjs 13.5.0以降、 context.paramsが使えないためURLから直接抽出
-  const idStr = url.pathname.split('/api/characters/')[1]?.split('/')[0];
-  if (!idStr) return null;
-  const parsedId = parseInt(idStr, 10);
-  return isNaN(parsedId) ? null : parsedId;
-}
-
 /**
  * 特定のキャラクター詳細情報を取得 (GET)
  * @param request - NextRequestオブジェクト
+ * @param params - { id: string }
  * @returns - キャラクター詳細情報またはエラーメッセージ
  */
-export async function GET(request: NextRequest) {
-  const characterId = extractIdFromRequest(request);
-  if (characterId === null) {
+export async function GET(
+    request: NextRequest,
+    { params }: { params: { id: string } } // ★ 変更点
+) {
+  const characterId = Number.parseInt(params.id, 10); // ★ 変更点
+  if (isNaN(characterId)) {
     return NextResponse.json({ error: '無効なIDです。'}, { status: 400 });
   }
 
@@ -87,7 +81,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ▼▼▼【修正箇所】▼▼▼
     // ログインしているユーザーがいいねしているか確認
     let isFavorited = false;
     if (currentUserId) {
@@ -99,14 +92,12 @@ export async function GET(request: NextRequest) {
           },
         },
       });
-      // favoriteが見つかれば isFavorited を true に設定
       isFavorited = !!favorite;
     }
 
-    // 最終的なレスポンスオブジェクトに isFavorited を追加
     const responseData = {
       ...character,
-      isFavorited, // boolean値をレスポンスに含める
+      isFavorited,
     };
 
     return NextResponse.json(responseData);
@@ -122,17 +113,22 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT, DELETE メソッドは変更ありません
-export async function PUT(request: NextRequest) {
+/**
+ * キャラクター更新（PUT）
+ */
+export async function PUT(
+    request: NextRequest,
+    { params }: { params: { id: string } } // ★ 変更点
+) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
         return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
     }
 
-    const characterIdToUpdate = extractIdFromRequest(request);
+    const characterIdToUpdate = Number.parseInt(params.id, 10); // ★ 変更点
     const currentUser = session.user;
 
-    if (characterIdToUpdate === null) {
+    if (isNaN(characterIdToUpdate)) {
       return NextResponse.json({ error: '無効なIDです。'}, { status: 400 });
     }
 
@@ -244,16 +240,22 @@ export async function PUT(request: NextRequest) {
     }
 }
 
-export async function DELETE(request: NextRequest) {
+/**
+ * キャラクター削除（DELETE）
+ */
+export async function DELETE(
+    request: NextRequest,
+    { params }: { params: { id: string } } // ★ 変更点
+) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
         return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
     }
 
-    const characterIdToDelete = extractIdFromRequest(request);
+    const characterIdToDelete = Number.parseInt(params.id, 10); // ★ 変更点
     const currentUser = session.user;
 
-    if (characterIdToDelete === null) {
+    if (isNaN(characterIdToDelete)) {
         return NextResponse.json({ error: '無効なIDです。'}, { status: 400 });
     }
 

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { VertexAI, HarmCategory, HarmBlockThreshold, Content } from "@google-cloud/vertexai";
 import { getServerSession } from "next-auth";
+// --- ▼▼▼【修正点】▼▼▼ ---
+// authOptionsのインポートパスを'@/lib/auth'から'@/lib/nextauth'へ変更
 import { authOptions } from "@/lib/nextauth"; 
 
 // VertexAIクライアントの初期化
@@ -136,9 +138,30 @@ export async function POST(request: Request, context: any) {
 - 今回の応答に限り、通常よりも意図的に長く、約${boostMultiplier}倍の詳細な内容で返答してください。`;
     }
 
+    // ▼▼▼【新規追加】AIの応答フォーマット（地の文とセリフの分離）を指示するルール ▼▼▼
+    const formattingInstruction = `# 応答フォーマットのルール
+- 地の文（ナレーション）とセリフ（「」で囲んだ部分）を明確に区別してください。
+- セリフは必ず改行して独立した行に記述してください。
+- 地の文とセリフを同じ行に混在させないでください。
+
+### 良い例:
+彼は静かに微笑んだ。
+「お帰りなさい。」
+
+### 悪い例:
+彼は静かに微笑んで「お帰りなさい。」と言った。`;
+
     // ▼▼▼【修正】システムテンプレートにもプレースホルダー置換を適用 ▼▼▼
     const systemTemplate = replacePlaceholders(char.systemTemplate);
-    const systemInstructionText = [systemTemplate, userPersonaInfo, lorebookInfo, boostInstruction]
+    
+    // ▼▼▼【修正】システムプロンプト配列に、新規追加した応答フォーマットルールを結合 ▼▼▼
+    const systemInstructionText = [
+        systemTemplate, 
+        formattingInstruction,
+        userPersonaInfo, 
+        lorebookInfo, 
+        boostInstruction
+    ]
       .filter(Boolean)
       .join("\n\n");
 
@@ -172,4 +195,3 @@ export async function POST(request: Request, context: any) {
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
-

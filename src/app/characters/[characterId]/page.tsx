@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { Heart, MoreVertical, ArrowLeft, Send, Edit, Trash2, ShieldBan } from 'lucide-react';
-// import Image from 'next/image';
 
+// --- 型定義 (変更なし) ---
 type ManualSession = {
   user?: {
       id?: string | null;
@@ -24,13 +25,55 @@ type Comment = {
   users: CommentUser;
 };
 
+// モーダルを管理するための型
+type ModalState = {
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm?: () => void;
+    confirmText?: string;
+    isAlert?: boolean;
+};
+
 interface CommentsProps {
   characterId: string | null;
   characterAuthorId: number | null;
   session: ManualSession;
+  setModalState: (state: ModalState) => void;
 }
 
-function Comments({ characterId, characterAuthorId, session }: CommentsProps) {
+// 確認モーダルコンポーネント
+const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalState, setModalState: (state: ModalState) => void }) => {
+    if (!modalState.isOpen) return null;
+    
+    const handleClose = () => setModalState({ ...modalState, isOpen: false });
+    const handleConfirm = () => {
+        modalState.onConfirm?.();
+        handleClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex justify-center items-center">
+            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-sm m-4 text-white">
+                <h2 className="text-xl font-bold mb-4">{modalState.title}</h2>
+                <p className="text-gray-300 mb-6">{modalState.message}</p>
+                <div className={`flex ${modalState.isAlert ? 'justify-end' : 'justify-between'} gap-4`}>
+                    {!modalState.isAlert && (
+                        <button onClick={handleClose} className="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg">
+                            キャンセル
+                        </button>
+                    )}
+                    <button onClick={handleConfirm} className={`px-4 py-2 ${modalState.confirmText?.includes('削除') ? 'bg-red-600 hover:bg-red-500' : 'bg-pink-600 hover:bg-pink-500'} rounded-lg`}>
+                        {modalState.confirmText || 'OK'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+function Comments({ characterId, characterAuthorId, session, setModalState }: CommentsProps) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
@@ -51,6 +94,8 @@ function Comments({ characterId, characterAuthorId, session }: CommentsProps) {
         
         if (Array.isArray(data)) {
           setComments(data);
+        } else if (data && Array.isArray(data.comments)) {
+          setComments(data.comments);
         } else {
           setComments([]);
         }
@@ -66,7 +111,7 @@ function Comments({ characterId, characterAuthorId, session }: CommentsProps) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim() || isSubmitting || !session?.user?.id) return;
+    if (!newComment.trim() || isSubmitting || !session?.user?.id || !characterId) return;
 
     setIsSubmitting(true);
     try {
@@ -80,26 +125,34 @@ function Comments({ characterId, characterAuthorId, session }: CommentsProps) {
       setComments([createdComment, ...comments]);
       setNewComment('');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'コメント投稿中にエラーが発生しました。');
+      setModalState({ isOpen: true, title: 'エラー', message: err instanceof Error ? err.message : 'コメント投稿中にエラーが発生しました。', isAlert: true });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (commentId: number) => {
-    if (!window.confirm('本当にこのコメントを削除しますか？')) return;
-    try {
-      const res = await fetch(`/api/characters/${characterId}/comments/${commentId}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'コメントの削除に失敗しました。');
-      }
-      setComments(comments.filter((comment) => comment.id !== commentId));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : '削除中にエラーが発生しました。');
-    }
+  const handleDelete = (commentId: number) => {
+    if (!characterId) return;
+    setModalState({
+        isOpen: true,
+        title: '削除の確認',
+        message: '本当にこのコメントを削除しますか？',
+        confirmText: '削除',
+        onConfirm: async () => {
+            try {
+              const res = await fetch(`/api/characters/${characterId}/comments/${commentId}`, {
+                method: 'DELETE',
+              });
+              if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || 'コメントの削除に失敗しました。');
+              }
+              setComments(comments.filter((comment) => comment.id !== commentId));
+            } catch (err) {
+              setModalState({ isOpen: true, title: 'エラー', message: err instanceof Error ? err.message : '削除中にエラーが発生しました。', isAlert: true });
+            }
+        }
+    });
   };
 
   const handleEditStart = (comment: Comment) => {
@@ -110,7 +163,7 @@ function Comments({ characterId, characterAuthorId, session }: CommentsProps) {
 
   const handleUpdate = async (e: FormEvent) => {
     e.preventDefault();
-    if (!editedContent.trim() || !editingCommentId) return;
+    if (!editedContent.trim() || !editingCommentId || !characterId) return;
     
     setIsSubmitting(true);
     try {
@@ -125,7 +178,7 @@ function Comments({ characterId, characterAuthorId, session }: CommentsProps) {
       setEditingCommentId(null);
       setEditedContent('');
     } catch (err) { 
-      alert(err instanceof Error ? err.message : '更新中にエラーが発生しました。');
+      setModalState({ isOpen: true, title: 'エラー', message: err instanceof Error ? err.message : '更新中にエラーが発生しました。', isAlert: true });
     } finally {
       setIsSubmitting(false);
     }
@@ -154,7 +207,7 @@ function Comments({ characterId, characterAuthorId, session }: CommentsProps) {
 
           return (
             <div key={comment.id} className="flex gap-3">
-              <a href={`/profile/${comment.users.id}`}>
+              <a href={`/profile/${comment.users.id}`} className="flex-shrink-0">
                 <img src={comment.users.image_url || 'https://placehold.co/40x40/1a1a1a/ffffff?text=?'} alt={comment.users.nickname} width={40} height={40} className="rounded-full mt-1 w-10 h-10 object-cover" />
               </a>
               <div className='flex-1'>
@@ -197,6 +250,7 @@ function Comments({ characterId, characterAuthorId, session }: CommentsProps) {
   );
 }
 
+
 type Author = {
   id: number;
   name: string;
@@ -224,20 +278,28 @@ type CharacterDetail = {
   isFavorited?: boolean;
 };
 
-export default function CharacterDetailPage() {
-  const [characterId, setCharacterId] = useState<string | null>(null);
+// ✅ 여기부터 경고 해결을 위한 핵심 수정
+export default function CharacterDetailPage({
+  // ❗️Next.js(React 19)에서 params가 Promise이므로, 타입도 Promise로 받습니다.
+  params,
+}: {
+  params: Promise<{ characterId: string }>;
+}) {
+  const router = useRouter();
+
+  // ❗️React.use()로 params를 언랩하여 안전하게 접근합니다.
+  const { characterId: characterIdRaw } = React.use(params);
+  const characterId: string | null = characterIdRaw ?? null;
+
   const [character, setCharacter] = useState<CharacterDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<ManualSession>(null);
   const [sessionStatus, setSessionStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
   const [isCreatingChat, setIsCreatingChat] = useState(false);
+  const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: '', message: ''});
 
   useEffect(() => {
-    const path = window.location.pathname;
-    const id = path.split('/').pop();
-    if (id) setCharacterId(id);
-
     const fetchSession = async () => {
         try {
             const res = await fetch('/api/auth/session');
@@ -284,6 +346,7 @@ export default function CharacterDetailPage() {
       }
     };
     fetchCharacter();
+  // ❗️의존성도 params.characterId → characterId 로 교체
   }, [characterId]);
 
   const handleFavorite = async () => {
@@ -307,7 +370,7 @@ export default function CharacterDetailPage() {
         : null
       );
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'エラー');
+      setModalState({ isOpen: true, title: 'エラー', message: e instanceof Error ? e.message : 'お気に入り登録中にエラーが発生しました。', isAlert: true });
     }
   };
   
@@ -322,12 +385,12 @@ export default function CharacterDetailPage() {
           });
           if (!res.ok) {
               const errorData = await res.json();
-              throw new Error(errorData.message || 'チャットの作成に失敗しました。');
+              throw new Error(errorData.error || 'チャットの作成に失敗しました。');
           }
           const { chatId } = await res.json();
-          window.location.href = `/chat/${chatId}`;
+          router.push(`/chat/${characterId}?chatId=${chatId}`);
       } catch (err) {
-          alert(err instanceof Error ? err.message : 'チャットの開始中にエラーが発生しました。');
+          setModalState({ isOpen: true, title: 'エラー', message: err instanceof Error ? err.message : 'チャットの開始中にエラーが発生しました。', isAlert: true });
       } finally {
           setIsCreatingChat(false);
       }
@@ -344,7 +407,7 @@ export default function CharacterDetailPage() {
                 {isBlockedError ? 'アクセスできません' : 'エラー'}
             </h2>
             <p className="text-gray-400 mb-6">{error}</p>
-            <button onClick={() => window.history.back()} className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">
+            <button onClick={() => router.back()} className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">
                 戻る
             </button>
         </div>
@@ -355,8 +418,9 @@ export default function CharacterDetailPage() {
   
   return (
     <div className="bg-black text-white min-h-screen font-sans">
-      <header className="fixed top-0 left-0 right-0 bg-black bg-opacity-80 backdrop-blur-sm z-10 flex items-center justify-between p-4">
-          <button onClick={() => window.history.back()} className="p-2 rounded-full hover:bg-gray-800"><ArrowLeft size={24} /></button>
+      <ConfirmationModal modalState={modalState} setModalState={setModalState} />
+      <header className="fixed top-0 left-0 right-0 bg-black bg-opacity-80 backdrop-blur-sm z-20 flex items-center justify-between p-4">
+          <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-gray-800"><ArrowLeft size={24} /></button>
           <div className="flex items-center gap-2">
             <button onClick={handleFavorite} className="p-2 rounded-full hover:bg-gray-800"><Heart size={24} className={character.isFavorited ? 'text-pink-500 fill-current' : ''} /></button>
             <button className="p-2 rounded-full hover:bg-gray-800"><MoreVertical size={24} /></button>
@@ -400,7 +464,7 @@ export default function CharacterDetailPage() {
               <div className="text-center"><div className="font-bold text-white">{character._count.chat.toLocaleString()}</div><div>チャット</div></div>
           </div>
           <div className="flex flex-wrap justify-center gap-2 my-4">
-              {character.hashtags.map(tag => <span key={tag} className="bg-gray-800 text-pink-400 text-xs font-semibold px-3 py-1 rounded-full">#{tag}</span>)}
+              {character.hashtags.map((tag: string) => <span key={tag} className="bg-gray-800 text-pink-400 text-xs font-semibold px-3 py-1 rounded-full">#{tag}</span>)}
           </div>
           <p className="text-gray-300 my-6 whitespace-pre-wrap text-center">{character.description}</p>
           <div className="text-xs text-gray-500 text-center">
@@ -412,23 +476,24 @@ export default function CharacterDetailPage() {
               characterId={characterId} 
               characterAuthorId={character.author?.id ?? null}
               session={session}
+              setModalState={setModalState}
             />
           </div>
         </main>
       </div>
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-black border-t border-gray-800">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-black border-t border-gray-800 z-20">
         <div className="mx-auto max-w-2xl flex gap-4">
           {sessionStatus === 'authenticated' ? (
             <>
-              <a href={`/chat/${characterId}`} className="flex-1">
-                <button className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition-colors">続きから会話</button>
+              <a href={`/chat/${characterId}`} className="flex-1 text-center bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition-colors">
+                続きから会話
               </a>
-              <button onClick={handleNewChat} disabled={isCreatingChat} className="flex-1 w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors disabled:bg-pink-800 disabled:cursor-not-allowed">
+              <button onClick={handleNewChat} disabled={isCreatingChat} className="flex-1 bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors disabled:bg-pink-800 disabled:cursor-not-allowed">
                 {isCreatingChat ? '作成中...' : '新しいチャットを開始'}
               </button>
             </>
           ) : (
-            <button onClick={() => window.location.href = '/login'} className="w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors">
+            <button onClick={() => router.push('/login')} className="w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors">
               ログインしてチャットを開始
             </button>
           )}
