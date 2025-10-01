@@ -1,14 +1,10 @@
 // ./src/app/api/characters/[id]/comments/route.ts
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
-// ❌ 不要: import type { Prisma } from '@prisma/client';
 
-/** 認証ユーザーの最小型 */
-type AuthUser = { id: string; role?: string };
-
-/** Body:{ content:string } の妥当性チェック */
+/** Body 型: { content: string } を満たすか判定（作成用） */
 function hasValidContent(body: unknown): body is { content: string } {
   if (!body || typeof body !== 'object') return false;
   if (!('content' in body)) return false;
@@ -18,13 +14,17 @@ function hasValidContent(body: unknown): body is { content: string } {
 
 /**
  * コメント一覧取得（GET）
- * - クエリ `?take=数値` で件数を制御（デフォルト 20）
+ * - ルート: /api/characters/[id]/comments
+ * - クエリ: ?take=数値（デフォルト 20）
+ * - 認証不要
+ * - ✅ Next.js 15 では params は Promise 扱い
  */
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } } // ✅ App Router 形式で params を直接受け取る
-) {
-  const characterId = Number.parseInt(params.id, 10); // ✅ 直接 params.id を使用
+  request: Request,
+  { params }: { params: Promise<{ id: string }> } // ← ここを Promise に
+): Promise<Response> {
+  const { id } = await params; // ← await で展開
+  const characterId = Number.parseInt(id, 10);
   if (!Number.isFinite(characterId)) {
     return NextResponse.json({ error: '無効なキャラクターIDです。' }, { status: 400 });
   }
@@ -39,9 +39,7 @@ export async function GET(
       take,
       orderBy: { createdAt: 'asc' },
       include: {
-        users: {
-          select: { id: true, nickname: true, image_url: true },
-        },
+        users: { select: { id: true, nickname: true, image_url: true } },
       },
     });
     return NextResponse.json({ comments });
@@ -53,21 +51,24 @@ export async function GET(
 
 /**
  * コメント作成（POST）
- * - 認証必須
+ * - ルート: /api/characters/[id]/comments
+ * - 認証必須（session.user.id）
  * - Body: { content: string }
+ * - ✅ Next.js 15 では params は Promise 扱い
  */
 export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } } // ✅ App Router 形式で params を直接受け取る
-) {
-  const characterId = Number.parseInt(params.id, 10); // ✅ 直接 params.id を使用
+  request: Request,
+  { params }: { params: Promise<{ id: string }> } // ← ここを Promise に
+): Promise<Response> {
+  const { id } = await params; // ← await で展開
+  const characterId = Number.parseInt(id, 10);
   if (!Number.isFinite(characterId)) {
     return NextResponse.json({ error: '無効なキャラクターIDです。' }, { status: 400 });
   }
 
   const session = await getServerSession(authOptions);
-  const user = session?.user as AuthUser | undefined;
-  if (!user?.id) {
+  const userId = (session?.user?.id ?? '').toString();
+  if (!userId) {
     return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
   }
 
@@ -81,12 +82,10 @@ export async function POST(
       data: {
         content: raw.content.trim(),
         characterId,
-        authorId: Number.parseInt(user.id, 10),
+        authorId: Number.parseInt(userId, 10),
       },
       include: {
-        users: {
-          select: { id: true, nickname: true, image_url: true },
-        },
+        users: { select: { id: true, nickname: true, image_url: true } },
       },
     });
     return NextResponse.json(created, { status: 201 });
