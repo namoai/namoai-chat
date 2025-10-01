@@ -12,33 +12,17 @@ function hasValidContent(body: unknown): body is { content: string } {
   return typeof v === 'string' && v.trim().length > 0;
 }
 
-/** 
- * パスからキャラクターIDを抽出するユーティリティ
- * - 例: /api/characters/123/comments?take=20 → 123
- * - 第2引数（context）を使わないため、型検証を完全回避
- */
-function extractCharacterIdFromUrl(urlStr: string): number {
-  try {
-    const url = new URL(urlStr);
-    // 末尾が /comments のパスを想定
-    // /api/characters/:id/comments
-    const m = url.pathname.match(/\/api\/characters\/(\d+)\/comments(?:\/)?$/);
-    if (!m) return NaN;
-    return Number.parseInt(m[1], 10);
-  } catch {
-    return NaN;
-  }
-}
-
 /**
  * コメント一覧取得（GET）
  * - ルート: /api/characters/[id]/comments
  * - クエリ: ?take=数値（デフォルト 20）
  * - 認証不要
- * - 第2引数は使用せず、URL から id を抽出
  */
-export async function GET(request: NextRequest) {
-  const characterId = extractCharacterIdFromUrl(request.url);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function GET(request: NextRequest, context: any) {
+  /** params からキャラクターIDを取得（仕様変更なし） */
+  const { params } = context as { params: { id: string } };
+  const characterId = Number.parseInt(params.id, 10);
   if (!Number.isFinite(characterId)) {
     return NextResponse.json({ error: '無効なキャラクターIDです。' }, { status: 400 });
   }
@@ -68,10 +52,12 @@ export async function GET(request: NextRequest) {
  * - ルート: /api/characters/[id]/comments
  * - 認証必須（session.user.id）
  * - Body: { content: string }
- * - 第2引数は使用せず、URL から id を抽出
  */
-export async function POST(request: NextRequest) {
-  const characterId = extractCharacterIdFromUrl(request.url);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function POST(request: NextRequest, context: any) {
+  /** params からキャラクターIDを取得（仕様変更なし） */
+  const { params } = context as { params: { id: string } };
+  const characterId = Number.parseInt(params.id, 10);
   if (!Number.isFinite(characterId)) {
     return NextResponse.json({ error: '無効なキャラクターIDです。' }, { status: 400 });
   }
