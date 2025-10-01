@@ -13,33 +13,17 @@ function hasValidContent(body: unknown): body is { content: string } {
 }
 
 /**
- * パスからキャラクターIDを抽出（context/params を使わずに取得）
- * - 例: /api/characters/123/comments?take=20 → 123
- * - Next.js の第2引数型検証を回避するため URL から解析
- */
-function extractCharacterIdFromUrl(urlStr: string): number {
-  try {
-    const { pathname } = new URL(urlStr);
-    // 例: ['', 'api', 'characters', '123', 'comments']
-    const parts = pathname.split('/').filter(Boolean);
-    const idx = parts.indexOf('characters');
-    const idStr = idx >= 0 && parts[idx + 1] ? parts[idx + 1] : '';
-    const n = Number.parseInt(idStr, 10);
-    return Number.isFinite(n) ? n : NaN;
-  } catch {
-    return NaN;
-  }
-}
-
-/**
  * コメント一覧取得（GET）
  * - ルート: /api/characters/[id]/comments
  * - クエリ: ?take=数値（デフォルト 20）
  * - 認証不要
- * - 第2引数は一切使用しない（型検証回避）
+ * - ✅ Next.js 推奨のハンドラーシグネチャに統一
  */
-export const GET = async (request: Request) => {
-  const characterId = extractCharacterIdFromUrl(request.url);
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+): Promise<Response> {
+  const characterId = Number.parseInt(params.id, 10);
   if (!Number.isFinite(characterId)) {
     return NextResponse.json({ error: '無効なキャラクターIDです。' }, { status: 400 });
   }
@@ -62,17 +46,20 @@ export const GET = async (request: Request) => {
     console.error('コメント一覧取得エラー:', error);
     return NextResponse.json({ error: 'コメント一覧の取得に失敗しました。' }, { status: 500 });
   }
-};
+}
 
 /**
  * コメント作成（POST）
  * - ルート: /api/characters/[id]/comments
  * - 認証必須（session.user.id）
  * - Body: { content: string }
- * - 第2引数は一切使用しない（型検証回避）
+ * - ✅ Next.js 推奨のハンドラーシグネチャに統一
  */
-export const POST = async (request: Request) => {
-  const characterId = extractCharacterIdFromUrl(request.url);
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+): Promise<Response> {
+  const characterId = Number.parseInt(params.id, 10);
   if (!Number.isFinite(characterId)) {
     return NextResponse.json({ error: '無効なキャラクターIDです。' }, { status: 400 });
   }
@@ -104,4 +91,4 @@ export const POST = async (request: Request) => {
     console.error('コメント作成エラー:', error);
     return NextResponse.json({ error: 'コメントの作成に失敗しました。' }, { status: 500 });
   }
-};
+}
