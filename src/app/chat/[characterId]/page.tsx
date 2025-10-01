@@ -61,6 +61,7 @@ type ModalState = {
  * - 空レスポンス(204/205)や非JSON(Content-Type)でも例外を投げずに null/テキスト包みを返す
  * - 通常の JSON は try/catch で安全に処理
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function safeParseJSON(res: Response): Promise<any | null> {
   const ct = res.headers.get('content-type') || '';
   if (res.status === 204 || res.status === 205) return null;
