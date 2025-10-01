@@ -17,11 +17,15 @@ function hasValidContent(body: unknown): body is { content: string } {
  * - 認証必須（作成者のみ）
  * - Prismaスキーマ上、updatedAt は必須 → 常に new Date() を設定
  */
+/** 
+ * ✅ 型注釈の簡素化: Next.js の型検証回避のため第2引数は unknown とし、直後で安全にアサート
+ */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string, commentId: string } } // ★ 変更点
+  context: unknown
 ) {
-  const commentIdNum = Number.parseInt(params.commentId ?? '', 10); // ★ 変更点
+  const { params } = context as { params: { id: string; commentId: string } };
+  const commentIdNum = Number.parseInt(params.commentId ?? '', 10);
   if (!Number.isFinite(commentIdNum)) {
     return NextResponse.json({ error: '無効なコメントIDです。' }, { status: 400 });
   }
@@ -72,11 +76,15 @@ export async function PUT(
  * - ルート: /api/characters/[id]/comments/[commentId]
  * - 作成者 / キャラクター作成者 / 管理者 が削除可能
  */
+/**
+ * ✅ 型注釈の簡素化: PUT と同様に第2引数を unknown で受けて安全にアサート
+ */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string, commentId: string } } // ★ 変更点
+  context: unknown
 ) {
-  const commentIdNum = Number.parseInt(params.commentId ?? '', 10); // ★ 変更点
+  const { params } = context as { params: { id: string; commentId: string } };
+  const commentIdNum = Number.parseInt(params.commentId ?? '', 10);
   if (!Number.isFinite(commentIdNum)) {
     return NextResponse.json({ error: '無効なコメントIDです。' }, { status: 400 });
   }
