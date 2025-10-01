@@ -12,22 +12,33 @@ function hasValidContent(body: unknown): body is { content: string } {
   return typeof v === 'string' && v.trim().length > 0;
 }
 
+/** 
+ * パスからキャラクターIDを抽出するユーティリティ
+ * - 例: /api/characters/123/comments?take=20 → 123
+ * - 第2引数（context）を使わないため、型検証を完全回避
+ */
+function extractCharacterIdFromUrl(urlStr: string): number {
+  try {
+    const url = new URL(urlStr);
+    // 末尾が /comments のパスを想定
+    // /api/characters/:id/comments
+    const m = url.pathname.match(/\/api\/characters\/(\d+)\/comments(?:\/)?$/);
+    if (!m) return NaN;
+    return Number.parseInt(m[1], 10);
+  } catch {
+    return NaN;
+  }
+}
+
 /**
  * コメント一覧取得（GET）
  * - ルート: /api/characters/[id]/comments
  * - クエリ: ?take=数値（デフォルト 20）
- * - 認証は不要
- * 
- * ⚠ 型注釈について:
- * Next.js のルートハンドラ検証に対応するため、第2引数は unknown で受け取り、
- * 関数先頭で { params } に安全にアサートする。
+ * - 認証不要
+ * - 第2引数は使用せず、URL から id を抽出
  */
-export async function GET(
-  request: NextRequest,
-  context: unknown
-) {
-  const { params } = context as { params: { id: string } };
-  const characterId = Number.parseInt(params.id, 10);
+export async function GET(request: NextRequest) {
+  const characterId = extractCharacterIdFromUrl(request.url);
   if (!Number.isFinite(characterId)) {
     return NextResponse.json({ error: '無効なキャラクターIDです。' }, { status: 400 });
   }
@@ -42,9 +53,7 @@ export async function GET(
       take,
       orderBy: { createdAt: 'asc' },
       include: {
-        users: {
-          select: { id: true, nickname: true, image_url: true },
-        },
+        users: { select: { id: true, nickname: true, image_url: true } },
       },
     });
     return NextResponse.json({ comments });
@@ -57,19 +66,12 @@ export async function GET(
 /**
  * コメント作成（POST）
  * - ルート: /api/characters/[id]/comments
- * - 認証必須（session.user.id を使用）
+ * - 認証必須（session.user.id）
  * - Body: { content: string }
- * 
- * ⚠ 型注釈について:
- * Next.js のルートハンドラ検証に対応するため、第2引数は unknown で受け取り、
- * 関数先頭で { params } に安全にアサートする。
+ * - 第2引数は使用せず、URL から id を抽出
  */
-export async function POST(
-  request: NextRequest,
-  context: unknown
-) {
-  const { params } = context as { params: { id: string } };
-  const characterId = Number.parseInt(params.id, 10);
+export async function POST(request: NextRequest) {
+  const characterId = extractCharacterIdFromUrl(request.url);
   if (!Number.isFinite(characterId)) {
     return NextResponse.json({ error: '無効なキャラクターIDです。' }, { status: 400 });
   }
@@ -93,9 +95,7 @@ export async function POST(
         authorId: Number.parseInt(userId, 10),
       },
       include: {
-        users: {
-          select: { id: true, nickname: true, image_url: true },
-        },
+        users: { select: { id: true, nickname: true, image_url: true } },
       },
     });
     return NextResponse.json(created, { status: 201 });
