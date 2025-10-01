@@ -1,9 +1,10 @@
+// ./src/app/api/characters/[id]/comments/route.ts
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
 
-/** Body 型: { content: string } を満たすか判定（更新用） */
+/** Body 型: { content: string } を満たすか判定（作成用） */
 function hasValidContent(body: unknown): body is { content: string } {
   if (!body || typeof body !== 'object') return false;
   if (!('content' in body)) return false;
@@ -12,115 +13,94 @@ function hasValidContent(body: unknown): body is { content: string } {
 }
 
 /**
- * コメント更新（PUT）
- * - ルート: /api/characters/[id]/comments/[commentId]
- * - 認証必須（作成者のみ）
- * - Prismaスキーマ上、updatedAt は必須 → 常に new Date() を設定
+ * コメント一覧取得（GET）
+ * - ルート: /api/characters/[id]/comments
+ * - クエリ: ?take=数値（デフォルト 20）
+ * - 認証は不要
+ * 
+ * ⚠ 型注釈について:
+ * Next.js のルートハンドラ検証に対応するため、第2引数は unknown で受け取り、
+ * 関数先頭で { params } に安全にアサートする。
  */
-/** 
- * ✅ 型注釈の簡素化: Next.js の型検証回避のため第2引数は unknown とし、直後で安全にアサート
- */
-export async function PUT(
+export async function GET(
   request: NextRequest,
   context: unknown
 ) {
-  const { params } = context as { params: { id: string; commentId: string } };
-  const commentIdNum = Number.parseInt(params.commentId ?? '', 10);
-  if (!Number.isFinite(commentIdNum)) {
-    return NextResponse.json({ error: '無効なコメントIDです。' }, { status: 400 });
+  const { params } = context as { params: { id: string } };
+  const characterId = Number.parseInt(params.id, 10);
+  if (!Number.isFinite(characterId)) {
+    return NextResponse.json({ error: '無効なキャラクターIDです。' }, { status: 400 });
   }
 
-  // ▼ 認証確認
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
-  }
-  const userIdNum = Number.parseInt(String(session.user.id), 10);
-
-  // ▼ リクエストボディ検証
-  const raw = (await request.json().catch(() => null)) as unknown;
-  if (!hasValidContent(raw)) {
-    return NextResponse.json({ error: 'コメント内容が必要です。' }, { status: 400 });
-  }
+  const url = new URL(request.url);
+  const takeRaw = url.searchParams.get('take');
+  const take = Number.isFinite(Number(takeRaw)) ? Number(takeRaw) : 20;
 
   try {
-    // ▼ コメント存在 & 権限確認
-    const comment = await prisma.comments.findUnique({
-      where: { id: commentIdNum },
-      select: { id: true, authorId: true },
-    });
-    if (!comment || comment.authorId !== userIdNum) {
-      return NextResponse.json({ error: 'コメントを更新する権限がありません。' }, { status: 403 });
-    }
-
-    const updated = await prisma.comments.update({
-      where: { id: commentIdNum },
-      data: {
-        content: raw.content.trim(),
-        updatedAt: new Date(), // ← 必須フィールド
-      },
+    const comments = await prisma.comments.findMany({
+      where: { characterId },
+      take,
+      orderBy: { createdAt: 'asc' },
       include: {
-        users: { select: { id: true, nickname: true, image_url: true } },
+        users: {
+          select: { id: true, nickname: true, image_url: true },
+        },
       },
     });
-
-    return NextResponse.json(updated, { status: 200 });
+    return NextResponse.json({ comments });
   } catch (error) {
-    console.error('コメント更新エラー:', error);
-    return NextResponse.json({ error: 'コメントの更新に失敗しました。' }, { status: 500 });
+    console.error('コメント一覧取得エラー:', error);
+    return NextResponse.json({ error: 'コメント一覧の取得に失敗しました。' }, { status: 500 });
   }
 }
 
 /**
- * コメント削除（DELETE）
- * - ルート: /api/characters/[id]/comments/[commentId]
- * - 作成者 / キャラクター作成者 / 管理者 が削除可能
+ * コメント作成（POST）
+ * - ルート: /api/characters/[id]/comments
+ * - 認証必須（session.user.id を使用）
+ * - Body: { content: string }
+ * 
+ * ⚠ 型注釈について:
+ * Next.js のルートハンドラ検証に対応するため、第2引数は unknown で受け取り、
+ * 関数先頭で { params } に安全にアサートする。
  */
-/**
- * ✅ 型注釈の簡素化: PUT と同様に第2引数を unknown で受けて安全にアサート
- */
-export async function DELETE(
+export async function POST(
   request: NextRequest,
   context: unknown
 ) {
-  const { params } = context as { params: { id: string; commentId: string } };
-  const commentIdNum = Number.parseInt(params.commentId ?? '', 10);
-  if (!Number.isFinite(commentIdNum)) {
-    return NextResponse.json({ error: '無効なコメントIDです。' }, { status: 400 });
+  const { params } = context as { params: { id: string } };
+  const characterId = Number.parseInt(params.id, 10);
+  if (!Number.isFinite(characterId)) {
+    return NextResponse.json({ error: '無効なキャラクターIDです。' }, { status: 400 });
   }
 
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const userId = (session?.user?.id ?? '').toString();
+  if (!userId) {
     return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
   }
-  const userIdNum = Number.parseInt(String(session.user.id), 10);
-  const userRole = (session.user as { role?: string }).role;
+
+  const raw = (await request.json().catch(() => null)) as unknown;
+  if (!hasValidContent(raw)) {
+    return NextResponse.json({ error: 'content は必須です。' }, { status: 400 });
+  }
 
   try {
-    const comment = await prisma.comments.findUnique({
-      where: { id: commentIdNum },
-      select: {
-        authorId: true,
-        characters: { select: { author_id: true } }, // キャラクター作成者
+    const created = await prisma.comments.create({
+      data: {
+        content: raw.content.trim(),
+        characterId,
+        authorId: Number.parseInt(userId, 10),
+      },
+      include: {
+        users: {
+          select: { id: true, nickname: true, image_url: true },
+        },
       },
     });
-
-    if (!comment) {
-      return NextResponse.json({ error: 'コメントが見つかりません。' }, { status: 404 });
-    }
-
-    const isCommentAuthor = comment.authorId === userIdNum;
-    const isCharacterAuthor = comment.characters?.author_id === userIdNum;
-    const isAdmin = userRole === 'CHAR_MANAGER' || userRole === 'SUPER_ADMIN';
-
-    if (!isCommentAuthor && !isCharacterAuthor && !isAdmin) {
-      return NextResponse.json({ error: 'コメントを削除する権限がありません。' }, { status: 403 });
-    }
-
-    await prisma.comments.delete({ where: { id: commentIdNum } });
-    return NextResponse.json({ message: 'コメントが削除されました。' }, { status: 200 });
+    return NextResponse.json(created, { status: 201 });
   } catch (error) {
-    console.error('コメント削除エラー:', error);
-    return NextResponse.json({ error: 'コメントの削除に失敗しました。' }, { status: 500 });
+    console.error('コメント作成エラー:', error);
+    return NextResponse.json({ error: 'コメントの作成に失敗しました。' }, { status: 500 });
   }
 }
