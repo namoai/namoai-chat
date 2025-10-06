@@ -5,9 +5,10 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from "@/lib/prisma";
 import { createClient } from '@supabase/supabase-js';
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { randomUUID } from 'crypto';
 
-// ▼▼▼【追加】インポート元と先の画像のデータ型を定義します ▼▼▼
+// --- ▼▼▼【修正】データ型を明確に定義します ▼▼▼ ---
 type SourceImageData = {
     imageUrl: string;
     keyword: string | null;
@@ -21,16 +22,82 @@ type NewImageData = {
     isMain: boolean;
     displayOrder: number;
 };
-// ▲▲▲【追加】ここまで ▲▲▲
 
-// ▼▼▼【追加】Lorebookのデータ型を定義します ▼▼▼
 type LorebookData = {
     content: string;
     keywords: string[];
 };
-// ▲▲▲【追加】ここまで ▲▲▲
+// --- ▲▲▲ 修正ここまで ▲▲▲ ---
 
-// URLからキャラクターIDを抽出するヘルパー関数
+
+// --- Google Secret Manager関連のコード ---
+async function ensureGcpCredsFile() {
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) return;
+    const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+    const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
+    if (!raw && !b64) return;
+
+    const fs = await import('node:fs/promises');
+    const path = '/tmp/gcp-sa.json';
+    const content = raw ?? Buffer.from(b64!, 'base64').toString('utf8');
+    await fs.writeFile(path, content, { encoding: 'utf8' });
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = path;
+}
+
+async function resolveGcpProjectId(): Promise<string> {
+    const envProject =
+        process.env.GCP_PROJECT_ID ||
+        process.env.GOOGLE_CLOUD_PROJECT ||
+        process.env.GOOGLE_PROJECT_ID;
+    if (envProject && envProject.trim().length > 0) return envProject.trim();
+
+    const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+    const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
+    try {
+        if (raw || b64) {
+            const jsonStr = raw ?? Buffer.from(b64!, 'base64').toString('utf8');
+            const parsed = JSON.parse(jsonStr);
+            if (typeof parsed?.project_id === 'string' && parsed.project_id) {
+                return parsed.project_id;
+            }
+        }
+    } catch { }
+
+    try {
+        const fs = await import('node:fs/promises');
+        const path = process.env.GOOGLE_APPLICATION_CREDENTIALS || '/tmp/gcp-sa.json';
+        const buf = await fs.readFile(path, { encoding: 'utf8' });
+        const parsed = JSON.parse(buf);
+        if (typeof parsed?.project_id === 'string' && parsed.project_id) {
+            return parsed.project_id;
+        }
+    } catch { }
+
+    throw new Error('GCP project id が存在しません');
+}
+
+async function loadSecret(name: string, version = 'latest') {
+    const projectId = await resolveGcpProjectId();
+    const client = new SecretManagerServiceClient({ fallback: true });
+    const [acc] = await client.accessSecretVersion({
+        name: `projects/${projectId}/secrets/${name}/versions/${version}`,
+    });
+    return acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
+}
+
+async function ensureSupabaseEnv() {
+    await ensureGcpCredsFile();
+
+    if (!process.env.SUPABASE_URL) {
+        process.env.SUPABASE_URL = await loadSecret('SUPABASE_URL');
+    }
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        process.env.SUPABASE_SERVICE_ROLE_KEY = await loadSecret('SUPABASE_SERVICE_ROLE_KEY');
+    }
+}
+// --- Google Secret Manager関連のコードここまで ---
+
+
 function getCharacterId(request: NextRequest): number | null {
     const url = new URL(request.url);
     const segments = url.pathname.split('/').filter(Boolean);
@@ -45,7 +112,6 @@ function getCharacterId(request: NextRequest): number | null {
     return null;
 }
 
-// POST: 既存のキャラクターに別のキャラクターデータを上書き（インポート） - 同期処理
 export async function POST(request: NextRequest) {
     console.log('[POST] /api/characters/[id]/import - 同期インポート処理開始');
 
@@ -61,6 +127,8 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+        await ensureSupabaseEnv();
+
         const sourceCharacterData = await request.json();
         const targetCharacter = await prisma.characters.findFirst({
             where: { id: targetCharacterId, author_id: currentUserId },
@@ -70,7 +138,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'キャラクターが見つからないか、権限がありません。' }, { status: 404 });
         }
         
-        // STEP 1: 画像のダウンロードと再アップロード
         const supabaseUrl = process.env.SUPABASE_URL;
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'characters';
@@ -80,34 +147,26 @@ export async function POST(request: NextRequest) {
         }
         const sb = createClient(supabaseUrl, serviceRoleKey);
 
-        // ▼▼▼【修正】'let'を'const'に変更し、'any[]'を上で定義した'NewImageData[]'型に変更します ▼▼▼
+        // --- ▼▼▼【修正】'let'を'const'に、'any[]'を'NewImageData[]'型に変更します ▼▼▼ ---
         const newImagesData: NewImageData[] = [];
-        // ▲▲▲【修正】ここまで ▲▲▲
+        // --- ▲▲▲ 修正ここまで ▲▲▲
         const imageCount = sourceCharacterData.characterImages?.length || 0;
-        console.log(`[IMPORT] コピー元の画像数: ${imageCount}枚`);
 
         if (imageCount > 0) {
-            // ▼▼▼【修正】ループ内の'img'に上で定義した'SourceImageData'型を適用します ▼▼▼
-            for (const [index, img] of sourceCharacterData.characterImages.entries() as [number, SourceImageData][]) {
-            // ▲▲▲【修正】ここまで ▲▲▲
-                console.log(`[IMPORT] 画像 ${index + 1}/${imageCount} の処理を開始: ${img.imageUrl}`);
+            // --- ▼▼▼【修正】ループ内の'img'に'SourceImageData'型を適用します ▼▼▼ ---
+            for (const img of sourceCharacterData.characterImages as SourceImageData[]) {
+            // --- ▲▲▲ 修正ここまで ▲▲▲
                 if (!img.imageUrl) continue;
 
-                // ▼▼▼【重要】相対URLを絶対URLに変換 ▼▼▼
                 let absoluteImageUrl = img.imageUrl;
                 if (absoluteImageUrl.startsWith('/')) {
                     const requestUrl = new URL(request.url);
                     absoluteImageUrl = `${requestUrl.protocol}//${requestUrl.host}${absoluteImageUrl}`;
-                    console.log(`[IMPORT] 相対URLを絶対URLに変換しました: ${absoluteImageUrl}`);
                 }
-                // ▲▲▲ 修正ここまで ▲▲▲
 
                 try {
-                    const response = await fetch(absoluteImageUrl); // 修正：絶対URLを使用
-                    if (!response.ok) {
-                        console.warn(`[IMPORT] 画像のフェッチに失敗: ${absoluteImageUrl}`);
-                        continue;
-                    };
+                    const response = await fetch(absoluteImageUrl);
+                    if (!response.ok) continue;
                     
                     const imageBuffer = await response.arrayBuffer();
                     const contentType = response.headers.get('content-type') || 'application/octet-stream';
@@ -129,9 +188,7 @@ export async function POST(request: NextRequest) {
                 }
             }
         }
-        console.log(`[IMPORT] ${newImagesData.length}枚の画像の処理が完了。DB更新を開始...`);
-
-        // STEP 2: データベースの更新
+        
         await prisma.$transaction(async (tx) => {
             await tx.character_images.deleteMany({ where: { characterId: targetCharacterId } });
             await tx.lorebooks.deleteMany({ where: { characterId: targetCharacterId } });
@@ -144,9 +201,9 @@ export async function POST(request: NextRequest) {
 
             if (Array.isArray(sourceCharacterData.lorebooks) && sourceCharacterData.lorebooks.length > 0) {
                 await tx.lorebooks.createMany({
-                    // ▼▼▼【修正】'lore'の型を'any'から上で定義した'LorebookData'型に変更します ▼▼▼
+                    // --- ▼▼▼【修正】'lore'の型を'LorebookData'型に変更します ▼▼▼ ---
                     data: sourceCharacterData.lorebooks.map((lore: LorebookData) => ({
-                    // ▲▲▲【修正】ここまで ▲▲▲
+                    // --- ▲▲▲ 修正ここまで ▲▲▲
                         characterId: targetCharacterId,
                         content: lore.content,
                         keywords: lore.keywords,
@@ -173,7 +230,6 @@ export async function POST(request: NextRequest) {
             });
         });
 
-        console.log(`[POST] キャラクターID ${targetCharacterId} のインポート成功`);
         return NextResponse.json({ message: "インポートに成功しました！" }, { status: 200 });
 
     } catch (error) {
@@ -182,3 +238,4 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: `インポート処理中にエラーが発生しました: ${errorMessage}` }, { status: 500 });
     }
 }
+
