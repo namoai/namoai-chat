@@ -22,6 +22,7 @@ async function safeParseJSON<T>(res: Response): Promise<T | null> {
   if (res.status === 204) return null;
   try { 
     return await res.json() as T;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (_error) { 
     return null; 
   }
@@ -250,6 +251,7 @@ export default function ChatPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ messageId: editingMessageId, newContent }),
         });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_error) {
         setRawMessages(rawMessages.map(m => m.id === editingMessageId ? { ...m, content: originalContent } : m));
         setModalState({ isOpen: true, title: "編集エラー", message: "メッセージの更新に失敗しました。", isAlert: true });
@@ -276,6 +278,7 @@ export default function ChatPage() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ messageId }),
                 });
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (_error) {
                 setRawMessages(originalMessages);
                 setModalState({ isOpen: true, title: "削除エラー", message: "削除に失敗しました。", isAlert: true });
@@ -413,6 +416,7 @@ export default function ChatPage() {
         onNewChat={() => { /* ロジックをここに実装 */ }}
         onSaveConversationAsTxt={() => { /* ロジックをここに実装 */ }}
         userNote={userNote}
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         onSaveNote={async (_note) => { /* ロジックをここに実装 */ }}
         characterId={characterId}
         chatId={chatId}
