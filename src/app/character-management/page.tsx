@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-// ▼▼▼【修正】Next.jsの機能を標準的なWeb APIに置き換えてビルドエラーを解消します ▼▼▼
 import {
   ArrowLeft,
   Plus,
@@ -12,11 +11,12 @@ import {
   Trash2,
   Copy,
   Upload,
+  Loader2, // ローディングアイコンを追加
 } from "lucide-react";
 
 // Buttonの仮コンポーネント
-const Button = ({ children, onClick, className }: { children: React.ReactNode, onClick: () => void, className?: string }) => (
-    <button onClick={onClick} className={className}>
+const Button = ({ children, onClick, className, disabled }: { children: React.ReactNode, onClick: () => void, className?: string, disabled?: boolean }) => (
+    <button onClick={onClick} className={className} disabled={disabled}>
         {children}
     </button>
 );
@@ -49,6 +49,7 @@ type CharacterDetail = Omit<CharacterSummary, "_count"> & {
   category: string | null;
   hashtags: string[];
   detailSetting: string | null;
+  lorebooks: any[];
 };
 
 // 確認モーダルのコンポーネント
@@ -115,7 +116,7 @@ const AlertModal = ({
         </p>
         <div className="flex justify-end gap-4">
           <Button onClick={onClose} className="bg-pink-500 hover:bg-pink-600 py-2 px-4 rounded-lg transition-colors">
-            閉じる
+            確認
           </Button>
         </div>
       </div>
@@ -185,6 +186,7 @@ const KebabMenu = ({
 export default function CharacterManagementPage() {
   const [characters, setCharacters] = useState<CharacterSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isImporting, setIsImporting] = useState(false); // ▼▼▼【追加】インポート処理中の状態管理 ▼▼▼
   const [activeTab, setActiveTab] = useState("全体");
   const [notification, setNotification] = useState<{
     message: string;
@@ -202,12 +204,13 @@ export default function CharacterManagementPage() {
     isOpen: false,
     title: "",
     message: "",
+    onClose: () => {},
   });
 
   const showNotification = useCallback(
     (message: string, type: "success" | "error" = "success") => {
       setNotification({ message, type });
-      setTimeout(() => setNotification(null), 3000);
+      setTimeout(() => setNotification(null), 5000);
     },
     []
   );
@@ -238,7 +241,6 @@ export default function CharacterManagementPage() {
   const handleMenuAction = async (action: string, char: CharacterSummary) => {
     switch (action) {
       case "edit":
-        // ▼▼▼【修正】router.push を window.location.href に変更します ▼▼▼
         window.location.href = `/characters/edit/${char.id}`;
         break;
       case "delete":
@@ -275,12 +277,14 @@ export default function CharacterManagementPage() {
           showNotification("エラー: コピーに失敗しました。", "error");
         }
         break;
+      // ▼▼▼【修正】インポート処理を同期的（ブロッキング）に変更します ▼▼▼
       case "import":
         if (!copiedCharacterData) {
           setAlertModal({
             isOpen: true,
             title: "エラー",
             message: "先に他のキャラクターを「コピー」してください。",
+            onClose: () => setAlertModal({ ...alertModal, isOpen: false }),
           });
           return;
         }
@@ -289,6 +293,8 @@ export default function CharacterManagementPage() {
           title: "キャラクターのインポート",
           message: `「${char.name}」にコピーした「${copiedCharacterData.name}」の情報を上書きしますか？`,
           onConfirm: async () => {
+            setConfirmModal({ ...confirmModal, isOpen: false });
+            setIsImporting(true); // ローディング開始
             try {
               const response = await fetch(
                 `/api/characters/${char.id}/import`,
@@ -298,20 +304,35 @@ export default function CharacterManagementPage() {
                   body: JSON.stringify(copiedCharacterData),
                 }
               );
-              if (!response.ok) throw new Error("インポートに失敗しました。");
-              showNotification(
-                "キャラクター情報をインポートしました。",
-                "success"
-              );
-              fetchCharacters();
+
+              if (!response.ok) {
+                const errorResult = await response.json();
+                throw new Error(errorResult.error || "インポートに失敗しました。");
+              }
+              
+              setAlertModal({
+                  isOpen: true,
+                  title: "成功",
+                  message: "インポートが完了しました！",
+                  onClose: () => window.location.reload(), // 確認後リロード
+              });
+
             } catch (error) {
               console.error(error);
-              showNotification("エラー: インポートに失敗しました。", "error");
+              const errorMessage = error instanceof Error ? error.message : "不明なエラーが発生しました。";
+              setAlertModal({
+                  isOpen: true,
+                  title: "エラー",
+                  message: `インポートに失敗しました。\n${errorMessage}`,
+                  onClose: () => setAlertModal({ ...alertModal, isOpen: false }),
+              });
+            } finally {
+              setIsImporting(false); // ローディング終了
             }
-            setConfirmModal({ ...confirmModal, isOpen: false });
           },
         });
         break;
+      // ▲▲▲【修正】ここまで ▲▲▲
       default:
         break;
     }
@@ -351,11 +372,21 @@ export default function CharacterManagementPage() {
 
   return (
     <div className="min-h-screen bg-black text-white p-4 font-sans max-w-4xl mx-auto">
+      {/* ▼▼▼【追加】インポート処理中のローディング画面 ▼▼▼ */}
+      {isImporting && (
+          <div className="fixed inset-0 bg-black bg-opacity-70 flex flex-col justify-center items-center z-50">
+              <Loader2 className="animate-spin text-pink-500 h-12 w-12 mb-4" />
+              <p className="text-white text-lg font-semibold">インポート処理中...</p>
+              <p className="text-gray-400">画像の枚数によって時間がかかる場合があります。</p>
+          </div>
+      )}
+      {/* ▲▲▲【追加】ここまで ▲▲▲ */}
+
       {notification && (
         <div
           className={`fixed top-5 left-1/2 -translate-x-1/2 ${
             notification.type === "success" ? "bg-green-500" : "bg-red-500"
-          } text-white px-4 py-2 rounded-lg shadow-lg z-50`}
+          } text-white px-4 py-2 rounded-lg shadow-lg z-50 whitespace-pre-wrap`}
         >
           {notification.message}
         </div>
@@ -369,13 +400,12 @@ export default function CharacterManagementPage() {
       />
       <AlertModal
         isOpen={alertModal.isOpen}
-        onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+        onClose={alertModal.onClose}
         title={alertModal.title}
         message={alertModal.message}
       />
 
       <header className="flex items-center justify-between py-4">
-        {/* ▼▼▼【修正】router.back() を window.history.back() に変更します ▼▼▼ */}
         <button
           onClick={() => window.history.back()}
           className="p-2 rounded-full hover:bg-gray-800"
@@ -383,7 +413,6 @@ export default function CharacterManagementPage() {
           <ArrowLeft size={24} />
         </button>
         <h1 className="text-lg font-bold">キャラクター管理</h1>
-        {/* ▼▼▼【修正】router.push を window.location.href に変更します ▼▼▼ */}
         <button
           onClick={() => window.location.href = "/characters/create"}
           className="p-2 rounded-full text-pink-500 hover:bg-gray-800"
@@ -415,9 +444,7 @@ export default function CharacterManagementPage() {
               key={char.id}
               className="bg-[#1C1C1E] p-3 rounded-lg flex items-center gap-4"
             >
-              {/* ▼▼▼【修正】Linkコンポーネントをaタグに変更します ▼▼▼ */}
-              <a href={`/characters/${char.id}`} className="flex-grow flex items-center gap-4 min-w-0">
-                {/* ▼▼▼【修正】Image を img に置換します ▼▼▼ */}
+              <a href={`/chat/${char.id}`} className="flex-grow flex items-center gap-4 min-w-0">
                 <img
                   src={
                     char.characterImages[0]?.imageUrl ||
@@ -444,12 +471,11 @@ export default function CharacterManagementPage() {
                 </div>
               </a>
               
-              {/* ▼▼▼【修正】router.push を window.location.href に変更します ▼▼▼ */}
               <button 
-                onClick={() => window.location.href = `/characters/${char.id}`}
+                onClick={() => window.location.href = `/chat/${char.id}`}
                 className="bg-pink-500 hover:bg-pink-600 transition-colors cursor-pointer text-white text-sm font-bold py-2 px-4 rounded-lg flex-shrink-0"
               >
-                キャラクタページ
+                チャット
               </button>
 
               <div className="flex-shrink-0">
@@ -467,3 +493,4 @@ export default function CharacterManagementPage() {
     </div>
   );
 }
+

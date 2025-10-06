@@ -5,110 +5,93 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
-
-  // ▼▼▼【追加】セーフティフィルターとブロック機能の共通ロジック ▼▼▼
-  let userSafetyFilter = true; 
-  if (currentUserId) {
-    const user = await prisma.users.findUnique({
-      where: { id: currentUserId },
-      select: { safetyFilter: true }
-    });
-    if (user && user.safetyFilter !== null) {
-      userSafetyFilter = user.safetyFilter;
-    }
-  }
-  const safetyWhereClause = userSafetyFilter ? { safetyFilter: true } : {};
-
-  let blockedAuthorIds: number[] = [];
-  if (currentUserId) {
-      const blocks = await prisma.block.findMany({
-          where: { blockerId: currentUserId },
-          select: { blockingId: true }
-      });
-      blockedAuthorIds = blocks.map(b => b.blockingId);
-  }
-  const blockWhereClause = { author_id: { notIn: blockedAuthorIds } };
-  // ▲▲▲【追加】共通ロジックここまで ▲▲▲
-
-  try {
-    // 1. いま話題のキャラクター
-    const trendingCharacters = await prisma.characters.findMany({
-      where: { ...safetyWhereClause, ...blockWhereClause }, // フィルターを適用
-      orderBy: [
-        { interactions: { _count: 'desc' } },
-        { favorites: { _count: 'desc' } }
-      ],
-      take: 10,
-      include: {
-        characterImages: { where: { isMain: true }, take: 1 },
-      },
-    });
-
-    // 2. ホットな新作TOP10
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const newTopCharacters = await prisma.characters.findMany({
-      where: {
-        ...safetyWhereClause,
-        ...blockWhereClause, // フィルターを適用
-        createdAt: {
-          gte: sevenDaysAgo,
+// 代表画像を取得する共通ヘルパー関数
+const getCharactersWithMainImage = async (where: any, orderBy: any, take: number) => {
+    const charactersRaw = await prisma.characters.findMany({
+        where,
+        orderBy,
+        take,
+        include: { 
+            characterImages: { 
+                orderBy: { displayOrder: 'asc' } 
+            } 
         },
-      },
-      orderBy: {
-        interactions: {
-          _count: 'desc',
-        },
-      },
-      take: 10,
-      include: {
-        characterImages: { where: { isMain: true }, take: 1 },
-      },
     });
-    
-    // 3. 注目のキャラクター（ランダム）
-    const filteredCharacterIds = await prisma.characters.findMany({
-        where: { ...safetyWhereClause, ...blockWhereClause }, // フィルターを適用
-        select: { id: true }
-    });
-    const shuffled = filteredCharacterIds.sort(() => 0.5 - Math.random());
-    const randomIds = shuffled.slice(0, 10).map(c => c.id);
 
-    const specialCharacters = await prisma.characters.findMany({
-        where: { id: { in: randomIds } }, // IDリストでの検索なのでブロックフィルターは不要
-        include: {
-            characterImages: { where: { isMain: true }, take: 1 },
+    // ▼▼▼【修正】各キャラクターの代表画像を1枚だけ選択するロジック ▼▼▼
+    return charactersRaw.map(char => {
+        // isMainフラグがtrueの画像を優先的に探す
+        let mainImage = char.characterImages.find(img => img.isMain);
+        
+        // isMainフラグの画像がない場合、表示順が一番最初の画像を選ぶ
+        if (!mainImage && char.characterImages.length > 0) {
+            mainImage = char.characterImages[0];
         }
-    });
 
-    // 4. 新規キャラクター紹介
-    const generalCharacters = await prisma.characters.findMany({
-      where: { ...safetyWhereClause, ...blockWhereClause }, // フィルターを適用
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: 10,
-      include: {
-        characterImages: { where: { isMain: true }, take: 1 },
-      }
+        return {
+            ...char,
+            // characterImages配列を、見つかった代表画像1枚のみに置き換える
+            // 画像が一つもない場合は空の配列になり、フロントエンドでプレースホルダーが表示される
+            characterImages: mainImage ? [mainImage] : [],
+        };
     });
+    // ▲▲▲ 修正ここまで ▲▲▲
+};
 
-    return NextResponse.json({
-      trendingCharacters,
-      newTopCharacters,
-      specialCharacters,
-      generalCharacters,
-    });
 
-  } catch (error) {
-    console.error("メインページデータの取得エラー:", error);
-    return NextResponse.json(
-      { error: "データの取得に失敗しました。" },
-      { status: 500 }
-    );
-  }
+export async function GET() {
+    const session = await getServerSession(authOptions);
+    const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
+
+    let userSafetyFilter = true;
+    if (currentUserId) {
+        const user = await prisma.users.findUnique({
+            where: { id: currentUserId },
+            select: { safetyFilter: true }
+        });
+        if (user && user.safetyFilter !== null) {
+            userSafetyFilter = user.safetyFilter;
+        }
+    }
+    const safetyWhereClause = userSafetyFilter ? { safetyFilter: true } : {};
+
+    let blockedAuthorIds: number[] = [];
+    if (currentUserId) {
+        const blocks = await prisma.block.findMany({
+            where: { blockerId: currentUserId },
+            select: { blockingId: true }
+        });
+        blockedAuthorIds = blocks.map(b => b.blockingId);
+    }
+    const blockWhereClause = { author_id: { notIn: blockedAuthorIds } };
+
+    const publicOnlyWhereClause = { visibility: 'public' };
+
+    try {
+        const baseWhere = { ...publicOnlyWhereClause, ...safetyWhereClause, ...blockWhereClause };
+
+        const trendingCharacters = await getCharactersWithMainImage(baseWhere, [{ chat: { _count: 'desc' } }, { favorites: { _count: 'desc' } }], 10);
+        
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const newTopCharacters = await getCharactersWithMainImage({ ...baseWhere, createdAt: { gte: sevenDaysAgo } }, { chat: { _count: 'desc' } }, 10);
+
+        const filteredCharacterIds = await prisma.characters.findMany({ where: baseWhere, select: { id: true } });
+        const shuffled = filteredCharacterIds.sort(() => 0.5 - Math.random());
+        const randomIds = shuffled.slice(0, 10).map(c => c.id);
+        const specialCharacters = await getCharactersWithMainImage({ id: { in: randomIds } }, { createdAt: 'desc' }, 10);
+
+        const generalCharacters = await getCharactersWithMainImage(baseWhere, { createdAt: 'desc' }, 10);
+
+        return NextResponse.json({
+            trendingCharacters,
+            newTopCharacters,
+            specialCharacters,
+            generalCharacters,
+        });
+
+    } catch (error) {
+        console.error("メインページデータの取得エラー:", error);
+        return NextResponse.json({ error: "データの取得に失敗しました。" }, { status: 500 });
+    }
 }

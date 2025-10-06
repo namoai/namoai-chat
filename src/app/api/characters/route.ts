@@ -5,357 +5,381 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { createClient } from '@supabase/supabase-js';
-// ★追加: GSM を使うためのクライアントをインポート
-import { SecretManagerServiceClient } from '@google-cloud/secret-manager'; // ← 追加
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+import { randomUUID } from 'crypto';
 
-// ▼▼▼【新規追加】ロアブックの型定義
 type LorebookData = {
-  content: string;
-  keywords: string[];
+    content: string;
+    keywords: string[];
 };
 
-// ★追加 ───────────────────────────────────────────────────────────────
-//  ランタイムで GCP サービスアカウント認証ファイルを保証
-//  - Netlify/Vercel 等では SA JSON を BASE64/JSON の環境変数で渡し、/tmp に復元します
-// ───────────────────────────────────────────────────────────────
+// GCPサービスアカウント認証ファイルを保証する関数
 async function ensureGcpCredsFile() {
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) return;
-  const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-  const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
-  if (!raw && !b64) return; // 認証ファイルを用いない構成の場合はスキップ
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) return;
+    const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+    const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
+    if (!raw && !b64) return;
 
-  const fs = await import('node:fs/promises');
-  const path = '/tmp/gcp-sa.json';
-  const content = raw ?? Buffer.from(b64!, 'base64').toString('utf8');
-  // ★修正: encoding をオブジェクト形式で指定することで型エラーを解消
-  await fs.writeFile(path, content, { encoding: 'utf8' });
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = path;
-}
-
-// ★追加 ───────────────────────────────────────────────────────────────
-//  GCP プロジェクト ID を解決
-//  - 1) 環境変数: GCP_PROJECT_ID / GOOGLE_CLOUD_PROJECT / GOOGLE_PROJECT_ID
-//  - 2) SA JSON（ENV の JSON/BASE64）から project_id を抽出
-//  - 3) /tmp の SA ファイルから project_id を抽出
-// ───────────────────────────────────────────────────────────────
-async function resolveGcpProjectId(): Promise<string> {
-  // 1) ENV 優先
-  const envProject =
-    process.env.GCP_PROJECT_ID ||
-    process.env.GOOGLE_CLOUD_PROJECT ||
-    process.env.GOOGLE_PROJECT_ID; // ← Netlify のキーにも対応
-  if (envProject && envProject.trim().length > 0) return envProject.trim();
-
-  // 2) ENV に SA JSON がある場合はそこから取得
-  const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-  const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
-  try {
-    if (raw || b64) {
-      const jsonStr = raw ?? Buffer.from(b64!, 'base64').toString('utf8');
-      const parsed = JSON.parse(jsonStr);
-      if (typeof parsed?.project_id === 'string' && parsed.project_id) {
-        return parsed.project_id;
-      }
-    }
-  } catch {}
-
-  // 3) /tmp の SA ファイル（ensureGcpCredsFile 済み前提）から取得
-  try {
     const fs = await import('node:fs/promises');
-    const path = process.env.GOOGLE_APPLICATION_CREDENTIALS || '/tmp/gcp-sa.json';
-    const buf = await fs.readFile(path, { encoding: 'utf8' });
-    const parsed = JSON.parse(buf);
-    if (typeof parsed?.project_id === 'string' && parsed.project_id) {
-      return parsed.project_id;
-    }
-  } catch {}
-
-  throw new Error('GCP project id が存在しません');
+    const path = '/tmp/gcp-sa.json';
+    const content = raw ?? Buffer.from(b64!, 'base64').toString('utf8');
+    await fs.writeFile(path, content, { encoding: 'utf8' });
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = path;
 }
 
-// ★追加 ───────────────────────────────────────────────────────────────
-//  Secret Manager からシークレットを取得
-//  - resolveGcpProjectId() でプロジェクト ID を解決
-//  - Uint8Array → Buffer 経由で UTF-8 文字列化（TS2554 回避）
-// ───────────────────────────────────────────────────────────────
+// GCPプロジェクトIDを解決する関数
+async function resolveGcpProjectId(): Promise<string> {
+    const envProject =
+        process.env.GCP_PROJECT_ID ||
+        process.env.GOOGLE_CLOUD_PROJECT ||
+        process.env.GOOGLE_PROJECT_ID;
+    if (envProject && envProject.trim().length > 0) return envProject.trim();
+
+    const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+    const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
+    try {
+        if (raw || b64) {
+            const jsonStr = raw ?? Buffer.from(b64!, 'base64').toString('utf8');
+            const parsed = JSON.parse(jsonStr);
+            if (typeof parsed?.project_id === 'string' && parsed.project_id) {
+                return parsed.project_id;
+            }
+        }
+    } catch { }
+
+    try {
+        const fs = await import('node:fs/promises');
+        const path = process.env.GOOGLE_APPLICATION_CREDENTIALS || '/tmp/gcp-sa.json';
+        const buf = await fs.readFile(path, { encoding: 'utf8' });
+        const parsed = JSON.parse(buf);
+        if (typeof parsed?.project_id === 'string' && parsed.project_id) {
+            return parsed.project_id;
+        }
+    } catch { }
+
+    throw new Error('GCP project id が存在しません');
+}
+
+// Secret Managerからシークレットを取得する関数
 async function loadSecret(name: string, version = 'latest') {
-  const projectId = await resolveGcpProjectId();
-  const client = new SecretManagerServiceClient({ fallback: true });
-  const [acc] = await client.accessSecretVersion({
-    name: `projects/${projectId}/secrets/${name}/versions/${version}`,
-  });
-  return acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
+    const projectId = await resolveGcpProjectId();
+    const client = new SecretManagerServiceClient({ fallback: true });
+    const [acc] = await client.accessSecretVersion({
+        name: `projects/${projectId}/secrets/${name}/versions/${version}`,
+    });
+    return acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
 }
 
-// ★追加 ───────────────────────────────────────────────────────────────
-//  Supabase 関連の環境変数をランタイムで補完
-//  - 既に存在していれば変更しません（安全性のため）
-// ───────────────────────────────────────────────────────────────
+// Supabase関連の環境変数を補完する関数
 async function ensureSupabaseEnv() {
-  await ensureGcpCredsFile();
+    await ensureGcpCredsFile();
 
-  if (!process.env.SUPABASE_URL) {
-    process.env.SUPABASE_URL = await loadSecret('SUPABASE_URL');
-  }
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    process.env.SUPABASE_SERVICE_ROLE_KEY = await loadSecret('SUPABASE_SERVICE_ROLE_KEY');
-  }
+    if (!process.env.SUPABASE_URL) {
+        process.env.SUPABASE_URL = await loadSecret('SUPABASE_URL');
+    }
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        process.env.SUPABASE_SERVICE_ROLE_KEY = await loadSecret('SUPABASE_SERVICE_ROLE_KEY');
+    }
 
-  // 値そのものは出力せず、存在フラグだけログに出す（機密情報の露出防止）
-  console.info('[diag] has SUPABASE_URL?', !!process.env.SUPABASE_URL);
-  console.info('[diag] has SUPABASE_SERVICE_ROLE_KEY?', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+    console.info('[diag] has SUPABASE_URL?', !!process.env.SUPABASE_URL);
+    console.info('[diag] has SUPABASE_SERVICE_ROLE_KEY?', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
 type ImageMetaData = {
-  url: string;
-  keyword: string;
-  isMain: boolean;
-  displayOrder: number;
+    url: string;
+    keyword: string;
+    isMain: boolean;
+    displayOrder: number;
 };
 
-// ▼▼▼【修正】where句の型を定義し、'any'タイプエラーを解消
-interface CharactersWhereClause {
-  visibility?: 'public';
-  author_id?: number | { notIn: number[] };
-}
-
-// GET: ユーザーが作成した、または公開されているキャラクターの一覧を取得します
+// GET: キャラクターリストを取得
 export async function GET(request: Request) {
-  console.log('[GET] キャラクター一覧取得開始');
-  const session = await getServerSession(authOptions);
-  const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
+    console.log('[GET] キャラクター一覧取得開始');
+    const session = await getServerSession(authOptions);
+    const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
 
-  try {
-    const { searchParams } = new URL(request.url);
-    const mode = searchParams.get('mode'); // 'my' or other values for different lists
-    
-    let whereClause: CharactersWhereClause = {
-        visibility: 'public', // デフォルトは公開キャラクター
-    };
-
-    // ▼▼▼【追加】ブロックしている作者のIDリストを取得します ▼▼▼
-    let blockedAuthorIds: number[] = [];
-    if (currentUserId) {
-        const blocks = await prisma.block.findMany({
-            where: { blockerId: currentUserId },
-            select: { blockingId: true }
-        });
-        blockedAuthorIds = blocks.map(b => b.blockingId);
-        
-        // ブロックした作者を除外する条件を追加
-        whereClause.author_id = {
-            notIn: blockedAuthorIds,
-        };
-    }
-    
-    // もし'my'モードなら、自分のキャラクターのみを取得するように条件を上書き
-    if (mode === 'my' && currentUserId) {
-        whereClause = { author_id: currentUserId };
-    }
-
-    const characters = await prisma.characters.findMany({
-      where: whereClause,
-      orderBy: { createdAt: 'desc' }, // 例: 新着順
-      include: {
-        characterImages: {
-          orderBy: { displayOrder: 'asc' },
-          where: { isMain: true },
-          take: 1,
-        },
-        _count: {
-          select: { favorites: true, chat: true },
-        },
-      },
-      take: 20 // 例: 20件取得
-    });
-
-    console.log(`[GET] キャラクター取得件数: ${characters.length}`);
-    return NextResponse.json(characters);
-  } catch (error) {
-    console.error('[GET] キャラクターリスト取得エラー:', error);
-    return NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });
-  }
-}
-
-
-// POST: 新しいキャラクターを作成します
-export async function POST(request: Request) {
-  console.log('[POST] キャラクター作成処理開始');
-  try {
-    // ★挿入: ランタイムでシークレットを補完（ここを最初に実行）
-    await ensureSupabaseEnv(); // ← 追加（既存ロジックの前段で実行）
-
-    const formData = await request.formData();
-    console.log('[POST] formData 受信成功');
-    
-    // ▼▼▼【新規追加】ロアブックと追加情報をフォームデータからパースします
-    const lorebooksString = formData.get('lorebooks') as string;
-    const lorebooks: LorebookData[] = lorebooksString ? JSON.parse(lorebooksString) : [];
-    const firstSituationDate = formData.get('firstSituationDate') as string;
-    const firstSituationPlace = formData.get('firstSituationPlace') as string;
-    
-    const userIdString = formData.get('userId') as string;
-    console.log(`[POST] userId: ${userIdString}`);
-
-    const name = (formData.get('name') as string) || '';
-    console.log(`[POST] キャラクター名: ${name}`);
-
-    const description = (formData.get('description') as string) || '';
-    const category = (formData.get('category') as string) || '';
-    const hashtagsString = (formData.get('hashtags') as string) || '[]';
-    const visibility = (formData.get('visibility') as string) || 'public';
-    const safetyFilterString = (formData.get('safetyFilter') as string) || 'true';
-    const systemTemplate = (formData.get('systemTemplate') as string) || '';
-    const detailSetting = (formData.get('detailSetting') as string) || '';
-    const firstSituation = (formData.get('firstSituation') as string) || '';
-    const firstMessage = (formData.get('firstMessage') as string) || '';
-
-    if (!userIdString) {
-      console.warn('[POST] 認証情報なし');
-      return NextResponse.json({ message: '認証情報が見つかりません。再度ログインしてください。' }, { status: 401 });
-    }
-    const userId = parseInt(userIdString, 10);
-    if (isNaN(userId)) {
-      console.warn('[POST] 無効なユーザーID');
-      return NextResponse.json({ message: '無効なユーザーIDです。' }, { status: 400 });
-    }
-
-    if (!name.trim()) {
-      console.warn('[POST] キャラクター名未入力');
-      return NextResponse.json({ message: 'キャラクターの名前は必須項目です。' }, { status: 400 });
-    }
-
-    const safetyFilter = safetyFilterString === 'true';
-    let hashtags: string[] = [];
     try {
-      hashtags = JSON.parse(hashtagsString);
-    } catch {
-      console.warn('[POST] ハッシュタグJSON解析失敗');
-      hashtags = [];
-    }
+        const { searchParams } = new URL(request.url);
+        const mode = searchParams.get('mode');
 
-    const imageCountString = formData.get('imageCount') as string;
-    const imageCount = imageCountString ? parseInt(imageCountString, 10) : 0;
-    console.log(`[POST] 画像枚数: ${imageCount}`);
+        let whereClause: any = {};
 
-    const supabaseUrl = process.env.SUPABASE_URL!;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'characters';
-    if (!supabaseUrl || !serviceRoleKey) {
-      console.error('[POST] 環境変数不足: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
-      return NextResponse.json({ message: 'サーバー設定エラー（Storage接続情報不足）' }, { status: 500 });
-    }
-    console.log(`[POST] Supabase接続先: ${supabaseUrl}, バケット: ${bucket}`);
-    const sb = createClient(supabaseUrl, serviceRoleKey);
+        let blockedAuthorIds: number[] = [];
+        if (currentUserId) {
+            const blocks = await prisma.block.findMany({
+                where: { blockerId: currentUserId },
+                select: { blockingId: true }
+            });
+            blockedAuthorIds = blocks.map(b => b.blockingId);
+        }
 
-    const imageMetas: ImageMetaData[] = [];
+        if (mode === 'my' && currentUserId) {
+            whereClause.author_id = currentUserId;
+        } else {
+            const publicCondition = { visibility: 'public' };
+            if (currentUserId) {
+                whereClause.OR = [
+                    publicCondition,
+                    { author_id: currentUserId }
+                ];
+            } else {
+                whereClause = publicCondition;
+            }
 
-    for (let i = 0; i < imageCount; i++) {
-      console.log(`[POST] 画像処理開始: index=${i}`);
-      const file = formData.get(`image_${i}`) as File | null;
-      const keyword = (formData.get(`keyword_${i}`) as string) || '';
-      if (!file || file.size === 0) {
-        console.warn(`[POST] ファイルなし: index=${i}`);
-        continue;
-      }
+            if (blockedAuthorIds.length > 0) {
+                whereClause.author_id = {
+                    ...whereClause.author_id,
+                    notIn: blockedAuthorIds,
+                };
+            }
+        }
 
-      const ext = (file.type?.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '');
-      const safeName = (file.name || `image.${ext}`).replace(/\s/g, '_');
-      const objectKey = `uploads/${Date.now()}-${i}-${safeName}`;
-      console.log(`[POST] アップロードキー: ${objectKey}`);
-
-      const arrayBuffer = await file.arrayBuffer();
-      console.log(`[POST] ファイルサイズ: ${arrayBuffer.byteLength} bytes`);
-
-      const { error: uploadErr } = await sb.storage
-        .from(bucket)
-        .upload(objectKey, Buffer.from(arrayBuffer), {
-          contentType: file.type || 'application/octet-stream',
-          upsert: false,
+        const charactersRaw = await prisma.characters.findMany({
+            where: whereClause,
+            orderBy: { createdAt: 'desc' },
+            include: {
+                characterImages: {
+                    orderBy: { displayOrder: 'asc' },
+                },
+                _count: {
+                    select: { favorites: true, chat: true },
+                },
+            },
+            take: 20
         });
 
-      if (uploadErr) {
-        console.error(`[POST] Supabaseアップロード失敗(index=${i}):`, uploadErr);
-        return NextResponse.json({ message: '画像アップロードに失敗しました。' }, { status: 500 });
-      }
-
-      const { data: pub } = sb.storage.from(bucket).getPublicUrl(objectKey);
-      const imageUrl = pub.publicUrl;
-      console.log(`[POST] 公開URL: ${imageUrl}`);
-
-      imageMetas.push({
-        url: imageUrl,
-        keyword,
-        isMain: i === 0,
-        displayOrder: i,
-      });
-    }
-
-    // ▼▼▼【修正】characterDataにロアブック関連のフィールドを追加します
-    const characterData = {
-      name,
-      description,
-      systemTemplate,
-      firstSituation,
-      firstMessage,
-      visibility,
-      safetyFilter,
-      category,
-      hashtags,
-      detailSetting,
-      firstSituationDate: firstSituationDate ? new Date(firstSituationDate) : null,
-      firstSituationPlace: firstSituationPlace,
-      author: {
-        connect: { id: userId },
-      },
-    };
-
-    console.log('[POST] DBトランザクション開始');
-    const newCharacter = await prisma.$transaction(async (tx) => {
-      // 1. キャラクター本体を作成
-      const character = await tx.characters.create({ data: characterData });
-
-      // 2. 画像メタデータを保存
-      if (imageMetas.length > 0) {
-        await tx.character_images.createMany({
-          data: imageMetas.map((meta) => ({
-            characterId: character.id,
-            imageUrl: meta.url,
-            keyword: meta.keyword,
-            isMain: meta.isMain,
-            displayOrder: meta.displayOrder,
-          })),
+        // ▼▼▼【修正】代表画像処理のロジックを改善 ▼▼▼
+        const characters = charactersRaw.map(char => {
+            let mainImage = char.characterImages.find(img => img.isMain);
+            if (!mainImage && char.characterImages.length > 0) {
+                mainImage = char.characterImages[0];
+            }
+            return {
+                ...char,
+                characterImages: mainImage ? [mainImage] : [],
+            };
         });
-      }
-      
-      // 3. ▼▼▼【新規追加】ロアブックデータを保存
-      if (lorebooks.length > 0) {
-          await tx.lorebooks.createMany({
-              data: lorebooks.map(lore => ({
-                  content: lore.content,
-                  keywords: lore.keywords,
-                  characterId: character.id,
-              }))
-          });
-      }
+        // ▲▲▲ 修正ここまで ▲▲▲
 
-      // 4. 最終的なキャラクターデータを取得
-      return await tx.characters.findUnique({
-        where: { id: character.id },
-        include: { characterImages: true, lorebooks: true }, // ロアブックも含む
-      });
-    });
-
-    console.log('[POST] キャラクター作成成功');
-    return NextResponse.json(
-      { message: 'キャラクターの作成に成功しました！', character: newCharacter },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error('--- ❌ [POST] 致命的エラー:', error);
-    return NextResponse.json(
-      { message: error instanceof Error ? error.message : '不明なサーバーエラーが発生しました' },
-      { status: 500 }
-    );
-  }
+        console.log(`[GET] キャラクター取得件数: ${characters.length}`);
+        return NextResponse.json(characters);
+    } catch (error) {
+        console.error('[GET] キャラクターリスト取得エラー:', error);
+        return NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });
+    }
 }
+
+
+// POST: 新しいキャラクターを作成
+export async function POST(request: Request) {
+    console.log('[POST] キャラクター作成処理開始');
+    try {
+        await ensureSupabaseEnv();
+
+        const contentType = request.headers.get("content-type") || "";
+
+        // JSONインポートの場合
+        if (contentType.includes("application/json")) {
+            const data = await request.json();
+            const { userId, characterData: sourceCharacter } = data;
+
+            if (!userId) {
+                return NextResponse.json({ message: '認証情報が見つかりません。' }, { status: 401 });
+            }
+
+            const newCharacter = await prisma.$transaction(async (tx) => {
+                const character = await tx.characters.create({
+                    data: {
+                        name: `${sourceCharacter.name} (コピー)`,
+                        description: sourceCharacter.description,
+                        systemTemplate: sourceCharacter.systemTemplate,
+                        firstSituation: sourceCharacter.firstSituation,
+                        firstMessage: sourceCharacter.firstMessage,
+                        visibility: sourceCharacter.visibility,
+                        safetyFilter: sourceCharacter.safetyFilter,
+                        category: sourceCharacter.category,
+                        hashtags: sourceCharacter.hashtags,
+                        detailSetting: sourceCharacter.detailSetting,
+                        author: { connect: { id: parseInt(userId, 10) } },
+                    }
+                });
+
+                if (sourceCharacter.characterImages && sourceCharacter.characterImages.length > 0) {
+                    await tx.character_images.createMany({
+                        data: sourceCharacter.characterImages.map((img: any) => ({
+                            characterId: character.id,
+                            imageUrl: img.imageUrl,
+                            keyword: img.keyword,
+                            isMain: img.isMain,
+                            displayOrder: img.displayOrder,
+                        }))
+                    });
+                }
+
+                if (sourceCharacter.lorebooks && sourceCharacter.lorebooks.length > 0) {
+                    await tx.lorebooks.createMany({
+                        data: sourceCharacter.lorebooks.map((lore: any) => ({
+                            characterId: character.id,
+                            content: lore.content,
+                            keywords: lore.keywords,
+                        }))
+                    });
+                }
+
+                return character;
+            });
+            return NextResponse.json({ message: 'キャラクターのインポートに成功しました！', character: newCharacter }, { status: 201 });
+        }
+
+        // FormData（通常作成）の場合
+        const formData = await request.formData();
+        console.log('[POST] formData 受信成功');
+
+        const lorebooksString = formData.get('lorebooks') as string;
+        const lorebooks: LorebookData[] = lorebooksString ? JSON.parse(lorebooksString) : [];
+        const firstSituationDate = formData.get('firstSituationDate') as string;
+        const firstSituationPlace = formData.get('firstSituationPlace') as string;
+
+        const userIdString = formData.get('userId') as string;
+        const name = (formData.get('name') as string) || '';
+        const description = (formData.get('description') as string) || '';
+        const category = (formData.get('category') as string) || '';
+        const hashtagsString = (formData.get('hashtags') as string) || '[]';
+        const visibility = (formData.get('visibility') as string) || 'public';
+        const safetyFilterString = (formData.get('safetyFilter') as string) || 'true';
+        const systemTemplate = (formData.get('systemTemplate') as string) || '';
+        const detailSetting = (formData.get('detailSetting') as string) || '';
+        const firstSituation = (formData.get('firstSituation') as string) || '';
+        const firstMessage = (formData.get('firstMessage') as string) || '';
+
+        if (!userIdString) {
+            return NextResponse.json({ message: '認証情報が見つかりません。再度ログインしてください。' }, { status: 401 });
+        }
+        const userId = parseInt(userIdString, 10);
+        if (isNaN(userId)) {
+            return NextResponse.json({ message: '無効なユーザーIDです。' }, { status: 400 });
+        }
+        if (!name.trim()) {
+            return NextResponse.json({ message: 'キャラクターの名前は必須項目です。' }, { status: 400 });
+        }
+
+        const safetyFilter = safetyFilterString === 'true';
+        let hashtags: string[] = [];
+        try {
+            hashtags = JSON.parse(hashtagsString);
+        } catch {
+            hashtags = [];
+        }
+
+        const imageCountString = formData.get('imageCount') as string;
+        const imageCount = imageCountString ? parseInt(imageCountString, 10) : 0;
+
+        const supabaseUrl = process.env.SUPABASE_URL!;
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+        const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'characters';
+        if (!supabaseUrl || !serviceRoleKey) {
+            return NextResponse.json({ message: 'サーバー設定エラー（Storage接続情報不足）' }, { status: 500 });
+        }
+        const sb = createClient(supabaseUrl, serviceRoleKey);
+
+        const imageMetas: ImageMetaData[] = [];
+
+        for (let i = 0; i < imageCount; i++) {
+            const file = formData.get(`image_${i}`) as File | null;
+            const keyword = (formData.get(`keyword_${i}`) as string) || '';
+            if (!file || file.size === 0) {
+                continue;
+            }
+
+            const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'png';
+            const safeFileName = `${randomUUID()}.${fileExtension}`;
+            const objectKey = `uploads/${safeFileName}`;
+
+            const arrayBuffer = await file.arrayBuffer();
+
+            const { error: uploadErr } = await sb.storage
+                .from(bucket)
+                .upload(objectKey, Buffer.from(arrayBuffer), {
+                    contentType: file.type || 'application/octet-stream',
+                    upsert: false,
+                });
+
+            if (uploadErr) {
+                console.error(`[POST] Supabaseアップロード失敗(index=${i}):`, uploadErr);
+                return NextResponse.json({ message: '画像アップロードに失敗しました。' }, { status: 500 });
+            }
+
+            const { data: pub } = sb.storage.from(bucket).getPublicUrl(objectKey);
+            const imageUrl = pub.publicUrl;
+
+            imageMetas.push({
+                url: imageUrl,
+                keyword,
+                isMain: i === 0,
+                displayOrder: i,
+            });
+        }
+
+        const characterData = {
+            name,
+            description,
+            systemTemplate,
+            firstSituation,
+            firstMessage,
+            visibility,
+            safetyFilter,
+            category,
+            hashtags,
+            detailSetting,
+            firstSituationDate: firstSituationDate ? new Date(firstSituationDate) : null,
+            firstSituationPlace: firstSituationPlace,
+            author: {
+                connect: { id: userId },
+            },
+        };
+
+        const newCharacter = await prisma.$transaction(async (tx) => {
+            const character = await tx.characters.create({ data: characterData });
+
+            if (imageMetas.length > 0) {
+                await tx.character_images.createMany({
+                    data: imageMetas.map((meta) => ({
+                        characterId: character.id,
+                        imageUrl: meta.url,
+                        keyword: meta.keyword,
+                        isMain: meta.isMain,
+                        displayOrder: meta.displayOrder,
+                    })),
+                });
+            }
+
+            if (lorebooks.length > 0) {
+                await tx.lorebooks.createMany({
+                    data: lorebooks.map(lore => ({
+                        content: lore.content,
+                        keywords: lore.keywords,
+                        characterId: character.id,
+                    }))
+                });
+            }
+
+            return await tx.characters.findUnique({
+                where: { id: character.id },
+                include: { characterImages: true, lorebooks: true },
+            });
+        });
+
+        console.log('[POST] キャラクター作成成功');
+        return NextResponse.json(
+            { message: 'キャラクターの作成に成功しました！', character: newCharacter },
+            { status: 201 }
+        );
+    } catch (error) {
+        console.error('--- ❌ [POST] 致命的エラー:', error);
+        return NextResponse.json(
+            { message: error instanceof Error ? error.message : '不明なサーバーエラーが発生しました' },
+            { status: 500 }
+        );
+    }
+}
+

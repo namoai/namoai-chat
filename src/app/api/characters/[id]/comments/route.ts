@@ -1,3 +1,5 @@
+export const runtime = 'nodejs';
+
 // ./src/app/api/characters/[id]/comments/route.ts
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';

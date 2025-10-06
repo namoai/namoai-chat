@@ -1,93 +1,96 @@
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/nextauth';
-import { prisma } from '@/lib/prisma';
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/nextauth";
+import { prisma } from "@/lib/prisma";
 
 /**
  * POST /api/chats/find-or-create
  * Body:
- *  - characterId: number (必須)
- *  - chatId?: number
- *  - forceNew?: boolean
+ *  - chatId?: number            ← 있으면 이것만으로 조회 (소유자 검증)
+ *  - characterId?: number       ← 없으면 chatId 필요
+ *  - forceNew?: boolean         ← true면 characterId로 무조건 새로 생성
  *
  * ポリシー:
- *  - forceNew=true の場合は常に新規作成
- *  - chatId が指定されていれば、そのチャットのみ返却（所有者チェック込み）
- *  - 上記以外は「同一ユーザ×同一キャラの最新」を返却し、無ければ新規作成
+ *  - chatId があれば最優先でそのチャットのみ返却（所有者チェック込み）
+ *  - forceNew=true なら characterId で常に新規作成
+ *  - それ以外は「同一ユーザ×同一キャラの最新(createdAt desc, id desc)」を返却し、無ければ新規作成
  *
- * 備考:
- *  - Prisma の型が unchecked create にマッチしており、updatedAt が必須になっているため
- *    data に createdAt/updatedAt を明示的に指定してエラーを回避する。
- *  - スキーマ側で `updatedAt @updatedAt`／`createdAt @default(now())` を設定すれば
- *    本来この指定は不要になる（将来的にスキーマ修正を推奨）。
+ * 安定化ポイント:
+ *  - 最新選択は createdAt desc, id desc（タイムスタンプ被り時のブレ回避）
+ *  - chat_message は asc 固定
  */
 export async function POST(req: Request) {
   try {
     // --- 認証チェック ---
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const userId = Number(session.user.id);
 
     // --- 入力 ---
-    const body = await req.json();
-    const characterId = Number(body?.characterId);
+    const body = await req.json().catch(() => ({} as any));
     const chatIdRaw = body?.chatId;
+    const characterIdRaw = body?.characterId;
     const forceNew = body?.forceNew === true;
 
-    if (!Number.isFinite(characterId)) {
-      return NextResponse.json({ error: 'Invalid characterId' }, { status: 400 });
+    // 1) chatId 指定があれば最優先でそのレコードだけ返す（所有者チェック）
+    if (chatIdRaw != null) {
+      const chatId = Number(chatIdRaw);
+      if (!Number.isFinite(chatId)) {
+        return NextResponse.json({ error: "Invalid chatId" }, { status: 400 });
+      }
+      const exact = await prisma.chat.findFirst({
+        where: { id: chatId, userId },
+        include: { chat_message: { orderBy: { createdAt: "asc" } } },
+      });
+      if (!exact) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      return NextResponse.json(exact);
     }
 
-    // ★ タイムスタンプ（unchecked create の必須項目対策）
+    // chatId が無い場合は characterId が必要
+    const characterId = Number(characterIdRaw);
+    if (!Number.isFinite(characterId)) {
+      return NextResponse.json(
+        { error: "Either chatId or a valid characterId is required" },
+        { status: 400 }
+      );
+    }
+
+    // ★ タイムスタンプ（スキーマで default/updatedAt が無い場合の保険）
     const now = new Date();
 
-    // 1) 新規作成を強制
+    // 2) 強制新規
     if (forceNew) {
       const created = await prisma.chat.create({
         data: {
-          // unchecked ルートに乗るためスカラーで指定
           userId,
           characterId,
-          createdAt: now,   // スキーマで default(now) がない場合に備えて明示
-          updatedAt: now,   // スキーマで @updatedAt がないため必須
+          createdAt: now,
+          updatedAt: now,
         },
         include: {
-          chat_message: { orderBy: { createdAt: 'asc' } },
+          chat_message: { orderBy: { createdAt: "asc" } },
         },
       });
       return NextResponse.json(created);
     }
 
-    // 2) chatId 指定（所有者チェック）
-    if (chatIdRaw != null) {
-      const chatId = Number(chatIdRaw);
-      if (!Number.isFinite(chatId)) {
-        return NextResponse.json({ error: 'Invalid chatId' }, { status: 400 });
-      }
-      const exact = await prisma.chat.findFirst({
-        where: { id: chatId, userId },
-        include: { chat_message: { orderBy: { createdAt: 'asc' } } },
-      });
-      if (!exact) {
-        return NextResponse.json({ error: 'Not found' }, { status: 404 });
-      }
-      return NextResponse.json(exact);
-    }
-
-    // 3) 既存があれば最新を返す。無ければ新規作成
+    // 3) 既存があれば最新を返す（無ければ作る）
     const latest = await prisma.chat.findFirst({
       where: { userId, characterId },
-      orderBy: { createdAt: 'desc' },
-      include: { chat_message: { orderBy: { createdAt: 'asc' } } },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: { chat_message: { orderBy: { createdAt: "asc" } } },
     });
 
-    if (latest) return NextResponse.json(latest);
+    if (latest) {
+      return NextResponse.json(latest);
+    }
 
-    // 新規作成（unchecked create なのでタイムスタンプも明示）
     const created = await prisma.chat.create({
       data: {
         userId,
@@ -95,12 +98,12 @@ export async function POST(req: Request) {
         createdAt: now,
         updatedAt: now,
       },
-      include: { chat_message: { orderBy: { createdAt: 'asc' } } },
+      include: { chat_message: { orderBy: { createdAt: "asc" } } },
     });
 
     return NextResponse.json(created);
   } catch (err) {
-    console.error('[find-or-create] error', err);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    console.error("[find-or-create] error", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

@@ -22,29 +22,24 @@ type LorebookData = {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> } // ★ 変更: params を Promise に
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;                     // ★ 変更: await で展開
-  const characterId = Number.parseInt(id, 10);     // ★ 変更: 展開した id を使用
+  const { id } = await params;
+  const characterId = Number.parseInt(id, 10);
   if (isNaN(characterId)) {
     return NextResponse.json({ error: '無効なIDです。'}, { status: 400 });
   }
 
+  console.log(`[GET /api/characters/${characterId}] 詳細情報取得リクエストを受信`);
+
   try {
-    // セッション情報を取得して、現在のユーザーIDを特定
     const session = await getServerSession(authOptions);
     const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
 
-    // キャラクターの基本情報をデータベースから取得
     const character = await prisma.characters.findUnique({
       where: { id: characterId },
       include: {
         characterImages: { 
-          select: {
-            id: true,
-            imageUrl: true,
-            keyword: true
-          },
           orderBy: { 
             displayOrder: 'asc' 
           } 
@@ -55,12 +50,16 @@ export async function GET(
       }
     });
 
-    // キャラクターが存在しない場合のエラーハンドリング
     if (!character) {
+      console.log(`[GET /api/characters/${characterId}] エラー: キャラクターが見つかりませんでした。`);
       return NextResponse.json({ error: 'キャラクターが見つかりません。' }, { status: 404 });
     }
     
-    // ブロック関係の確認
+    // ▼▼▼【デバッグ用ログ追加】取得した画像データの数を確認します ▼▼▼
+    console.log(`[GET /api/characters/${characterId}] データベースからキャラクターを検索しました。`);
+    console.log(`[GET /api/characters/${characterId}] 関連付けられた画像の数: ${character.characterImages?.length || 0}枚`);
+    // ▲▲▲ デバッグ用ログここまで ▲▲▲
+
     if (currentUserId && character.author_id) {
       const isBlocked = await prisma.block.findUnique({
         where: {
@@ -75,14 +74,12 @@ export async function GET(
       }
     }
 
-    // 非公開キャラクターのアクセス制御
     if (character.visibility === 'private') {
       if (!currentUserId || currentUserId !== character.author_id) {
         return NextResponse.json({ error: 'このキャラクターは非公開です。' }, { status: 403 });
       }
     }
 
-    // ログインしているユーザーがいいねしているか確認
     let isFavorited = false;
     if (currentUserId) {
       const favorite = await prisma.favorites.findUnique({
@@ -100,11 +97,15 @@ export async function GET(
       ...character,
       isFavorited,
     };
+    
+    // ▼▼▼【デバッグ用ログ追加】レスポンスとして返す直前のデータを確認します ▼▼▼
+    console.log(`[GET /api/characters/${characterId}] クライアントへのレスポンスを送信します。画像数: ${responseData.characterImages?.length || 0}枚`);
+    // ▲▲▲ デバッグ用ログここまで ▲▲▲
 
     return NextResponse.json(responseData);
 
   } catch (error) {
-    console.error('キャラクター詳細の取得エラー:', error);
+    console.error(`[GET /api/characters/${characterId}] キャラクター詳細の取得エラー:`, error);
     if (error instanceof Error && error.message.includes("relation \"Block\" does not exist")) {
       return NextResponse.json({ 
         error: 'サーバーエラー: Blockテーブルがデータベースに存在しません。DBスキーマを確認してください。' 
@@ -121,10 +122,10 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> } // ★ 変更: params を Promise に
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;                          // ★ 変更: await で展開
-  const characterIdToUpdate = Number.parseInt(id, 10);  // ★ 変更: 展開した id を使用
+  const { id } = await params;
+  const characterIdToUpdate = Number.parseInt(id, 10);
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -252,10 +253,10 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> } // ★ 変更: params を Promise に
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;                           // ★ 変更: await で展開
-  const characterIdToDelete = Number.parseInt(id, 10);   // ★ 変更: 展開した id を使用
+  const { id } = await params;
+  const characterIdToDelete = Number.parseInt(id, 10);
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -305,3 +306,4 @@ export async function DELETE(
     return NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });
   }
 }
+
