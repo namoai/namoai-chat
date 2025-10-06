@@ -18,23 +18,15 @@ import type { CharacterInfo, Message, Turn, ModalState, DbMessage, CharacterImag
 
 // --- ユーティリティ関数 ---
 
-/**
- * JSONを安全にパースする
- */
 async function safeParseJSON<T>(res: Response): Promise<T | null> {
   if (res.status === 204) return null;
   try { 
     return await res.json() as T;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (_error) { 
     return null; 
   }
 }
 
-
-/**
- * キーワードに基づいて画像を優先順位付けする
- */
 const prioritizeImagesByKeyword = (userText: string, allImages: CharacterImageInfo[]): CharacterImageInfo[] => {
   const images = allImages.slice(1);
   if (!userText.trim()) return images;
@@ -51,7 +43,6 @@ const prioritizeImagesByKeyword = (userText: string, allImages: CharacterImageIn
   });
   return [...matched, ...rest];
 };
-
 
 // --- メインページコンポーネント ---
 
@@ -86,7 +77,6 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // --- データ整形: rawMessagesからturnsを作成 ---
   useEffect(() => {
     const userMessages = rawMessages.filter(m => m.role === 'user');
     const modelMessages = rawMessages.filter(m => m.role === 'model');
@@ -105,7 +95,6 @@ export default function ChatPage() {
     setTurns(newTurns);
   }, [rawMessages]);
 
-  // --- データ取得関連のEffect ---
   const fetchUserPoints = useCallback(async () => {
     if (!session?.user?.id) return;
     try {
@@ -171,13 +160,10 @@ export default function ChatPage() {
   }, [characterId, searchParams, router]);
 
 
-  // --- UI関連のEffect ---
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns]);
 
-  // --- イベントハンドラ ---
-  
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading || !chatId) return;
@@ -186,6 +172,21 @@ export default function ChatPage() {
     const messageToSend = input;
     setInput("");
 
+    // ▼▼▼【体感速度改善】ユーザーのメッセージを即座にUIに表示します (楽観的UI更新) ▼▼▼
+    const tempUserMessageId = Date.now();
+    const tempUserMessage: Message = {
+      id: tempUserMessageId,
+      role: 'user',
+      content: messageToSend,
+      createdAt: new Date().toISOString(),
+      turnId: tempUserMessageId, // 仮のturnId
+      version: 1,
+      isActive: true,
+      timestamp: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+    };
+    setRawMessages(prev => [...prev, tempUserMessage]);
+    // ▲▲▲ 改善ここまで ▲▲▲
+
     try {
         const response = await fetch(`/api/chat/${chatId}`, {
             method: 'POST',
@@ -193,26 +194,34 @@ export default function ChatPage() {
             body: JSON.stringify({ message: messageToSend, settings: generationSettings }),
         });
 
-        // ▼▼▼【修正】HTTPステータスコードに応じたエラーハンドリングを追加します ▼▼▼
         if (!response.ok) {
             const errorData = await safeParseJSON<{ message?: string }>(response);
-            // 402エラーはポイント不足として処理
             if (response.status === 402) {
                 throw new Error(errorData?.message || 'ポイントが不足しています。');
             }
-            // その他のエラーはサーバーからのメッセージを使用
             throw new Error(errorData?.message || 'APIエラーが発生しました。');
         }
-        // ▲▲▲ 修正ここまで ▲▲▲
 
-        await fetchUserPoints(); // ポイントを再取得
         const data = await response.json();
+        await fetchUserPoints();
+
         const newFormattedMessages = (data.newMessages || []).map((msg: DbMessage) => ({
             ...msg,
             timestamp: new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
         }));
-        setRawMessages(prev => [...prev, ...newFormattedMessages]);
+        
+        // ▼▼▼【体感速度改善】サーバーからの応答で、仮のメッセージを本物のメッセージに置き換えます ▼▼▼
+        setRawMessages(prev => [
+            // 先ほど追加した仮のユーザーメッセージを除外
+            ...prev.filter(msg => msg.id !== tempUserMessageId),
+            // サーバーから返された、DBに保存済みの正しいメッセージ群を追加
+            ...newFormattedMessages
+        ]);
+        // ▲▲▲ 改善ここまで ▲▲▲
     } catch (error) {
+        // ▼▼▼【体感速度改善】エラー発生時は、追加した仮のメッセージをUIから削除します ▼▼▼
+        setRawMessages(prev => prev.filter(msg => msg.id !== tempUserMessageId));
+        // ▲▲▲ 改善ここまで ▲▲▲
         setModalState({ isOpen: true, title: "送信エラー", message: (error as Error).message, isAlert: true });
     } finally {
         setIsLoading(false);
@@ -241,7 +250,6 @@ export default function ChatPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ messageId: editingMessageId, newContent }),
         });
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_error) {
         setRawMessages(rawMessages.map(m => m.id === editingMessageId ? { ...m, content: originalContent } : m));
         setModalState({ isOpen: true, title: "編集エラー", message: "メッセージの更新に失敗しました。", isAlert: true });
@@ -268,7 +276,6 @@ export default function ChatPage() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ messageId }),
                 });
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (_error) {
                 setRawMessages(originalMessages);
                 setModalState({ isOpen: true, title: "削除エラー", message: "削除に失敗しました。", isAlert: true });
@@ -406,7 +413,6 @@ export default function ChatPage() {
         onNewChat={() => { /* ロジックをここに実装 */ }}
         onSaveConversationAsTxt={() => { /* ロジックをここに実装 */ }}
         userNote={userNote}
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         onSaveNote={async (_note) => { /* ロジックをここに実装 */ }}
         characterId={characterId}
         chatId={chatId}
