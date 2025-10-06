@@ -33,6 +33,13 @@ type CharacterSummary = {
   };
 };
 
+// ▼▼▼【追加】Lorebookの型を定義します ▼▼▼
+type Lorebook = {
+  content: string;
+  keywords: string[];
+};
+// ▲▲▲【追加】ここまで ▲▲▲
+
 // コピー機能で使用する、より詳細なキャラクターの型
 type CharacterDetail = Omit<CharacterSummary, "_count"> & {
   characterImages: {
@@ -49,7 +56,9 @@ type CharacterDetail = Omit<CharacterSummary, "_count"> & {
   category: string | null;
   hashtags: string[];
   detailSetting: string | null;
-  lorebooks: any[];
+  // ▼▼▼【修正】`any[]`を上記で定義した`Lorebook[]`型に変更します ▼▼▼
+  lorebooks: Lorebook[];
+  // ▲▲▲【修正】ここまで ▲▲▲
 };
 
 // 確認モーダルのコンポーネント
@@ -493,4 +502,3 @@ export default function CharacterManagementPage() {
     </div>
   );
 }
-

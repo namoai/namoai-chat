@@ -1,12 +1,21 @@
 export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
+// ▼▼▼【修正】Prismaクライアントと型定義のインポート元を分離します ▼▼▼
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
+// ▲▲▲【修正】ここまで ▲▲▲
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 
 // 代表画像を取得する共通ヘルパー関数
-const getCharactersWithMainImage = async (where: any, orderBy: any, take: number) => {
+// ▼▼▼【修正】orderByの型名を、Prismaが生成する正しい型名に修正します ▼▼▼
+const getCharactersWithMainImage = async (
+    where: Prisma.charactersWhereInput, 
+    orderBy: Prisma.charactersOrderByWithRelationInput | Prisma.charactersOrderByWithRelationInput[], 
+    take: number
+) => {
+// ▲▲▲【修正】ここまで ▲▲▲
     const charactersRaw = await prisma.characters.findMany({
         where,
         orderBy,
@@ -95,3 +104,4 @@ export async function GET() {
         return NextResponse.json({ error: "データの取得に失敗しました。" }, { status: 500 });
     }
 }
+

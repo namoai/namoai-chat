@@ -21,7 +21,9 @@ import type { CharacterInfo, Message, Turn, ModalState, DbMessage, CharacterImag
 /**
  * JSONを安全にパースする
  */
-async function safeParseJSON(res: Response): Promise<any | null> {
+// ▼▼▼【修正】戻り値の型を'any'から'unknown'に変更し、型安全性を高めます ▼▼▼
+async function safeParseJSON(res: Response): Promise<unknown | null> {
+// ▲▲▲【修正】ここまで ▲▲▲
   if (res.status === 204) return null;
   try { return await res.json(); } catch { return null; }
 }
@@ -105,7 +107,9 @@ export default function ChatPage() {
     try {
       const response = await fetch(`/api/points`);
       if (!response.ok) throw new Error("ポイント取得失敗");
-      const data = await safeParseJSON(response);
+      // ▼▼▼【修正】'safeParseJSON'からの戻り値を使用する際に、具体的な型アサーションを追加します ▼▼▼
+      const data = await safeParseJSON(response) as { free_points?: number, paid_points?: number };
+      // ▲▲▲【修正】ここまで ▲▲▲
       setUserPoints((data?.free_points || 0) + (data?.paid_points || 0));
     } catch (error) {
       console.error(error);
@@ -187,7 +191,7 @@ export default function ChatPage() {
         });
         if (!response.ok) {
             const errorData = await safeParseJSON(response);
-            throw new Error(errorData?.message || 'APIエラー');
+            throw new Error((errorData as { message?: string })?.message || 'APIエラー');
         }
         await fetchUserPoints(); // ポイントを再取得
         const data = await response.json();
@@ -392,7 +396,9 @@ export default function ChatPage() {
         onNewChat={() => { /* ロジックをここに実装 */ }}
         onSaveConversationAsTxt={() => { /* ロジックをここに実装 */ }}
         userNote={userNote}
-        onSaveNote={async (note) => { /* ロジックをここに実装 */ }}
+        // ▼▼▼【修正】未使用の'note'引数にアンダースコアを付け、意図的に使用しないことを示します ▼▼▼
+        onSaveNote={async (_note) => { /* ロジックをここに実装 */ }}
+        // ▲▲▲【修正】ここまで ▲▲▲
         characterId={characterId}
         chatId={chatId}
         generationSettings={generationSettings}

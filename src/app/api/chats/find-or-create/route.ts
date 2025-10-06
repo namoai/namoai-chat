@@ -5,21 +5,29 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/nextauth";
 import { prisma } from "@/lib/prisma";
 
+// ▼▼▼【追加】リクエストボディの型を定義します ▼▼▼
+type RequestBody = {
+  chatId?: number;
+  characterId?: number;
+  forceNew?: boolean;
+}
+// ▲▲▲【追加】ここまで ▲▲▲
+
 /**
  * POST /api/chats/find-or-create
  * Body:
- *  - chatId?: number            ← 있으면 이것만으로 조회 (소유자 검증)
- *  - characterId?: number       ← 없으면 chatId 필요
- *  - forceNew?: boolean         ← true면 characterId로 무조건 새로 생성
+ * - chatId?: number            ← 있으면 이것만으로 조회 (소유자 검증)
+ * - characterId?: number       ← 없으면 chatId 필요
+ * - forceNew?: boolean         ← true면 characterId로 무조건 새로 생성
  *
  * ポリシー:
- *  - chatId があれば最優先でそのチャットのみ返却（所有者チェック込み）
- *  - forceNew=true なら characterId で常に新規作成
- *  - それ以外は「同一ユーザ×同一キャラの最新(createdAt desc, id desc)」を返却し、無ければ新規作成
+ * - chatId があれば最優先でそのチャットのみ返却（所有者チェック込み）
+ * - forceNew=true なら characterId で常に新規作成
+ * - それ以外は「同一ユーザ×同一キャラの最新(createdAt desc, id desc)」を返却し、無ければ新規作成
  *
  * 安定化ポイント:
- *  - 最新選択は createdAt desc, id desc（タイムスタンプ被り時のブレ回避）
- *  - chat_message は asc 固定
+ * - 最新選択は createdAt desc, id desc（タイムスタンプ被り時のブレ回避）
+ * - chat_message は asc 固定
  */
 export async function POST(req: Request) {
   try {
@@ -31,7 +39,9 @@ export async function POST(req: Request) {
     const userId = Number(session.user.id);
 
     // --- 入力 ---
-    const body = await req.json().catch(() => ({} as any));
+    // ▼▼▼【修正】any型を上で定義したRequestBody型に変更します ▼▼▼
+    const body: RequestBody = await req.json().catch(() => ({}));
+    // ▲▲▲【修正】ここまで ▲▲▲
     const chatIdRaw = body?.chatId;
     const characterIdRaw = body?.characterId;
     const forceNew = body?.forceNew === true;

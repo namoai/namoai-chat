@@ -7,6 +7,29 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 
+// ▼▼▼【追加】インポート元と先の画像のデータ型を定義します ▼▼▼
+type SourceImageData = {
+    imageUrl: string;
+    keyword: string | null;
+    isMain: boolean;
+    displayOrder: number;
+};
+
+type NewImageData = {
+    imageUrl: string;
+    keyword: string;
+    isMain: boolean;
+    displayOrder: number;
+};
+// ▲▲▲【追加】ここまで ▲▲▲
+
+// ▼▼▼【追加】Lorebookのデータ型を定義します ▼▼▼
+type LorebookData = {
+    content: string;
+    keywords: string[];
+};
+// ▲▲▲【追加】ここまで ▲▲▲
+
 // URLからキャラクターIDを抽出するヘルパー関数
 function getCharacterId(request: NextRequest): number | null {
     const url = new URL(request.url);
@@ -57,12 +80,16 @@ export async function POST(request: NextRequest) {
         }
         const sb = createClient(supabaseUrl, serviceRoleKey);
 
-        let newImagesData: any[] = [];
+        // ▼▼▼【修正】'let'を'const'に変更し、'any[]'を上で定義した'NewImageData[]'型に変更します ▼▼▼
+        const newImagesData: NewImageData[] = [];
+        // ▲▲▲【修正】ここまで ▲▲▲
         const imageCount = sourceCharacterData.characterImages?.length || 0;
         console.log(`[IMPORT] コピー元の画像数: ${imageCount}枚`);
 
         if (imageCount > 0) {
-            for (const [index, img] of sourceCharacterData.characterImages.entries()) {
+            // ▼▼▼【修正】ループ内の'img'に上で定義した'SourceImageData'型を適用します ▼▼▼
+            for (const [index, img] of sourceCharacterData.characterImages.entries() as [number, SourceImageData][]) {
+            // ▲▲▲【修正】ここまで ▲▲▲
                 console.log(`[IMPORT] 画像 ${index + 1}/${imageCount} の処理を開始: ${img.imageUrl}`);
                 if (!img.imageUrl) continue;
 
@@ -117,7 +144,9 @@ export async function POST(request: NextRequest) {
 
             if (Array.isArray(sourceCharacterData.lorebooks) && sourceCharacterData.lorebooks.length > 0) {
                 await tx.lorebooks.createMany({
-                    data: sourceCharacterData.lorebooks.map((lore: any) => ({
+                    // ▼▼▼【修正】'lore'の型を'any'から上で定義した'LorebookData'型に変更します ▼▼▼
+                    data: sourceCharacterData.lorebooks.map((lore: LorebookData) => ({
+                    // ▲▲▲【修正】ここまで ▲▲▲
                         characterId: targetCharacterId,
                         content: lore.content,
                         keywords: lore.keywords,
@@ -153,4 +182,3 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: `インポート処理中にエラーが発生しました: ${errorMessage}` }, { status: 500 });
     }
 }
-

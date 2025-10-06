@@ -1,7 +1,10 @@
 export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
+// ▼▼▼【修正】Prisma Clientインスタンスと型をそれぞれの正しい場所からインポートします ▼▼▼
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+// ▲▲▲【修正】ここまで ▲▲▲
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { createClient } from '@supabase/supabase-js';
@@ -12,6 +15,15 @@ type LorebookData = {
     content: string;
     keywords: string[];
 };
+
+// ▼▼▼【追加】キャラクター画像の型を定義します ▼▼▼
+type CharacterImageInput = {
+    imageUrl: string;
+    keyword: string | null;
+    isMain: boolean;
+    displayOrder: number;
+};
+// ▲▲▲【追加】ここまで ▲▲▲
 
 // GCPサービスアカウント認証ファイルを保証する関数
 async function ensureGcpCredsFile() {
@@ -102,7 +114,9 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const mode = searchParams.get('mode');
 
-        let whereClause: any = {};
+        // ▼▼▼【修正】`any`型をPrismaで定義された型に変更します ▼▼▼
+        let whereClause: Prisma.charactersWhereInput = {};
+        // ▲▲▲【修正】ここまで ▲▲▲
 
         let blockedAuthorIds: number[] = [];
         if (currentUserId) {
@@ -125,14 +139,29 @@ export async function GET(request: Request) {
             } else {
                 whereClause = publicCondition;
             }
-
-            if (blockedAuthorIds.length > 0) {
-                whereClause.author_id = {
-                    ...whereClause.author_id,
-                    notIn: blockedAuthorIds,
-                };
-            }
         }
+        
+        // ▼▼▼【修正】ブロックロジックを正しい位置に移動し、スプレッド構文のエラーを修正します ▼▼▼
+        // これにより、全てのキャラクターリスト取得においてブロックが正しく適用されます。
+        if (blockedAuthorIds.length > 0) {
+            const existingAuthorFilter = whereClause.author_id;
+            let baseFilter = {};
+
+            // author_idフィルターが既にオブジェクト形式の場合、それを維持します
+            if (existingAuthorFilter && typeof existingAuthorFilter === 'object') {
+                baseFilter = existingAuthorFilter;
+            // author_idフィルターが数値（ユーザーID）の場合、オブジェクト形式に変換します
+            } else if (typeof existingAuthorFilter === 'number') {
+                baseFilter = { equals: existingAuthorFilter };
+            }
+
+            // 既存のフィルターとnotIn（ブロックリスト）をマージします
+            whereClause.author_id = {
+                ...baseFilter,
+                notIn: blockedAuthorIds,
+            };
+        }
+        // ▲▲▲【修正】ここまで ▲▲▲
 
         const charactersRaw = await prisma.characters.findMany({
             where: whereClause,
@@ -206,23 +235,27 @@ export async function POST(request: Request) {
 
                 if (sourceCharacter.characterImages && sourceCharacter.characterImages.length > 0) {
                     await tx.character_images.createMany({
-                        data: sourceCharacter.characterImages.map((img: any) => ({
+                        // ▼▼▼【修正】`any`型を定義済みの`CharacterImageInput`型に変更します ▼▼▼
+                        data: sourceCharacter.characterImages.map((img: CharacterImageInput) => ({
                             characterId: character.id,
                             imageUrl: img.imageUrl,
                             keyword: img.keyword,
                             isMain: img.isMain,
                             displayOrder: img.displayOrder,
                         }))
+                        // ▲▲▲【修正】ここまで ▲▲▲
                     });
                 }
 
                 if (sourceCharacter.lorebooks && sourceCharacter.lorebooks.length > 0) {
                     await tx.lorebooks.createMany({
-                        data: sourceCharacter.lorebooks.map((lore: any) => ({
+                        // ▼▼▼【修正】`any`型を定義済みの`LorebookData`型に変更します ▼▼▼
+                        data: sourceCharacter.lorebooks.map((lore: LorebookData) => ({
                             characterId: character.id,
                             content: lore.content,
                             keywords: lore.keywords,
                         }))
+                        // ▲▲▲【修正】ここまで ▲▲▲
                     });
                 }
 
