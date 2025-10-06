@@ -21,7 +21,6 @@ import type { CharacterInfo, Message, Turn, ModalState, DbMessage, CharacterImag
 /**
  * JSONを安全にパースする
  */
-// ▼▼▼【修正】any型をジェネリック型<T>に変更し、型安全性を向上させます ▼▼▼
 async function safeParseJSON<T>(res: Response): Promise<T | null> {
   if (res.status === 204) return null;
   try { 
@@ -31,7 +30,6 @@ async function safeParseJSON<T>(res: Response): Promise<T | null> {
     return null; 
   }
 }
-// ▲▲▲ 修正ここまで ▲▲▲
 
 
 /**
@@ -113,15 +111,11 @@ export default function ChatPage() {
     try {
       const response = await fetch(`/api/points`);
       if (!response.ok) throw new Error("ポイント取得失敗");
-      // ▼▼▼【修正】safeParseJSONに型引数を渡し、dataの型を明確にします ▼▼▼
       const data = await safeParseJSON<{ free_points?: number; paid_points?: number }>(response);
-      // ▲▲▲ 修正ここまで ▲▲▲
       setUserPoints((data?.free_points || 0) + (data?.paid_points || 0));
-    // ▼▼▼【修正】error変数が使用されているため、不要なeslint-disableコメントを削除します ▼▼▼
     } catch (error) {
       console.error(error);
     }
-    // ▲▲▲ 修正ここまで ▲▲▲
   }, [session]);
 
   useEffect(() => { fetchUserPoints(); }, [fetchUserPoints]);
@@ -187,22 +181,30 @@ export default function ChatPage() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading || !chatId) return;
-    // ... (送信ロジックは変更なし)
+    
     setIsLoading(true);
     const messageToSend = input;
     setInput("");
+
     try {
         const response = await fetch(`/api/chat/${chatId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: messageToSend, settings: generationSettings }),
         });
+
+        // ▼▼▼【修正】HTTPステータスコードに応じたエラーハンドリングを追加します ▼▼▼
         if (!response.ok) {
-            // ▼▼▼【修正】safeParseJSONに型引数を渡し、errorDataの型を明確にします ▼▼▼
             const errorData = await safeParseJSON<{ message?: string }>(response);
-            // ▲▲▲ 修正ここまで ▲▲▲
-            throw new Error(errorData?.message || 'APIエラー');
+            // 402エラーはポイント不足として処理
+            if (response.status === 402) {
+                throw new Error(errorData?.message || 'ポイントが不足しています。');
+            }
+            // その他のエラーはサーバーからのメッセージを使用
+            throw new Error(errorData?.message || 'APIエラーが発生しました。');
         }
+        // ▲▲▲ 修正ここまで ▲▲▲
+
         await fetchUserPoints(); // ポイントを再取得
         const data = await response.json();
         const newFormattedMessages = (data.newMessages || []).map((msg: DbMessage) => ({
@@ -224,7 +226,6 @@ export default function ChatPage() {
   };
 
   const handleEditSave = async () => {
-    // ... (編集保存ロジックは変更なし)
     if (editingMessageId === null) return;
     const message = rawMessages.find(m => m.id === editingMessageId);
     if (!message) return;
@@ -240,17 +241,14 @@ export default function ChatPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ messageId: editingMessageId, newContent }),
         });
-    // ▼▼▼【修正】catchブロックでエラー変数を使用しないため、ESLintルールを無効化します ▼▼▼
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-    // ▲▲▲ 修正ここまで ▲▲▲
+    } catch (_error) {
         setRawMessages(rawMessages.map(m => m.id === editingMessageId ? { ...m, content: originalContent } : m));
         setModalState({ isOpen: true, title: "編集エラー", message: "メッセージの更新に失敗しました。", isAlert: true });
     }
   };
 
   const handleDelete = (messageId: number) => {
-    // ... (削除確認モーダルの表示ロジックは変更なし)
     const message = rawMessages.find(m => m.id === messageId);
     if (!message) return;
 
@@ -270,10 +268,8 @@ export default function ChatPage() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ messageId }),
                 });
-            // ▼▼▼【修正】catchブロックでエラー変数を使用しないため、ESLintルールを無効化します ▼▼▼
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            } catch (error) {
-            // ▲▲▲ 修正ここまで ▲▲▲
+            } catch (_error) {
                 setRawMessages(originalMessages);
                 setModalState({ isOpen: true, title: "削除エラー", message: "削除に失敗しました。", isAlert: true });
             }
@@ -282,7 +278,6 @@ export default function ChatPage() {
   };
 
   const handleRegenerate = async (turn: Turn) => {
-    // ... (再生成ロジックは変更なし)
      if (isLoading || !chatId) return;
     setIsLoading(true);
     try {
@@ -309,7 +304,6 @@ export default function ChatPage() {
   };
 
   const switchModelMessage = (turnId: number, direction: "next" | "prev") => {
-    // ... (バージョン切り替えロジックは変更なし)
     const turn = turns.find(t => t.turnId === turnId);
     if (!turn || turn.modelMessages.length <= 1) return;
     const newIndex = direction === 'next'
@@ -332,7 +326,6 @@ export default function ChatPage() {
   };
 
   const wrapSelection = (left: string, right: string) => {
-    // ... (テキスト選択ラップロジックは変更なし)
     const el = textareaRef.current;
     if (!el) return;
     const { selectionStart, selectionEnd } = el;
@@ -379,6 +372,7 @@ export default function ChatPage() {
           editingModelContent={editingModelContent}
           setEditingUserContent={setEditingUserContent}
           setEditingModelContent={setEditingModelContent}
+  
           handleEditStart={handleEditStart}
           handleEditSave={handleEditSave}
           handleEditCancel={() => setEditingMessageId(null)}
@@ -412,10 +406,8 @@ export default function ChatPage() {
         onNewChat={() => { /* ロジックをここに実装 */ }}
         onSaveConversationAsTxt={() => { /* ロジックをここに実装 */ }}
         userNote={userNote}
-        // ▼▼▼【修正】onSaveNoteのnote引数を使用しないため、ESLintルールを無効化します ▼▼▼
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        onSaveNote={async (note) => { /* ロジックをここに実装 */ }}
-        // ▲▲▲ 修正ここまで ▲▲▲
+        onSaveNote={async (_note) => { /* ロジックをここに実装 */ }}
         characterId={characterId}
         chatId={chatId}
         generationSettings={generationSettings}
