@@ -21,13 +21,18 @@ import type { CharacterInfo, Message, Turn, ModalState, DbMessage, CharacterImag
 /**
  * JSONを安全にパースする
  */
-async function safeParseJSON(res: Response): Promise<any | null> {
+// ▼▼▼【修正】any型をジェネリック型<T>に変更し、型安全性を向上させます ▼▼▼
+async function safeParseJSON<T>(res: Response): Promise<T | null> {
   if (res.status === 204) return null;
-  // ▼▼▼【修正】catchブロックでエラー変数を使用しないため、ESLintルールを無効化します ▼▼▼
+  try { 
+    return await res.json() as T;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  try { return await res.json(); } catch (_error) { return null; }
-  // ▲▲▲ 修正ここまで ▲▲▲
+  } catch (_error) { 
+    return null; 
+  }
 }
+// ▲▲▲ 修正ここまで ▲▲▲
+
 
 /**
  * キーワードに基づいて画像を優先順位付けする
@@ -108,14 +113,15 @@ export default function ChatPage() {
     try {
       const response = await fetch(`/api/points`);
       if (!response.ok) throw new Error("ポイント取得失敗");
-      const data = await safeParseJSON(response);
+      // ▼▼▼【修正】safeParseJSONに型引数を渡し、dataの型を明確にします ▼▼▼
+      const data = await safeParseJSON<{ free_points?: number; paid_points?: number }>(response);
+      // ▲▲▲ 修正ここまで ▲▲▲
       setUserPoints((data?.free_points || 0) + (data?.paid_points || 0));
-    // ▼▼▼【修正】catchブロックでエラー変数を使用しないため、ESLintルールを無効化します ▼▼▼
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // ▼▼▼【修正】error変数が使用されているため、不要なeslint-disableコメントを削除します ▼▼▼
     } catch (error) {
-    // ▲▲▲ 修正ここまで ▲▲▲
       console.error(error);
     }
+    // ▲▲▲ 修正ここまで ▲▲▲
   }, [session]);
 
   useEffect(() => { fetchUserPoints(); }, [fetchUserPoints]);
@@ -192,7 +198,9 @@ export default function ChatPage() {
             body: JSON.stringify({ message: messageToSend, settings: generationSettings }),
         });
         if (!response.ok) {
-            const errorData = await safeParseJSON(response);
+            // ▼▼▼【修正】safeParseJSONに型引数を渡し、errorDataの型を明確にします ▼▼▼
+            const errorData = await safeParseJSON<{ message?: string }>(response);
+            // ▲▲▲ 修正ここまで ▲▲▲
             throw new Error(errorData?.message || 'APIエラー');
         }
         await fetchUserPoints(); // ポイントを再取得
