@@ -78,6 +78,12 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   handleEditStart, handleEditCancel, handleEditSave, handleDelete, handleRegenerate, switchModelMessage,
   prioritizeImagesByKeyword, showChatImage, isMultiImage, setLightboxImage,
 }) => {
+  // ローディングインジケーターを表示するかどうかを判断します。
+  // ストリーミングの最初のトークンを待っている間（isLoadingがtrueで、最後のAIメッセージの内容が空）のみ表示します。
+  const lastTurn = turns.length > 0 ? turns[turns.length - 1] : null;
+  const lastModelMessage = lastTurn?.modelMessages?.[lastTurn.activeModelIndex];
+  const showLoadingIndicator = isLoading && lastModelMessage?.content === '';
+
   return (
     <>
       {/* --- イントロダクション --- */}
@@ -196,7 +202,8 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
       })}
 
       {/* --- ローディング表示 --- */}
-      {isLoading && (
+      {/* ▼▼▼【UI改善】ストリーミング開始前のみローディングインジケーターを表示します。▼▼▼ */}
+      {showLoadingIndicator && (
         <div className="flex items-start">
           <div className="bg-gray-800 px-4 py-3 rounded-xl">
             <div className="flex items-center space-x-2">
@@ -207,6 +214,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           </div>
         </div>
       )}
+      {/* ▲▲▲ UI改善ここまで ▲▲▲ */}
     </>
   );
 };

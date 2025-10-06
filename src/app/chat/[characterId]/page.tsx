@@ -77,6 +77,8 @@ export default function ChatPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // ▼▼▼【エラー修正】useRefをコンポーネントのトップレベルに移動 ▼▼▼
+  const tempModelMessageIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     const userMessages = rawMessages.filter(m => m.role === 'user');
@@ -165,69 +167,134 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns]);
 
+  // ▼▼▼【ストリーミング対応】メッセージ送信処理を全面的に更新 ▼▼▼
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading || !chatId) return;
-    
+
     setIsLoading(true);
     const messageToSend = input;
     setInput("");
 
-    // ▼▼▼【体感速度改善】ユーザーのメッセージを即座にUIに表示します (楽観的UI更新) ▼▼▼
-    const tempUserMessageId = Date.now();
-    const tempUserMessage: Message = {
-      id: tempUserMessageId,
-      role: 'user',
-      content: messageToSend,
-      createdAt: new Date().toISOString(),
-      turnId: tempUserMessageId, // 仮のturnId
-      version: 1,
-      isActive: true,
-      timestamp: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-    };
-    setRawMessages(prev => [...prev, tempUserMessage]);
-    // ▲▲▲ 改善ここまで ▲▲▲
+    // ユーザーメッセージがUIに追加されたかどうかのフラグ
+    let userMessageAdded = false;
 
     try {
-        const response = await fetch(`/api/chat/${chatId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: messageToSend, settings: generationSettings }),
-        });
+      const response = await fetch(`/api/chat/${chatId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: messageToSend, settings: generationSettings }),
+      });
 
-        if (!response.ok) {
-            const errorData = await safeParseJSON<{ message?: string }>(response);
-            if (response.status === 402) {
-                throw new Error(errorData?.message || 'ポイントが不足しています。');
-            }
-            throw new Error(errorData?.message || 'APIエラーが発生しました。');
-        }
+      // ストリーム開始前のエラーハンドリング (ポイント不足など)
+      if (!response.ok) {
+        const errorData = await safeParseJSON<{ message?: string }>(response);
+        throw new Error(errorData?.message || 'APIエラーが発生しました。');
+      }
 
-        const data = await response.json();
-        await fetchUserPoints();
+      if (!response.body) {
+        throw new Error("レスポンスがありません。");
+      }
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-        const newFormattedMessages = (data.newMessages || []).map((msg: DbMessage) => ({
-            ...msg,
-            timestamp: new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-        }));
+      // ストリームから受信したイベントを処理する関数
+      const processEvent = (eventString: string) => {
+        if (!eventString.trim()) return;
+
+        const eventLine = eventString.split('\n').find(line => line.startsWith('event: '));
+        const dataLine = eventString.split('\n').find(line => line.startsWith('data: '));
+
+        if (!eventLine || !dataLine) return;
+
+        const eventType = eventLine.substring('event: '.length);
+        const data = JSON.parse(dataLine.substring('data: '.length));
         
-        // ▼▼▼【体感速度改善】サーバーからの応答で、仮のメッセージを本物のメッセージに置き換えます ▼▼▼
-        setRawMessages(prev => [
-            // 先ほど追加した仮のユーザーメッセージを除外
-            ...prev.filter(msg => msg.id !== tempUserMessageId),
-            // サーバーから返された、DBに保存済みの正しいメッセージ群を追加
-            ...newFormattedMessages
-        ]);
-        // ▲▲▲ 改善ここまで ▲▲▲
+        // --- イベントタイプごとの処理 ---
+        if (eventType === 'user-message-saved') {
+          const savedUserMessage = {
+            ...data.userMessage,
+            timestamp: new Date(data.userMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+          };
+          
+          // AI応答表示用の仮メッセージを作成
+          tempModelMessageIdRef.current = Date.now();
+          const tempModelMessage: Message = {
+            id: tempModelMessageIdRef.current,
+            role: 'model',
+            content: '',
+            createdAt: new Date().toISOString(),
+            turnId: savedUserMessage.id,
+            version: 1,
+            isActive: true,
+            timestamp: '...',
+          };
+
+          setRawMessages(prev => [...prev, savedUserMessage, tempModelMessage]);
+          userMessageAdded = true;
+
+        } else if (eventType === 'ai-chunk') {
+          setRawMessages(prev => prev.map(msg =>
+            msg.id === tempModelMessageIdRef.current
+              ? { ...msg, content: msg.content + data.chunk }
+              : msg
+          ));
+
+        } else if (eventType === 'ai-message-saved') {
+          const savedModelMessage = {
+            ...data.modelMessage,
+            timestamp: new Date(data.modelMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+          };
+          // 仮メッセージをサーバーから返された正式なメッセージで置き換え
+          setRawMessages(prev => prev.map(msg =>
+            msg.id === tempModelMessageIdRef.current ? savedModelMessage : msg
+          ));
+        
+        } else if (eventType === 'stream-end') {
+          console.log('ストリームが正常に終了しました。');
+          fetchUserPoints();
+          return true; // ループを抜けるためのフラグ
+
+        } else if (eventType === 'error') {
+          throw new Error(data.message);
+        }
+        return false;
+      };
+
+      // ストリームを読み取り、バッファリングしてイベントを処理
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        let boundary = buffer.indexOf('\n\n');
+        
+        while (boundary > -1) {
+          const eventText = buffer.substring(0, boundary);
+          buffer = buffer.substring(boundary + 2);
+          if (processEvent(eventText)) {
+            return; // stream-end イベントを受け取ったら関数を終了
+          }
+          boundary = buffer.indexOf('\n\n');
+        }
+      }
+
     } catch (error) {
-        // ▼▼▼【体感速度改善】エラー発生時は、追加した仮のメッセージをUIから削除します ▼▼▼
-        setRawMessages(prev => prev.filter(msg => msg.id !== tempUserMessageId));
-        // ▲▲▲ 改善ここまで ▲▲▲
-        setModalState({ isOpen: true, title: "送信エラー", message: (error as Error).message, isAlert: true });
+      console.error("メッセージ送信エラー:", error);
+      // エラーが発生した場合、追加した可能性のある仮のメッセージを削除
+      if (userMessageAdded && tempModelMessageIdRef.current) {
+         setRawMessages(prev => prev.filter(msg => msg.turnId !== tempModelMessageIdRef.current && msg.id !== tempModelMessageIdRef.current));
+      }
+      setModalState({ isOpen: true, title: "送信エラー", message: (error as Error).message, isAlert: true });
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
+  // ▲▲▲【ストリーミング対応】変更ここまで ▲▲▲
+
 
   const handleEditStart = (message: Message) => {
     setEditingMessageId(message.id);
