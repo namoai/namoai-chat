@@ -1,33 +1,23 @@
-"use client";
-
-// 既存のインポート
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import type { CharacterInfo, Message, Turn, ModalState, DbMessage, GenerationSettings, ChatStyleSettings, CharacterImageInfo } from '@/types/chat';
 
-// 外部コンポーネントのインポート
-import ChatSettings, { GenerationSettings, ChatStyleSettings } from "@/components/ChatSettings";
-import ChatHeader from "@/components/chat/ChatHeader";
-import ChatMessageList from "@/components/chat/ChatMessageList";
-import ChatFooter from "@/components/chat/ChatFooter";
-import ConfirmationModal from "@/components/chat/ConfirmationModal";
-import ImageLightbox from "@/components/chat/ImageLightbox";
+// ==================================
+// ユーティリティ関数
+// ==================================
 
-// 型定義のインポート
-import type { CharacterInfo, Message, Turn, ModalState, DbMessage, CharacterImageInfo } from '@/types/chat';
-
-// --- ユーティリティ関数（既存） ---
 async function safeParseJSON<T>(res: Response): Promise<T | null> {
   if (res.status === 204) return null;
-  try { 
+  try {
     return await res.json() as T;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (_error) { 
-    return null; 
+  } catch (_error) {
+    return null;
   }
 }
 
 const prioritizeImagesByKeyword = (userText: string, allImages: CharacterImageInfo[]): CharacterImageInfo[] => {
+  if (!allImages || allImages.length <= 1) return [];
   const images = allImages.slice(1);
   if (!userText.trim()) return images;
   const lowerUserText = userText.toLowerCase();
@@ -44,33 +34,21 @@ const prioritizeImagesByKeyword = (userText: string, allImages: CharacterImageIn
   return [...matched, ...rest];
 };
 
-// ==============================
-//  追加：思考テキスト分離パーサ（強化版）
-//  - 「<thinking>」「<reasoning>」「<thought>」「<scratchpad>」に対応
-//  - JSON 断片でも type/segment/assistant_content 等を解析して分離
-// ==============================
-
 type ThinkingParserState = {
   inThinking: boolean;
   buffer: string;
 };
 
-const initialThinkingState: ThinkingParserState = { inThinking: false, buffer: "" };
+const OPEN_TAGS = ["<thinking>", "<reasoning>", "<ctrl3347>", "<scratchpad>"];
+const CLOSE_TAGS = ["</thinking>", "</reasoning>", "<ctrl3348>", "</scratchpad>"];
 
-// サポートする思考タグの候補（開閉ペア）
-const OPEN_TAGS = ["<thinking>", "<reasoning>", "<thought>", "<scratchpad>"];
-const CLOSE_TAGS = ["</thinking>", "</reasoning>", "</thought>", "</scratchpad>"];
-
-/** 文字列断片から思考と可視テキストを抽出（タグ混在を想定） */
 function splitThinkingFromChunk(chunk: string, st: ThinkingParserState): { thinkingDelta: string; visibleDelta: string } {
   st.buffer += chunk;
   let outThinking = "";
   let outVisible = "";
 
-  // タグ探索を繰り返す（複数回出現に対応）
   while (true) {
     if (!st.inThinking) {
-      // thinking 外では、いずれかの OPEN_TAG を最も早く見つける
       let firstOpenIdx = -1;
       let openLen = 0;
       for (const tag of OPEN_TAGS) {
@@ -81,19 +59,15 @@ function splitThinkingFromChunk(chunk: string, st: ThinkingParserState): { think
         }
       }
       if (firstOpenIdx === -1) {
-        // まだ open タグが来ていない → すべて可視扱い
         outVisible += st.buffer;
         st.buffer = "";
         break;
       } else {
-        // タグより前は可視、タグは消費 → inThinking = true
         outVisible += st.buffer.slice(0, firstOpenIdx);
         st.buffer = st.buffer.slice(firstOpenIdx + openLen);
         st.inThinking = true;
-        continue;
       }
     } else {
-      // thinking 内では、いずれかの CLOSE_TAG を最も早く見つける
       let firstCloseIdx = -1;
       let closeLen = 0;
       for (const tag of CLOSE_TAGS) {
@@ -104,92 +78,31 @@ function splitThinkingFromChunk(chunk: string, st: ThinkingParserState): { think
         }
       }
       if (firstCloseIdx === -1) {
-        // 閉じタグ未到達 → 全部思考扱い（断片化OK）
         outThinking += st.buffer;
         st.buffer = "";
         break;
       } else {
-        // 閉じタグまでが思考、タグは消費して通常モードへ
         outThinking += st.buffer.slice(0, firstCloseIdx);
         st.buffer = st.buffer.slice(firstCloseIdx + closeLen);
         st.inThinking = false;
-        continue;
       }
     }
   }
   return { thinkingDelta: outThinking, visibleDelta: outVisible };
 }
 
-/** JSON 断片(オブジェクト)から思考/可視を抽出（type/segment/assistant_content などに対応） */
-function extractFromJsonish(
-  obj: any,
-  st: ThinkingParserState
-): { thinkingDelta: string; visibleDelta: string } {
-  let t = "";
-  let v = "";
 
-  // 1) 明示フィールドが分かれている場合
-  if (typeof obj?.thinkingChunk === "string") t += obj.thinkingChunk;
-  if (typeof obj?.responseChunk === "string") v += obj.responseChunk;
+// ==================================
+// チャットロジックのカスタムフック
+// ==================================
 
-  // 2) 単一フィールドに混在（delta/content/message/token 等）
-  const candidates = ["delta", "content", "message", "token", "text"];
-  for (const key of candidates) {
-    if (typeof obj?.[key] === "string") {
-      const split = splitThinkingFromChunk(obj[key], st);
-      t += split.thinkingDelta;
-      v += split.visibleDelta;
-    }
-  }
-
-  // 3) `type` / `segment` / `is_thinking` のメタに基づく分離
-  //    - これらはタグがなくても「思考」扱いにできる
-  const metaThinking =
-    obj?.type === "thinking" ||
-    obj?.segment === "reasoning" ||
-    obj?.is_thinking === true;
-
-  const metaContent =
-    obj?.type === "content" ||
-    obj?.segment === "content" ||
-    obj?.is_thinking === false;
-
-  if (metaThinking) {
-    // 代表テキスト候補から思考へ
-    const metaText = obj.delta ?? obj.text ?? obj.token ?? obj.content ?? "";
-    if (typeof metaText === "string") t += metaText;
-  } else if (metaContent) {
-    const metaText = obj.delta ?? obj.text ?? obj.token ?? obj.content ?? "";
-    if (typeof metaText === "string") v += metaText;
-  }
-
-  // 4) `assistant_content` のような配列構造
-  if (Array.isArray(obj?.assistant_content)) {
-    for (const seg of obj.assistant_content) {
-      if (typeof seg?.text === "string") {
-        if (seg?.type === "thinking" || seg?.subtype === "reasoning") {
-          t += seg.text;
-        } else {
-          // type === 'text' 等
-          const split = splitThinkingFromChunk(seg.text, st);
-          t += split.thinkingDelta;
-          v += split.visibleDelta;
-        }
-      }
-    }
-  }
-
-  return { thinkingDelta: t, visibleDelta: v };
-}
-
-// --- メインページコンポーネント（既存構造を維持） ---
-export default function ChatPage() {
+export const useChat = () => {
   const router = useRouter();
   const { data: session } = useSession();
   const { characterId } = useParams<{ characterId: string }>();
   const searchParams = useSearchParams();
 
-  // --- State管理（既存） ---
+  // --- State管理 ---
   const [rawMessages, setRawMessages] = useState<Message[]>([]);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
@@ -214,10 +127,9 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const tempModelMessageIdRef = useRef<number | null>(null);
+  const thinkingStateRef = useRef<ThinkingParserState>({ inThinking: false, buffer: "" });
 
-  // ストリーム毎の思考パーサ状態
-  const thinkingStateRef = useRef<ThinkingParserState>({ ...initialThinkingState });
-
+  // --- データ処理 Effect ---
   useEffect(() => {
     const userMessages = rawMessages.filter(m => m.role === 'user');
     const modelMessages = rawMessages.filter(m => m.role === 'model');
@@ -248,6 +160,7 @@ export default function ChatPage() {
     }
   }, [session]);
 
+  // --- 初期化 Effect ---
   useEffect(() => { fetchUserPoints(); }, [fetchUserPoints]);
 
   useEffect(() => {
@@ -300,16 +213,14 @@ export default function ChatPage() {
     loadChatSession();
   }, [characterId, searchParams, router]);
 
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns]);
 
-  // ▼▼▼ ストリーム処理（強化版パーサ適用） ▼▼▼
+  // --- ストリーム処理 ---
   const processStreamRequest = async ({ message, isRegeneration, turn }: { message: string, isRegeneration: boolean, turn?: Turn }) => {
       setIsLoading(true);
-      thinkingStateRef.current = { ...initialThinkingState };
-
+      thinkingStateRef.current = { inThinking: false, buffer: "" };
       const tempId = Date.now();
       tempModelMessageIdRef.current = tempId;
 
@@ -318,11 +229,11 @@ export default function ChatPage() {
           role: 'model',
           content: '',
           createdAt: new Date().toISOString(),
-          turnId: turn?.turnId!, // 新規メッセージの場合は後で更新
+          turnId: turn?.turnId!,
           version: turn ? (turn.modelMessages.length || 0) + 1 : 1,
           isActive: true,
           timestamp: '...',
-          thinkingText: '', // 思考ストリームを格納
+          thinkingText: '',
       };
 
       if (isRegeneration && turn) {
@@ -337,126 +248,63 @@ export default function ChatPage() {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                  message, settings: generationSettings,
-                  isRegeneration, turnId: turn?.turnId,
+                  message, 
+                  settings: generationSettings,
+                  isRegeneration,
+                  turnId: isRegeneration ? turn?.turnId : undefined,
               }),
           });
   
-          if (!response.ok) {
+          if (!response.ok || !response.body) {
               const errorData = await safeParseJSON<{ message?: string }>(response);
               throw new Error(errorData?.message || 'APIエラーが発生しました。');
           }
-          if (!response.body) throw new Error("レスポンスがありません。");
   
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
           let buffer = '';
   
           const processEvent = (eventString: string) => {
-              if (!eventString.trim()) return false;
+              if (!eventString.trim()) return;
               const eventLine = eventString.split('\n').find(line => line.startsWith('event: '));
               const dataLine = eventString.split('\n').find(line => line.startsWith('data: '));
-              if (!eventLine || !dataLine) return false;
+              if (!eventLine || !dataLine) return;
   
-              const eventType = eventLine.substring('event: '.length);
-              const data = JSON.parse(dataLine.substring('data: '.length));
+              const eventType = eventLine.substring(7);
+              const data = JSON.parse(dataLine.substring(6));
   
               if (eventType === 'user-message-saved') {
                   const savedUserMessage = { ...data.userMessage, timestamp: new Date(data.userMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) };
                   setRawMessages(prev => [...prev, savedUserMessage, { ...tempModelMessage, turnId: savedUserMessage.id }]);
-
               } else if (eventType === 'ai-update') {
-                  // ==============================
-                  //  思考／可視テキストの分離（多様なペイロードに対応）
-                  // ==============================
-                  let thinkingDelta = "";
-                  let visibleDelta = "";
-
-                  // A) 既存フィールド（thinkingChunk/responseChunk）
-                  if (typeof data.thinkingChunk === 'string' || typeof data.responseChunk === 'string') {
-                    if (typeof data.thinkingChunk === 'string') thinkingDelta += data.thinkingChunk;
-                    if (typeof data.responseChunk === 'string') visibleDelta += data.responseChunk;
-                  }
-
-                  // B) 単一文字列の候補キー（delta/content/message/token/text）
-                  const strKeys = ["delta", "content", "message", "token", "text"];
-                  for (const k of strKeys) {
-                    if (typeof data[k] === "string") {
-                      const { thinkingDelta: t, visibleDelta: v } = splitThinkingFromChunk(String(data[k]), thinkingStateRef.current);
-                      thinkingDelta += t; visibleDelta += v;
-                    }
-                  }
-
-                  // C) メタ型（type/segment/is_thinking）
-                  const metaThinking = data?.type === "thinking" || data?.segment === "reasoning" || data?.is_thinking === true;
-                  const metaContent = data?.type === "content" || data?.segment === "content" || data?.is_thinking === false;
-                  if (metaThinking || metaContent) {
-                    const metaText = data.delta ?? data.text ?? data.token ?? data.content ?? data.message ?? "";
-                    if (typeof metaText === "string") {
-                      if (metaThinking) thinkingDelta += metaText;
-                      else visibleDelta += metaText;
-                    }
-                  }
-
-                  // D) 配列コンテンツ（assistant_content 等）
-                  if (Array.isArray(data?.assistant_content)) {
-                    for (const seg of data.assistant_content) {
-                      if (typeof seg?.text === "string") {
-                        if (seg?.type === "thinking" || seg?.subtype === "reasoning") {
-                          thinkingDelta += seg.text;
-                        } else {
-                          const { thinkingDelta: t, visibleDelta: v } = splitThinkingFromChunk(seg.text, thinkingStateRef.current);
-                          thinkingDelta += t; visibleDelta += v;
-                        }
-                      }
-                    }
-                  }
-
-                  // 反映：思考は thinkingText、可視は content
+                  const { thinkingDelta, visibleDelta } = splitThinkingFromChunk(data.chunk || '', thinkingStateRef.current);
                   if (thinkingDelta || visibleDelta) {
-                    setRawMessages(prev => prev.map(msg => {
-                      if (msg.id === tempId) {
-                        return {
-                          ...msg,
-                          thinkingText: thinkingDelta ? ((msg.thinkingText ?? '') + thinkingDelta) : msg.thinkingText,
-                          content:      visibleDelta  ? (msg.content + visibleDelta) : msg.content,
-                        };
-                      }
-                      return msg;
-                    }));
+                      setRawMessages(prev => prev.map(msg => {
+                          if (msg.id === tempId) {
+                              return {
+                                  ...msg,
+                                  thinkingText: (msg.thinkingText || '') + thinkingDelta,
+                                  content: msg.content + visibleDelta,
+                              };
+                          }
+                          return msg;
+                      }));
                   }
-
               } else if (eventType === 'ai-message-saved') {
-                  const savedModelMessageRaw = data.modelMessage || data.aiMessage;
-                  const savedModelMessage = savedModelMessageRaw
-                    ? { ...savedModelMessageRaw, timestamp: new Date(savedModelMessageRaw.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) }
-                    : null;
-
-                  if (savedModelMessage) {
-                    setRawMessages(prev => prev.map(msg => msg.id === tempId ? { ...savedModelMessage, thinkingText: msg.thinkingText } : msg));
-                    tempModelMessageIdRef.current = savedModelMessage.id;
-                  }
-
+                  const saved = { ...data.modelMessage, timestamp: new Date(data.modelMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) };
+                  setRawMessages(prev => prev.map(msg => msg.id === tempId ? { ...saved, thinkingText: msg.thinkingText } : msg));
+                  tempModelMessageIdRef.current = saved.id;
               } else if (eventType === 'stream-end') {
-                  // 終了時：思考ボックスは非表示（thinkingText を '' に）
-                  const tempIdNow = tempModelMessageIdRef.current;
-                  if (tempIdNow != null) {
-                    setRawMessages(prev => prev.map(msg => (
-                      msg.id === tempIdNow ? { ...msg, thinkingText: '' } : msg
-                    )));
+                  if (tempModelMessageIdRef.current) {
+                      setRawMessages(prev => prev.map(msg => msg.id === tempModelMessageIdRef.current ? { ...msg, thinkingText: '' } : msg));
                   }
                   fetchUserPoints();
                   setIsLoading(false);
-                  thinkingStateRef.current = { ...initialThinkingState };
-                  return true;
-
               } else if (eventType === 'error') {
                   throw new Error(data.message);
               }
-              return false;
           };
           
-          // eslint-disable-next-line no-constant-condition
           while (true) {
               const { done, value } = await reader.read();
               if (done) break;
@@ -465,23 +313,19 @@ export default function ChatPage() {
               while (boundary > -1) {
                   const eventText = buffer.substring(0, boundary);
                   buffer = buffer.substring(boundary + 2);
-                  if (processEvent(eventText)) break;
+                  processEvent(eventText);
                   boundary = buffer.indexOf('\n\n');
               }
           }
       } catch (error) {
           console.error("ストリーム処理エラー:", error);
           setModalState({ isOpen: true, title: "エラー", message: (error as Error).message, isAlert: true });
-          setRawMessages(prev => prev.filter(msg => msg.id !== tempId));
-      } finally {
+          setRawMessages(prev => prev.filter(msg => msg.id !== tempModelMessageIdRef.current && msg.id !== tempId));
           setIsLoading(false);
-          tempModelMessageIdRef.current = null;
-          thinkingStateRef.current = { ...initialThinkingState };
       }
   };
-  // ▲▲▲ 修正ここまで ▲▲▲
 
-  const [setinput, setInputState] = useState(""); // 既存の input を使用
+  // --- イベントハンドラ ---
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading || !chatId) return;
@@ -521,7 +365,6 @@ export default function ChatPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ messageId: editingMessageId, newContent }),
         });
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_error) {
         setRawMessages(rawMessages.map(m => m.id === editingMessageId ? { ...m, content: originalContent } : m));
         setModalState({ isOpen: true, title: "編集エラー", message: "メッセージの更新に失敗しました。", isAlert: true });
@@ -531,7 +374,6 @@ export default function ChatPage() {
   const handleDelete = (messageId: number) => {
     const message = rawMessages.find(m => m.id === messageId);
     if (!message) return;
-
     setModalState({
         isOpen: true,
         title: "削除の確認",
@@ -539,16 +381,14 @@ export default function ChatPage() {
         confirmText: "削除",
         onConfirm: async () => {
             const originalMessages = [...rawMessages];
-            const turnId = message.role === 'user' ? message.id : message.turnId;
-            setRawMessages(prev => prev.filter(m => m.turnId !== turnId && m.id !== turnId));
-            
+            const turnIdToDelete = message.role === 'user' ? message.id : message.turnId;
+            setRawMessages(prev => prev.filter(m => m.turnId !== turnIdToDelete && m.id !== turnIdToDelete));
             try {
                 await fetch('/api/chat/messages', {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ messageId }),
                 });
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (_error) {
                 setRawMessages(originalMessages);
                 setModalState({ isOpen: true, title: "削除エラー", message: "削除に失敗しました。", isAlert: true });
@@ -591,89 +431,29 @@ export default function ChatPage() {
         el.setSelectionRange(selectionStart + left.length, selectionEnd + left.length);
     }, 0);
   };
-  
-  // --- レンダリング（既存） ---
 
-  if (isInitialLoading || !characterInfo) {
-    return <div className="min-h-screen bg-black text-white flex justify-center items-center">チャットを準備中...</div>;
-  }
-  
-  const dynamicStyles = {
-    "--user-bubble-color": chatStyleSettings.userBubbleColor,
-    "--user-bubble-text-color": chatStyleSettings.userBubbleTextColor,
-    fontSize: `${chatStyleSettings.fontSize}px`,
-  } as React.CSSProperties;
+  // --- UIコンポーネントに渡す値 ---
+  return {
+    // State
+    router, characterId, chatId,
+    rawMessages, turns, input, isLoading, characterInfo, isInitialLoading,
+    isSettingsOpen, showChatImage, isMultiImage, userNote, lightboxImage,
+    modalState, userPoints, generationSettings, chatStyleSettings,
+    editingMessageId, editingUserContent, editingModelContent, isNewChatSession,
+    // Refs
+    messagesEndRef, textareaRef,
+    // State Setters
+    setInput, setRawMessages, setTurns, setIsLoading, setCharacterInfo,
+    setChatId, setIsInitialLoading, setIsSettingsOpen, setShowChatImage,
+    setIsMultiImage, setUserNote, setLightboxImage, setModalState,
+    setUserPoints, setGenerationSettings, setChatStyleSettings,
+    setEditingMessageId, setEditingUserContent, setEditingModelContent,
+    setIsNewChatSession,
+    // Handlers
+    handleSendMessage, handleRegenerate, handleEditStart, handleEditSave,
+    handleDelete, switchModelMessage, wrapSelection,
+    // Utilities
+    prioritizeImagesByKeyword
+  };
+};
 
-  return (
-    <div className="flex flex-col h-screen bg-black text-white" style={dynamicStyles}>
-      <ConfirmationModal modalState={modalState} setModalState={setModalState} />
-
-      <ChatHeader
-        characterId={characterId}
-        characterInfo={characterInfo}
-        onBack={() => router.back()}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-      />
-
-      <main className="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
-        <ChatMessageList
-          isNewChatSession={isNewChatSession}
-          characterInfo={characterInfo}
-          turns={turns}
-          isLoading={isLoading}
-          editingMessageId={editingMessageId}
-          editingUserContent={editingUserContent}
-          editingModelContent={editingModelContent}
-          setEditingUserContent={setEditingUserContent}
-          setEditingModelContent={setEditingModelContent}
-  
-          handleEditStart={handleEditStart}
-          handleEditSave={handleEditSave}
-          handleEditCancel={() => setEditingMessageId(null)}
-          handleDelete={handleDelete}
-          handleRegenerate={handleRegenerate}
-          switchModelMessage={switchModelMessage}
-          prioritizeImagesByKeyword={prioritizeImagesByKeyword}
-          showChatImage={showChatImage}
-          isMultiImage={isMultiImage}
-          setLightboxImage={setLightboxImage}
-        />
-        <div ref={messagesEndRef} />
-      </main>
-
-      <ChatFooter
-        ref={textareaRef}
-        input={input}
-        setInput={setInput}
-        isLoading={isLoading}
-        handleSendMessage={handleSendMessage}
-        wrapSelection={wrapSelection}
-      />
-      
-      <ChatSettings
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        showChatImage={showChatImage}
-        onShowChatImageChange={setShowChatImage}
-        isMultiImage={isMultiImage}
-        onIsMultiImageChange={setIsMultiImage}
-        onNewChat={() => { /* 既存 */ }}
-        onSaveConversationAsTxt={() => { /* 既存 */ }}
-        userNote={userNote}
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        onSaveNote={async (_note) => { /* 既存 */ }}
-        characterId={characterId}
-        chatId={chatId}
-        generationSettings={generationSettings}
-        onGenerationSettingsChange={setGenerationSettings}
-        chatStyleSettings={chatStyleSettings}
-        onChatStyleSettingsChange={setChatStyleSettings}
-        userPoints={userPoints}
-      />
-
-      {lightboxImage && (
-        <ImageLightbox imageUrl={lightboxImage} onClose={() => setLightboxImage(null)} />
-      )}
-    </div>
-  );
-}

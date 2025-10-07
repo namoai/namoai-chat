@@ -20,10 +20,11 @@ const ChatFooter = forwardRef<HTMLTextAreaElement, ChatFooterProps>(({
     <footer className="p-3 border-t border-gray-700 bg-black/50 backdrop-blur-sm sticky bottom-0">
       {/* 入力補助ツールバー */}
       <div className="mb-2 flex items-center gap-2 text-sm">
-        {/* ▼▼▼【修正】ボタンのテキストを「* *」から「地の文」に変更 ▼▼▼ */}
+        {/* 地の文（アスタリスク）を挿入するボタン */}
         <button type="button" onClick={() => wrapSelection("*", "*")} className="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700" title="地の文">
           **
         </button>
+        {/* セリフ（引用符）を挿入するボタン */}
         <button type="button" onClick={() => wrapSelection("「", "」")} className="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700" title="セリフ">
           「」
         </button>
