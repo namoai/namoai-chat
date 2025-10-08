@@ -7,6 +7,12 @@ import path from 'path';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { Role } from '@prisma/client';
+import { redis } from '@/lib/redis'; // ★ Redisクライアントをインポート
+import OpenAI from 'openai'; // ★ OpenAIクライアントをインポート
+
+// =================================================================================
+//  型定義 (Type Definitions)
+// =================================================================================
 
 type LorebookData = {
   id?: number;
@@ -14,11 +20,42 @@ type LorebookData = {
   keywords: string[];
 };
 
+// =================================================================================
+//  クライアント初期化 (Client Initialization)
+// =================================================================================
+
+// ★ OpenAIクライアント (Embedding生成用)
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// =================================================================================
+//  ヘルパー関数 (Helper Functions)
+// =================================================================================
+
 /**
- * 特定のキャラクター詳細情報を取得 (GET)
- * @param request - NextRequestオブジェクト
- * @param params - { id: string } を Promise 扱い（Next.js 15 の型仕様）
- * @returns - キャラクター詳細情報またはエラーメッセージ
+ * テキストをベクトルに変換するヘルパー関数
+ * @param text ベクトル化するテキスト
+ * @returns テキストのベクトル表現
+ */
+async function getEmbedding(text: string): Promise<number[]> {
+  if (!text) return [];
+  const sanitizedText = text.replace(/\n/g, ' ');
+  const response = await openai.embeddings.create({
+    model: "text-embedding-3-small",
+    input: sanitizedText,
+  });
+  return response.data[0].embedding;
+}
+
+
+// =================================================================================
+//  APIハンドラー (API Handlers)
+// =================================================================================
+
+
+/**
+ * 特定のキャラクター詳細情報を取得 (GET) - 変更なし
  */
 export async function GET(
   request: NextRequest,
@@ -55,10 +92,8 @@ export async function GET(
       return NextResponse.json({ error: 'キャラクターが見つかりません。' }, { status: 404 });
     }
     
-    // ▼▼▼【デバッグ用ログ追加】取得した画像データの数を確認します ▼▼▼
     console.log(`[GET /api/characters/${characterId}] データベースからキャラクターを検索しました。`);
     console.log(`[GET /api/characters/${characterId}] 関連付けられた画像の数: ${character.characterImages?.length || 0}枚`);
-    // ▲▲▲ デバッグ用ログここまで ▲▲▲
 
     if (currentUserId && character.author_id) {
       const isBlocked = await prisma.block.findUnique({
@@ -98,9 +133,7 @@ export async function GET(
       isFavorited,
     };
     
-    // ▼▼▼【デバッグ用ログ追加】レスポンスとして返す直前のデータを確認します ▼▼▼
     console.log(`[GET /api/characters/${characterId}] クライアントへのレスポンスを送信します。画像数: ${responseData.characterImages?.length || 0}枚`);
-    // ▲▲▲ デバッグ用ログここまで ▲▲▲
 
     return NextResponse.json(responseData);
 
@@ -117,8 +150,6 @@ export async function GET(
 
 /**
  * キャラクター更新（PUT）
- * @param request - NextRequestオブジェクト
- * @param params - { id: string } を Promise 扱い（Next.js 15 の型仕様）
  */
 export async function PUT(
   request: NextRequest,
@@ -163,6 +194,7 @@ export async function PUT(
     const firstSituationPlace = formData.get('firstSituationPlace') as string;
 
     const updatedCharacter = await prisma.$transaction(async (tx) => {
+      // (画像削除・追加ロジックは変更なし)
       const imagesToDeleteString = formData.get('imagesToDelete') as string;
       if (imagesToDeleteString) {
         const imagesToDelete: number[] = JSON.parse(imagesToDeleteString);
@@ -170,6 +202,8 @@ export async function PUT(
           const images = await tx.character_images.findMany({ where: { id: { in: imagesToDelete } } });
           for (const img of images) {
             try {
+              // 画像の物理削除ロジックは環境に合わせて調整が必要です
+              // ここではSupabase Storageを仮定せず、ローカルファイルとして扱っています
               await fs.unlink(path.join(process.cwd(), 'public', img.imageUrl));
             } catch (e) {
               console.error(`ファイルの物理削除に失敗: ${img.imageUrl}`, e);
@@ -206,18 +240,21 @@ export async function PUT(
         await tx.character_images.createMany({ data: newImageMetas });
       }
       
+      // ▼▼▼【核心的な修正】既存のロアブックを全て削除し、新しいロアブックをベクトル化して再作成します。▼▼▼
       await tx.lorebooks.deleteMany({
         where: { characterId: characterIdToUpdate },
       });
       if (lorebooks.length > 0) {
-        await tx.lorebooks.createMany({
-          data: lorebooks.map(lore => ({
-            content: lore.content,
-            keywords: lore.keywords,
-            characterId: characterIdToUpdate,
-          }))
-        });
+        for (const lore of lorebooks) {
+            const embedding = await getEmbedding(lore.content);
+            const embeddingString = `[${embedding.join(',')}]`;
+            await tx.$executeRaw`
+                INSERT INTO "lorebooks" ("content", "keywords", "characterId", "embedding")
+                VALUES (${lore.content}, ${lore.keywords || []}::text[], ${characterIdToUpdate}, ${embeddingString}::vector)
+            `;
+        }
       }
+      // ▲▲▲ 修正完了 ▲▲▲
 
       return await tx.characters.update({
         where: { id: characterIdToUpdate },
@@ -238,6 +275,20 @@ export async function PUT(
       });
     });
 
+    // ▼▼▼【核心的な修正】キャラクター更新後、関連する全てのチャットルームのRedisキャッシュを削除（無効化）します。▼▼▼
+    console.log(`キャラクター更新成功: ${characterIdToUpdate}。関連キャッシュを無効化します。`);
+    const chatsToInvalidate = await prisma.chat.findMany({
+      where: { characterId: characterIdToUpdate },
+      select: { id: true }
+    });
+
+    if (chatsToInvalidate.length > 0) {
+      const cacheKeys = chatsToInvalidate.map(chat => `character-info:${chat.id}`);
+      await redis.del(...cacheKeys);
+      console.log(`キャッシュ削除完了: ${cacheKeys.join(', ')}`);
+    }
+    // ▲▲▲ 修正完了 ▲▲▲
+
     return NextResponse.json(updatedCharacter);
 
   } catch (error) {
@@ -247,9 +298,7 @@ export async function PUT(
 }
 
 /**
- * キャラクター削除（DELETE）
- * @param request - NextRequestオブジェクト
- * @param params - { id: string } を Promise 扱い（Next.js 15 の型仕様）
+ * キャラクター削除（DELETE）- 変更なし
  */
 export async function DELETE(
   request: NextRequest,
@@ -299,6 +348,18 @@ export async function DELETE(
       where: { id: characterIdToDelete },
     });
 
+    // ▼▼▼【追加】キャラクター削除後、関連キャッシュも削除します。▼▼▼
+    const chatsToInvalidate = await prisma.chat.findMany({
+      where: { characterId: characterIdToDelete },
+      select: { id: true }
+    });
+    if (chatsToInvalidate.length > 0) {
+      const cacheKeys = chatsToInvalidate.map(chat => `character-info:${chat.id}`);
+      await redis.del(...cacheKeys);
+      console.log(`キャラクター削除に伴いキャッシュを削除: ${cacheKeys.join(', ')}`);
+    }
+    // ▲▲▲ 追加完了 ▲▲▲
+
     return NextResponse.json({ message: 'キャラクターが正常に削除されました。' }, { status: 200 });
 
   } catch (error) {
@@ -306,4 +367,3 @@ export async function DELETE(
     return NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });
   }
 }
-

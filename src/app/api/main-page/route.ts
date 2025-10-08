@@ -104,4 +104,3 @@ export async function GET() {
         return NextResponse.json({ error: "データの取得に失敗しました。" }, { status: 500 });
     }
 }
-

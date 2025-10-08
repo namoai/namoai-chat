@@ -21,13 +21,14 @@ model characters {
   detailSetting       String?
   author_id           Int?
   createdAt           DateTime           @default(now()) @db.Timestamptz(6)
-  updatedAt           DateTime           @updatedAt @db.Timestamptz(6)
+  updatedAt           DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
   firstSituationDate  DateTime?          @db.Timestamptz(6)
   firstSituationPlace String?
   characterImages     character_images[]
   author              users?             @relation(fields: [author_id], references: [id])
   chat                chat[]
   comments            comments[]
+  embeddings          embeddings[]
   favorites           favorites[]
   interactions        interactions[]
   lorebooks           lorebooks[]
@@ -36,7 +37,6 @@ model characters {
 model users {
   id                            Int            @id @default(autoincrement())
   email                         String         @unique
-  emailVerified                 DateTime?
   password                      String?
   name                          String
   phone                         String?        @unique
@@ -47,14 +47,11 @@ model users {
   safetyFilter                  Boolean        @default(true)
   defaultPersonaId              Int?
   role                          Role           @default(USER)
-  // ▼▼▼ 変更点: 関係(relation)に名前をつけました ▼▼▼
-  // NextAuth Adapterが'users'モデルと'Account'/'Session'モデルの関係を
-  // 明確に理解できるように、@relation属性に名前を追加します。
+  emailVerified                 DateTime?
   accounts                      Account[]      @relation("UserAccounts")
-  sessions                      Session[]      @relation("UserSessions")
-  // ▲▲▲ 変更完了 ▲▲▲
   Block_Block_blockerIdTousers  Block[]        @relation("Block_blockerIdTousers")
   Block_Block_blockingIdTousers Block[]        @relation("Block_blockingIdTousers")
+  sessions                      Session[]      @relation("UserSessions")
   characters                    characters[]
   chat                          chat[]
   comments                      comments[]
@@ -64,6 +61,7 @@ model users {
   interactions                  interactions[]
   personas                      personas[]
   points                        points?
+  // ▼▼▼【수정】 에러를 유발하는 중복된 'sessions' 필드를 삭제했습니다. ▼▼▼
 }
 
 model character_images {
@@ -74,7 +72,7 @@ model character_images {
   displayOrder Int        @default(0)
   createdAt    DateTime?  @default(now()) @db.Timestamptz(6)
   characterId  Int
-  character    characters @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  character    characters @relation(fields: [characterId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_character")
 }
 
 model favorites {
@@ -82,8 +80,9 @@ model favorites {
   user_id      Int?
   character_id Int?
   created_at   DateTime?   @default(now()) @db.Timestamp(6)
-  characters   characters? @relation(fields: [character_id], references: [id], onDelete: Cascade)
-  users        users?      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  characters   characters? @relation(fields: [character_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        users?      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
   @@unique([user_id, character_id])
 }
 
@@ -94,8 +93,8 @@ model interactions {
   message      String
   is_user      Boolean
   created_at   DateTime?   @default(now()) @db.Timestamp(6)
-  characters   characters? @relation(fields: [character_id], references: [id], onDelete: Cascade)
-  users        users?      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  characters   characters? @relation(fields: [character_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        users?      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model points {
@@ -130,7 +129,9 @@ model chat_message {
   version   Int      @default(1)
   isActive  Boolean  @default(true)
   chat      chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
   @@index([chatId, turnId, isActive])
+  @@index([chatId, isActive, createdAt], map: "chat_message_chatId_isActive_createdAt_idx")
 }
 
 model follows {
@@ -138,6 +139,7 @@ model follows {
   followingId Int
   follower    users @relation("follower", fields: [followerId], references: [id])
   following   users @relation("following", fields: [followingId], references: [id])
+
   @@id([followerId, followingId])
 }
 
@@ -150,6 +152,7 @@ model personas {
   createdAt   DateTime @default(now())
   authorId    Int
   users       users    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
   @@index([authorId])
 }
 
@@ -169,6 +172,7 @@ model guides {
   content      String
   displayOrder Int      @default(0)
   createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
   @@index([mainCategory, subCategory])
 }
 
@@ -177,7 +181,10 @@ model lorebooks {
   content     String
   keywords    String[]
   characterId Int
-  characters  characters @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  embedding   Unsupported("vector")?
+  characters  characters @relation(fields: [characterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([embedding])
 }
 
 model comments {
@@ -192,6 +199,7 @@ model comments {
   characters     characters @relation(fields: [characterId], references: [id], onDelete: Cascade)
   comments       comments?  @relation("commentsTocomments", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_comments comments[] @relation("commentsTocomments")
+
   @@index([authorId])
   @@index([characterId])
 }
@@ -202,36 +210,26 @@ model Block {
   createdAt                     DateTime @default(now())
   users_Block_blockerIdTousers  users    @relation("Block_blockerIdTousers", fields: [blockerId], references: [id], onDelete: Cascade)
   users_Block_blockingIdTousers users    @relation("Block_blockingIdTousers", fields: [blockingId], references: [id], onDelete: Cascade)
+
   @@id([blockerId, blockingId])
 }
 
-enum Role {
-  USER
-  MODERATOR
-  CHAR_MANAGER
-  SUPER_ADMIN
-}
-
 model Account {
-  id                Int       @id @default(autoincrement())
+  id                Int     @id @default(autoincrement())
   userId            Int
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?   @db.Text
-  access_token      String?   @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?   @db.Text
+  id_token          String?
   session_state     String?
-  // ▼▼▼ 変更点: 関係に名前をつけ、フィールド名を'user'に変更しました ▼▼▼
-  // 'users'という名前のフィールドをPrisma Adapterが期待する'user'に変更し、
-  // 上記の'users'モデルで定義した関係名'UserAccounts'を指定します。
-  user              users     @relation("UserAccounts", fields: [userId], references: [id], onDelete: Cascade)
-  // ▲▲▲ 変更完了 ▲▲▲
+  user              users   @relation("UserAccounts", fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([provider, providerAccountId])
-  @@index([userId])
 }
 
 model Session {
@@ -239,18 +237,34 @@ model Session {
   sessionToken String   @unique
   userId       Int
   expires      DateTime
-  // ▼▼▼ 変更点: 関係に名前をつけ、フィールド名を'user'に変更しました ▼▼▼
-  // 'users'という名前のフィールドを'user'に変更し、
-  // 上記の'users'モデルで定義した関係名'UserSessions'を指定します。
   user         users    @relation("UserSessions", fields: [userId], references: [id], onDelete: Cascade)
-  // ▲▲▲ 変更完了 ▲▲▲
-  @@index([userId])
 }
 
 model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
+
   @@unique([identifier, token])
+}
+
+model embeddings {
+  id           Int         @id @default(autoincrement())
+  character_id Int?
+  content      String?
+  embedding    Unsupported("vector")?
+  characters   characters? @relation(fields: [character_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([embedding])
+  @@index([embedding], map: "embeddings_embedding_idx1")
+}
+
+// ▼▼▼【수정】 불필요하고 중복 에러를 유발하는 'sessions' 모델을 삭제했습니다. ▼▼▼
+
+enum Role {
+  USER
+  MODERATOR
+  CHAR_MANAGER
+  SUPER_ADMIN
 }
 
