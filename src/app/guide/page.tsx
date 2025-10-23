@@ -109,7 +109,7 @@ export default function GuidePage() {
           console.warn('[guide/page] /api/guides が失敗しました:', res.status);
           return;
         }
-        const text = await res.text();
+        const text = await res.text(); // ← 直接 json() しない
         const data = safeParseJson<StructuredGuides>(text, {});
         setGuides(data);
 
@@ -195,7 +195,7 @@ export default function GuidePage() {
                           <button
                             key={guide.id}
                             onClick={() => setSelectedGuide(guide)}
-                            className={`block w-full text左 py-1 px-2 text-sm rounded-md ${
+                            className={`block w-full text-left py-1 px-2 text-sm rounded-md ${
                               selectedGuide?.id === guide.id
                                 ? 'text-pink-400 font-bold'
                                 : 'text-gray-400 hover:bg-gray-800'
