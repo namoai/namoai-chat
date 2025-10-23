@@ -208,68 +208,94 @@ export default function ChatPage() {
             throw new Error("レスポンスボディがありません。");
         }
 
+        // ▼▼▼ ここから: SSEストリームの安全なパーサに置き換え ▼▼▼
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let buffer = "";
+
+        let buf = "";
+        let eventName: string | null = null;
 
         while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
+          const { value, done } = await reader.read();
+          if (done) break;
 
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() || "";
+          buf += decoder.decode(value, { stream: true });
 
-            for (const line of lines) {
-                if (!line.startsWith("data: ")) continue;
-                
-                const dataStr = line.substring(6);
-                if (!dataStr.trim()) continue;
+          let lineEnd;
+          while ((lineEnd = buf.indexOf('\n')) >= 0) {
+            let line = buf.slice(0, lineEnd);
+            buf = buf.slice(lineEnd + 1);
 
-                try {
-                    const eventData = JSON.parse(dataStr);
+            // CRLF対応
+            if (line.endsWith('\r')) line = line.slice(0, -1);
 
-                    if (eventData.userMessage) {
-                        const realUserMessage = {
-                            ...eventData.userMessage,
-                            timestamp: new Date(eventData.userMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-                        };
-                        finalTurnIdRef.current = realUserMessage.turnId;
-                        setRawMessages(prev => prev.map(msg => msg.id === tempUserMessageId ? realUserMessage : msg));
-                    } else if (eventData.responseChunk) {
-                        if (!tempModelMessageId) {
-                            tempModelMessageId = Date.now() + 1;
-                            const turnIdForModel = finalTurnIdRef.current || tempUserMessageId;
-                            const newModelMessage: Message = {
-                                id: tempModelMessageId,
-                                role: 'model',
-                                content: eventData.responseChunk,
-                                createdAt: new Date().toISOString(),
-                                turnId: turnIdForModel,
-                                version: 1,
-                                isActive: true,
-                                timestamp: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-                            };
-                            setRawMessages(prev => [...prev, newModelMessage]);
-                        } else {
-                            setRawMessages(prev => prev.map(msg =>
-                                msg.id === tempModelMessageId
-                                    ? { ...msg, content: msg.content + eventData.responseChunk }
-                                    : msg
-                            ));
-                        }
-                    } else if (eventData.modelMessage) {
-                        setRawMessages(prev => prev.map(msg =>
-                            msg.id === tempModelMessageId
-                                ? { ...eventData.modelMessage, timestamp: new Date(eventData.modelMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) }
-                                : msg
-                        ));
-                    }
-                } catch (e) {
-                    console.error("JSON解析エラー:", dataStr, e);
-                }
+            // 空行 = 1イベントフレームの終了
+            if (line === "") {
+              eventName = null;
+              continue;
             }
+
+            // "event:" 行（任意）
+            if (line.startsWith("event:")) {
+              eventName = line.slice(6).trim();
+              continue;
+            }
+
+            // "data:" 行（本体）
+            if (line.startsWith("data:")) {
+              const dataStr = line.slice(5).trim();
+              if (!dataStr) continue;
+
+              try {
+                const eventData = JSON.parse(dataStr);
+
+                // 既存ロジックはそのまま維持
+                if (eventData.userMessage) {
+                  const realUserMessage = {
+                    ...eventData.userMessage,
+                    timestamp: new Date(eventData.userMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+                  };
+                  finalTurnIdRef.current = realUserMessage.turnId;
+                  setRawMessages(prev => prev.map(msg => msg.id === tempUserMessageId ? realUserMessage : msg));
+                } else if (eventData.responseChunk) {
+                  if (!tempModelMessageId) {
+                    tempModelMessageId = Date.now() + 1;
+                    const turnIdForModel = finalTurnIdRef.current || tempUserMessageId;
+                    const newModelMessage: Message = {
+                      id: tempModelMessageId,
+                      role: 'model',
+                      content: eventData.responseChunk,
+                      createdAt: new Date().toISOString(),
+                      turnId: turnIdForModel,
+                      version: 1,
+                      isActive: true,
+                      timestamp: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+                    };
+                    setRawMessages(prev => [...prev, newModelMessage]);
+                  } else {
+                    setRawMessages(prev => prev.map(msg =>
+                      msg.id === tempModelMessageId
+                        ? { ...msg, content: msg.content + eventData.responseChunk }
+                        : msg
+                    ));
+                  }
+                } else if (eventData.modelMessage) {
+                  setRawMessages(prev => prev.map(msg =>
+                    msg.id === tempModelMessageId
+                      ? { ...eventData.modelMessage, timestamp: new Date(eventData.modelMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) }
+                      : msg
+                  ));
+                } else if (eventData.message === 'Stream ended') {
+                  // 任意: 終了メッセージ（UI変更は不要）
+                }
+              } catch (e) {
+                console.error("JSON解析エラー:", dataStr, e);
+              }
+            }
+          }
         }
+        // ▲▲▲ ここまで置き換え ▲▲▲
+
         await fetchUserPoints();
     } catch (error) {
         setRawMessages(prev => prev.filter(msg => msg.id !== tempUserMessageId && msg.id !== tempModelMessageId));
@@ -483,4 +509,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
