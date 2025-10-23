@@ -1,34 +1,28 @@
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 
-/**
- * GET: ログイン中のユーザーが所有するペルソナ一覧を取得します
- */
-// ✅ Vercelビルドエラーを予防するため、未使用の引数を削除しました
+/* =============================================================================
+ *  GET: ログイン中ユーザーのペルソナ一覧
+ * ========================================================================== */
 export async function GET() {
   const session = await getServerSession(authOptions);
-
   if (!session?.user?.id) {
     return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
   }
 
   try {
-    const userId = parseInt(session.user.id, 10);
-
-    // ユーザーのペルソナ一覧と、どのペルソナが基本設定されているかを取得
+    const userId = Number(session.user.id);
     const userWithPersonas = await prisma.users.findUnique({
       where: { id: userId },
       select: {
-        defaultPersonaId: true, // ユーザーの基本ペルソナID
-        personas: {           // ユーザーが作成したペルソナのリスト
-          orderBy: {
-            createdAt: 'asc',
-          },
-        },
+        defaultPersonaId: true,
+        personas: { orderBy: { createdAt: 'asc' } },
       },
     });
 
@@ -40,89 +34,82 @@ export async function GET() {
       personas: userWithPersonas.personas,
       defaultPersonaId: userWithPersonas.defaultPersonaId,
     });
-
   } catch (error) {
     console.error('ペルソナリストの取得エラー:', error);
     return NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });
   }
 }
 
-
-/**
- * POST: 新しいペルソナを作成します
- */
+/* =============================================================================
+ *  POST: ペルソナ作成（age は number/string/null すべて許容）
+ * ========================================================================== */
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
-
   if (!session?.user?.id) {
     return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
   }
 
   try {
-    const userId = parseInt(session.user.id, 10);
+    const userId = Number(session.user.id);
     const body = await request.json();
-    const { nickname, age, gender, description } = body;
+    const { nickname, age, gender, description } = body ?? {};
 
     if (!nickname || !description) {
       return NextResponse.json({ error: 'ニックネームと詳細情報は必須です。' }, { status: 400 });
     }
 
+    const normalizedAge: number | null =
+      typeof age === 'number'
+        ? age
+        : (typeof age === 'string' && age.trim() !== '' ? Number(age) : null);
+
     const newPersona = await prisma.personas.create({
       data: {
         nickname,
-        age: age ? parseInt(age, 10) : null,
+        age: normalizedAge,
         gender,
         description,
-        authorId: userId, // ペルソナの所有者を設定
+        authorId: userId,
       },
     });
 
     return NextResponse.json(newPersona, { status: 201 });
-
   } catch (error) {
     console.error('ペルソナ作成エラー:', error);
     return NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });
   }
 }
 
-/**
- * PATCH: ユーザーの基本ペルソナを設定します
- */
+/* =============================================================================
+ *  PATCH: 基本ペルソナ設定（所有権チェックあり）
+ * ========================================================================== */
 export async function PATCH(request: NextRequest) {
   const session = await getServerSession(authOptions);
-
   if (!session?.user?.id) {
     return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
   }
 
   try {
-    const userId = parseInt(session.user.id, 10);
+    const userId = Number(session.user.id);
     const { personaId } = await request.json();
 
     if (typeof personaId !== 'number') {
       return NextResponse.json({ error: '無効なペルソナIDです。' }, { status: 400 });
     }
-    
-    // ユーザーがそのペルソナの所有者であることを確認 (セキュリティ対策)
-    const persona = await prisma.personas.findFirst({
-        where: {
-            id: personaId,
-            authorId: userId
-        }
-    });
 
+    const persona = await prisma.personas.findFirst({
+      where: { id: personaId, authorId: userId },
+    });
     if (!persona) {
-        return NextResponse.json({ error: 'ペルソナが見つからないか、権限がありません。' }, { status: 404 });
+      return NextResponse.json({ error: 'ペルソナが見つからないか、権限がありません。' }, { status: 404 });
     }
 
-    // ユーザーの基本ペルソナIDを更新
     await prisma.users.update({
       where: { id: userId },
       data: { defaultPersonaId: personaId },
     });
 
     return NextResponse.json({ message: '基本ペルソナが更新されました。' });
-
   } catch (error) {
     console.error('基本ペルソナ設定エラー:', error);
     return NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });

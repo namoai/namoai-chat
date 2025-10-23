@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
-// FormDataの型定義
+/* =============================================================================
+ *  フォーム用の型定義
+ * ========================================================================== */
 type PersonaData = {
   nickname: string;
   age: number | null;
@@ -12,8 +14,9 @@ type PersonaData = {
   description: string;
 };
 
-// モーダルコンポーネントのPropsの型定義
-// ▼▼▼【修正点】未使用のprops (onClose, isAlert) を削除しました ▼▼▼
+/* =============================================================================
+ *  モーダル（props は機能変更なし）
+ * ========================================================================== */
 type ModalProps = {
   isOpen: boolean;
   onConfirm: () => void;
@@ -21,8 +24,6 @@ type ModalProps = {
   message: string;
 };
 
-// 汎用モーダルコンポーネント
-// ▼▼▼【修正点】propsの変更に合わせてコンポーネントを修正しました ▼▼▼
 const CustomModal = ({ isOpen, onConfirm, title, message }: ModalProps) => {
   if (!isOpen) return null;
   return (
@@ -40,11 +41,28 @@ const CustomModal = ({ isOpen, onConfirm, title, message }: ModalProps) => {
   );
 };
 
+/* =============================================================================
+ *  安全な JSON パース（空文字/不正 JSON を許容）
+ * ========================================================================== */
+const safeParse = <T,>(text: string, fallback: T): T => {
+  if (!text) return fallback;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return fallback;
+  }
+};
+
 export default function PersonaFormPage() {
   const router = useRouter();
   const params = useParams();
-  
-  const personaId = params.personaId?.[0]; 
+
+  /* -------------------------------------------------------------------------
+   *  ルートパラメータの安全な正規化
+   *  - /persona/[personaId] で string / string[] 両方に耐性を持たせる
+   * ----------------------------------------------------------------------- */
+  const rawId = (params as Record<string, unknown>)?.personaId as string | string[] | undefined;
+  const personaId = Array.isArray(rawId) ? rawId[0] : rawId;
   const isEditMode = !!personaId;
 
   const [formData, setFormData] = useState<PersonaData>({
@@ -55,42 +73,53 @@ export default function PersonaFormPage() {
   });
   const [isLoading, setIsLoading] = useState(isEditMode);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [modalState, setModalState] = useState<Omit<ModalProps, 'onConfirm'>>({ isOpen: false, title: '', message: '' });
+  const [modalState, setModalState] = useState<Omit<ModalProps, 'onConfirm'>>({
+    isOpen: false, title: '', message: ''
+  });
 
   useEffect(() => {
-    if (isEditMode) {
-      const fetchPersona = async () => {
-        try {
-          const response = await fetch(`/api/persona/${personaId}`);
-          if (!response.ok) throw new Error('ペルソナ情報の読み込みに失敗しました。');
-          const data = await response.json();
-          setFormData({
-              nickname: data.nickname,
-              age: data.age,
-              gender: data.gender,
-              description: data.description,
-          });
-        } catch (error) {
-          console.error(error);
-          setModalState({
-            isOpen: true,
-            title: '読み込みエラー',
-            message: (error as Error).message,
-          });
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchPersona();
-    }
-  }, [isEditMode, personaId, router]);
+    if (!isEditMode) return;
+
+    const fetchPersona = async () => {
+      try {
+        // ビルド時の収集や中間キャッシュの影響を避ける
+        const response = await fetch(`/api/persona/${personaId}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error('ペルソナ情報の読み込みに失敗しました。');
+
+        // ここで直接 json() を呼ばず、テキスト→安全パースにする
+        const text = await response.text();
+        const data = safeParse<Record<string, unknown>>(text, {});
+
+        // 必須フィールドがない場合でも落ちないようデフォルトを与える
+        setFormData({
+          nickname: typeof data.nickname === 'string' ? data.nickname : '',
+          age: typeof data.age === 'number'
+            ? data.age
+            : (typeof data.age === 'string' && data.age.trim() !== '' ? Number(data.age) : null),
+          gender: data.gender === '女性' || data.gender === '男性' ? data.gender : null,
+          description: typeof data.description === 'string' ? data.description : '',
+        });
+      } catch (error) {
+        console.error(error);
+        setModalState({
+          isOpen: true,
+          title: '読み込みエラー',
+          message: (error as Error).message,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPersona();
+  }, [isEditMode, personaId]);
 
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
   const handleChange = (field: keyof PersonaData, value: string | null) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => ({ ...prev, [field]: value as unknown as never }));
   };
-  
+
   const handleAgeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setFormData(prev => ({ ...prev, age: value === '' ? null : Number(value) }));
@@ -105,16 +134,19 @@ export default function PersonaFormPage() {
 
     try {
       const response = await fetch(url, {
-        method: method,
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            ...formData,
-            age: formData.age ? Number(formData.age) : null,
+          ...formData,
+          // age は number | null に正規化
+          age: formData.age ?? null,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        // ここも text→安全パース（HTML エラーページでも落ちない）
+        const errorText = await response.text();
+        const errorData = safeParse<{ error?: string }>(errorText, {});
         throw new Error(errorData.error || '保存に失敗しました。');
       }
 
@@ -134,7 +166,7 @@ export default function PersonaFormPage() {
       setIsSubmitting(false);
     }
   };
-  
+
   const handleModalConfirm = () => {
     closeModal();
     if (modalState.title === '成功') {
@@ -144,12 +176,16 @@ export default function PersonaFormPage() {
   };
 
   if (isLoading) {
-    return <div className="min-h-screen bg-black text-white flex items-center justify-center">ローディング中...</div>;
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        ローディング中...
+      </div>
+    );
   }
 
   return (
     <>
-      <CustomModal 
+      <CustomModal
         isOpen={modalState.isOpen}
         title={modalState.title}
         message={modalState.message}
@@ -157,8 +193,8 @@ export default function PersonaFormPage() {
       />
       <div className="bg-black min-h-screen text-white p-4">
         <header className="flex justify-between items-center py-4">
-          <button 
-            onClick={() => router.back()} 
+          <button
+            onClick={() => router.back()}
             className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"
           >
             <ArrowLeft size={24} />
@@ -167,9 +203,9 @@ export default function PersonaFormPage() {
           <button
             onClick={handleSave}
             className={`font-bold py-2 px-3 rounded-lg transition-colors disabled:cursor-not-allowed ${
-              formData.nickname && formData.description 
-              ? 'text-white hover:bg-gray-800 cursor-pointer' 
-              : 'text-gray-600'
+              formData.nickname && formData.description
+                ? 'text-white hover:bg-gray-800 cursor-pointer'
+                : 'text-gray-600'
             }`}
             disabled={!formData.nickname || !formData.description || isSubmitting}
           >
@@ -178,28 +214,69 @@ export default function PersonaFormPage() {
         </header>
         <main className="mt-8 space-y-8">
           <div>
-            <label className="text-sm font-bold text-white">ニックネーム <span className="text-red-500">*</span></label>
+            <label className="text-sm font-bold text白">ニックネーム <span className="text-red-500">*</span></label>
             <div className="relative mt-2">
-              <input type="text" value={formData.nickname} onChange={(e) => handleChange('nickname', e.target.value)} maxLength={20} className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-500" />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">{formData.nickname.length}/20</span>
+              <input
+                type="text"
+                value={formData.nickname}
+                onChange={(e) => handleChange('nickname', e.target.value)}
+                maxLength={20}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                {formData.nickname.length}/20
+              </span>
             </div>
           </div>
+
           <div>
-            <label className="text-sm font-bold text-white">年齢</label>
-            <input type="number" value={formData.age ?? ''} onChange={handleAgeChange} className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 mt-2 focus:outline-none focus:ring-2 focus:ring-pink-500" />
+            <label className="text-sm font-bold text白">年齢</label>
+            <input
+              type="number"
+              value={formData.age ?? ''}
+              onChange={handleAgeChange}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 mt-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            />
           </div>
+
           <div>
-            <label className="text-sm font-bold text-white">性別</label>
+            <label className="text-sm font-bold text白">性別</label>
             <div className="grid grid-cols-2 gap-4 mt-2">
-              <button onClick={() => handleChange('gender', '女性')} className={`p-3 rounded-lg border-2 transition-colors cursor-pointer ${formData.gender === '女性' ? 'bg-pink-500/20 border-pink-500' : 'bg-gray-800 border-gray-700 hover:border-gray-600'}`}>女性</button>
-              <button onClick={() => handleChange('gender', '男性')} className={`p-3 rounded-lg border-2 transition-colors cursor-pointer ${formData.gender === '男性' ? 'bg-pink-500/20 border-pink-500' : 'bg-gray-800 border-gray-700 hover:border-gray-600'}`}>男性</button>
+              <button
+                onClick={() => handleChange('gender', '女性')}
+                className={`p-3 rounded-lg border-2 transition-colors cursor-pointer ${
+                  formData.gender === '女性'
+                    ? 'bg-pink-500/20 border-pink-500'
+                    : 'bg-gray-800 border-gray-700 hover:border-gray-600'
+                }`}
+              >
+                女性
+              </button>
+              <button
+                onClick={() => handleChange('gender', '男性')}
+                className={`p-3 rounded-lg border-2 transition-colors cursor-pointer ${
+                  formData.gender === '男性'
+                    ? 'bg-pink-500/20 border-pink-500'
+                    : 'bg-gray-800 border-gray-700 hover:border-gray-600'
+                }`}
+              >
+                男性
+              </button>
             </div>
           </div>
+
           <div>
-            <label className="text-sm font-bold text-white">詳細情報 <span className="text-red-500">*</span></label>
+            <label className="text-sm font-bold text白">詳細情報 <span className="text-red-500">*</span></label>
             <div className="relative mt-2">
-              <textarea value={formData.description} onChange={(e) => handleChange('description', e.target.value)} maxLength={1000} className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 h-40 resize-none focus:outline-none focus:ring-2 focus:ring-pink-500" />
-              <span className="absolute right-3 bottom-3 text-sm text-gray-400">{formData.description.length}/1000</span>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleChange('description', e.target.value)}
+                maxLength={1000}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 h-40 resize-none focus:outline-none focus:ring-2 focus:ring-pink-500"
+              />
+              <span className="absolute right-3 bottom-3 text-sm text-gray-400">
+                {formData.description.length}/1000
+              </span>
             </div>
           </div>
         </main>
