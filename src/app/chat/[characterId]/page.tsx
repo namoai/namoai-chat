@@ -6,7 +6,10 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 // 外部コンポーネントのインポート
-import ChatSettings, { GenerationSettings, ChatStyleSettings } from "@/components/ChatSettings";
+import ChatSettings, {
+  GenerationSettings,
+  ChatStyleSettings,
+} from "@/components/ChatSettings";
 import ChatHeader from "@/components/chat/ChatHeader";
 import ChatMessageList from "@/components/chat/ChatMessageList";
 import ChatFooter from "@/components/chat/ChatFooter";
@@ -14,27 +17,37 @@ import ConfirmationModal from "@/components/chat/ConfirmationModal";
 import ImageLightbox from "@/components/chat/ImageLightbox";
 
 // 型定義のインポート
-import type { CharacterInfo, Message, Turn, ModalState, DbMessage, CharacterImageInfo } from '@/types/chat';
+import type {
+  CharacterInfo,
+  Message,
+  Turn,
+  ModalState,
+  DbMessage,
+  CharacterImageInfo,
+} from "@/types/chat";
 
 // --- ユーティリティ関数 ---
 
 async function safeParseJSON<T>(res: Response): Promise<T | null> {
   if (res.status === 204) return null;
   try {
-    return await res.json() as T;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    return (await res.json()) as T;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (_error) {
     return null;
   }
 }
 
-const prioritizeImagesByKeyword = (userText: string, allImages: CharacterImageInfo[]): CharacterImageInfo[] => {
+const prioritizeImagesByKeyword = (
+  userText: string,
+  allImages: CharacterImageInfo[]
+): CharacterImageInfo[] => {
   const images = allImages.slice(1);
   if (!userText.trim()) return images;
   const lowerUserText = userText.toLowerCase();
   const matched: CharacterImageInfo[] = [];
   const rest: CharacterImageInfo[] = [];
-  images.forEach(img => {
+  images.forEach((img) => {
     const keyword = (img.keyword || "").toLowerCase().trim();
     if (keyword && lowerUserText.includes(keyword)) {
       matched.push(img);
@@ -58,7 +71,9 @@ export default function ChatPage() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [characterInfo, setCharacterInfo] = useState<CharacterInfo | null>(null);
+  const [characterInfo, setCharacterInfo] = useState<CharacterInfo | null>(
+    null
+  );
   const [chatId, setChatId] = useState<number | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -66,10 +81,20 @@ export default function ChatPage() {
   const [isMultiImage, setIsMultiImage] = useState(true);
   const [userNote, setUserNote] = useState("");
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-  const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: "", message: "" });
+  const [modalState, setModalState] = useState<ModalState>({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
   const [userPoints, setUserPoints] = useState(0);
-  const [generationSettings, setGenerationSettings] = useState<GenerationSettings>({ model: "gemini-2.5-pro", responseBoostMultiplier: 1.0 });
-  const [chatStyleSettings, setChatStyleSettings] = useState<ChatStyleSettings>({ fontSize: 14, userBubbleColor: "#db2777", userBubbleTextColor: "#ffffff" });
+  const [generationSettings, setGenerationSettings] =
+    useState<GenerationSettings>({
+      model: "gemini-2.5-pro",
+      responseBoostMultiplier: 1.0,
+    });
+  const [chatStyleSettings, setChatStyleSettings] = useState<ChatStyleSettings>(
+    { fontSize: 14, userBubbleColor: "#db2777", userBubbleTextColor: "#ffffff" }
+  );
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [editingUserContent, setEditingUserContent] = useState("");
   const [editingModelContent, setEditingModelContent] = useState("");
@@ -81,20 +106,26 @@ export default function ChatPage() {
 
   // ▼▼▼【修正】削除されたuseEffectを復元します ▼▼▼
   useEffect(() => {
-    const userMessages = rawMessages.filter(m => m.role === 'user');
-    const modelMessages = rawMessages.filter(m => m.role === 'model');
-    const newTurns = userMessages.map(userMsg => {
-      const correspondingModels = modelMessages
-        .filter(modelMsg => modelMsg.turnId === userMsg.turnId)
-        .sort((a, b) => a.version - b.version);
-      const activeModel = correspondingModels.find(m => m.isActive) || correspondingModels[correspondingModels.length - 1];
-      return {
-        turnId: userMsg.turnId as number,
-        userMessage: userMsg,
-        modelMessages: correspondingModels,
-        activeModelIndex: activeModel ? correspondingModels.indexOf(activeModel) : -1,
-      };
-    }).filter(turn => turn.userMessage);
+    const userMessages = rawMessages.filter((m) => m.role === "user");
+    const modelMessages = rawMessages.filter((m) => m.role === "model");
+    const newTurns = userMessages
+      .map((userMsg) => {
+        const correspondingModels = modelMessages
+          .filter((modelMsg) => modelMsg.turnId === userMsg.turnId)
+          .sort((a, b) => a.version - b.version);
+        const activeModel =
+          correspondingModels.find((m) => m.isActive) ||
+          correspondingModels[correspondingModels.length - 1];
+        return {
+          turnId: userMsg.turnId as number,
+          userMessage: userMsg,
+          modelMessages: correspondingModels,
+          activeModelIndex: activeModel
+            ? correspondingModels.indexOf(activeModel)
+            : -1,
+        };
+      })
+      .filter((turn) => turn.userMessage);
     setTurns(newTurns);
   }, [rawMessages]);
   // ▲▲▲ 修正ここまで ▲▲▲
@@ -104,14 +135,19 @@ export default function ChatPage() {
     try {
       const response = await fetch(`/api/points`);
       if (!response.ok) throw new Error("ポイント取得失敗");
-      const data = await safeParseJSON<{ free_points?: number; paid_points?: number }>(response);
+      const data = await safeParseJSON<{
+        free_points?: number;
+        paid_points?: number;
+      }>(response);
       setUserPoints((data?.free_points || 0) + (data?.paid_points || 0));
     } catch (error) {
       console.error(error);
     }
   }, [session]);
 
-  useEffect(() => { fetchUserPoints(); }, [fetchUserPoints]);
+  useEffect(() => {
+    fetchUserPoints();
+  }, [fetchUserPoints]);
 
   useEffect(() => {
     if (!characterId) return;
@@ -122,7 +158,12 @@ export default function ChatPage() {
         setCharacterInfo(await res.json());
       } catch (e) {
         console.error(e);
-        setModalState({ isOpen: true, title: "エラー", message: "キャラクター情報読込失敗", onConfirm: () => router.back() });
+        setModalState({
+          isOpen: true,
+          title: "エラー",
+          message: "キャラクター情報読込失敗",
+          onConfirm: () => router.back(),
+        });
       }
     };
     loadCharacterInfo();
@@ -133,39 +174,48 @@ export default function ChatPage() {
     const chatIdFromUrl = searchParams.get("chatId");
 
     const loadChatSession = async () => {
-        setIsInitialLoading(true);
-        try {
-            const res = await fetch("/api/chats/find-or-create", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    characterId: Number(characterId),
-                    chatId: chatIdFromUrl ? Number(chatIdFromUrl) : null,
-                }),
-            });
-            if (!res.ok) throw new Error("チャットセッション取得失敗");
-            const data = await res.json();
-            setChatId(data.id);
-            setUserNote(data.userNote || "");
-            const formattedMessages = (data.chat_message || []).map((msg: DbMessage) => ({
-                ...msg,
-                timestamp: new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-            }));
-            setRawMessages(formattedMessages);
-            setIsNewChatSession(formattedMessages.length === 0);
-        } catch (e) {
-            console.error(e);
-            setModalState({ isOpen: true, title: "エラー", message: "チャット読込失敗", onConfirm: () => router.back() });
-        } finally {
-            setIsInitialLoading(false);
-        }
+      setIsInitialLoading(true);
+      try {
+        const res = await fetch("/api/chats/find-or-create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            characterId: Number(characterId),
+            chatId: chatIdFromUrl ? Number(chatIdFromUrl) : null,
+          }),
+        });
+        if (!res.ok) throw new Error("チャットセッション取得失敗");
+        const data = await res.json();
+        setChatId(data.id);
+        setUserNote(data.userNote || "");
+        const formattedMessages = (data.chat_message || []).map(
+          (msg: DbMessage) => ({
+            ...msg,
+            timestamp: new Date(msg.createdAt).toLocaleTimeString("ja-JP", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          })
+        );
+        setRawMessages(formattedMessages);
+        setIsNewChatSession(formattedMessages.length === 0);
+      } catch (e) {
+        console.error(e);
+        setModalState({
+          isOpen: true,
+          title: "エラー",
+          message: "チャット読込失敗",
+          onConfirm: () => router.back(),
+        });
+      } finally {
+        setIsInitialLoading(false);
+      }
     };
     loadChatSession();
   }, [characterId, searchParams, router]);
 
-
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [rawMessages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -180,234 +230,314 @@ export default function ChatPage() {
     const tempUserMessageId = Date.now();
     const tempUserMessage: Message = {
       id: tempUserMessageId,
-      role: 'user',
+      role: "user",
       content: messageToSend,
       createdAt: new Date().toISOString(),
       turnId: tempUserMessageId,
       version: 1,
       isActive: true,
-      timestamp: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString("ja-JP", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     };
-    setRawMessages(prev => [...prev, tempUserMessage]);
+    setRawMessages((prev) => [...prev, tempUserMessage]);
 
     let tempModelMessageId: number | null = null;
 
     try {
-        const response = await fetch(`/api/chat/${chatId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: messageToSend, settings: generationSettings }),
-        });
+      const response = await fetch(`/api/chat/${chatId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: messageToSend,
+          settings: generationSettings,
+        }),
+      });
 
-        if (!response.ok) {
-            const errorData = await safeParseJSON<{ message?: string }>(response);
-            throw new Error(errorData?.message || 'APIエラーが発生しました。');
-        }
+      if (!response.ok) {
+        const errorData = await safeParseJSON<{ message?: string }>(response);
+        throw new Error(errorData?.message || "APIエラーが発生しました。");
+      }
 
-        if (!response.body) {
-            throw new Error("レスポンスボディがありません。");
-        }
+      if (!response.body) {
+        throw new Error("レスポンスボディがありません。");
+      }
 
-        // ▼▼▼ ここから: SSEストリームの安全なパーサに置き換え ▼▼▼
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
+      // ▼▼▼ ここから: SSEストリームの安全なパーサに置き換え ▼▼▼
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
 
-        let buf = "";
-        let eventName: string | null = null;
+      let buf = "";
 
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
 
-          buf += decoder.decode(value, { stream: true });
+        buf += decoder.decode(value, { stream: true });
 
-          let lineEnd;
-          while ((lineEnd = buf.indexOf('\n')) >= 0) {
-            let line = buf.slice(0, lineEnd);
-            buf = buf.slice(lineEnd + 1);
+        let lineEnd;
+        while ((lineEnd = buf.indexOf("\n")) >= 0) {
+          let line = buf.slice(0, lineEnd);
+          buf = buf.slice(lineEnd + 1);
 
-            // CRLF対応
-            if (line.endsWith('\r')) line = line.slice(0, -1);
+          // CRLF対応
+          if (line.endsWith("\r")) line = line.slice(0, -1);
 
-            // 空行 = 1イベントフレームの終了
-            if (line === "") {
-              eventName = null;
-              continue;
-            }
+          // 空行 = 1イベントフレームの終了（今回はevent名を使わないため何もしない）
+          if (line === "") {
+            continue;
+          }
 
-            // "event:" 行（任意）
-            if (line.startsWith("event:")) {
-              eventName = line.slice(6).trim();
-              continue;
-            }
+          // "event:" 行（今回は使用しないのでスキップ）
+          if (line.startsWith("event:")) {
+            // const evt = line.slice(6).trim(); // ← 使わない
+            continue;
+          }
 
-            // "data:" 行（本体）
-            if (line.startsWith("data:")) {
-              const dataStr = line.slice(5).trim();
-              if (!dataStr) continue;
+          // "data:" 行（本体）
+          if (line.startsWith("data:")) {
+            const dataStr = line.slice(5).trim();
+            if (!dataStr) continue;
 
-              try {
-                const eventData = JSON.parse(dataStr);
+            try {
+              const eventData = JSON.parse(dataStr);
 
-                // 既存ロジックはそのまま維持
-                if (eventData.userMessage) {
-                  const realUserMessage = {
-                    ...eventData.userMessage,
-                    timestamp: new Date(eventData.userMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+              // 既存ロジックはそのまま維持
+              if (eventData.userMessage) {
+                const realUserMessage = {
+                  ...eventData.userMessage,
+                  timestamp: new Date(
+                    eventData.userMessage.createdAt
+                  ).toLocaleTimeString("ja-JP", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+                };
+                finalTurnIdRef.current = realUserMessage.turnId;
+                setRawMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === tempUserMessageId ? realUserMessage : msg
+                  )
+                );
+              } else if (eventData.responseChunk) {
+                if (!tempModelMessageId) {
+                  tempModelMessageId = Date.now() + 1;
+                  const turnIdForModel =
+                    finalTurnIdRef.current || tempUserMessageId;
+                  const newModelMessage: Message = {
+                    id: tempModelMessageId,
+                    role: "model",
+                    content: eventData.responseChunk,
+                    createdAt: new Date().toISOString(),
+                    turnId: turnIdForModel,
+                    version: 1,
+                    isActive: true,
+                    timestamp: new Date().toLocaleTimeString("ja-JP", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
                   };
-                  finalTurnIdRef.current = realUserMessage.turnId;
-                  setRawMessages(prev => prev.map(msg => msg.id === tempUserMessageId ? realUserMessage : msg));
-                } else if (eventData.responseChunk) {
-                  if (!tempModelMessageId) {
-                    tempModelMessageId = Date.now() + 1;
-                    const turnIdForModel = finalTurnIdRef.current || tempUserMessageId;
-                    const newModelMessage: Message = {
-                      id: tempModelMessageId,
-                      role: 'model',
-                      content: eventData.responseChunk,
-                      createdAt: new Date().toISOString(),
-                      turnId: turnIdForModel,
-                      version: 1,
-                      isActive: true,
-                      timestamp: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-                    };
-                    setRawMessages(prev => [...prev, newModelMessage]);
-                  } else {
-                    setRawMessages(prev => prev.map(msg =>
+                  setRawMessages((prev) => [...prev, newModelMessage]);
+                } else {
+                  setRawMessages((prev) =>
+                    prev.map((msg) =>
                       msg.id === tempModelMessageId
-                        ? { ...msg, content: msg.content + eventData.responseChunk }
+                        ? {
+                            ...msg,
+                            content: msg.content + eventData.responseChunk,
+                          }
                         : msg
-                    ));
-                  }
-                } else if (eventData.modelMessage) {
-                  setRawMessages(prev => prev.map(msg =>
-                    msg.id === tempModelMessageId
-                      ? { ...eventData.modelMessage, timestamp: new Date(eventData.modelMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) }
-                      : msg
-                  ));
-                } else if (eventData.message === 'Stream ended') {
-                  // 任意: 終了メッセージ（UI変更は不要）
+                    )
+                  );
                 }
-              } catch (e) {
-                console.error("JSON解析エラー:", dataStr, e);
+              } else if (eventData.modelMessage) {
+                setRawMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === tempModelMessageId
+                      ? {
+                          ...eventData.modelMessage,
+                          timestamp: new Date(
+                            eventData.modelMessage.createdAt
+                          ).toLocaleTimeString("ja-JP", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }),
+                        }
+                      : msg
+                  )
+                );
+              } else if (eventData.message === "Stream ended") {
+                // 任意: 終了メッセージ（UI変更は不要）
               }
+            } catch (e) {
+              console.error("JSON解析エラー:", dataStr, e);
             }
           }
         }
-        // ▲▲▲ ここまで置き換え ▲▲▲
+      }
+      // ▲▲▲ ここまで置き換え ▲▲▲
 
-        await fetchUserPoints();
+      await fetchUserPoints();
     } catch (error) {
-        setRawMessages(prev => prev.filter(msg => msg.id !== tempUserMessageId && msg.id !== tempModelMessageId));
-        setModalState({ isOpen: true, title: "送信エラー", message: (error as Error).message, isAlert: true });
+      setRawMessages((prev) =>
+        prev.filter(
+          (msg) => msg.id !== tempUserMessageId && msg.id !== tempModelMessageId
+        )
+      );
+      setModalState({
+        isOpen: true,
+        title: "送信エラー",
+        message: (error as Error).message,
+        isAlert: true,
+      });
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
   const handleEditStart = (message: Message) => {
     setEditingMessageId(message.id);
-    if (message.role === 'user') setEditingUserContent(message.content);
+    if (message.role === "user") setEditingUserContent(message.content);
     else setEditingModelContent(message.content);
   };
 
   const handleEditSave = async () => {
     if (editingMessageId === null) return;
-    const message = rawMessages.find(m => m.id === editingMessageId);
+    const message = rawMessages.find((m) => m.id === editingMessageId);
     if (!message) return;
-    const newContent = message.role === 'user' ? editingUserContent : editingModelContent;
+    const newContent =
+      message.role === "user" ? editingUserContent : editingModelContent;
 
     const originalContent = message.content;
-    setRawMessages(rawMessages.map(m => m.id === editingMessageId ? { ...m, content: newContent } : m));
+    setRawMessages(
+      rawMessages.map((m) =>
+        m.id === editingMessageId ? { ...m, content: newContent } : m
+      )
+    );
     setEditingMessageId(null);
 
     try {
-        await fetch('/api/chat/messages', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messageId: editingMessageId, newContent }),
-        });
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      await fetch("/api/chat/messages", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: editingMessageId, newContent }),
+      });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_error) {
-        setRawMessages(rawMessages.map(m => m.id === editingMessageId ? { ...m, content: originalContent } : m));
-        setModalState({ isOpen: true, title: "編集エラー", message: "メッセージの更新に失敗しました。", isAlert: true });
+      setRawMessages(
+        rawMessages.map((m) =>
+          m.id === editingMessageId ? { ...m, content: originalContent } : m
+        )
+      );
+      setModalState({
+        isOpen: true,
+        title: "編集エラー",
+        message: "メッセージの更新に失敗しました。",
+        isAlert: true,
+      });
     }
   };
 
   const handleDelete = (messageId: number) => {
-    const message = rawMessages.find(m => m.id === messageId);
+    const message = rawMessages.find((m) => m.id === messageId);
     if (!message) return;
 
     setModalState({
-        isOpen: true,
-        title: "削除の確認",
-        message: "このメッセージと以降のやり取りを削除しますか？",
-        confirmText: "削除",
-        onConfirm: async () => {
-            const originalMessages = [...rawMessages];
-            const turnId = message.turnId;
-            setRawMessages(prev => prev.filter(m => m.turnId !== turnId));
+      isOpen: true,
+      title: "削除の確認",
+      message: "このメッセージと以降のやり取りを削除しますか？",
+      confirmText: "削除",
+      onConfirm: async () => {
+        const originalMessages = [...rawMessages];
+        const turnId = message.turnId;
+        setRawMessages((prev) => prev.filter((m) => m.turnId !== turnId));
 
-            try {
-                await fetch('/api/chat/messages', {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messageId }),
-                });
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            } catch (_error) {
-                setRawMessages(originalMessages);
-                setModalState({ isOpen: true, title: "削除エラー", message: "削除に失敗しました。", isAlert: true });
-            }
-        },
+        try {
+          await fetch("/api/chat/messages", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messageId }),
+          });
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_error) {
+          setRawMessages(originalMessages);
+          setModalState({
+            isOpen: true,
+            title: "削除エラー",
+            message: "削除に失敗しました。",
+            isAlert: true,
+          });
+        }
+      },
     });
   };
 
   const handleRegenerate = async (turn: Turn) => {
-     if (isLoading || !chatId) return;
+    if (isLoading || !chatId) return;
     setIsLoading(true);
     try {
-        const res = await fetch('/api/chat/messages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chatId, turnId: turn.turnId, settings: generationSettings }),
-        });
-        if (!res.ok) throw new Error("再生成に失敗しました");
-        const data = await res.json();
-        const newMessage = {
-            ...data.newMessage,
-            timestamp: new Date(data.newMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-        };
-        setRawMessages(prev => {
-            const updated = prev.map(m => (m.turnId === turn.turnId && m.role === 'model') ? { ...m, isActive: false } : m);
-            return [...updated, newMessage];
-        });
+      const res = await fetch("/api/chat/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chatId,
+          turnId: turn.turnId,
+          settings: generationSettings,
+        }),
+      });
+      if (!res.ok) throw new Error("再生成に失敗しました");
+      const data = await res.json();
+      const newMessage = {
+        ...data.newMessage,
+        timestamp: new Date(data.newMessage.createdAt).toLocaleTimeString(
+          "ja-JP",
+          { hour: "2-digit", minute: "2-digit" }
+        ),
+      };
+      setRawMessages((prev) => {
+        const updated = prev.map((m) =>
+          m.turnId === turn.turnId && m.role === "model"
+            ? { ...m, isActive: false }
+            : m
+        );
+        return [...updated, newMessage];
+      });
     } catch (error) {
-        setModalState({ isOpen: true, title: "エラー", message: (error as Error).message, isAlert: true });
+      setModalState({
+        isOpen: true,
+        title: "エラー",
+        message: (error as Error).message,
+        isAlert: true,
+      });
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
   const switchModelMessage = (turnId: number, direction: "next" | "prev") => {
-    const turn = turns.find(t => t.turnId === turnId);
+    const turn = turns.find((t) => t.turnId === turnId);
     if (!turn || turn.modelMessages.length <= 1) return;
-    const newIndex = direction === 'next'
+    const newIndex =
+      direction === "next"
         ? (turn.activeModelIndex + 1) % turn.modelMessages.length
-        : (turn.activeModelIndex - 1 + turn.modelMessages.length) % turn.modelMessages.length;
+        : (turn.activeModelIndex - 1 + turn.modelMessages.length) %
+          turn.modelMessages.length;
 
     const newActiveId = turn.modelMessages[newIndex].id;
-    setRawMessages(prev => prev.map(m => {
-        if (m.turnId === turnId && m.role === 'model') {
-            return { ...m, isActive: m.id === newActiveId };
+    setRawMessages((prev) =>
+      prev.map((m) => {
+        if (m.turnId === turnId && m.role === "model") {
+          return { ...m, isActive: m.id === newActiveId };
         }
         return m;
-    }));
+      })
+    );
 
-    fetch('/api/chat/messages', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ turnId, activeMessageId: newActiveId }),
+    fetch("/api/chat/messages", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ turnId, activeMessageId: newActiveId }),
     });
   };
 
@@ -416,18 +546,28 @@ export default function ChatPage() {
     if (!el) return;
     const { selectionStart, selectionEnd } = el;
     const selectedText = input.substring(selectionStart, selectionEnd);
-    const newText = `${input.substring(0, selectionStart)}${left}${selectedText}${right}${input.substring(selectionEnd)}`;
+    const newText = `${input.substring(
+      0,
+      selectionStart
+    )}${left}${selectedText}${right}${input.substring(selectionEnd)}`;
     setInput(newText);
     setTimeout(() => {
-        el.focus();
-        el.setSelectionRange(selectionStart + left.length, selectionEnd + left.length);
+      el.focus();
+      el.setSelectionRange(
+        selectionStart + left.length,
+        selectionEnd + left.length
+      );
     }, 0);
   };
 
   // --- レンダリング ---
 
   if (isInitialLoading || !characterInfo) {
-    return <div className="min-h-screen bg-black text-white flex justify-center items-center">チャットを準備中...</div>;
+    return (
+      <div className="min-h-screen bg-black text-white flex justify-center items-center">
+        チャットを準備中...
+      </div>
+    );
   }
 
   const dynamicStyles = {
@@ -437,8 +577,14 @@ export default function ChatPage() {
   } as React.CSSProperties;
 
   return (
-    <div className="flex flex-col h-screen bg-black text-white" style={dynamicStyles}>
-      <ConfirmationModal modalState={modalState} setModalState={setModalState} />
+    <div
+      className="flex flex-col h-screen bg-black text-white"
+      style={dynamicStyles}
+    >
+      <ConfirmationModal
+        modalState={modalState}
+        setModalState={setModalState}
+      />
 
       <ChatHeader
         characterId={characterId}
@@ -459,7 +605,6 @@ export default function ChatPage() {
           editingModelContent={editingModelContent}
           setEditingUserContent={setEditingUserContent}
           setEditingModelContent={setEditingModelContent}
-
           handleEditStart={handleEditStart}
           handleEditSave={handleEditSave}
           handleEditCancel={() => setEditingMessageId(null)}
@@ -490,10 +635,16 @@ export default function ChatPage() {
         onShowChatImageChange={setShowChatImage}
         isMultiImage={isMultiImage}
         onIsMultiImageChange={setIsMultiImage}
-        onNewChat={() => { /* ロジックをここに実装 */ }}
-        onSaveConversationAsTxt={() => { /* ロジックをここに実装 */ }}
+        onNewChat={() => {
+          /* ロジックをここに実装 */
+        }}
+        onSaveConversationAsTxt={() => {
+          /* ロジックをここに実装 */
+        }}
         userNote={userNote}
-        onSaveNote={async (note) => { console.log(note) }}
+        onSaveNote={async (note) => {
+          console.log(note);
+        }}
         characterId={characterId}
         chatId={chatId}
         generationSettings={generationSettings}
@@ -504,7 +655,10 @@ export default function ChatPage() {
       />
 
       {lightboxImage && (
-        <ImageLightbox imageUrl={lightboxImage} onClose={() => setLightboxImage(null)} />
+        <ImageLightbox
+          imageUrl={lightboxImage}
+          onClose={() => setLightboxImage(null)}
+        />
       )}
     </div>
   );
