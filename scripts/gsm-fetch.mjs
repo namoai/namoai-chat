@@ -1,4 +1,5 @@
 // scripts/gsm-fetch.mjs
+import 'dotenv/config';
 import fs from "node:fs";
 import path from "node:path";
 import { SecretManagerServiceClient } from "@google-cloud/secret-manager";
@@ -10,7 +11,7 @@ fs.mkdirSync(saDir, { recursive: true });
 
 let saJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || "";
 const saB64  = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64 || "";
-const saFile = process.env.GOOGLE_APPLICATION_CREDENTIALS_FILE || "";
+const saFile = process.env.GOOGLE_APPLICATION_CREDENTIALS_FILE || process.env.GOOGLE_APPLICATION_CREDENTIALS || "";
 
 // 1) 파일 경로 우선
 if (!saJson && saFile) {

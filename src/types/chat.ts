@@ -35,10 +35,12 @@ export interface DbMessage {
 }
 
 export interface Message extends DbMessage {
-  // UI 用に付与する表示時刻
+  // UI 用に付y与する表示時刻
   timestamp: string;
   // ▼ 思考ストリーム（クライアントのみ保持）
   thinkingText?: string;
+  // ▼▼▼【修正】AIの応答を待つ間の仮メッセージかどうかを判定するフラグを追加 ▼▼▼
+  isProvisional?: boolean;
 }
 
 export interface Turn {
@@ -55,6 +57,8 @@ export interface ModalState {
   confirmText?: string;
   isAlert?: boolean;
   onConfirm?: () => void;
+  // ▼▼▼【修正】onCancelを追加（ConfirmationModal.tsxで参照されているため）▼▼▼
+  onCancel?: () => void;
 }
 
 /**
@@ -73,3 +77,4 @@ export type ChatStyleSettings = {
   userBubbleColor: string; // ユーザーのチャットバブルの色 (Hex)
   userBubbleTextColor: string; // ユーザーのチャットバブルの文字色 (Hex)
 };
+
