@@ -14,7 +14,7 @@ import { authOptions } from '@/lib/nextauth';
  * ============================================================================= */
 function extractUserIdFromRequest(request: Request): number | null {
   const url = new URL(request.url);
-  const parts = url.pathname.split('/').filter(Boolean); // 空要素を除去
+  const parts = url.pathname.split('/').filter(Boolean);
   const idStr = parts[parts.length - 1];
   if (!idStr) return null;
   const parsedId = Number(idStr);
@@ -24,20 +24,23 @@ function extractUserIdFromRequest(request: Request): number | null {
 /* =============================================================================
  *  GET: プロフィール本体 or フォロワー/フォロー一覧
  *  - ビルド時の静的収集を無効化（dynamic = 'force-dynamic'）
- *  - URL パラメータの抽出を堅牢化
+ *  - いかなる場合でも JSON 本文を返却（空レスポンス禁止）
  * ============================================================================= */
 export async function GET(request: NextRequest) {
-  // クエリ取得（followers / following）
-  const { searchParams } = new URL(request.url);
-  const listType = searchParams.get('list'); // 'followers' または 'following'
-
-  // パスから userId を抽出
-  const profileUserId = extractUserIdFromRequest(request);
-  if (profileUserId === null) {
-    return NextResponse.json({ error: '無効なユーザーIDです。' }, { status: 400 });
-  }
-
   try {
+    // クエリ取得（followers / following）
+    const { searchParams } = new URL(request.url);
+    const listType = searchParams.get('list'); // 'followers' または 'following'
+
+    // パスから userId を抽出
+    const profileUserId = extractUserIdFromRequest(request);
+    if (profileUserId === null) {
+      return new NextResponse(JSON.stringify({ ok: false, error: '無効なユーザーIDです。' }), {
+        status: 400,
+        headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+      });
+    }
+
     // --- フォロワー一覧 ---
     if (listType === 'followers') {
       const followers = await prisma.follows.findMany({
@@ -46,7 +49,11 @@ export async function GET(request: NextRequest) {
           follower: { select: { id: true, nickname: true, image_url: true } }
         }
       });
-      return NextResponse.json(followers.map(f => f.follower));
+      const data = followers.map(f => f.follower);
+      return new NextResponse(JSON.stringify(data), {
+        status: 200,
+        headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+      });
     }
 
     // --- フォロー一覧 ---
@@ -57,7 +64,11 @@ export async function GET(request: NextRequest) {
           following: { select: { id: true, nickname: true, image_url: true } }
         }
       });
-      return NextResponse.json(following.map(f => f.following));
+      const data = following.map(f => f.following);
+      return new NextResponse(JSON.stringify(data), {
+        status: 200,
+        headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+      });
     }
 
     // --- 通常のプロフィール情報 ---
@@ -76,7 +87,10 @@ export async function GET(request: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: 'ユーザーが見つかりません。' }, { status: 404 });
+      return new NextResponse(JSON.stringify({ ok: false, error: 'ユーザーが見つかりません。' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+      });
     }
 
     const [
@@ -91,7 +105,7 @@ export async function GET(request: NextRequest) {
       prisma.follows.count({ where: { followerId: profileUserId } }),
       prisma.characters.findMany({
         where: { author_id: profileUserId },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'asc' }, // ※既存と同等の意味合いなら asc/desc は要件に合わせて維持
         include: {
           characterImages: { where: { isMain: true }, take: 1 },
           _count: { select: { favorites: true, chat: true } },
@@ -131,18 +145,22 @@ export async function GET(request: NextRequest) {
       isBlocked: !!blockRelation,
     };
 
-    return NextResponse.json(profileData);
+    return new NextResponse(JSON.stringify(profileData), {
+      status: 200,
+      headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+    });
   } catch (error) {
     console.error('プロファイルAPIエラー:', error);
-    if (error instanceof Error) {
-      // Prisma のテーブル未作成などを明示
-      if (error.message.includes('relation "Block" does not exist')) {
-        return NextResponse.json(
-          { error: 'サーバーエラー: Blockテーブルがデータベースに存在しません。' },
-          { status: 500 }
-        );
-      }
+    // Prisma のテーブル未作成などを明示
+    if (error instanceof Error && error.message.includes('relation "Block" does not exist')) {
+      return new NextResponse(
+        JSON.stringify({ ok: false, error: 'サーバーエラー: Blockテーブルがデータベースに存在しません。' }),
+        { status: 500, headers: { 'content-type': 'application/json; charset=utf-8' } }
+      );
     }
-    return NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });
+    return new NextResponse(JSON.stringify({ ok: false, error: 'サーバーエラーが発生しました。' }), {
+      status: 500,
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+    });
   }
 }
