@@ -12,8 +12,9 @@ import type { Session } from 'next-auth';
 /* ============================================================================
  *  ガイド一覧ページ
  *  - API から階層データを取得してサイドバーでナビゲート
- *  - ビルド時の静的収集を強制的に無効化（dynamic = 'force-dynamic'）
+ *  - ビルド時の静的収集を無効化（dynamic = 'force-dynamic'）
  *  - JSON.parse は常に安全に行い、空レスポンスでも落ちないよう防御
+ *  - any を使用せず、user.role の存在は型ガードで検出
  * ==========================================================================*/
 
 // ガイドデータの型定義
@@ -66,7 +67,7 @@ export default function GuidePage() {
   const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({});
   const [loading, setLoading] = useState(true);
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<Session | null>(null); // ← Session をそのまま使用
 
   // --- JSON テキストを安全にパースするユーティリティ ---
   const safeParseJson = <T,>(text: string, fallback: T): T => {
@@ -77,6 +78,13 @@ export default function GuidePage() {
       console.error('[guide/page] JSON.parse 失敗:', e);
       return fallback;
     }
+  };
+
+  // --- user が role:string を持つかどうかを判定する型ガード（any 不使用） ---
+  const hasRole = (u: unknown): u is { role: string } => {
+    if (typeof u !== 'object' || u === null) return false;
+    const roleVal = (u as { role?: unknown }).role;
+    return typeof roleVal === 'string';
   };
 
   useEffect(() => {
@@ -132,6 +140,9 @@ export default function GuidePage() {
     setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // --- 管理者判定（セッションが存在し、user.role が 'ADMIN' の場合） ---
+  const isAdmin = !!(session && hasRole(session.user) && session.user.role === 'ADMIN');
+
   return (
     <div className="bg-black min-h-screen text-white flex flex-col">
       <header className="sticky top-0 bg-black z-10 p-4 border-b border-gray-800 flex items-center justify-between">
@@ -148,7 +159,7 @@ export default function GuidePage() {
         </div>
 
         {/* ガイド管理（管理者のみ） */}
-        {session?.user && (session as any)?.user?.role === 'ADMIN' && (
+        {isAdmin && (
           <Link
             href="/admin/guides"
             className="flex items-center bg-pink-600 hover:bg-pink-700 text-white text-sm font-bold py-2 px-4 rounded-lg transition-colors"
@@ -184,7 +195,7 @@ export default function GuidePage() {
                           <button
                             key={guide.id}
                             onClick={() => setSelectedGuide(guide)}
-                            className={`block w-full text-left py-1 px-2 text-sm rounded-md ${
+                            className={`block w-full text左 py-1 px-2 text-sm rounded-md ${
                               selectedGuide?.id === guide.id
                                 ? 'text-pink-400 font-bold'
                                 : 'text-gray-400 hover:bg-gray-800'
