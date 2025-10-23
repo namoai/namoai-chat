@@ -1,25 +1,40 @@
-import fs from "node:fs";
-import path from "node:path";
-
-export function ensureGcpCreds() {
+/**
+ * GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64 / GOOGLE_APPLICATION_CREDENTIALS_JSON を
+ * 一時パスに復元し、GOOGLE_APPLICATION_CREDENTIALS をそのパスに設定する。
+ * 既に存在すれば再生成しない。
+ */
+export async function ensureGcpCreds() {
   const b64 =
     process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64 ??
     process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
   if (!b64) return;
 
-  const credPath = path.join("/tmp", "gcp-sa.json");
+  // ✅ requireを直接書かず、eval経由でNodeコアモジュールを解決する
+  const fs = eval("require")("fs");
+  const path = eval("require")("path");
+  const os = eval("require")("os");
+
+  const credPath = path.join(os.tmpdir(), "gcp-sa.json");
+
   try {
     if (!fs.existsSync(credPath)) {
-      const buf = Buffer.from(b64.trim(), "base64");
-      // raw JSON이 들어온 경우도 대비
-      const text = buf.toString("utf8");
-      const content = text.startsWith("{") ? text : Buffer.from(b64.trim(), "base64").toString("utf8");
-      fs.writeFileSync(credPath, content);
+      let content: string;
+      const trimmed = b64.trim();
+      if (trimmed.startsWith("{")) {
+        content = trimmed;
+      } else {
+        const buf = Buffer.from(trimmed, "base64");
+        content = buf.toString("utf8");
+      }
+      fs.writeFileSync(credPath, content, { encoding: "utf8" });
     }
+
     process.env.GOOGLE_APPLICATION_CREDENTIALS = credPath;
-    // 디버그(문제 해결되면 삭제 가능)
-    const size = fs.statSync(credPath).size;
-    console.log("[creds] wrote", credPath, "size:", size);
+
+    try {
+      const size = fs.statSync(credPath).size;
+      console.log("[creds] wrote", credPath, "size:", size);
+    } catch {}
   } catch (e) {
     console.error("[creds] write failed:", e);
   }
