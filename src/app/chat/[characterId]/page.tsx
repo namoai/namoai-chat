@@ -337,14 +337,16 @@ export default function ChatPage() {
     });
   };
 
-  const handleRegenerate = async (turn: Turn) => {
+  // ▼▼▼【修正】Stale Stateバグを修正するため、Turnオブジェクト全体ではなくturnIdのみを受け取ります ▼▼▼
+  const handleRegenerate = async (turnId: number) => {
      if (isLoading || !chatId) return;
     setIsLoading(true);
     try {
         const res = await fetch('/api/chat/messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chatId, turnId: turn.turnId, settings: generationSettings }),
+            // turnIdをそのまま渡します
+            body: JSON.stringify({ chatId, turnId: turnId, settings: generationSettings }),
         });
         if (!res.ok) throw new Error("再生成に失敗しました");
         const data = await res.json();
@@ -353,7 +355,8 @@ export default function ChatPage() {
             timestamp: new Date(data.newMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
         };
         setRawMessages(prev => {
-            const updated = prev.map(m => (m.turnId === turn.turnId && m.role === 'model') ? { ...m, isActive: false } : m);
+            // turnIdを使用してisActiveを更新します
+            const updated = prev.map(m => (m.turnId === turnId && m.role === 'model') ? { ...m, isActive: false } : m);
             return [...updated, newMessage];
         });
     } catch (error) {
@@ -362,6 +365,7 @@ export default function ChatPage() {
         setIsLoading(false);
     }
   };
+  // ▲▲▲ 修正ここまで ▲▲▲
 
   const switchModelMessage = (turnId: number, direction: "next" | "prev") => {
     const turn = turns.find(t => t.turnId === turnId);
@@ -426,7 +430,6 @@ export default function ChatPage() {
           isNewChatSession={isNewChatSession}
           characterInfo={characterInfo}
           rawMessages={rawMessages} // ▼▼▼【修正】rawMessagesを渡します ▼▼▼
-          turns={turns} // handleRegenerateのために必要
           isLoading={isLoading}
           editingMessageId={editingMessageId}
           editingUserContent={editingUserContent}
@@ -438,7 +441,7 @@ export default function ChatPage() {
           handleEditSave={handleEditSave}
           handleEditCancel={() => setEditingMessageId(null)}
           handleDelete={handleDelete}
-          handleRegenerate={handleRegenerate}
+          handleRegenerate={handleRegenerate} // ▼▼▼【修正】新しいシグ니처의 함수를 전달합니다 ▼▼▼
           switchModelMessage={switchModelMessage}
           prioritizeImagesByKeyword={prioritizeImagesByKeyword}
           showChatImage={showChatImage}
@@ -483,4 +486,3 @@ export default function ChatPage() {
     </div>
   );
 }
-

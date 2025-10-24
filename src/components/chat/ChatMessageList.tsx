@@ -2,13 +2,14 @@
 import React, { useEffect, useRef } from 'react';
 import { Edit3, Trash2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import ChatMessageParser from '@/components/ChatMessageParser';
-import type { Turn, Message, CharacterInfo, CharacterImageInfo } from '@/types/chat';
+// ▼▼▼【修正】Turn 型を useMemo でローカル生成するため、インポートから削除します ▼▼▼
+import type { Message, CharacterInfo, CharacterImageInfo } from '@/types/chat';
 
 interface ChatMessageListProps {
   isNewChatSession: boolean;
   characterInfo: CharacterInfo;
   rawMessages: Message[];
-  turns: Turn[]; // handleRegenerateのために必要
+  // turns: Turn[]; // ★★★【修正】Stale Stateを避けるため、このpropを削除
   isLoading: boolean;
   editingMessageId: number | null;
   editingUserContent: string;
@@ -19,7 +20,7 @@ interface ChatMessageListProps {
   handleEditCancel: () => void;
   handleEditSave: () => void;
   handleDelete: (messageId: number) => void;
-  handleRegenerate: (turn: Turn) => void;
+  handleRegenerate: (turnId: number) => void; // ★★★【修正】Turn オブジェクトから turnId (number) に変更
   switchModelMessage: (turnId: number, direction: 'next' | 'prev') => void;
   prioritizeImagesByKeyword: (userText: string, allImages: CharacterImageInfo[]) => CharacterImageInfo[];
   showChatImage: boolean;
@@ -64,7 +65,7 @@ const EditableTextarea: React.FC<{
 };
 
 const ChatMessageList: React.FC<ChatMessageListProps> = ({
-  isNewChatSession, characterInfo, rawMessages, turns, isLoading, editingMessageId,
+  isNewChatSession, characterInfo, rawMessages, isLoading, editingMessageId,
   editingUserContent, editingModelContent, setEditingUserContent, setEditingModelContent,
   handleEditStart, handleEditCancel, handleEditSave, handleDelete, handleRegenerate, switchModelMessage,
   prioritizeImagesByKeyword, showChatImage, isMultiImage, setLightboxImage,
@@ -81,18 +82,18 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
       
       const activeModel = correspondingModels.find(m => m.isActive) || correspondingModels[correspondingModels.length - 1];
 
-      // `turns`から完全なturnオブジェクトを見つける（handleRegenerate用）
-      const fullTurn = turns.find(t => t.turnId === userMsg.turnId);
+      // ★★★【修正】staleな `turns` prop への依存を削除します。
+      // const fullTurn = turns.find(t => t.turnId === userMsg.turnId);
 
       return {
-        ...(fullTurn || {}), // ★★★【修正】見つかったturnの情報をすべてコピーする
+        // ...(fullTurn || {}), // ★★★【修正】依存を削除
         turnId: userMsg.turnId as number,
         userMessage: userMsg,
         modelMessages: correspondingModels,
         activeModelIndex: activeModel ? correspondingModels.indexOf(activeModel) : -1,
-      } as Turn; // ★★★【修正】型アサーションを追加
+      };
     }).filter(turn => turn.userMessage);
-  }, [rawMessages, turns]);
+  }, [rawMessages]); // ★★★【修正】`turns` への依存を削除
   // ▲▲▲ 修正ここまで ▲▲▲
 
   return (
@@ -189,7 +190,8 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                         <button onClick={() => handleEditStart(activeModelMessage)} className="p-1 hover:text-pink-400"><Edit3 size={14} /></button>
                         <button onClick={() => handleDelete(activeModelMessage.id)} className="p-1 hover:text-red-500"><Trash2 size={14} /></button>
                         {turnIndex === processedTurns.length - 1 && (
-                          <button onClick={() => handleRegenerate(turn)} className="p-1 hover:text-green-400"><RefreshCw size={14} /></button>
+                          // ★★★【修正】`turn.turnId` を直接渡します
+                          <button onClick={() => handleRegenerate(turn.turnId)} className="p-1 hover:text-green-400"><RefreshCw size={14} /></button>
                         )}
                       </div>
                       {turn.modelMessages.length > 1 && (
@@ -224,4 +226,3 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
 };
 
 export default ChatMessageList;
-
