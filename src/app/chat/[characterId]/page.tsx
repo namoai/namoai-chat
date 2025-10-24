@@ -14,6 +14,7 @@ import ConfirmationModal from "@/components/chat/ConfirmationModal";
 import ImageLightbox from "@/components/chat/ImageLightbox";
 
 // 型定義のインポート
+// ▼▼▼【修正】`GenerationSettings`の重複インポートを削除しました。▼▼▼
 import type { CharacterInfo, Message, Turn, ModalState, DbMessage, CharacterImageInfo } from '@/types/chat';
 
 // --- ユーティリティ関数 ---
@@ -55,6 +56,7 @@ export default function ChatPage() {
 
   // --- State管理 ---
   const [rawMessages, setRawMessages] = useState<Message[]>([]);
+  // ▼▼▼【Stale State修正】 `turns` state는 여전히 `switchModelMessage`를 위해 필요합니다.
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -68,7 +70,10 @@ export default function ChatPage() {
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: "", message: "" });
   const [userPoints, setUserPoints] = useState(0);
-  const [generationSettings, setGenerationSettings] = useState<GenerationSettings>({ model: "gemini-2.5-pro", responseBoostMultiplier: 1.0 });
+  
+  // ▼▼▼【修正】responseBoostMultiplier を初期状態から削除します ▼▼▼
+  const [generationSettings, setGenerationSettings] = useState<GenerationSettings>({ model: "gemini-2.5-pro" });
+  
   const [chatStyleSettings, setChatStyleSettings] = useState<ChatStyleSettings>({ fontSize: 14, userBubbleColor: "#db2777", userBubbleTextColor: "#ffffff" });
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [editingUserContent, setEditingUserContent] = useState("");
@@ -79,7 +84,7 @@ export default function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const finalTurnIdRef = useRef<number | null>(null);
 
-  // ▼▼▼【修正】削除されたuseEffectを復元します ▼▼▼
+  // ▼▼▼【Stale State修正】`turns` state는 `rawMessages`가 변경될 때마다 갱신됩니다.
   useEffect(() => {
     const userMessages = rawMessages.filter(m => m.role === 'user');
     const modelMessages = rawMessages.filter(m => m.role === 'model');
@@ -196,6 +201,7 @@ export default function ChatPage() {
         const response = await fetch(`/api/chat/${chatId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            // ▼▼▼【修正】boostMultiplier가 제거된 settings를 전송합니다. ▼▼▼
             body: JSON.stringify({ message: messageToSend, settings: generationSettings }),
         });
 
@@ -337,7 +343,7 @@ export default function ChatPage() {
     });
   };
 
-  // ▼▼▼【修正】Stale Stateバグを修正するため、Turnオブジェクト全体ではなくturnIdのみを受け取ります ▼▼▼
+  // ▼▼▼【Stale State修正】Stale Stateバグを修正するため、Turnオブジェクト全体ではなくturnIdのみを受け取ります ▼▼▼
   const handleRegenerate = async (turnId: number) => {
      if (isLoading || !chatId) return;
     setIsLoading(true);
@@ -345,7 +351,7 @@ export default function ChatPage() {
         const res = await fetch('/api/chat/messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            // turnIdをそのまま渡します
+            // ▼▼▼【修正】boostMultiplier가 제거된 settings를 전송합니다. ▼▼▼
             body: JSON.stringify({ chatId, turnId: turnId, settings: generationSettings }),
         });
         if (!res.ok) throw new Error("再生成に失敗しました");
@@ -368,6 +374,7 @@ export default function ChatPage() {
   // ▲▲▲ 修正ここまで ▲▲▲
 
   const switchModelMessage = (turnId: number, direction: "next" | "prev") => {
+    // ▼▼▼【Stale State修正】 `turns` state는 여기서 계속 사용합니다 (이것은 실시간성이 중요하지 않음)
     const turn = turns.find(t => t.turnId === turnId);
     if (!turn || turn.modelMessages.length <= 1) return;
     const newIndex = direction === 'next'
@@ -429,7 +436,7 @@ export default function ChatPage() {
         <ChatMessageList
           isNewChatSession={isNewChatSession}
           characterInfo={characterInfo}
-          rawMessages={rawMessages} // ▼▼▼【修正】rawMessagesを渡します ▼▼▼
+          rawMessages={rawMessages}
           isLoading={isLoading}
           editingMessageId={editingMessageId}
           editingUserContent={editingUserContent}
@@ -441,7 +448,7 @@ export default function ChatPage() {
           handleEditSave={handleEditSave}
           handleEditCancel={() => setEditingMessageId(null)}
           handleDelete={handleDelete}
-          handleRegenerate={handleRegenerate} // ▼▼▼【修正】新しいシグ니처의 함수를 전달합니다 ▼▼▼
+          handleRegenerate={handleRegenerate} // ▼▼▼【Stale State修正】새로운 시그니처의 함수를 전달합니다 ▼▼▼
           switchModelMessage={switchModelMessage}
           prioritizeImagesByKeyword={prioritizeImagesByKeyword}
           showChatImage={showChatImage}
@@ -473,8 +480,7 @@ export default function ChatPage() {
         onSaveNote={async (note) => { console.log(note) }}
         characterId={characterId}
         chatId={chatId}
-        generationSettings={generationSettings}
-        onGenerationSettingsChange={setGenerationSettings}
+        // ▼▼▼【修正】ブースト 관련 props를 제거합니다 ▼▼▼
         chatStyleSettings={chatStyleSettings}
         onChatStyleSettingsChange={setChatStyleSettings}
         userPoints={userPoints}
@@ -486,3 +492,4 @@ export default function ChatPage() {
     </div>
   );
 }
+

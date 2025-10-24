@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { X, ChevronRight, Image as ImageIcon, Film, MessageSquare, BookUser, FileText, Trash2, Cpu, Zap, Palette, Type } from 'lucide-react';
+import { X, ChevronRight, Image as ImageIcon, Film, MessageSquare, BookUser, FileText, Trash2, Palette, Type } from 'lucide-react'; // ▼▼▼【修正】Cpu, Zap 아이콘 제거
 
 /**
  * AIによる応答生成に関する設定の型定義。
+ * ▼▼▼【修正】responseBoostMultiplier を削除 ▼▼▼
  */
 export type GenerationSettings = {
   model: string;
-  responseBoostMultiplier: number;
 };
 
 /**
@@ -21,6 +21,7 @@ export type ChatStyleSettings = {
 
 /**
  * このコンポーネントが受け取るプロパティの型定義。
+ * ▼▼▼【修正】generationSettings 関連の props を削除 ▼▼▼
  */
 type ChatSettingsProps = {
   isOpen: boolean;
@@ -35,14 +36,12 @@ type ChatSettingsProps = {
   onSaveNote: (note: string) => Promise<void>;
   characterId: string | null;
   chatId: number | null;
-  generationSettings: GenerationSettings;
-  onGenerationSettingsChange: (settings: GenerationSettings) => void;
-  chatStyleSettings: ChatStyleSettings; // ◀◀◀【追加】表示設定
-  onChatStyleSettingsChange: (settings: ChatStyleSettings) => void; // ◀◀◀【追加】表示設定ハンドラ
+  chatStyleSettings: ChatStyleSettings;
+  onChatStyleSettingsChange: (settings: ChatStyleSettings) => void;
   userPoints: number;
 };
 
-// ... (SettingItem, NoteModal, SaveConversationModal, ResponseBoostModal は変更なし)
+// ... (SettingItem, NoteModal, SaveConversationModal は変更なし)
 type SettingItemProps = {
   icon: React.ReactNode;
   label: string;
@@ -117,36 +116,7 @@ const SaveConversationModal = ({ onSaveAsTxt, onClose }: { onSaveAsTxt: () => vo
     );
 };
 
-const ResponseBoostModal = ({ settings, userPoints, onSave, onClose }: { settings: GenerationSettings; userPoints: number; onSave: (newSettings: GenerationSettings) => void; onClose: () => void; }) => {
-    const [localMultiplier, setLocalMultiplier] = useState(settings.responseBoostMultiplier);
-    const BOOST_OPTIONS = [ { multiplier: 1.0, cost: 0, label: "基本" }, { multiplier: 1.5, cost: 1, label: "1.5倍" }, { multiplier: 3.0, cost: 2, label: "3倍" }, { multiplier: 5.0, cost: 4, label: "5倍" }, ];
-    const selectedOption = BOOST_OPTIONS.find(opt => opt.multiplier === localMultiplier) || BOOST_OPTIONS[0];
-    const requiredPoints = 1 + selectedOption.cost;
-    const handleSave = () => { if (requiredPoints > userPoints) return; onSave({ ...settings, responseBoostMultiplier: localMultiplier }); };
-    return (
-        <div className="absolute inset-0 bg-gray-800 z-20 flex flex-col p-4">
-            <div className="flex justify-between items-center mb-4"> <h3 className="text-lg font-bold">応答ブースト設定</h3> <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-full"><X size={20} /></button> </div>
-            <p className="text-sm text-gray-400 mb-6">ポイントを消費して、次のAIの応答をより長く、詳細にすることができます。1回の送信にのみ適用されます。</p>
-            <div className="flex-1 overflow-y-auto space-y-4">
-                <div className="bg-gray-900 p-4 rounded-lg">
-                    <h4 className="font-bold flex items-center mb-4"><Zap size={16} className="text-pink-500 mr-2" />Gemini 2.5 Pro</h4>
-                    <div className="grid grid-cols-4 gap-2">
-                        {BOOST_OPTIONS.map(opt => (
-                            <button key={opt.multiplier} onClick={() => setLocalMultiplier(opt.multiplier)} disabled={ (1 + opt.cost) > userPoints && opt.cost > 0 } className={`p-2 border rounded-md text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${localMultiplier === opt.multiplier ? 'bg-pink-600 border-pink-500' : 'bg-gray-700 border-gray-600 hover:border-pink-500'}`}>
-                                <p className="font-bold text-sm">{opt.label}</p>
-                                <p className="text-xs text-gray-400">{opt.cost > 0 ? `+${opt.cost} P` : '無料'}</p>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
-            <div className="mt-auto pt-4 border-t border-gray-700">
-                <div className="text-sm text-center mb-3"><span className="text-gray-400">保有ポイント: {userPoints} P</span><span className={`ml-2 ${requiredPoints > userPoints ? 'text-red-500' : 'text-pink-500'}`}>{`(-${requiredPoints} P)`}</span></div>
-                <button onClick={handleSave} disabled={requiredPoints > userPoints} className="w-full bg-pink-600 hover:bg-pink-700 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-md transition-colors">設定を保存</button>
-            </div>
-        </div>
-    );
-};
+// ▼▼▼【修正】ResponseBoostModal 全体を削除 ▼▼▼
 
 // ▼▼▼【新規追加】チャット表示設定モーダル ▼▼▼
 const StyleSettingsModal = ({ settings, onSave, onClose }: { settings: ChatStyleSettings; onSave: (newSettings: ChatStyleSettings) => void; onClose: () => void; }) => {
@@ -203,23 +173,24 @@ const StyleSettingsModal = ({ settings, onSave, onClose }: { settings: ChatStyle
 export default function ChatSettings({ 
   isOpen, onClose, showChatImage, onShowChatImageChange, isMultiImage, onIsMultiImageChange,
   onNewChat, onSaveConversationAsTxt, userNote, onSaveNote, characterId, chatId, 
-  generationSettings, onGenerationSettingsChange,
-  chatStyleSettings, onChatStyleSettingsChange, // ◀◀◀【追加】
+  // ▼▼▼【修正】generationSettings, onGenerationSettingsChange を削除 ▼▼▼
+  chatStyleSettings, onChatStyleSettingsChange,
   userPoints
 }: ChatSettingsProps) {
   
   const [isNoteModalOpen, setNoteModalOpen] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-  const [isAiSettingsModalOpen, setIsAiSettingsModalOpen] = useState(false);
-  const [isStyleModalOpen, setIsStyleModalOpen] = useState(false); // ◀◀◀【追加】
+  // ▼▼▼【修正】isAiSettingsModalOpen を削除 ▼▼▼
+  const [isStyleModalOpen, setIsStyleModalOpen] = useState(false);
 
-  useEffect(() => { if (!isOpen) { setTimeout(() => { setNoteModalOpen(false); setIsSaveModalOpen(false); setIsAiSettingsModalOpen(false); setIsStyleModalOpen(false); }, 300); } }, [isOpen]);
+  // ▼▼▼【修正】isAiSettingsModalOpen を削除 ▼▼▼
+  useEffect(() => { if (!isOpen) { setTimeout(() => { setNoteModalOpen(false); setIsSaveModalOpen(false); setIsStyleModalOpen(false); }, 300); } }, [isOpen]);
   if (!isOpen) return null;
 
   const personaHref = characterId && chatId ? `/persona/list?fromChat=true&characterId=${characterId}&chatId=${chatId}` : '/persona/list';
   
-  const handleSaveAiSettings = (newSettings: GenerationSettings) => { onGenerationSettingsChange(newSettings); setIsAiSettingsModalOpen(false); };
-  const handleSaveStyleSettings = (newSettings: ChatStyleSettings) => { onChatStyleSettingsChange(newSettings); setIsStyleModalOpen(false); }; // ◀◀◀【追加】
+  // ▼▼▼【修正】handleSaveAiSettings を削除 ▼▼▼
+  const handleSaveStyleSettings = (newSettings: ChatStyleSettings) => { onChatStyleSettingsChange(newSettings); setIsStyleModalOpen(false); };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={onClose}>
@@ -230,8 +201,8 @@ export default function ChatSettings({
             <div className="p-2 space-y-1">
                 <SettingItem icon={<ImageIcon size={20} />} label="チャットイメージ" hasSwitch={true} switchState={showChatImage} onSwitchChange={() => onShowChatImageChange(!showChatImage)} />
                 <SettingItem icon={<Film size={20} />} label="マルチイメージ" hasSwitch={true} switchState={isMultiImage} onSwitchChange={() => onIsMultiImageChange(!isMultiImage)} />
-                <SettingItem icon={<Cpu size={20} />} label="AI応答設定" onClick={() => setIsAiSettingsModalOpen(true)} />
-                <SettingItem icon={<Palette size={20} />} label="チャット表示設定" onClick={() => setIsStyleModalOpen(true)} /> {/* ◀◀◀【追加】 */}
+                {/* ▼▼▼【修正】AI応答設定ボタンを削除 ▼▼▼ */}
+                <SettingItem icon={<Palette size={20} />} label="チャット表示設定" onClick={() => setIsStyleModalOpen(true)} />
                 <SettingItem icon={<MessageSquare size={20} />} label="会話内容を保存" onClick={() => setIsSaveModalOpen(true)} />
                 <SettingItem icon={<BookUser size={20} />} label="ユーザーノート" onClick={() => setNoteModalOpen(true)} />
                 <SettingItem icon={<FileText size={20} />} label="ペルソナ" href={personaHref} />
@@ -242,8 +213,8 @@ export default function ChatSettings({
         </>
         {isNoteModalOpen && <NoteModal note={userNote} onSave={onSaveNote} onClose={() => setNoteModalOpen(false)} />}
         {isSaveModalOpen && <SaveConversationModal onSaveAsTxt={onSaveConversationAsTxt} onClose={() => setIsSaveModalOpen(false)} />}
-        {isAiSettingsModalOpen && <ResponseBoostModal settings={generationSettings} userPoints={userPoints} onSave={handleSaveAiSettings} onClose={() => setIsAiSettingsModalOpen(false)} />}
-        {isStyleModalOpen && <StyleSettingsModal settings={chatStyleSettings} onSave={handleSaveStyleSettings} onClose={() => setIsStyleModalOpen(false)} />} {/* ◀◀◀【追加】 */}
+        {/* ▼▼▼【修正】ResponseBoostModal を削除 ▼▼▼ */}
+        {isStyleModalOpen && <StyleSettingsModal settings={chatStyleSettings} onSave={handleSaveStyleSettings} onClose={() => setIsStyleModalOpen(false)} />}
       </div>
     </div>
   );
