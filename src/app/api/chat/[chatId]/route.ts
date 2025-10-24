@@ -14,7 +14,7 @@ import { authOptions } from "@/lib/nextauth";
 // VertexAIクライアントの初期化
 const vertex_ai = new VertexAI({
   project: process.env.GOOGLE_PROJECT_ID,
-  location: "global",
+  location: "us-central1",
 });
 
 // 安全性設定
