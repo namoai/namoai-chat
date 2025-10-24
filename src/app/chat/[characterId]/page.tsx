@@ -14,6 +14,7 @@ import ConfirmationModal from "@/components/chat/ConfirmationModal";
 import ImageLightbox from "@/components/chat/ImageLightbox";
 
 // 型定義のインポート
+// ▼▼▼【Stale State修正】`Turn` 타입은 `switchModelMessage`를 위해 여전히 필요합니다. ▼▼▼
 import type { CharacterInfo, Message, Turn, ModalState, DbMessage, CharacterImageInfo } from '@/types/chat';
 
 // --- ユーティリティ関数 ---
@@ -55,7 +56,7 @@ export default function ChatPage() {
 
   // --- State管理 ---
   const [rawMessages, setRawMessages] = useState<Message[]>([]);
-  // ▼▼▼【Stale State修正】 `turns` stateは `switchModelMessage` のために引き続き必要です。
+  // ▼▼▼【Stale State修正】 `turns` state는 `switchModelMessage` 를 위해 유지합니다.
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -83,7 +84,8 @@ export default function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const finalTurnIdRef = useRef<number | null>(null);
 
-  // ▼▼▼【Stale State修正】`turns` stateは `rawMessages` が変更されるたびに更新されます。
+  // ▼▼▼【Stale State修正】`turns` state는 `rawMessages` 가 변경될 때마다 갱신됩니다.
+  // 이 `turns` state는 `switchModelMessage` (답변 넘겨보기) 기능에만 사용됩니다.
   useEffect(() => {
     const userMessages = rawMessages.filter(m => m.role === 'user');
     const modelMessages = rawMessages.filter(m => m.role === 'model');
@@ -371,7 +373,7 @@ export default function ChatPage() {
   // ▲▲▲ 修正ここまで ▲▲▲
 
   const switchModelMessage = (turnId: number, direction: "next" | "prev") => {
-    // `turns` stateは `switchModelMessage` のためにここで使用されます。
+    // `turns` state는 `switchModelMessage` 를 위해 여기서 사용됩니다.
     const turn = turns.find(t => t.turnId === turnId);
     if (!turn || turn.modelMessages.length <= 1) return;
     const newIndex = direction === 'next'
@@ -433,8 +435,8 @@ export default function ChatPage() {
         <ChatMessageList
           isNewChatSession={isNewChatSession}
           characterInfo={characterInfo}
-          rawMessages={rawMessages} // ▼▼▼【Stale State修正】 `rawMessages` のみ渡します
-          // turns={turns} // ★★★【Stale State修正】このpropを削除します。
+          rawMessages={rawMessages} // ▼▼▼【Stale State修正】 `rawMessages` 만을 전달합니다.
+          // turns={turns} // ★★★【Stale State修正】이 prop을 제거합니다. 
           isLoading={isLoading}
           editingMessageId={editingMessageId}
           editingUserContent={editingUserContent}
@@ -446,7 +448,7 @@ export default function ChatPage() {
           handleEditSave={handleEditSave}
           handleEditCancel={() => setEditingMessageId(null)}
           handleDelete={handleDelete}
-          handleRegenerate={handleRegenerate} // ▼▼▼【Stale State修正】(turnId: number) シグネチャの関数を渡します ▼▼▼
+          handleRegenerate={handleRegenerate} // ▼▼▼【Stale State修正】(turnId: number) 시그니처의 함수를 전달합니다 ▼▼▼
           switchModelMessage={switchModelMessage}
           prioritizeImagesByKeyword={prioritizeImagesByKeyword}
           showChatImage={showChatImage}
