@@ -24,7 +24,7 @@ async function safeParseJSON<T>(res: Response): Promise<T | null> {
   try {
     return (await res.json()) as T;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (_error) {
+  } catch {
     return null;
   }
 }
@@ -45,6 +45,13 @@ const prioritizeImagesByKeyword = (userText: string, allImages: CharacterImageIn
   });
   return [...matched, ...rest];
 };
+
+// ▼▼▼ 型ガード: unknown を安全に扱うための簡易ヘルパー ▼▼▼
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
+const hasString = (obj: Record<string, unknown>, key: string): obj is Record<string, string> =>
+  typeof obj[key] === "string";
+const hasNumber = (obj: Record<string, unknown>, key: string): obj is Record<string, number> =>
+  typeof obj[key] === "number";
 
 // --- メインページコンポーネント ---
 
@@ -71,7 +78,7 @@ export default function ChatPage() {
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: "", message: "" });
   const [userPoints, setUserPoints] = useState(0);
 
-  // ▼▼▼【ビルドエラー修正】 setGenerationSettings は不要なので useState の setter を持たない ▼▼▼
+  // ▼▼▼【ビルドエラー修正】 setGenerationSettings は不要なので setter を持たない ▼▼▼
   const [generationSettings] = useState<GenerationSettings>({ model: "gemini-2.5-pro" });
 
   const [chatStyleSettings, setChatStyleSettings] = useState<ChatStyleSettings>({
@@ -278,13 +285,28 @@ export default function ChatPage() {
     };
     setRawMessages((prev) => [...prev, tempUserMessage]);
 
+    // 1.5) 最初のトークンが遅れても画面に気配を出すため、空のモデル気泡を先行挿入
+    const tempModelId = Date.now() + 1;
+    tempModelMessageIdRef.current = tempModelId;
+    const newModelMessage: Message = {
+      id: tempModelId,
+      role: "model",
+      content: "",
+      createdAt: new Date().toISOString(),
+      turnId: tempTurnId, // 確定前は暫定 turnId
+      version: 1,
+      isActive: true,
+      timestamp: new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }),
+    };
+    setRawMessages((prev) => [...prev, newModelMessage]);
+
     // 2) API 呼び出し（SSE）
     try {
       const response = await fetch(`/api/chat/${chatId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // ▼▼▼ Netlify/CDNに SSE を明示（冪等ではないが Accept を示すことで挙動が安定）▼▼▼
+          // ▼▼▼ Netlify/CDNに SSE を明示
           Accept: "text/event-stream",
         },
         body: JSON.stringify({ message: messageToSend, settings: generationSettings }),
@@ -323,27 +345,26 @@ export default function ChatPage() {
           const ev = pkt.event?.trim();
           const dt = pkt.data?.trim();
 
-          // コメント or 不正ブロックはスキップ
-          if (!ev && !dt) continue;
+          if (!ev && !dt) continue; // コメントなど
 
           // data は JSON 1行を想定
-          let payload: any = null;
+          let payload: unknown = null; // ← any を使わず unknown
           if (dt) {
             try {
               payload = JSON.parse(dt);
-            } catch (err) {
-              // JSON でない data は無視（将来の拡張を邪魔しない）
+            } catch {
+              // 不正なJSONブロックは無視（unused-vars を避けるため err 変数を定義しない）
               continue;
             }
           }
 
           // ------------------------------------------------
-          // SSEイベント別ハンドリング（サーバとイベント名を一致）
+          // SSEイベント別ハンドリング（型ガードで安全にアクセス）
           // ------------------------------------------------
-          if (ev === "user-message-saved" && payload?.userMessage) {
+          if (ev === "user-message-saved" && isRecord(payload) && isRecord(payload.userMessage as unknown)) {
             // サーバ確定 turnId を反映（暫定→確定へ置換）
-            const realUser = payload.userMessage;
-            finalTurnIdRef.current = realUser.turnId;
+            const realUser = payload.userMessage as unknown as Message & { createdAt: string };
+            finalTurnIdRef.current = realUser.turnId as number;
             setRawMessages((prev) =>
               prev.map((msg) =>
                 msg.id === tempUserMessageId
@@ -357,32 +378,23 @@ export default function ChatPage() {
                   : msg
               )
             );
-          } else if (ev === "regeneration-start" && payload?.turnId) {
-            // 再生成時の開始通知（UI変更不要なのでスルー）
-          } else if (ev === "ai-update" && payload?.responseChunk) {
-            // ▼ 最初のチャンク受信時：モデル用の暫定メッセージを作成（空→追記）
-            if (tempModelMessageIdRef.current == null) {
-              tempModelMessageIdRef.current = Date.now() + 1;
-              const turnIdForModel = finalTurnIdRef.current || tempTurnId;
-              const newModelMessage: Message = {
-                id: tempModelMessageIdRef.current,
-                role: "model",
-                content: payload.responseChunk,
-                createdAt: new Date().toISOString(),
-                turnId: turnIdForModel,
-                version: 1,
-                isActive: true,
-                timestamp: new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }),
-              };
-              setRawMessages((prev) => [...prev, newModelMessage]);
-            } else {
-              // ▼ 2個目以降のチャンクは末尾に追記
-              const confirmedTurnId = (finalTurnIdRef.current || tempTurnId) as number;
-              appendToLastModel(confirmedTurnId, payload.responseChunk, tempModelMessageIdRef.current);
+            // 既に挿入済みの暫定モデルの turnId も確定値に合わせる
+            if (tempModelMessageIdRef.current && finalTurnIdRef.current !== tempTurnId) {
+              setRawMessages((prev) =>
+                prev.map((m) =>
+                  m.id === tempModelMessageIdRef.current ? { ...m, turnId: finalTurnIdRef.current! } : m
+                )
+              );
             }
-          } else if (ev === "ai-message-saved" && payload?.modelMessage) {
+          } else if (ev === "regeneration-start" && isRecord(payload) && hasNumber(payload, "turnId")) {
+            // 再生成開始通知（UI変更不要）
+          } else if (ev === "ai-update" && isRecord(payload) && hasString(payload, "responseChunk")) {
+            // ▼ 先に作った空バブルへ追記するだけ
+            const confirmedTurnId = (finalTurnIdRef.current || tempTurnId) as number;
+            appendToLastModel(confirmedTurnId, payload.responseChunk, tempModelMessageIdRef.current);
+          } else if (ev === "ai-message-saved" && isRecord(payload) && isRecord(payload.modelMessage as unknown)) {
             // ▼ DB保存済みの最終メッセージで置換（タイムスタンプ整形）
-            const saved = payload.modelMessage;
+            const saved = payload.modelMessage as unknown as Message & { createdAt: string };
             setRawMessages((prev) =>
               prev.map((m) =>
                 m.id === tempModelMessageIdRef.current
@@ -396,7 +408,7 @@ export default function ChatPage() {
                   : m
               )
             );
-          } else if (ev === "error" && payload?.message) {
+          } else if (ev === "error" && isRecord(payload) && hasString(payload, "message")) {
             // ▼ ストリーム中エラー（UIに通知）
             setModalState({ isOpen: true, title: "送信エラー", message: payload.message, isAlert: true });
           } else if (ev === "stream-end") {
@@ -442,7 +454,7 @@ export default function ChatPage() {
         body: JSON.stringify({ messageId: editingMessageId, newContent }),
       });
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (_error) {
+    } catch {
       setRawMessages(rawMessages.map((m) => (m.id === editingMessageId ? { ...m, content: originalContent } : m)));
       setModalState({ isOpen: true, title: "編集エラー", message: "メッセージの更新に失敗しました。", isAlert: true });
     }
@@ -469,7 +481,7 @@ export default function ChatPage() {
             body: JSON.stringify({ messageId }),
           });
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (_error) {
+        } catch {
           setRawMessages(originalMessages);
           setModalState({ isOpen: true, title: "削除エラー", message: "削除に失敗しました。", isAlert: true });
         }
