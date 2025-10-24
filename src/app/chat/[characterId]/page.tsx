@@ -14,7 +14,6 @@ import ConfirmationModal from "@/components/chat/ConfirmationModal";
 import ImageLightbox from "@/components/chat/ImageLightbox";
 
 // 型定義のインポート
-// ▼▼▼【修正】`GenerationSettings`の重複インポートを削除しました。▼▼▼
 import type { CharacterInfo, Message, Turn, ModalState, DbMessage, CharacterImageInfo } from '@/types/chat';
 
 // --- ユーティリティ関数 ---
@@ -71,8 +70,7 @@ export default function ChatPage() {
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: "", message: "" });
   const [userPoints, setUserPoints] = useState(0);
   
-  // ▼▼▼【修正】responseBoostMultiplier を初期状態から削除します ▼▼▼
-  // ▼▼▼【ビルドエラー修正】_setGenerationSettings を useState 宣言から完全に削除 ▼▼▼
+  // ▼▼▼【ビルドエラー修正】setGenerationSettings を useState 宣言から完全に削除 ▼▼▼
   const [generationSettings] = useState<GenerationSettings>({ model: "gemini-2.5-pro" });
   
   const [chatStyleSettings, setChatStyleSettings] = useState<ChatStyleSettings>({ fontSize: 14, userBubbleColor: "#db2777", userBubbleTextColor: "#ffffff" });
@@ -202,7 +200,6 @@ export default function ChatPage() {
         const response = await fetch(`/api/chat/${chatId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            // ▼▼▼【修正】boostMultiplierが削除されたsettingsを送信します。 ▼▼▼
             body: JSON.stringify({ message: messageToSend, settings: generationSettings }),
         });
 
@@ -344,7 +341,7 @@ export default function ChatPage() {
     });
   };
 
-  // ▼▼▼【Stale State修正】Stale Stateバグを修正するため、Turnオブジェクト全体ではなくturnIdのみを受け取ります ▼▼▼
+  // ▼▼▼【Stale State修正】 `Turn` 객체 대신 `turnId: number`를 받도록 수정합니다. ▼▼▼
   const handleRegenerate = async (turnId: number) => {
      if (isLoading || !chatId) return;
     setIsLoading(true);
@@ -352,7 +349,6 @@ export default function ChatPage() {
         const res = await fetch('/api/chat/messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            // ▼▼▼【修正】boostMultiplierが削除されたsettingsを送信します。 ▼▼▼
             body: JSON.stringify({ chatId, turnId: turnId, settings: generationSettings }),
         });
         if (!res.ok) throw new Error("再生成に失敗しました");
@@ -375,7 +371,7 @@ export default function ChatPage() {
   // ▲▲▲ 修正ここまで ▲▲▲
 
   const switchModelMessage = (turnId: number, direction: "next" | "prev") => {
-    // ▼▼▼【Stale State修正】 `turns` stateはここで引き続き使用します（これはリアルタイム性が重要ではありません）
+    // `turns` stateは `switchModelMessage` のためにここで使用されます。
     const turn = turns.find(t => t.turnId === turnId);
     if (!turn || turn.modelMessages.length <= 1) return;
     const newIndex = direction === 'next'
@@ -450,7 +446,7 @@ export default function ChatPage() {
           handleEditSave={handleEditSave}
           handleEditCancel={() => setEditingMessageId(null)}
           handleDelete={handleDelete}
-          handleRegenerate={handleRegenerate} // ▼▼▼【Stale State修正】新しいシグネチャの関数を渡します ▼▼▼
+          handleRegenerate={handleRegenerate} // ▼▼▼【Stale State修正】(turnId: number) シグネチャの関数を渡します ▼▼▼
           switchModelMessage={switchModelMessage}
           prioritizeImagesByKeyword={prioritizeImagesByKeyword}
           showChatImage={showChatImage}
@@ -477,7 +473,7 @@ export default function ChatPage() {
         isMultiImage={isMultiImage}
         onIsMultiImageChange={setIsMultiImage}
         onNewChat={() => { /* ロジックをここに実装 */ }}
-        onSaveConversationAsTxt={() => { /* ロJックをここに実装 */ }}
+        onSaveConversationAsTxt={() => { /* ロジックをここに実装 */ }}
         userNote={userNote}
         onSaveNote={async (note) => { console.log(note) }}
         characterId={characterId}
