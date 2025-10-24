@@ -7,8 +7,9 @@ import path from 'path';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { Role } from '@prisma/client';
-import { redis } from '@/lib/redis'; // ★ Redisクライアントをインポート
-import OpenAI from 'openai'; // ★ OpenAIクライアントをインポート
+// ▼▼▼【Redis】 lib/redis.ts からインポート
+import { redis } from '@/lib/redis'; 
+import OpenAI from 'openai';
 
 // =================================================================================
 //  型定義 (Type Definitions)
@@ -283,7 +284,8 @@ export async function PUT(
     });
 
     if (chatsToInvalidate.length > 0) {
-      const cacheKeys = chatsToInvalidate.map(chat => `character-info:${chat.id}`);
+      // ▼▼▼【重要】 キャッシュキーを `chat:[chatId]:room` に修正します。
+      const cacheKeys = chatsToInvalidate.map(chat => `chat:${chat.id}:room`);
       await redis.del(...cacheKeys);
       console.log(`キャッシュ削除完了: ${cacheKeys.join(', ')}`);
     }
@@ -298,7 +300,7 @@ export async function PUT(
 }
 
 /**
- * キャラクター削除（DELETE）- 変更なし
+ * キャラクター削除（DELETE）
  */
 export async function DELETE(
   request: NextRequest,
@@ -354,7 +356,8 @@ export async function DELETE(
       select: { id: true }
     });
     if (chatsToInvalidate.length > 0) {
-      const cacheKeys = chatsToInvalidate.map(chat => `character-info:${chat.id}`);
+      // ▼▼▼【重要】 キャッシュキーを `chat:[chatId]:room` に修正します。
+      const cacheKeys = chatsToInvalidate.map(chat => `chat:${chat.id}:room`);
       await redis.del(...cacheKeys);
       console.log(`キャラクター削除に伴いキャッシュを削除: ${cacheKeys.join(', ')}`);
     }
