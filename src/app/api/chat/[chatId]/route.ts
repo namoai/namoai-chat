@@ -157,7 +157,7 @@ export async function POST(request: Request, context: any) {
     const replacePlaceholders = (text: string | null | undefined): string => {
       if (!text) return "";
       // {{char}} を世界観の名前 (characters.name) に置換
-      // {{user}} をユーザーのニックネーム (ペルソナ優先) に置換
+      // {{user}} をユーザーのニックネック (ペルソナ優先) に置換
       return text.replace(/{{char}}/g, worldName).replace(/{{user}}/g, userNickname);
     };
 
@@ -206,15 +206,17 @@ export async function POST(request: Request, context: any) {
     const systemTemplate = replacePlaceholders(worldSetting.systemTemplate);
     // ▲▲▲ バグ修正ここまで ▲▲▲
 
-    const lengthInstruction = `# 応答の長さ (重要)\n- 応答は日本語で800文字から1100文字の間で生成してください。\n- この指示は会話の流れや内容よりも優先されます。\n- 地の文とセリフを組み合わせて、指定された文字数範囲を満たすように詳細な描写を行ってください。`;
+    // ▼▼▼【削除】 800-1100文字の長さ指定を削除 ▼▼▼
+    // const lengthInstruction = `# 応答の長さ (重要)\n- 応答は日本語で800文字から1100文字の間で生成してください。\n- この指示は会話の流れや内容よりも優先されます。\n- 地の文とセリフを組み合わせて、指定された文字数範囲を満たすように詳細な描写を行ってください。`;
+    // ▲▲▲ 削除ここまで ▲▲▲
     
     // ▼▼▼【新規追加】 応答速度に関する指示 (テスト用) ▼▼▼
-    const speedInstruction = `# 応答速度 (重要)\n- 可能な限り迅速に応答を生成してください。\n- 上記の「応答の長さ」の指示を守りつつ、できるだけ早く最初のトークン(TTFB)を返し、生成を完了してください。`;
+    const speedInstruction = `# 応答速度 (重要)\n- 可能な限り迅速に応答を生成してください。\n- できるだけ早く最初のトークン(TTFB)を返し、生成を完了してください。`; // '応答の長さ'に関する言及を削除
     // ▲▲▲ 新規追加ここまで ▲▲▲
 
     // システムプロンプトの最終組み立て
-    // ▼▼▼【修正】 speedInstruction を配列に追加 ▼▼▼
-    const systemInstructionText = [conciseGuideline, systemTemplate, formattingInstruction, lengthInstruction, speedInstruction, imageInstruction, userPersonaInfo, lorebookInfo].filter(Boolean).join("\n\n");
+    // ▼▼▼【修正】 `lengthInstruction` を配列から削除 ▼▼▼
+    const systemInstructionText = [conciseGuideline, systemTemplate, formattingInstruction, speedInstruction, imageInstruction, userPersonaInfo, lorebookInfo].filter(Boolean).join("\n\n");
     console.log("ステップ4: システムプロンプト構築完了");
     console.timeEnd("⏱️ Prompt Construction");
 
@@ -329,4 +331,3 @@ export async function POST(request: Request, context: any) {
     return NextResponse.json({ message: errorMessage }, { status });
   }
 }
-
