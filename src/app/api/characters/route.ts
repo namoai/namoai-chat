@@ -42,7 +42,6 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-
 // =================================================================================
 //  ヘルパー関数 (Helper Functions)
 // =================================================================================
@@ -62,7 +61,9 @@ async function getEmbedding(text: string): Promise<number[]> {
   return response.data[0].embedding;
 }
 
-// (GCPやSupabase関連のヘルパー関数は変更なし)
+/**
+ * GCP の認証ファイルを /tmp に生成（必要な場合のみ）
+ */
 async function ensureGcpCredsFile() {
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS) return;
     const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
@@ -76,13 +77,16 @@ async function ensureGcpCredsFile() {
     process.env.GOOGLE_APPLICATION_CREDENTIALS = path;
 }
 
+/**
+ * GCP プロジェクトIDを解決
+ */
 async function resolveGcpProjectId(): Promise<string> {
     const envProject =
         process.env.GCP_PROJECT_ID ||
         process.env.GOOGLE_CLOUD_PROJECT ||
         process.env.GOOGLE_PROJECT_ID;
     if (envProject && envProject.trim().length > 0) return envProject.trim();
-    // ... (rest of the function is unchanged)
+
     const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
     const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
     try {
@@ -108,6 +112,9 @@ async function resolveGcpProjectId(): Promise<string> {
     throw new Error('GCP project id が存在しません');
 }
 
+/**
+ * Secret Manager からシークレットを取得
+ */
 async function loadSecret(name: string, version = 'latest') {
     const projectId = await resolveGcpProjectId();
     const client = new SecretManagerServiceClient({ fallback: true });
@@ -117,6 +124,9 @@ async function loadSecret(name: string, version = 'latest') {
     return acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
 }
 
+/**
+ * Supabase 接続に必要な環境変数を準備
+ */
 async function ensureSupabaseEnv() {
     await ensureGcpCredsFile();
 
@@ -131,13 +141,13 @@ async function ensureSupabaseEnv() {
     console.info('[diag] has SUPABASE_SERVICE_ROLE_KEY?', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
-
 // =================================================================================
 //  APIハンドラー (API Handlers)
 // =================================================================================
 
-
-// GET: キャラクターリストを取得 (変更なし)
+/**
+ * GET: キャラクターリストを取得
+ */
 export async function GET(request: Request) {
     console.log('[GET] キャラクター一覧取得開始');
     const session = await getServerSession(authOptions);
@@ -149,6 +159,7 @@ export async function GET(request: Request) {
 
         let whereClause: Prisma.charactersWhereInput = {};
 
+        // ブロック済みの著者IDを収集
         let blockedAuthorIds: number[] = [];
         if (currentUserId) {
             const blocks = await prisma.block.findMany({
@@ -158,10 +169,11 @@ export async function GET(request: Request) {
             blockedAuthorIds = blocks.map(b => b.blockingId);
         }
 
+        // 自分のキャラクターのみ or 公開＋自分のキャラクター
         if (mode === 'my' && currentUserId) {
             whereClause.author_id = currentUserId;
         } else {
-            const publicCondition = { visibility: 'public' };
+            const publicCondition = { visibility: 'public' as const };
             if (currentUserId) {
                 whereClause.OR = [
                     publicCondition,
@@ -172,17 +184,18 @@ export async function GET(request: Request) {
             }
         }
         
+        // ブロック対象の著者IDを除外（any を使わず IntFilter を利用）
         if (blockedAuthorIds.length > 0) {
-            const existingAuthorFilter = whereClause.author_id;
-            let baseFilter: any = {};
+            const existingAuthorFilter = (whereClause as Prisma.charactersWhereInput).author_id;
+            let baseFilter: Prisma.IntFilter = {} as Prisma.IntFilter;
 
             if (existingAuthorFilter && typeof existingAuthorFilter === 'object') {
-                baseFilter = existingAuthorFilter;
+                baseFilter = existingAuthorFilter as Prisma.IntFilter;
             } else if (typeof existingAuthorFilter === 'number') {
                 baseFilter = { equals: existingAuthorFilter };
             }
 
-            whereClause.author_id = {
+            (whereClause as Prisma.charactersWhereInput).author_id = {
                 ...baseFilter,
                 notIn: blockedAuthorIds,
             };
@@ -202,6 +215,7 @@ export async function GET(request: Request) {
             take: 20
         });
 
+        // メイン画像のみを返す（なければ先頭）
         const characters = charactersRaw.map(char => {
             let mainImage = char.characterImages.find(img => img.isMain);
             if (!mainImage && char.characterImages.length > 0) {
@@ -221,8 +235,9 @@ export async function GET(request: Request) {
     }
 }
 
-
-// POST: 新しいキャラクターを作成
+/**
+ * POST: 新しいキャラクターを作成（JSONインポート or FormData）
+ */
 export async function POST(request: Request) {
     console.log('[POST] キャラクター作成処理開始');
     try {
@@ -230,10 +245,26 @@ export async function POST(request: Request) {
 
         const contentType = request.headers.get("content-type") || "";
 
-        // JSONインポートの場合 (ロアブックのベクトル化を追加)
+        // === JSON（インポート） ===
         if (contentType.includes("application/json")) {
             const data = await request.json();
-            const { userId, characterData: sourceCharacter } = data;
+            const { userId, characterData: sourceCharacter } = data as {
+                userId?: string | number;
+                characterData: {
+                    name: string;
+                    description?: string | null;
+                    systemTemplate?: string | null;
+                    firstSituation?: string | null;
+                    firstMessage?: string | null;
+                    visibility: 'public' | 'private';
+                    safetyFilter: boolean;
+                    category?: string | null;
+                    hashtags?: string[];
+                    detailSetting?: string | null;
+                    characterImages?: CharacterImageInput[];
+                    lorebooks?: { content: string; keywords?: string[] }[];
+                };
+            };
 
             if (!userId) {
                 return NextResponse.json({ message: '認証情報が見つかりません。' }, { status: 401 });
@@ -243,16 +274,16 @@ export async function POST(request: Request) {
                 const character = await tx.characters.create({
                     data: {
                         name: `${sourceCharacter.name} (コピー)`,
-                        description: sourceCharacter.description,
-                        systemTemplate: sourceCharacter.systemTemplate,
-                        firstSituation: sourceCharacter.firstSituation,
-                        firstMessage: sourceCharacter.firstMessage,
+                        description: sourceCharacter.description ?? null,
+                        systemTemplate: sourceCharacter.systemTemplate ?? null,
+                        firstSituation: sourceCharacter.firstSituation ?? null,
+                        firstMessage: sourceCharacter.firstMessage ?? null,
                         visibility: sourceCharacter.visibility,
                         safetyFilter: sourceCharacter.safetyFilter,
-                        category: sourceCharacter.category,
-                        hashtags: sourceCharacter.hashtags,
-                        detailSetting: sourceCharacter.detailSetting,
-                        author: { connect: { id: parseInt(userId, 10) } },
+                        category: sourceCharacter.category ?? null,
+                        hashtags: sourceCharacter.hashtags ?? [],
+                        detailSetting: sourceCharacter.detailSetting ?? null,
+                        author: { connect: { id: typeof userId === 'string' ? parseInt(userId, 10) : userId } },
                     }
                 });
 
@@ -268,7 +299,7 @@ export async function POST(request: Request) {
                     });
                 }
 
-                // ▼▼▼【核心的な修正】ロアブックを一つずつベクトル化して保存します。▼▼▼
+                // ▼▼▼ ロアブックを1件ずつ埋め込み生成して保存 ▼▼▼
                 if (sourceCharacter.lorebooks && sourceCharacter.lorebooks.length > 0) {
                     for (const lore of sourceCharacter.lorebooks) {
                         const embedding = await getEmbedding(lore.content);
@@ -279,14 +310,14 @@ export async function POST(request: Request) {
                         `;
                     }
                 }
-                // ▲▲▲ 修正完了 ▲▲▲
+                // ▲▲▲ ここまで ▲▲▲
 
                 return character;
             });
             return NextResponse.json({ message: 'キャラクターのインポートに成功しました！', character: newCharacter }, { status: 201 });
         }
 
-        // FormData（通常作成）の場合 (ロアブックのベクトル化を追加)
+        // === FormData（通常作成） ===
         const formData = await request.formData();
         console.log('[POST] formData 受信成功');
 
@@ -297,7 +328,6 @@ export async function POST(request: Request) {
 
         const userIdString = formData.get('userId') as string;
         const name = (formData.get('name') as string) || '';
-        // (その他のFormData取得ロジックは変更なし)
         const description = (formData.get('description') as string) || '';
         const category = (formData.get('category') as string) || '';
         const hashtagsString = (formData.get('hashtags') as string) || '[]';
@@ -330,7 +360,7 @@ export async function POST(request: Request) {
         const imageCountString = formData.get('imageCount') as string;
         const imageCount = imageCountString ? parseInt(imageCountString, 10) : 0;
         
-        // (Supabaseへの画像アップロードロジックは変更なし)
+        // Supabase ストレージへ画像アップロード
         const supabaseUrl = process.env.SUPABASE_URL!;
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
         const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'characters';
@@ -410,19 +440,19 @@ export async function POST(request: Request) {
                 });
             }
 
-            // ▼▼▼【核心的な修正】ロアブックを一つずつベクトル化して保存します。▼▼▼
+            // ▼▼▼ ロアブックを1件ずつ埋め込み生成して保存 ▼▼▼
             if (lorebooks.length > 0) {
                 for (const lore of lorebooks) {
                     const embedding = await getEmbedding(lore.content);
                     const embeddingString = `[${embedding.join(',')}]`;
-                    // $executeRaw`...` はSQLインジェクションに対して安全です。
+                    // $executeRaw`...` はプリペアドステートメント相当で安全
                     await tx.$executeRaw`
                         INSERT INTO "lorebooks" ("content", "keywords", "characterId", "embedding")
                         VALUES (${lore.content}, ${lore.keywords || []}::text[], ${character.id}, ${embeddingString}::vector)
                     `;
                 }
             }
-            // ▲▲▲ 修正完了 ▲▲▲
+            // ▲▲▲ ここまで ▲▲▲
 
             return await tx.characters.findUnique({
                 where: { id: character.id },
