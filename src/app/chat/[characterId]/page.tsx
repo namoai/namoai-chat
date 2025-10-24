@@ -56,7 +56,7 @@ export default function ChatPage() {
 
   // --- State管理 ---
   const [rawMessages, setRawMessages] = useState<Message[]>([]);
-  // ▼▼▼【Stale State修正】 `turns` state는 여전히 `switchModelMessage`를 위해 필요합니다.
+  // ▼▼▼【Stale State修正】 `turns` stateは `switchModelMessage` のために引き続き必要です。
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -72,8 +72,8 @@ export default function ChatPage() {
   const [userPoints, setUserPoints] = useState(0);
   
   // ▼▼▼【修正】responseBoostMultiplier を初期状態から削除します ▼▼▼
-  // ▼▼▼【빌드 에러 수정】setGenerationSettings を _setGenerationSettings に変更 (未使用のため) ▼▼▼
-  const [generationSettings, _setGenerationSettings] = useState<GenerationSettings>({ model: "gemini-2.5-pro" });
+  // ▼▼▼【ビルドエラー修正】_setGenerationSettings を useState 宣言から完全に削除 ▼▼▼
+  const [generationSettings] = useState<GenerationSettings>({ model: "gemini-2.5-pro" });
   
   const [chatStyleSettings, setChatStyleSettings] = useState<ChatStyleSettings>({ fontSize: 14, userBubbleColor: "#db2777", userBubbleTextColor: "#ffffff" });
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
@@ -85,7 +85,7 @@ export default function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const finalTurnIdRef = useRef<number | null>(null);
 
-  // ▼▼▼【Stale State修正】`turns` state는 `rawMessages`가 변경될 때마다 갱신됩니다.
+  // ▼▼▼【Stale State修正】`turns` stateは `rawMessages` が変更されるたびに更新されます。
   useEffect(() => {
     const userMessages = rawMessages.filter(m => m.role === 'user');
     const modelMessages = rawMessages.filter(m => m.role === 'model');
@@ -202,7 +202,7 @@ export default function ChatPage() {
         const response = await fetch(`/api/chat/${chatId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            // ▼▼▼【修正】boostMultiplier가 제거된 settings를 전송합니다. ▼▼▼
+            // ▼▼▼【修正】boostMultiplierが削除されたsettingsを送信します。 ▼▼▼
             body: JSON.stringify({ message: messageToSend, settings: generationSettings }),
         });
 
@@ -352,7 +352,7 @@ export default function ChatPage() {
         const res = await fetch('/api/chat/messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            // ▼▼▼【修正】boostMultiplier가 제거된 settings를 전송합니다. ▼▼▼
+            // ▼▼▼【修正】boostMultiplierが削除されたsettingsを送信します。 ▼▼▼
             body: JSON.stringify({ chatId, turnId: turnId, settings: generationSettings }),
         });
         if (!res.ok) throw new Error("再生成に失敗しました");
@@ -375,7 +375,7 @@ export default function ChatPage() {
   // ▲▲▲ 修正ここまで ▲▲▲
 
   const switchModelMessage = (turnId: number, direction: "next" | "prev") => {
-    // ▼▼▼【Stale State修正】 `turns` state는 여기서 계속 사용합니다 (이것은 실시간성이 중요하지 않음)
+    // ▼▼▼【Stale State修正】 `turns` stateはここで引き続き使用します（これはリアルタイム性が重要ではありません）
     const turn = turns.find(t => t.turnId === turnId);
     if (!turn || turn.modelMessages.length <= 1) return;
     const newIndex = direction === 'next'
@@ -437,8 +437,8 @@ export default function ChatPage() {
         <ChatMessageList
           isNewChatSession={isNewChatSession}
           characterInfo={characterInfo}
-          rawMessages={rawMessages} // ▼▼▼【Stale State修正】 `rawMessages`만 전달합니다
-          // turns={turns} // ★★★【Stale State修正】이 prop을 제거합니다.
+          rawMessages={rawMessages} // ▼▼▼【Stale State修正】 `rawMessages` のみ渡します
+          // turns={turns} // ★★★【Stale State修正】このpropを削除します。
           isLoading={isLoading}
           editingMessageId={editingMessageId}
           editingUserContent={editingUserContent}
@@ -450,7 +450,7 @@ export default function ChatPage() {
           handleEditSave={handleEditSave}
           handleEditCancel={() => setEditingMessageId(null)}
           handleDelete={handleDelete}
-          handleRegenerate={handleRegenerate} // ▼▼▼【Stale State修正】새로운 시그니처의 함수를 전달합니다 ▼▼▼
+          handleRegenerate={handleRegenerate} // ▼▼▼【Stale State修正】新しいシグネチャの関数を渡します ▼▼▼
           switchModelMessage={switchModelMessage}
           prioritizeImagesByKeyword={prioritizeImagesByKeyword}
           showChatImage={showChatImage}
@@ -482,7 +482,7 @@ export default function ChatPage() {
         onSaveNote={async (note) => { console.log(note) }}
         characterId={characterId}
         chatId={chatId}
-        // ▼▼▼【修正】ブースト 관련 props를 제거합니다 ▼▼▼
+        // ▼▼▼【修正】ブースト関連のpropsを削除します ▼▼▼
         chatStyleSettings={chatStyleSettings}
         onChatStyleSettingsChange={setChatStyleSettings}
         userPoints={userPoints}
