@@ -72,7 +72,8 @@ export default function ChatPage() {
   const [userPoints, setUserPoints] = useState(0);
   
   // ▼▼▼【修正】responseBoostMultiplier を初期状態から削除します ▼▼▼
-  const [generationSettings, setGenerationSettings] = useState<GenerationSettings>({ model: "gemini-2.5-pro" });
+  // ▼▼▼【빌드 에러 수정】setGenerationSettings を _setGenerationSettings に変更 (未使用のため) ▼▼▼
+  const [generationSettings, _setGenerationSettings] = useState<GenerationSettings>({ model: "gemini-2.5-pro" });
   
   const [chatStyleSettings, setChatStyleSettings] = useState<ChatStyleSettings>({ fontSize: 14, userBubbleColor: "#db2777", userBubbleTextColor: "#ffffff" });
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
@@ -436,7 +437,8 @@ export default function ChatPage() {
         <ChatMessageList
           isNewChatSession={isNewChatSession}
           characterInfo={characterInfo}
-          rawMessages={rawMessages}
+          rawMessages={rawMessages} // ▼▼▼【Stale State修正】 `rawMessages`만 전달합니다
+          // turns={turns} // ★★★【Stale State修正】이 prop을 제거합니다.
           isLoading={isLoading}
           editingMessageId={editingMessageId}
           editingUserContent={editingUserContent}
@@ -475,7 +477,7 @@ export default function ChatPage() {
         isMultiImage={isMultiImage}
         onIsMultiImageChange={setIsMultiImage}
         onNewChat={() => { /* ロジックをここに実装 */ }}
-        onSaveConversationAsTxt={() => { /* ロジックをここに実装 */ }}
+        onSaveConversationAsTxt={() => { /* ロJックをここに実装 */ }}
         userNote={userNote}
         onSaveNote={async (note) => { console.log(note) }}
         characterId={characterId}
