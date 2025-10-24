@@ -1,4 +1,4 @@
-// ✅ ランタイムは Prisma 互換のため nodejs を維持（Edge だと Prisma が動かない） 
+// ✅ Prisma を使うため nodejs ランタイムを維持
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
@@ -13,7 +13,20 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
 
 // ----------------------------------------
-// VertexAI クライアント初期化（既存）
+// DBメッセージの最小型（必要なフィールドのみ）
+// ----------------------------------------
+type DbChatMessage = {
+  id: number;
+  role: "user" | "model";
+  content: string;
+  turnId: number | null;
+  createdAt: Date;
+  version?: number | null;
+  isActive?: boolean | null;
+};
+
+// ----------------------------------------
+// VertexAI クライアント初期化
 // ----------------------------------------
 const vertex_ai = new VertexAI({
   project: process.env.GOOGLE_PROJECT_ID,
@@ -21,7 +34,7 @@ const vertex_ai = new VertexAI({
 });
 
 // ----------------------------------------
-// 安全性設定（既存）
+// 安全性設定
 // ----------------------------------------
 const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -30,31 +43,33 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function POST(request: Request, context: any) {
+// ----------------------------------------
+// ルートハンドラ（型付き params を使用）
+// ----------------------------------------
+export async function POST(
+  request: Request,
+  { params }: { params: { chatId: string } }
+) {
   console.log("チャットAPIリクエスト受信");
-  console.time("⏱️ 全体API処理時間"); // 全体時間測定開始
+  console.time("⏱️ 全体API処理時間");
 
-  // ----------------------------------------
-  // パラメータ/セッション検証（既存）
-  // ----------------------------------------
-  const { params } = (context ?? {}) as { params?: Record<string, string | string[]> };
-  const rawChatId = params?.chatId;
-  const chatIdStr = Array.isArray(rawChatId) ? rawChatId[0] : rawChatId;
-
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user?.id) {
-    console.timeEnd("⏱️ 全体API処理時間");
-    return NextResponse.json({ message: "認証が必要です。" }, { status: 401 });
-  }
-
-  const chatId = parseInt(String(chatIdStr), 10);
-  if (isNaN(chatId)) {
+  // ▼ URL パラメータ
+  const chatIdStr = params?.chatId;
+  const chatId = Number.parseInt(String(chatIdStr), 10);
+  if (Number.isNaN(chatId)) {
     console.timeEnd("⏱️ 全体API処理時間");
     return NextResponse.json({ message: "無効なチャットIDです。" }, { status: 400 });
   }
-  const userId = parseInt(String(session.user.id), 10);
 
+  // ▼ 認証
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    console.timeEnd("⏱️ 全体API処理時間");
+    return NextResponse.json({ message: "認証が必要です。" }, { status: 401 });
+  }
+  const userId = Number.parseInt(String(session.user.id), 10);
+
+  // ▼ ボディ
   const { message, settings, isRegeneration, turnId } = await request.json();
   if (!message) {
     console.timeEnd("⏱️ 全体API処理時間");
@@ -64,14 +79,13 @@ export async function POST(request: Request, context: any) {
   try {
     // ----------------------------------------
     // ① DB書き込み（ポイント消費 + ユーザーメッセージ保存）
-    //    既存ロジックを踏襲
     // ----------------------------------------
     const dbWritePromise = (async () => {
       console.time("⏱️ DB Write (Points+Msg)");
       console.log(`ステップ1: ポイント消費とメッセージ保存処理開始 (ユーザーID: ${userId})`);
       const totalPointsToConsume = 1;
 
-      let userMessageForHistory: any;
+      let userMessageForHistory: DbChatMessage;
       let turnIdForModel: number;
 
       if (isRegeneration && turnId) {
@@ -82,7 +96,7 @@ export async function POST(request: Request, context: any) {
           const currentPoints = (p?.free_points || 0) + (p?.paid_points || 0);
           if (currentPoints < totalPointsToConsume) throw new Error("ポイントが不足しています。");
 
-          // 無料→有料の順で消費
+          // 無料 → 有料 の順で消費
           let cost = totalPointsToConsume;
           const freeAfter = Math.max(0, (p?.free_points || 0) - cost);
           cost = Math.max(0, cost - (p?.free_points || 0));
@@ -94,15 +108,24 @@ export async function POST(request: Request, context: any) {
           });
         });
 
-        userMessageForHistory = await prisma.chat_message.findUnique({ where: { id: turnId } });
-        if (!userMessageForHistory || userMessageForHistory.role !== "user") {
+        const found = await prisma.chat_message.findUnique({ where: { id: Number(turnId) } });
+        if (!found || found.role !== "user") {
           throw new Error("再生成対象のメッセージが見つかりません。");
         }
+        userMessageForHistory = {
+          id: found.id,
+          role: "user",
+          content: found.content,
+          turnId: found.turnId,
+          createdAt: found.createdAt,
+          version: found.version,
+          isActive: found.isActive,
+        };
         turnIdForModel = userMessageForHistory.id;
       } else {
         // ▼ 新規メッセージ：ポイント消費 + 新規ユーザーメッセージ作成（turnId=自身のid）
         console.log("ステップ3: 新規ユーザーメッセージ保存開始");
-        userMessageForHistory = await prisma.$transaction(async (tx) => {
+        const created = await prisma.$transaction(async (tx) => {
           const p = await tx.points.findUnique({ where: { user_id: userId } });
           const currentPoints = (p?.free_points || 0) + (p?.paid_points || 0);
           if (currentPoints < totalPointsToConsume) throw new Error("ポイントが不足しています。");
@@ -121,12 +144,21 @@ export async function POST(request: Request, context: any) {
             data: { chatId, role: "user", content: message, version: 1, isActive: true },
           });
 
-          // 自分の id を turnId に設定（会話ターンの基準）
           return await tx.chat_message.update({
             where: { id: newUserMessage.id },
             data: { turnId: newUserMessage.id },
           });
         });
+
+        userMessageForHistory = {
+          id: created.id,
+          role: "user",
+          content: created.content,
+          turnId: created.turnId,
+          createdAt: created.createdAt,
+          version: created.version,
+          isActive: created.isActive,
+        };
         turnIdForModel = userMessageForHistory.id;
         console.log("ステップ3: ユーザーメッセージ保存完了");
       }
@@ -137,7 +169,6 @@ export async function POST(request: Request, context: any) {
 
     // ----------------------------------------
     // ② コンテキスト取得（DBのみ）
-    //    既存ロジックを踏襲（最新10件の履歴/ペルソナ/ロア/画像）
     // ----------------------------------------
     const contextPromise = (async () => {
       console.time("⏱️ Context Fetch Total (DB Only)");
@@ -177,6 +208,7 @@ export async function POST(request: Request, context: any) {
       console.timeEnd("⏱️ DB History+Persona Query");
 
       const orderedHistory = history.reverse();
+
       console.log("ステップ2.5: ペルソナと履歴の取得完了");
       console.timeEnd("⏱️ Context Fetch Total (DB Only)");
       return { chatRoom, persona, orderedHistory };
@@ -193,9 +225,9 @@ export async function POST(request: Request, context: any) {
     const { chatRoom, persona, orderedHistory } = contextResult;
 
     // ----------------------------------------
-    // ④ プレースホルダ置換/履歴整形/システム指示構築（既存＋軽微修正）
+    // ④ プレースホルダ置換/履歴整形/システム指示構築
     // ----------------------------------------
-    const worldSetting = chatRoom.characters; // 世界観定義
+    const worldSetting = chatRoom.characters;
     const user = chatRoom.users;
     const worldName = worldSetting.name;
     const userNickname = persona?.nickname || user.nickname || "ユーザー";
@@ -223,11 +255,10 @@ export async function POST(request: Request, context: any) {
       for (const lore of worldSetting.lorebooks) {
         if (lore.keywords && Array.isArray(lore.keywords) && message) {
           if (lore.keywords.some((keyword) => keyword && message.includes(keyword))) {
-            // ▼ ロア本文にも置換を適用（バグ修正）
             triggeredLorebooks.push(replacePlaceholders(lore.content));
           }
         }
-        if (triggeredLorebooks.length >= 5) break; // 最大5件
+        if (triggeredLorebooks.length >= 5) break;
       }
     }
     console.timeEnd("⏱️ Simple Text Lorebook Search");
@@ -252,7 +283,6 @@ export async function POST(request: Request, context: any) {
         .slice(1)
         .map((img, index) => `${index + 1}. (キーワード: ${img.keyword || "なし"})`)
         .join("\n");
-      // 念のため置換適用
       imageInstruction = replacePlaceholders(
         `# 画像出力 (最重要)
 - 応答の文脈に合う場面で、必ず \`{img:画像番号}\` という形式で画像トークンを挿入せよ。
@@ -276,7 +306,6 @@ ${imageList}`
 - この指示は会話の流れや内容よりも優先されます。
 - 地の文とセリフを組み合わせて、指定された文字数範囲を満たすように詳細な描写を行ってください。`;
 
-    // ★ 生成速度に関する補助指示（TTFB 改善を狙うが、主効果はクライアント側の逐次描画）
     const speedInstruction = `# 応答速度 (重要)
 - 可能な限り迅速に応答を生成してください。
 - 「応答の長さ」の指示を守りつつ、できるだけ早く最初のトークン(TTFB)を返し、生成を完了してください。`;
@@ -298,8 +327,7 @@ ${imageList}`
     console.timeEnd("⏱️ Prompt Construction");
 
     // ----------------------------------------
-    // ⑤ ストリーム応答（SSE）
-    //    重要: 最初にコメント行(: ping)を送って即時フラッシュ
+    // ⑤ ストリーム応答（SSE）+ Netlify keep-alive
     // ----------------------------------------
     const stream = new ReadableStream({
       async start(controller) {
@@ -311,14 +339,31 @@ ${imageList}`
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
         };
 
-        // ▼▼▼ 初回バイトを即送出（Netlify等のバッファリング緩和に有効） ▼▼▼
+        // ▼ 初回バイト（バッファ回避）
         controller.enqueue(encoder.encode(`: ping\n\n`));
 
+        // ▼ Netlify 等の 10s アイドル切断対策（ハートビート）
         let firstChunkReceived = false;
-        console.time("⏱️ AI TTFB"); // 最初のトークンまでの時間
+        let kaInterval: ReturnType<typeof setInterval> | null = null;
+        const startKeepAlive = (ms: number) => {
+          if (kaInterval) clearInterval(kaInterval);
+          kaInterval = setInterval(() => {
+            controller.enqueue(encoder.encode(`: ka\n\n`));
+          }, ms);
+        };
+        const stopKeepAlive = () => {
+          if (kaInterval) {
+            clearInterval(kaInterval);
+            kaInterval = null;
+          }
+        };
+        // 最初は強めに 2.5s 間隔
+        startKeepAlive(2500);
+
+        console.time("⏱️ AI TTFB");
 
         try {
-          // クライアントへ保存完了を先に通知（既存イベント名を維持）
+          // ▼ クライアントへ保存完了を通知（イベント名は既存を踏襲）
           if (isRegeneration) {
             sendEvent("regeneration-start", { turnId: turnIdForModel });
           } else {
@@ -327,7 +372,7 @@ ${imageList}`
 
           console.log("ステップ5: Vertex AI (Gemini) モデル呼び出し開始");
           console.time("⏱️ AI sendMessageStream Total");
-          const modelToUse = settings?.model || "gemini-2.5-pro";
+          const modelToUse = (settings?.model as string) || "gemini-2.5-pro";
           console.log(`使用モデル: ${modelToUse}`);
 
           const generativeModel = vertex_ai.getGenerativeModel({
@@ -335,13 +380,11 @@ ${imageList}`
             safetySettings,
           });
 
-          // 履歴 + システム指示を付与してチャット開始
           const chatSession = generativeModel.startChat({
             history: chatHistory,
             systemInstruction: systemInstructionText,
           });
 
-          // ストリーミング送信
           const result = await chatSession.sendMessageStream(message);
 
           let finalResponseText = "";
@@ -350,42 +393,39 @@ ${imageList}`
             if (!firstChunkReceived) {
               console.timeEnd("⏱️ AI TTFB");
               firstChunkReceived = true;
+              // 最初のトークン後は 15s に緩和
+              startKeepAlive(15000);
             }
-            // ▼ 候補の最初のテキストパーツのみ使用（既存想定に合わせる）
             const chunk = item.candidates?.[0]?.content?.parts?.[0]?.text;
             if (!chunk) continue;
 
-            // ▼ クライアントへ逐次チャンク送信（ai-update）
+            // ▼ 逐次チャンクを forward
             sendEvent("ai-update", { responseChunk: chunk });
             finalResponseText += chunk;
           }
           console.timeEnd("⏱️ AI sendMessageStream Total");
 
-          // 応答空判定
           if (!finalResponseText.trim()) {
             console.log("警告: 最終的な応答テキストが空でした。");
             throw new Error("AIからの応答が空でした。");
           }
 
-          // 応答保存（既存）
+          // ▼ AI応答の保存
           console.time("⏱️ DB Write (AI Msg)");
           console.log("ステップ6: AIの応答をデータベースに保存");
 
           const newModelMessage = await prisma.$transaction(async (tx) => {
-            // 同ターンの過去モデルを非アクティブ化
             await tx.chat_message.updateMany({
               where: { turnId: turnIdForModel, role: "model" },
               data: { isActive: false },
             });
 
-            // 新バージョン番号採番
             const lastVersion = await tx.chat_message.findFirst({
               where: { turnId: turnIdForModel, role: "model" },
               orderBy: { version: "desc" },
             });
             const newVersionNumber = (lastVersion?.version || 0) + 1;
 
-            // 新規モデルメッセージ作成
             return await tx.chat_message.create({
               data: {
                 chatId,
@@ -401,7 +441,6 @@ ${imageList}`
           console.log("ステップ6: AI応答の保存完了");
           console.timeEnd("⏱️ DB Write (AI Msg)");
 
-          // 保存完了通知（ai-message-saved）
           sendEvent("ai-message-saved", { modelMessage: newModelMessage });
         } catch (e) {
           if (!firstChunkReceived) console.timeEnd("⏱️ AI TTFB");
@@ -410,8 +449,8 @@ ${imageList}`
           const errorMessage = e instanceof Error ? e.message : "ストリーム処理中に不明なエラーが発生しました。";
           sendEvent("error", { message: errorMessage });
         } finally {
-          // ストリーム明示終了
           sendEvent("stream-end", { message: "Stream ended" });
+          stopKeepAlive();
           controller.close();
           console.timeEnd("⏱️ 全体API処理時間");
         }
@@ -419,29 +458,23 @@ ${imageList}`
     });
 
     // ----------------------------------------
-    // ⑥ SSE レスポンス（バッファリング抑止系ヘッダを明示）
+    // ⑥ SSE レスポンス（バッファリング抑止系ヘッダ）
     // ----------------------------------------
     return new Response(stream, {
       headers: {
-        // charset を明示し、プロキシでの変換を避ける
         "Content-Type": "text/event-stream; charset=utf-8",
-        // no-transform を付け、CDN/プロキシでの圧縮や変形を避ける
         "Cache-Control": "no-cache, no-transform",
         "Connection": "keep-alive",
-        // Netlify/Vercel 等のバッファリング回避ヒント
         "X-Accel-Buffering": "no",
-        // Node ランタイムでは chunked が有効になることが多い
         "Transfer-Encoding": "chunked",
       },
     });
   } catch (error) {
-    // ----------------------------------------
-    // ストリーム開始前のエラー（既存）
-    // ----------------------------------------
+    // ▼ ストリーム開始前のエラー
     console.error("チャットAPI (pre-stream) エラー:", error);
-    const errorMessage = error instanceof Error ? error.message : "内部サーバーエラーが発生しました。";
+    const messageText = error instanceof Error ? error.message : "内部サーバーエラーが発生しました。";
     const status = error instanceof Error && error.message === "ポイントが不足しています。" ? 402 : 500;
     console.timeEnd("⏱️ 全体API処理時間");
-    return NextResponse.json({ message: errorMessage }, { status });
+    return NextResponse.json({ message: messageText }, { status });
   }
 }
