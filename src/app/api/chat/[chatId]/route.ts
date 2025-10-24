@@ -1,4 +1,4 @@
-// ✅ Prisma を使うため nodejs ランタイムを維持
+// ✅ Prisma を使うため nodejs ランタイムを維持（Edge は非対応）
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
@@ -30,11 +30,11 @@ type DbChatMessage = {
 // ----------------------------------------
 const vertex_ai = new VertexAI({
   project: process.env.GOOGLE_PROJECT_ID,
-  location: "us-central1",
+  location: "asia-northeast1",
 });
 
 // ----------------------------------------
-// 安全性設定
+// 安全性設定（必要に応じて調整）
 // ----------------------------------------
 const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -44,16 +44,16 @@ const safetySettings = [
 ];
 
 // ----------------------------------------
-// ルートハンドラ（型付き params を使用）
+// ルートハンドラ
+// ＊Next の型制約により第二引数へ直接の型注釈を付けると invalid 判定になるため、ここだけ ESLint を抑制
 // ----------------------------------------
-export async function POST(
-  request: Request,
-  { params }: { params: { chatId: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function POST(request: Request, context: any) {
   console.log("チャットAPIリクエスト受信");
   console.time("⏱️ 全体API処理時間");
 
-  // ▼ URL パラメータ
+  // ▼ context から必要なものだけ安全に取り出す
+  const { params } = (context ?? {}) as { params?: { chatId?: string } };
   const chatIdStr = params?.chatId;
   const chatId = Number.parseInt(String(chatIdStr), 10);
   if (Number.isNaN(chatId)) {
@@ -61,7 +61,7 @@ export async function POST(
     return NextResponse.json({ message: "無効なチャットIDです。" }, { status: 400 });
   }
 
-  // ▼ 認証
+  // ▼ 認証チェック
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     console.timeEnd("⏱️ 全体API処理時間");
@@ -69,7 +69,7 @@ export async function POST(
   }
   const userId = Number.parseInt(String(session.user.id), 10);
 
-  // ▼ ボディ
+  // ▼ 入力
   const { message, settings, isRegeneration, turnId } = await request.json();
   if (!message) {
     console.timeEnd("⏱️ 全体API処理時間");
@@ -202,13 +202,12 @@ export async function POST(
         prisma.chat_message.findMany({
           where: { chatId, isActive: true, createdAt: { lt: new Date() } },
           orderBy: { createdAt: "desc" },
-          take: 10,
+          take: 10, // 履歴の件数は必要に応じて最適化可
         }),
       ]);
       console.timeEnd("⏱️ DB History+Persona Query");
 
       const orderedHistory = history.reverse();
-
       console.log("ステップ2.5: ペルソナと履歴の取得完了");
       console.timeEnd("⏱️ Context Fetch Total (DB Only)");
       return { chatRoom, persona, orderedHistory };
@@ -258,7 +257,7 @@ export async function POST(
             triggeredLorebooks.push(replacePlaceholders(lore.content));
           }
         }
-        if (triggeredLorebooks.length >= 5) break;
+        if (triggeredLorebooks.length >= 5) break; // 最大5件
       }
     }
     console.timeEnd("⏱️ Simple Text Lorebook Search");
@@ -363,7 +362,7 @@ ${imageList}`
         console.time("⏱️ AI TTFB");
 
         try {
-          // ▼ クライアントへ保存完了を通知（イベント名は既存を踏襲）
+          // ▼ クライアントへ保存完了を通知
           if (isRegeneration) {
             sendEvent("regeneration-start", { turnId: turnIdForModel });
           } else {
@@ -372,6 +371,7 @@ ${imageList}`
 
           console.log("ステップ5: Vertex AI (Gemini) モデル呼び出し開始");
           console.time("⏱️ AI sendMessageStream Total");
+          // ★ デフォルトはプロモデル（ユーザー要望）
           const modelToUse = (settings?.model as string) || "gemini-2.5-pro";
           console.log(`使用モデル: ${modelToUse}`);
 

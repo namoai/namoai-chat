@@ -78,7 +78,7 @@ export default function ChatPage() {
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: "", message: "" });
   const [userPoints, setUserPoints] = useState(0);
 
-  // ▼▼▼【ビルドエラー修正】 setGenerationSettings は不要なので setter を持たない ▼▼▼
+  // ★ 初期モデルは「プロ」指定（ユーザー要望）
   const [generationSettings] = useState<GenerationSettings>({ model: "gemini-2.5-pro" });
 
   const [chatStyleSettings, setChatStyleSettings] = useState<ChatStyleSettings>({
@@ -353,7 +353,7 @@ export default function ChatPage() {
             try {
               payload = JSON.parse(dt);
             } catch {
-              // 不正なJSONブロックは無視（unused-vars を避けるため err 変数を定義しない）
+              // 不正なJSONブロックは無視
               continue;
             }
           }
