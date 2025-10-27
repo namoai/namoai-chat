@@ -45,6 +45,7 @@ const cleanedApiKey = process.env.OPENAI_API_KEY
 
 const openai = new OpenAI({
   apiKey: cleanedApiKey,
+  baseURL: 'https://api.openai.com/v1', // ▼▼▼【重要】Netlify AI Gatewayをバイパスして直接OpenAI APIを呼び出す
 });
 
 // =================================================================================
