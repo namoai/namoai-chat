@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/gsm-fetch.mjs",
+    "prebuild": "NODE_ENV=production node scripts/gsm-fetch.mjs",
     "build": "rm -rf .next && prisma generate && next build",
     "start": "next start",
     "lint": "next lint"
