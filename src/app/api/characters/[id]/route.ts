@@ -31,9 +31,16 @@ type LorebookData = {
 
 // ★ OpenAIクライアント (Embedding生成用)
 // ▼▼▼【重要】APIキーから空白・改行を削除
-const cleanedApiKey = process.env.OPENAI_API_KEY
+const rawApiKey = process.env.OPENAI_API_KEY;
+console.log('[INIT] OPENAI_API_KEY raw first 20 chars:', rawApiKey?.substring(0, 20));
+console.log('[INIT] OPENAI_API_KEY raw length:', rawApiKey?.length);
+
+const cleanedApiKey = rawApiKey
   ?.replace(/\s/g, '')
   .replace(/\\n|\\r|\\t/g, '');
+
+console.log('[INIT] OPENAI_API_KEY cleaned first 20 chars:', cleanedApiKey?.substring(0, 20));
+console.log('[INIT] OPENAI_API_KEY cleaned length:', cleanedApiKey?.length);
 
 const openai = new OpenAI({
   apiKey: cleanedApiKey,
