@@ -120,6 +120,15 @@ async function ensureSupabaseEnv() {
     process.env.SUPABASE_SERVICE_ROLE_KEY = await loadSecret('SUPABASE_SERVICE_ROLE_KEY');
   }
 
+  // ▼▼▼【重要】Netlify環境変数に含まれる可能性のある空白を削除
+  if (process.env.SUPABASE_URL) {
+    process.env.SUPABASE_URL = process.env.SUPABASE_URL.trim();
+  }
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY.trim();
+  }
+  // ▲▲▲
+
   console.info('[diag] has SUPABASE_URL?', !!process.env.SUPABASE_URL);
   console.info('[diag] has SUPABASE_SERVICE_ROLE_KEY?', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
@@ -278,6 +287,15 @@ export async function PUT(
     if (!supabaseUrl || !serviceRoleKey) {
       throw new Error('Supabaseの接続情報が不足しています。');
     }
+    
+    // ▼▼▼【デバッグ】キーの長さと最初/最後の文字を確認
+    console.log('[PUT] SUPABASE_URL:', supabaseUrl);
+    console.log('[PUT] SERVICE_ROLE_KEY length:', serviceRoleKey.length);
+    console.log('[PUT] SERVICE_ROLE_KEY first 20 chars:', serviceRoleKey.substring(0, 20));
+    console.log('[PUT] SERVICE_ROLE_KEY last 20 chars:', serviceRoleKey.substring(serviceRoleKey.length - 20));
+    console.log('[PUT] Has whitespace?', /\s/.test(serviceRoleKey));
+    // ▲▲▲【デバッグ】
+    
     const sb = createClient(supabaseUrl, serviceRoleKey);
     // ▲▲▲【Supabase】初期化完了
 

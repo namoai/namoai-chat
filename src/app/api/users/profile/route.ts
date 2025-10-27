@@ -80,6 +80,15 @@ async function ensureSupabaseEnv() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     process.env.SUPABASE_SERVICE_ROLE_KEY = await loadSecret('SUPABASE_SERVICE_ROLE_KEY');
   }
+
+  // ▼▼▼【重要】Netlify環境変数に含まれる可能性のある空白を削除
+  if (process.env.SUPABASE_URL) {
+    process.env.SUPABASE_URL = process.env.SUPABASE_URL.trim();
+  }
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY.trim();
+  }
+  // ▲▲▲
 }
 
 
