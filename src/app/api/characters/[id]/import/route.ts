@@ -98,10 +98,14 @@ async function ensureSupabaseEnv() {
 
     // ▼▼▼【重要】Netlify環境変数に含まれる可能性のある空白・改行・タブを全て削除
     if (process.env.SUPABASE_URL) {
-        process.env.SUPABASE_URL = process.env.SUPABASE_URL.replace(/\s/g, '');
+        process.env.SUPABASE_URL = process.env.SUPABASE_URL
+            .replace(/\s/g, '')  // 実際のホワイトスペース削除
+            .replace(/\\n|\\r|\\t/g, '');  // リテラル文字列 \n \r \t 削除
     }
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY.replace(/\s/g, '');
+        process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+            .replace(/\s/g, '')  // 実際のホワイトスペース削除
+            .replace(/\\n|\\r|\\t/g, '');  // リテラル文字列 \n \r \t 削除
     }
     // ▲▲▲
 }
