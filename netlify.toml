@@ -1,5 +1,11 @@
 [functions]
   included_files = ["gcp/sa.json"]
+  # OpenAI Embedding 生成など時間のかかる処理のためタイムアウトを30秒に延長
+  node_bundler = "esbuild"
+
+[functions."*"]
+  # 全てのFunctionに対して30秒のタイムアウトを設定
+  max_duration = 30
 
 [build.environment]
   # Secret Manager を使用するため secrets scanning を無効化
