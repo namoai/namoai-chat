@@ -348,8 +348,66 @@ export async function PUT(
     const sb = createClient(supabaseUrl, serviceRoleKey);
     // ▲▲▲【Supabase】初期化完了
 
+    // ▼▼▼【重要】トランザクション外で外部API呼び出し（Storage & OpenAI）を実行
+    // 1. 新しい画像をSupabase Storageにアップロード（トランザクション外）
+    const newImageCountString = formData.get('newImageCount') as string;
+    const newImageCount = newImageCountString ? parseInt(newImageCountString, 10) : 0;
+    const newImageMetas: { characterId: number; imageUrl: string; keyword: string; isMain: boolean; displayOrder: number; }[] = [];
+    const existingImageCount = await prisma.character_images.count({ where: { characterId: characterIdToUpdate }});
+    let displayOrderCounter = existingImageCount;
+    
+    for (let i = 0; i < newImageCount; i++) {
+      const file = formData.get(`new_image_${i}`) as File | null;
+      const keyword = formData.get(`new_keyword_${i}`) as string || '';
+      if (file && file.size > 0) {
+        const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'png';
+        const safeFileName = `${randomUUID()}.${fileExtension}`;
+        const objectKey = `uploads/${safeFileName}`;
+        
+        const arrayBuffer = await file.arrayBuffer();
+        const { error: uploadErr } = await sb.storage
+          .from(bucket)
+          .upload(objectKey, Buffer.from(arrayBuffer), {
+            contentType: file.type || 'application/octet-stream',
+            upsert: false,
+          });
+
+        if (uploadErr) {
+          console.error(`[PUT] Supabaseアップロード失敗(index=${i}):`, uploadErr);
+          throw new Error('画像アップロードに失敗しました。');
+        }
+
+        const { data: pub } = sb.storage.from(bucket).getPublicUrl(objectKey);
+        const imageUrl = pub.publicUrl;
+
+        newImageMetas.push({
+          characterId: characterIdToUpdate,
+          imageUrl: imageUrl,
+          keyword,
+          isMain: false,
+          displayOrder: displayOrderCounter++,
+        });
+      }
+    }
+
+    // 2. Lorebook Embeddingsを事前生成（トランザクション外）
+    const lorebookEmbeddings: { content: string; keywords: string[]; embeddingString: string }[] = [];
+    if (lorebooks.length > 0) {
+      for (const lore of lorebooks) {
+        const embedding = await getEmbedding(lore.content);
+        const embeddingString = `[${embedding.join(',')}]`;
+        lorebookEmbeddings.push({
+          content: lore.content,
+          keywords: lore.keywords || [],
+          embeddingString
+        });
+      }
+    }
+    // ▲▲▲【重要】外部API呼び出し完了
+
+    // ▼▼▼【トランザクション】DB操作のみ実行（高速）
     const updatedCharacter = await prisma.$transaction(async (tx) => {
-      // (画像削除・追加ロジックは変更なし)
+      // 画像削除
       const imagesToDeleteString = formData.get('imagesToDelete') as string;
       if (imagesToDeleteString) {
         const imagesToDelete: number[] = JSON.parse(imagesToDeleteString);
@@ -357,12 +415,9 @@ export async function PUT(
           const images = await tx.character_images.findMany({ where: { id: { in: imagesToDelete } } });
           for (const img of images) {
             try {
-              // URLかローカルパスかを判定して適切に処理
               if (img.imageUrl.startsWith('http://') || img.imageUrl.startsWith('https://')) {
-                // Supabase Storageなど外部URLの場合はスキップ（Netlify環境では削除不要）
                 console.log(`外部ストレージのファイルのため削除をスキップ: ${img.imageUrl}`);
               } else {
-                // ローカルファイルの場合のみ物理削除
                 await fs.unlink(path.join(process.cwd(), 'public', img.imageUrl));
               }
             } catch (e) {
@@ -373,66 +428,23 @@ export async function PUT(
         }
       }
       
-      const newImageCountString = formData.get('newImageCount') as string;
-      const newImageCount = newImageCountString ? parseInt(newImageCountString, 10) : 0;
-      const newImageMetas: { characterId: number; imageUrl: string; keyword: string; isMain: boolean; displayOrder: number; }[] = [];
-      const existingImageCount = await tx.character_images.count({ where: { characterId: characterIdToUpdate }});
-      let displayOrderCounter = existingImageCount;
-      
-      // ▼▼▼【Supabase】新しい画像をSupabase Storageにアップロード
-      for (let i = 0; i < newImageCount; i++) {
-        const file = formData.get(`new_image_${i}`) as File | null;
-        const keyword = formData.get(`new_keyword_${i}`) as string || '';
-        if (file && file.size > 0) {
-          const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'png';
-          const safeFileName = `${randomUUID()}.${fileExtension}`;
-          const objectKey = `uploads/${safeFileName}`;
-          
-          const arrayBuffer = await file.arrayBuffer();
-          const { error: uploadErr } = await sb.storage
-            .from(bucket)
-            .upload(objectKey, Buffer.from(arrayBuffer), {
-              contentType: file.type || 'application/octet-stream',
-              upsert: false,
-            });
-
-          if (uploadErr) {
-            console.error(`[PUT] Supabaseアップロード失敗(index=${i}):`, uploadErr);
-            throw new Error('画像アップロードに失敗しました。');
-          }
-
-          const { data: pub } = sb.storage.from(bucket).getPublicUrl(objectKey);
-          const imageUrl = pub.publicUrl;
-
-          newImageMetas.push({
-            characterId: characterIdToUpdate,
-            imageUrl: imageUrl,
-            keyword,
-            isMain: false,
-            displayOrder: displayOrderCounter++,
-          });
-        }
-      }
+      // 新しい画像をDBに追加
       if (newImageMetas.length > 0) {
         await tx.character_images.createMany({ data: newImageMetas });
       }
-      // ▲▲▲【Supabase】アップロード完了
       
-      // ▼▼▼【核心的な修正】既存のロアブックを全て削除し、新しいロアブックをベクトル化して再作成します。▼▼▼
+      // Lorebook更新（事前生成したEmbeddingを使用）
       await tx.lorebooks.deleteMany({
         where: { characterId: characterIdToUpdate },
       });
-      if (lorebooks.length > 0) {
-        for (const lore of lorebooks) {
-            const embedding = await getEmbedding(lore.content);
-            const embeddingString = `[${embedding.join(',')}]`;
-            await tx.$executeRaw`
-                INSERT INTO "lorebooks" ("content", "keywords", "characterId", "embedding")
-                VALUES (${lore.content}, ${lore.keywords || []}::text[], ${characterIdToUpdate}, ${embeddingString}::vector)
-            `;
+      if (lorebookEmbeddings.length > 0) {
+        for (const lore of lorebookEmbeddings) {
+          await tx.$executeRaw`
+            INSERT INTO "lorebooks" ("content", "keywords", "characterId", "embedding")
+            VALUES (${lore.content}, ${lore.keywords}::text[], ${characterIdToUpdate}, ${lore.embeddingString}::vector)
+          `;
         }
       }
-      // ▲▲▲ 修正完了 ▲▲▲
 
       return await tx.characters.update({
         where: { id: characterIdToUpdate },
