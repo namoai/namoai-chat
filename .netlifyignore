@@ -1,0 +1,6 @@
+# Secret Manager から動的に取得されるため、デプロイ不要
+secrets/runtime.json
+
+# 一時ビルドファイル
+*.log
+

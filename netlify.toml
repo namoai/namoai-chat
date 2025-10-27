@@ -1,2 +1,7 @@
 [functions]
-  included_files = ["gcp/sa.json", "secrets/**"]
+  included_files = ["gcp/sa.json"]
+
+[build.environment]
+  # secrets/runtime.json は Secret Manager から動的に取得されるため、
+  # ビルド成果物に含める必要はなく、secrets scanning から除外
+  SECRETS_SCAN_SMART_DETECTION_OMIT_FILES = "secrets/runtime.json,.netlify/functions-internal/___netlify-server-handler/secrets/runtime.json"
