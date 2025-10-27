@@ -38,8 +38,13 @@ type ImageMetaData = {
 // =================================================================================
 
 // ★ OpenAIクライアント (Embedding生成用)
+// ▼▼▼【重要】APIキーから空白・改行を削除
+const cleanedApiKey = process.env.OPENAI_API_KEY
+  ?.replace(/\s/g, '')
+  .replace(/\\n|\\r|\\t/g, '');
+
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: cleanedApiKey,
 });
 
 // =================================================================================

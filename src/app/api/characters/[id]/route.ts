@@ -30,8 +30,13 @@ type LorebookData = {
 // =================================================================================
 
 // ★ OpenAIクライアント (Embedding生成用)
+// ▼▼▼【重要】APIキーから空白・改行を削除
+const cleanedApiKey = process.env.OPENAI_API_KEY
+  ?.replace(/\s/g, '')
+  .replace(/\\n|\\r|\\t/g, '');
+
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: cleanedApiKey,
 });
 
 // =================================================================================
@@ -297,6 +302,9 @@ export async function PUT(
     console.log('[PUT] SERVICE_ROLE_KEY length:', serviceRoleKey?.length);
     console.log('[PUT] SERVICE_ROLE_KEY first 30 chars:', serviceRoleKey?.substring(0, 30));
     console.log('[PUT] SERVICE_ROLE_KEY last 30 chars:', serviceRoleKey?.substring(serviceRoleKey.length - 30));
+    console.log('[PUT] OPENAI_API_KEY exists?', !!process.env.OPENAI_API_KEY);
+    console.log('[PUT] OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length);
+    console.log('[PUT] OPENAI_API_KEY first 20 chars:', process.env.OPENAI_API_KEY?.substring(0, 20));
     // ▲▲▲【デバッグ】
     
     const sb = createClient(supabaseUrl, serviceRoleKey);
