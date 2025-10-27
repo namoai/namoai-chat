@@ -65,7 +65,8 @@ async function loadSecret(name: string, version = 'latest') {
   const [acc] = await client.accessSecretVersion({
     name: `projects/${projectId}/secrets/${name}/versions/${version}`,
   });
-  return acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
+  const value = acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
+  return value.trim(); // ▼▼▼【重要】前後の空白・改行を削除
 }
 
 // ───────────────────────────────────────────────────────────────
