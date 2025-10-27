@@ -10,6 +10,10 @@ import { Role } from '@prisma/client';
 // ▼▼▼【Redis】 lib/redis.ts からインポート
 import { redis } from '@/lib/redis'; 
 import OpenAI from 'openai';
+// ▼▼▼【Supabase】追加インポート
+import { createClient } from '@supabase/supabase-js';
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+import { randomUUID } from 'crypto';
 
 // =================================================================================
 //  型定義 (Type Definitions)
@@ -47,6 +51,76 @@ async function getEmbedding(text: string): Promise<number[]> {
     input: sanitizedText,
   });
   return response.data[0].embedding;
+}
+
+/**
+ * GCPサービスアカウント認証情報を /tmp に展開
+ */
+async function ensureGcpCredsFile() {
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) return;
+  const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+  const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
+  if (!raw && !b64) return;
+
+  const tmpPath = '/tmp/gcp-sa.json';
+  const content = raw ?? Buffer.from(b64!, 'base64').toString('utf8');
+  await fs.writeFile(tmpPath, content, { encoding: 'utf8' });
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = tmpPath;
+}
+
+/**
+ * GCP プロジェクトIDを解決
+ */
+async function resolveGcpProjectId(): Promise<string> {
+  const envProject =
+    process.env.GCP_PROJECT_ID ||
+    process.env.GOOGLE_CLOUD_PROJECT ||
+    process.env.GOOGLE_PROJECT_ID;
+  if (envProject && envProject.trim().length > 0) return envProject.trim();
+
+  const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+  const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
+  try {
+    if (raw || b64) {
+      const jsonStr = raw ?? Buffer.from(b64!, 'base64').toString('utf8');
+      const parsed = JSON.parse(jsonStr);
+      if (typeof parsed?.project_id === 'string' && parsed.project_id) {
+        return parsed.project_id;
+      }
+    }
+  } catch (e) {
+    console.error('[resolveGcpProjectId] JSONパースエラー:', e);
+  }
+  throw new Error('GCPプロジェクトIDが見つかりません。');
+}
+
+/**
+ * Secret Managerからシークレット値を取得
+ */
+async function loadSecret(name: string, version = 'latest') {
+  const projectId = await resolveGcpProjectId();
+  const client = new SecretManagerServiceClient({ fallback: true });
+  const [acc] = await client.accessSecretVersion({
+    name: `projects/${projectId}/secrets/${name}/versions/${version}`,
+  });
+  return acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
+}
+
+/**
+ * Supabase 接続に必要な環境変数を準備
+ */
+async function ensureSupabaseEnv() {
+  await ensureGcpCredsFile();
+
+  if (!process.env.SUPABASE_URL) {
+    process.env.SUPABASE_URL = await loadSecret('SUPABASE_URL');
+  }
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    process.env.SUPABASE_SERVICE_ROLE_KEY = await loadSecret('SUPABASE_SERVICE_ROLE_KEY');
+  }
+
+  console.info('[diag] has SUPABASE_URL?', !!process.env.SUPABASE_URL);
+  console.info('[diag] has SUPABASE_SERVICE_ROLE_KEY?', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
 
@@ -194,6 +268,18 @@ export async function PUT(
     const firstSituationDate = formData.get('firstSituationDate') as string;
     const firstSituationPlace = formData.get('firstSituationPlace') as string;
 
+    // ▼▼▼【Supabase】環境変数を準備してクライアントを初期化
+    await ensureSupabaseEnv();
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'characters';
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error('Supabaseの接続情報が不足しています。');
+    }
+    const sb = createClient(supabaseUrl, serviceRoleKey);
+    // ▲▲▲【Supabase】初期化完了
+
     const updatedCharacter = await prisma.$transaction(async (tx) => {
       // (画像削除・追加ロジックは変更なし)
       const imagesToDeleteString = formData.get('imagesToDelete') as string;
@@ -203,9 +289,14 @@ export async function PUT(
           const images = await tx.character_images.findMany({ where: { id: { in: imagesToDelete } } });
           for (const img of images) {
             try {
-              // 画像の物理削除ロジックは環境に合わせて調整が必要です
-              // ここではSupabase Storageを仮定せず、ローカルファイルとして扱っています
-              await fs.unlink(path.join(process.cwd(), 'public', img.imageUrl));
+              // URLかローカルパスかを判定して適切に処理
+              if (img.imageUrl.startsWith('http://') || img.imageUrl.startsWith('https://')) {
+                // Supabase Storageなど外部URLの場合はスキップ（Netlify環境では削除不要）
+                console.log(`外部ストレージのファイルのため削除をスキップ: ${img.imageUrl}`);
+              } else {
+                // ローカルファイルの場合のみ物理削除
+                await fs.unlink(path.join(process.cwd(), 'public', img.imageUrl));
+              }
             } catch (e) {
               console.error(`ファイルの物理削除に失敗: ${img.imageUrl}`, e);
             }
@@ -219,18 +310,35 @@ export async function PUT(
       const newImageMetas: { characterId: number; imageUrl: string; keyword: string; isMain: boolean; displayOrder: number; }[] = [];
       const existingImageCount = await tx.character_images.count({ where: { characterId: characterIdToUpdate }});
       let displayOrderCounter = existingImageCount;
+      
+      // ▼▼▼【Supabase】新しい画像をSupabase Storageにアップロード
       for (let i = 0; i < newImageCount; i++) {
         const file = formData.get(`new_image_${i}`) as File | null;
         const keyword = formData.get(`new_keyword_${i}`) as string || '';
         if (file && file.size > 0) {
-          const buffer = Buffer.from(await file.arrayBuffer());
-          const filename = `${Date.now()}-${file.name.replace(/\s/g, '_')}`;
-          const savePath = path.join(process.cwd(), 'public/uploads', filename);
-          await fs.mkdir(path.dirname(savePath), { recursive: true });
-          await fs.writeFile(savePath, buffer);
+          const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'png';
+          const safeFileName = `${randomUUID()}.${fileExtension}`;
+          const objectKey = `uploads/${safeFileName}`;
+          
+          const arrayBuffer = await file.arrayBuffer();
+          const { error: uploadErr } = await sb.storage
+            .from(bucket)
+            .upload(objectKey, Buffer.from(arrayBuffer), {
+              contentType: file.type || 'application/octet-stream',
+              upsert: false,
+            });
+
+          if (uploadErr) {
+            console.error(`[PUT] Supabaseアップロード失敗(index=${i}):`, uploadErr);
+            throw new Error('画像アップロードに失敗しました。');
+          }
+
+          const { data: pub } = sb.storage.from(bucket).getPublicUrl(objectKey);
+          const imageUrl = pub.publicUrl;
+
           newImageMetas.push({
             characterId: characterIdToUpdate,
-            imageUrl: `/uploads/${filename}`,
+            imageUrl: imageUrl,
             keyword,
             isMain: false,
             displayOrder: displayOrderCounter++,
@@ -240,6 +348,7 @@ export async function PUT(
       if (newImageMetas.length > 0) {
         await tx.character_images.createMany({ data: newImageMetas });
       }
+      // ▲▲▲【Supabase】アップロード完了
       
       // ▼▼▼【核心的な修正】既存のロアブックを全て削除し、新しいロアブックをベクトル化して再作成します。▼▼▼
       await tx.lorebooks.deleteMany({
@@ -338,11 +447,18 @@ export async function DELETE(
     }
     
     for (const img of characterToDelete.characterImages) {
-      const filePath = path.join(process.cwd(), 'public', img.imageUrl);
       try {
-        await fs.unlink(filePath);
+        // URLかローカルパスかを判定して適切に処理
+        if (img.imageUrl.startsWith('http://') || img.imageUrl.startsWith('https://')) {
+          // Supabase Storageなど外部URLの場合はスキップ（Netlify環境では削除不要）
+          console.log(`外部ストレージのファイルのため削除をスキップ: ${img.imageUrl}`);
+        } else {
+          // ローカルファイルの場合のみ物理削除
+          const filePath = path.join(process.cwd(), 'public', img.imageUrl);
+          await fs.unlink(filePath);
+        }
       } catch (e) {
-        console.error(`ファイルの物理削除に失敗: ${filePath}`, e);
+        console.error(`ファイルの物理削除に失敗: ${img.imageUrl}`, e);
       }
     }
     
