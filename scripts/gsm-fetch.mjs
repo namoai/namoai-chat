@@ -1,12 +1,13 @@
 // scripts/gsm-fetch.mjs
 // =============================================================================
 //  目的
+//  - (Netlify/Vercel 等のビルド環境で)
 //  - GOOGLE_APPLICATION_CREDENTIALS を削除しても、BASE64/RAW があれば
 //    必ず SA JSON ファイルを生成し、GOOGLE_APPLICATION_CREDENTIALS を再設定
 //  - 既存コードが 'gcp/sa.json' を open しても、ADC が絶対パスを参照しても動くよう二箇所へ出力
 //  - GSM から取得したシークレットを process.env にも注入し、.env.production.local にも書き出して
 //    次の `next build` プロセスで確実に読み込めるようにする
-//  - project_id が未指定でも、SA JSON から自動補完
+//  - project_id が未指定でも、SA JSON から自動補완
 // =============================================================================
 
 import 'dotenv/config';
@@ -20,12 +21,25 @@ const log  = (...a) => console.log('[gsm-fetch]', ...a);
 const warn = (...a) => console.warn('[gsm-fetch]', ...a);
 const err  = (...a) => console.error('[gsm-fetch]', ...a);
 
+// ▼▼▼ 変更点 ▼▼▼
+// このスクリプトは 'production' ビルド専用です。
+// NODE_ENV が 'production' でない場合 (例: 'development')、
+// .env.local が直接使用されるべきなので、このスクリプトは何もせずに終了します。
+if (process.env.NODE_ENV !== 'production') {
+  log('NODE_ENV is not "production". Skipping GSM fetch.');
+  log('ローカル開発では .env.local が使用されます。');
+  process.exit(0); // 正常終了
+}
+log('NODE_ENV=production. Running GSM fetch script...');
+// ▲▲▲ 変更点 ▲▲▲
+
+
 const repoRoot   = process.cwd();
 const saDir      = path.join(repoRoot, 'gcp');
 const saRepoPath = path.join(saDir, 'sa.json');     // 既存コード用 (相対パス open 対応)
 const saTmpPath  = '/tmp/gcp-sa.json';              // ADC 推奨の絶対パス
 const outDir     = path.join(repoRoot, 'secrets');  // ランタイム参照用 JSON
-const envOutPath = path.join(repoRoot, '.env.production.local'); // Next が自動読み込み
+const envOutPath = path.join(repoRoot, '.env.production.local'); // Next が自動読み込み (本番専用)
 
 // 小ユーティリティ -------------------------------------------------------------
 async function ensureDir(p) {
@@ -56,14 +70,15 @@ function requireJson(text, label) {
   }
 }
 
-// SA ロード --------------------------------------------------------------------
+// SA ロード (本番環境専用ロジック) -----------------------------------------------
 await ensureDir(saDir);
 
 let saJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || '';
 const saB64  = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64 || '';
-const saFile = process.env.GOOGLE_APPLICATION_CREDENTIALS_FILE || process.env.GOOGLE_APPLICATION_CREDENTIALS || '';
+// 本番ビルドでは GOOGLE_APPLICATION_CREDENTIALS (ファイルパス) は通常使わない
+const saFile = process.env.GOOGLE_APPLICATION_CREDENTIALS_FILE || ''; 
 
-// 1) ファイルパス最優先
+// 1) ファイルパス (CI/CD でファイルを使う場合)
 if (!saJson && saFile) {
   try {
     saJson = fs.readFileSync(saFile, 'utf8');
@@ -72,7 +87,7 @@ if (!saJson && saFile) {
     warn('SA file 読み込み失敗:', saFile, e?.message);
   }
 }
-// 2) BASE64
+// 2) BASE64 (Netlify/Vercel の標準的な方法)
 if (!saJson && saB64) {
   try {
     saJson = Buffer.from(saB64.trim(), 'base64').toString('utf8');
@@ -83,7 +98,7 @@ if (!saJson && saB64) {
   }
 }
 if (!saJson) {
-  err('❌ サービスアカウント JSON 不足: GOOGLE_APPLICATION_CREDENTIALS_JSON(_BASE64|_FILE) いずれも未設定');
+  err('❌ [Production Build] サービスアカウント JSON 不足: GOOGLE_APPLICATION_CREDENTIALS_JSON(_BASE64|_FILE) いずれも未設定');
   process.exit(1);
 }
 
@@ -122,6 +137,10 @@ const names = (process.env.GSM_SECRET_NAMES || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
+
+if (names.length === 0) {
+  warn('⚠️ GSM_SECRET_NAMES が設定されていません。GSM から取得するシークレットがありません。');
+}
 
 await ensureDir(outDir);
 
