@@ -310,9 +310,12 @@ export async function PUT(
     console.log('[PUT] SERVICE_ROLE_KEY length:', serviceRoleKey?.length);
     console.log('[PUT] SERVICE_ROLE_KEY first 30 chars:', serviceRoleKey?.substring(0, 30));
     console.log('[PUT] SERVICE_ROLE_KEY last 30 chars:', serviceRoleKey?.substring(serviceRoleKey.length - 30));
-    console.log('[PUT] OPENAI_API_KEY exists?', !!process.env.OPENAI_API_KEY);
-    console.log('[PUT] OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length);
-    console.log('[PUT] OPENAI_API_KEY first 20 chars:', process.env.OPENAI_API_KEY?.substring(0, 20));
+    console.log('[PUT] 【重要】全ての環境変数名をチェック:');
+    console.log('[PUT] - OPENAI_API_KEY:', process.env.OPENAI_API_KEY?.substring(0, 20), 'length:', process.env.OPENAI_API_KEY?.length);
+    console.log('[PUT] - OPENAI_KEY:', process.env.OPENAI_KEY?.substring(0, 20));
+    console.log('[PUT] - OPEN_AI_API_KEY:', process.env.OPEN_AI_API_KEY?.substring(0, 20));
+    console.log('[PUT] - API_KEY:', process.env.API_KEY?.substring(0, 20));
+    console.log('[PUT] 【比較】SERVICE_ROLE_KEY === OPENAI_API_KEY?', process.env.SUPABASE_SERVICE_ROLE_KEY === process.env.OPENAI_API_KEY);
     // ▲▲▲【デバッグ】
     
     const sb = createClient(supabaseUrl, serviceRoleKey);
