@@ -81,12 +81,12 @@ async function ensureSupabaseEnv() {
     process.env.SUPABASE_SERVICE_ROLE_KEY = await loadSecret('SUPABASE_SERVICE_ROLE_KEY');
   }
 
-  // ▼▼▼【重要】Netlify環境変数に含まれる可能性のある空白を削除
+  // ▼▼▼【重要】Netlify環境変数に含まれる可能性のある空白・改行・タブを全て削除
   if (process.env.SUPABASE_URL) {
-    process.env.SUPABASE_URL = process.env.SUPABASE_URL.trim();
+    process.env.SUPABASE_URL = process.env.SUPABASE_URL.replace(/\s/g, '');
   }
   if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY.trim();
+    process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY.replace(/\s/g, '');
   }
   // ▲▲▲
 }

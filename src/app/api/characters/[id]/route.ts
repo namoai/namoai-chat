@@ -120,12 +120,12 @@ async function ensureSupabaseEnv() {
     process.env.SUPABASE_SERVICE_ROLE_KEY = await loadSecret('SUPABASE_SERVICE_ROLE_KEY');
   }
 
-  // ▼▼▼【重要】Netlify環境変数に含まれる可能性のある空白を削除
+  // ▼▼▼【重要】Netlify環境変数に含まれる可能性のある空白・改行・タブを全て削除
   if (process.env.SUPABASE_URL) {
-    process.env.SUPABASE_URL = process.env.SUPABASE_URL.trim();
+    process.env.SUPABASE_URL = process.env.SUPABASE_URL.replace(/\s/g, '');
   }
   if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY.trim();
+    process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY.replace(/\s/g, '');
   }
   // ▲▲▲
 
@@ -290,10 +290,9 @@ export async function PUT(
     
     // ▼▼▼【デバッグ】キーの長さと最初/最後の文字を確認
     console.log('[PUT] SUPABASE_URL:', supabaseUrl);
-    console.log('[PUT] SERVICE_ROLE_KEY length:', serviceRoleKey.length);
-    console.log('[PUT] SERVICE_ROLE_KEY first 20 chars:', serviceRoleKey.substring(0, 20));
-    console.log('[PUT] SERVICE_ROLE_KEY last 20 chars:', serviceRoleKey.substring(serviceRoleKey.length - 20));
-    console.log('[PUT] Has whitespace?', /\s/.test(serviceRoleKey));
+    console.log('[PUT] SERVICE_ROLE_KEY length:', serviceRoleKey?.length);
+    console.log('[PUT] SERVICE_ROLE_KEY first 30 chars:', serviceRoleKey?.substring(0, 30));
+    console.log('[PUT] SERVICE_ROLE_KEY last 30 chars:', serviceRoleKey?.substring(serviceRoleKey.length - 30));
     // ▲▲▲【デバッグ】
     
     const sb = createClient(supabaseUrl, serviceRoleKey);
