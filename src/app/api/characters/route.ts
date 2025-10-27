@@ -152,9 +152,17 @@ async function ensureSupabaseEnv() {
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
         process.env.SUPABASE_SERVICE_ROLE_KEY = await loadSecret('SUPABASE_SERVICE_ROLE_KEY');
     }
-    // ▼▼▼【重要】OPENAI_API_KEY も Secret Manager から取得
-    if (!process.env.OPENAI_API_KEY) {
-        process.env.OPENAI_API_KEY = await loadSecret('OPENAI_API_KEY');
+    // ▼▼▼【重要】OPENAI_API_KEY を Secret Manager から強制取得（Netlify環境変数より優先）
+    try {
+        const openaiKeyFromGSM = await loadSecret('OPENAI_API_KEY');
+        if (openaiKeyFromGSM && openaiKeyFromGSM.startsWith('sk-')) {
+            process.env.OPENAI_API_KEY = openaiKeyFromGSM;
+            console.log('[ensureSupabaseEnv] OPENAI_API_KEY loaded from Secret Manager (sk-...)');
+        } else {
+            console.warn('[ensureSupabaseEnv] Secret Manager returned invalid OPENAI_API_KEY, using env var');
+        }
+    } catch (e) {
+        console.warn('[ensureSupabaseEnv] Failed to load OPENAI_API_KEY from Secret Manager:', e);
     }
     // ▲▲▲
 
