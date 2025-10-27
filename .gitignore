@@ -56,3 +56,6 @@ secrets/runtime.json
  gcp/sa.json
  gemini-credentials.json
  secrets/runtime.json
+
+# Local Netlify folder
+.netlify
