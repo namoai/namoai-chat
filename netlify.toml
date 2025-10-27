@@ -3,10 +3,9 @@
   # OpenAI Embedding 生成など時間のかかる処理のためタイムアウトを30秒に延長
   node_bundler = "esbuild"
 
-  # --- タイムアウト設定 ---
-  # デフォルトは10秒ですが、最大30秒まで設定可能です。
-  # (Edge Functionsではなく、標準のServerless Functionsにのみ適用)
-  timeout = 30
+[functions."*"]
+  # 全てのFunctionに対して30秒のタイムアウトを設定
+  max_duration = 30
 
 [build.environment]
   # Secret Manager を使用するため secrets scanning を無効化
