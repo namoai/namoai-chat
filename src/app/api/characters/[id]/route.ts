@@ -30,22 +30,29 @@ type LorebookData = {
 // =================================================================================
 
 // ★ OpenAIクライアント (Embedding生成用)
-// ▼▼▼【重要】APIキーから空白・改行を削除
-const rawApiKey = process.env.OPENAI_API_KEY;
-console.log('[INIT] OPENAI_API_KEY raw first 20 chars:', rawApiKey?.substring(0, 20));
-console.log('[INIT] OPENAI_API_KEY raw length:', rawApiKey?.length);
+// ▼▼▼【重要】遅延初期化 - Secret Manager から OPENAI_API_KEY をロードした後に使用
+let openaiClient: OpenAI | null = null;
 
-const cleanedApiKey = rawApiKey
-  ?.replace(/\s/g, '')
-  .replace(/\\n|\\r|\\t/g, '');
+function getOpenAIClient(): OpenAI {
+  if (!openaiClient) {
+    const rawApiKey = process.env.OPENAI_API_KEY;
+    console.log('[OpenAI Init] OPENAI_API_KEY raw first 20 chars:', rawApiKey?.substring(0, 20));
+    console.log('[OpenAI Init] OPENAI_API_KEY raw length:', rawApiKey?.length);
 
-console.log('[INIT] OPENAI_API_KEY cleaned first 20 chars:', cleanedApiKey?.substring(0, 20));
-console.log('[INIT] OPENAI_API_KEY cleaned length:', cleanedApiKey?.length);
+    const cleanedApiKey = rawApiKey
+      ?.replace(/\s/g, '')
+      .replace(/\\n|\\r|\\t/g, '');
 
-const openai = new OpenAI({
-  apiKey: cleanedApiKey,
-  baseURL: 'https://api.openai.com/v1', // ▼▼▼【重要】Netlify AI Gatewayをバイパスして直接OpenAI APIを呼び出す
-});
+    console.log('[OpenAI Init] OPENAI_API_KEY cleaned first 20 chars:', cleanedApiKey?.substring(0, 20));
+    console.log('[OpenAI Init] OPENAI_API_KEY cleaned length:', cleanedApiKey?.length);
+
+    openaiClient = new OpenAI({
+      apiKey: cleanedApiKey,
+      baseURL: 'https://api.openai.com/v1', // ▼▼▼【重要】Netlify AI Gatewayをバイパスして直接OpenAI APIを呼び出す
+    });
+  }
+  return openaiClient;
+}
 
 // =================================================================================
 //  ヘルパー関数 (Helper Functions)
@@ -59,6 +66,7 @@ const openai = new OpenAI({
 async function getEmbedding(text: string): Promise<number[]> {
   if (!text) return [];
   const sanitizedText = text.replace(/\n/g, ' ');
+  const openai = getOpenAIClient(); // ▼▼▼【重要】遅延初期化されたクライアントを取得
   const response = await openai.embeddings.create({
     model: "text-embedding-3-small",
     input: sanitizedText,
@@ -121,7 +129,7 @@ async function loadSecret(name: string, version = 'latest') {
 }
 
 /**
- * Supabase 接続に必要な環境変数を準備
+ * Supabase と OpenAI 接続に必要な環境変数を準備
  */
 async function ensureSupabaseEnv() {
   await ensureGcpCredsFile();
@@ -132,6 +140,11 @@ async function ensureSupabaseEnv() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     process.env.SUPABASE_SERVICE_ROLE_KEY = await loadSecret('SUPABASE_SERVICE_ROLE_KEY');
   }
+  // ▼▼▼【重要】OPENAI_API_KEY も Secret Manager から取得
+  if (!process.env.OPENAI_API_KEY) {
+    process.env.OPENAI_API_KEY = await loadSecret('OPENAI_API_KEY');
+  }
+  // ▲▲▲
 
   // ▼▼▼【重要】Netlify環境変数に含まれる可能性のある空白・改行・タブを全て削除
   if (process.env.SUPABASE_URL) {
@@ -144,10 +157,16 @@ async function ensureSupabaseEnv() {
       .replace(/\s/g, '')  // 実際のホワイトスペース削除
       .replace(/\\n|\\r|\\t/g, '');  // リテラル文字列 \n \r \t 削除
   }
+  if (process.env.OPENAI_API_KEY) {
+    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY
+      .replace(/\s/g, '')  // 実際のホワイトスペース削除
+      .replace(/\\n|\\r|\\t/g, '');  // リテラル文字列 \n \r \t 削除
+  }
   // ▲▲▲
 
   console.info('[diag] has SUPABASE_URL?', !!process.env.SUPABASE_URL);
   console.info('[diag] has SUPABASE_SERVICE_ROLE_KEY?', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+  console.info('[diag] has OPENAI_API_KEY?', !!process.env.OPENAI_API_KEY);
 }
 
 
