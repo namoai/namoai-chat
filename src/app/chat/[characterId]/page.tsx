@@ -335,15 +335,27 @@ export default function ChatPage() {
     const message = rawMessages.find(m => m.id === messageId);
     if (!message) return;
 
+    // ユーザーメッセージの場合は、そのターン全体を削除
+    // AIメッセージの場合は、そのバージョンのみを削除
+    const isUserMessage = message.role === 'user';
+    const turnId = message.turnId;
+    
     setModalState({
         isOpen: true,
         title: "削除の確認",
-        message: "このメッセージと以降のやり取りを削除しますか？",
+        message: isUserMessage 
+            ? "このメッセージと関連する全ての応答を削除しますか？" 
+            : "この応答バージョンを削除しますか？",
         confirmText: "削除",
         onConfirm: async () => {
             const originalMessages = [...rawMessages];
-            const turnId = message.turnId;
-            setRawMessages(prev => prev.filter(m => m.turnId !== turnId));
+            
+            // 楽観的UI更新：ユーザーメッセージならターン全体、AIメッセージなら該当メッセージのみ
+            if (isUserMessage) {
+                setRawMessages(prev => prev.filter(m => m.turnId !== turnId));
+            } else {
+                setRawMessages(prev => prev.filter(m => m.id !== messageId));
+            }
 
             try {
                 await fetch('/api/chat/messages', {
