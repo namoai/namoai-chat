@@ -70,7 +70,7 @@ export async function DELETE() {
       });
 
       // 6. ユーザーのブロック関係を削除
-      await prisma.block.deleteMany({
+      await tx.Block.deleteMany({
         where: {
           OR: [
             { blockerId: userId },
@@ -103,11 +103,11 @@ export async function DELETE() {
       });
 
       // 10. NextAuth関連のセッションとアカウントを削除
-      await prisma.session.deleteMany({
+      await tx.Session.deleteMany({
         where: { userId: userId },
       });
 
-      await prisma.account.deleteMany({
+      await tx.Account.deleteMany({
         where: { userId: userId },
       });
 
