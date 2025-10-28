@@ -83,6 +83,7 @@ export async function GET(request: NextRequest) {
         nickname: true,
         image_url: true,
         bio: true,
+        password: true, // パスワードの有無を確認するため（値自体は返さない）
       }
     });
 
@@ -137,7 +138,12 @@ export async function GET(request: NextRequest) {
     ]);
 
     const profileData = {
-      ...user,
+      id: user.id,
+      name: user.name,
+      nickname: user.nickname,
+      image_url: user.image_url,
+      bio: user.bio,
+      hasPassword: !!user.password, // パスワードが設定されているかどうか（本人確認用）
       characters,
       totalMessageCount,
       _count: { followers: followerCount, following: followingCount },

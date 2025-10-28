@@ -25,6 +25,7 @@ type ProfileData = {
   nickname: string;
   image_url: string | null;
   bio: string | null;
+  hasPassword: boolean; // パスワードが設定されているか
   totalMessageCount: number;
   characters: {
     id: number;
@@ -419,7 +420,10 @@ export default function UserProfilePage() {
                   {isMyProfile ? (
                     <>
                       <button onClick={() => window.location.href = '/profile-edit'} className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"><Edit size={16} /> プロフィール編集</button>
-                      <button onClick={() => window.location.href = '/change-password'} className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"><KeyRound size={16} /> パスワード変更</button>
+                      {/* パスワードが設定されている場合のみパスワード変更メニュー表示 */}
+                      {profile.hasPassword && (
+                        <button onClick={() => window.location.href = '/change-password'} className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"><KeyRound size={16} /> パスワード変更</button>
+                      )}
                       <button onClick={() => handleShowList('blocked')} className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"><UserMinus size={16} /> ブロックリスト</button>
                       <div className="border-t border-gray-700 my-1"></div>
                       <button onClick={handleAccountDeleteConfirm} className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2 text-red-400"><Trash2 size={16} /> 会員退会</button>
