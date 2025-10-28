@@ -14,7 +14,7 @@ import { authOptions } from "@/lib/nextauth";
 // VertexAIクライアントの初期化
 const vertex_ai = new VertexAI({
   project: process.env.GOOGLE_PROJECT_ID,
-  location: "us-central1",
+  location: "asia-northeast1",
 });
 
 // 安全性設定
@@ -244,7 +244,7 @@ export async function POST(request: Request, context: any) {
 
           console.log("ステップ5: Vertex AI (Gemini) モデル呼び出し開始");
           console.time("⏱️ AI sendMessageStream Total"); // AI応答完了までの総時間
-          const modelToUse = settings?.model || "gemini-2.5-pro"; // デフォルトモデル
+          const modelToUse = settings?.model || "gemini-2.5-flash"; // デフォルトモデル
           console.log(`使用モデル: ${modelToUse}`);
           const generativeModel = vertex_ai.getGenerativeModel({ model: modelToUse, safetySettings });
           

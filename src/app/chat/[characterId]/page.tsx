@@ -72,7 +72,7 @@ export default function ChatPage() {
   const [userPoints, setUserPoints] = useState(0);
   
   // ▼▼▼【ビルドエラー修正】setGenerationSettings を useState 宣言から完全に削除 ▼▼▼
-  const [generationSettings] = useState<GenerationSettings>({ model: "gemini-2.5-pro" });
+  const [generationSettings] = useState<GenerationSettings>({ model: "gemini-2.5-flash" });
   
   const [chatStyleSettings, setChatStyleSettings] = useState<ChatStyleSettings>({ fontSize: 14, userBubbleColor: "#db2777", userBubbleTextColor: "#ffffff" });
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
