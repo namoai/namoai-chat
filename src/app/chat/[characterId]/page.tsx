@@ -183,6 +183,18 @@ export default function ChatPage() {
     setInput("");
     finalTurnIdRef.current = null;
 
+    // ▼▼▼【追加】ユーザーが現在閲覧している各ターンのバージョンを収集 ▼▼▼
+    const activeVersions: { [turnId: number]: number } = {};
+    turns.forEach(turn => {
+        if (turn.modelMessages.length > 0) {
+            const activeMsg = turn.modelMessages[turn.activeModelIndex];
+            if (activeMsg) {
+                activeVersions[turn.turnId] = activeMsg.id;
+            }
+        }
+    });
+    // ▲▲▲【追加完了】▲▲▲
+
     const tempUserMessageId = Date.now();
     const tempUserMessage: Message = {
       id: tempUserMessageId,
@@ -202,7 +214,11 @@ export default function ChatPage() {
         const response = await fetch(`/api/chat/${chatId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: messageToSend, settings: generationSettings }),
+            body: JSON.stringify({ 
+                message: messageToSend, 
+                settings: generationSettings,
+                activeVersions: activeVersions  // ←現在閲覧中のバージョン情報を追加
+            }),
         });
 
         if (!response.ok) {
@@ -343,36 +359,11 @@ export default function ChatPage() {
     });
   };
 
-  // ▼▼▼【Stale State修正】 `Turn` 객체 대신 `turnId: number`를 받도록 수정합니다. ▼▼▼
+  // ▼▼▼【修正】新しい再生成ロジック：全てのバージョンを保持 ▼▼▼
   const handleRegenerate = async (turnId: number) => {
      if (isLoading || !chatId) return;
     setIsLoading(true);
     try {
-        // 再生成する前に、該当ターン以降の全てのメッセージを削除
-        const targetMessage = rawMessages.find(m => m.turnId === turnId && m.role === 'user');
-        if (targetMessage) {
-            const laterMessages = rawMessages.filter(m => 
-                m.turnId !== null && 
-                m.turnId > turnId
-            );
-            
-            // サーバーから該当ターン以降のメッセージを削除
-            if (laterMessages.length > 0) {
-                await fetch('/api/chat/messages', {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        messageIds: laterMessages.map(m => m.id) 
-                    }),
-                });
-            }
-            
-            // ローカル状態から該当ターン以降のメッセージを削除
-            setRawMessages(prev => prev.filter(m => 
-                m.turnId === null || m.turnId <= turnId
-            ));
-        }
-
         const res = await fetch('/api/chat/messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -384,11 +375,17 @@ export default function ChatPage() {
             ...data.newMessage,
             timestamp: new Date(data.newMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
         };
-        setRawMessages(prev => {
-            // turnIdを使用してisActiveを更新します
-            const updated = prev.map(m => (m.turnId === turnId && m.role === 'model') ? { ...m, isActive: false } : m);
-            return [...updated, newMessage];
-        });
+        // 新しいバージョンを追加（isActive状態は変更しない - 全てのバージョンを保持）
+        setRawMessages(prev => [...prev, newMessage]);
+        
+        // 新しく生成されたメッセージを自動的に表示するためにswitchModelMessageを呼び出す
+        setTimeout(() => {
+            const turn = turns.find(t => t.turnId === turnId);
+            if (turn) {
+                // 最新バージョン（最後に追加されたもの）に切り替え
+                switchModelMessage(turnId, 'next');
+            }
+        }, 100);
     } catch (error) {
         setModalState({ isOpen: true, title: "エラー", message: (error as Error).message, isAlert: true });
     } finally {

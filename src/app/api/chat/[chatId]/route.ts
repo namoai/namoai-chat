@@ -40,18 +40,18 @@ export async function POST(request: Request, context: any) {
     return NextResponse.json({ message: "認証が必要です。" }, { status: 401 });
   }
 
-  const chatId = parseInt(String(chatIdStr), 10);
-  if (isNaN(chatId)) {
-    console.timeEnd("⏱️ 全体API処理時間");
-    return NextResponse.json({ message: "無効なチャットIDです。" }, { status: 400 });
-  }
-  const userId = parseInt(String(session.user.id), 10);
+  const chatId = parseInt(String(chatIdStr), 10);
+  if (isNaN(chatId)) {
+    console.timeEnd("⏱️ 全体API処理時間");
+    return NextResponse.json({ message: "無効なチャットIDです。" }, { status: 400 });
+  }
+  const userId = parseInt(String(session.user.id), 10);
 
-  const { message, settings, isRegeneration, turnId } = await request.json();
-  if (!message) {
-    console.timeEnd("⏱️ 全体API処理時間");
-    return NextResponse.json({ message: "メッセージは必須です。" }, { status: 400 });
-  }
+  const { message, settings, isRegeneration, turnId, activeVersions } = await request.json();
+  if (!message) {
+    console.timeEnd("⏱️ 全体API処理時間");
+    return NextResponse.json({ message: "メッセージは必須です。" }, { status: 400 });
+  }
 
   try {
     // DB書き込みPromise (ポイント消費, メッセージ保存)
@@ -124,20 +124,44 @@ export async function POST(request: Request, context: any) {
         console.log("ステップ2: チャットルーム情報取得完了");
 
         console.time("⏱️ DB History+Persona Query");
-        const [persona, history] = await Promise.all([
-            chatRoom.users.defaultPersonaId ? prisma.personas.findUnique({ where: { id: chatRoom.users.defaultPersonaId } }) : Promise.resolve(null),
-            prisma.chat_message.findMany({
-                where: { chatId: chatId, isActive: true, createdAt: { lt: new Date() } },
-                orderBy: { createdAt: "desc" },
-                take: 10, // 履歴は最新10件を取得
-            }),
-        ]);
-        console.timeEnd("⏱️ DB History+Persona Query");
+        // ▼▼▼【修正】ユーザーが閲覧しているバージョンを考慮した履歴取得 ▼▼▼
+        let historyWhereClause: any = { 
+            chatId: chatId, 
+            createdAt: { lt: new Date() } 
+        };
+        
+        // activeVersionsが指定されている場合、該当バージョンのみを取得
+        if (activeVersions && Object.keys(activeVersions).length > 0) {
+            const versionIds = Object.values(activeVersions).map(id => Number(id));
+            historyWhereClause = {
+                chatId: chatId,
+                createdAt: { lt: new Date() },
+                OR: [
+                    { role: 'user' },  // ユーザーメッセージは全て含める
+                    { id: { in: versionIds } }  // 指定されたバージョンのモデルメッセージ
+                ]
+            };
+        } else {
+            // 通常はisActive=trueのメッセージのみ
+            historyWhereClause.isActive = true;
+        }
+        // ▲▲▲【修正完了】▲▲▲
 
-        const orderedHistory = history.reverse();
-        console.log("ステップ2.5: ペルソナと履歴の取得完了");
-        console.timeEnd("⏱️ Context Fetch Total (DB Only)");
-        return { chatRoom, persona, orderedHistory };
+        const [persona, history] = await Promise.all([
+            chatRoom.users.defaultPersonaId ? prisma.personas.findUnique({ where: { id: chatRoom.users.defaultPersonaId } }) : Promise.resolve(null),
+            prisma.chat_message.findMany({
+                where: historyWhereClause,
+                orderBy: { createdAt: "desc" },
+                take: 10, // 履歴は最新10件を取得
+            }),
+        ]);
+        console.timeEnd("⏱️ DB History+Persona Query");
+
+        const orderedHistory = history.reverse();
+        console.log("ステップ2.5: ペルソナと履歴の取得完了");
+        console.log(`使用されたバージョン: ${activeVersions ? JSON.stringify(activeVersions) : 'デフォルト(isActive)'}`);
+        console.timeEnd("⏱️ Context Fetch Total (DB Only)");
+        return { chatRoom, persona, orderedHistory };
     })();
 
     // 2つの並列処理が完了するのを待ちます。
