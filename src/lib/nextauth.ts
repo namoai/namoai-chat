@@ -71,6 +71,17 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
+          // ▼▼▼【新機能】ユーザー停止チェック ▼▼▼
+          if (user.suspendedUntil) {
+            const now = new Date();
+            if (user.suspendedUntil > now) {
+              console.log(`認証失敗: ユーザー ${user.email} は停止中です (期限: ${user.suspendedUntil})`);
+              // 停止情報をエラーとして返す
+              throw new Error(`SUSPENDED:${user.suspensionReason || '不明な理由'}:${user.suspendedUntil.toISOString()}`);
+            }
+          }
+          // ▲▲▲ 停止チェック完了 ▲▲▲
+
           // 認証成功
           console.log(`認証成功: ユーザー ${user.email} がログインしました`);
           return {
@@ -82,7 +93,8 @@ export const authOptions: NextAuthOptions = {
           };
         } catch (error) {
           console.error('認証処理中にエラーが発生しました:', error);
-          return null;
+          // エラーを再スロー (停止エラーはクライアント側で処理)
+          throw error;
         }
       },
     }),

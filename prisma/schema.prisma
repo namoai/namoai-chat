@@ -48,6 +48,8 @@ model users {
   defaultPersonaId              Int?
   role                          Role           @default(USER)
   emailVerified                 DateTime?
+  suspendedUntil                DateTime?      // ユーザー停止期限
+  suspensionReason              String?        // 停止理由
   accounts                      Account[]      @relation("UserAccounts")
   Block_Block_blockerIdTousers  Block[]        @relation("Block_blockerIdTousers")
   Block_Block_blockingIdTousers Block[]        @relation("Block_blockingIdTousers")

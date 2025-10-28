@@ -110,7 +110,27 @@ function LoginComponent() {
       });
 
       if (result?.error) {
-        // 認証失敗の場合
+        // ▼▼▼【新機能】停止エラーの処理 ▼▼▼
+        if (result.error.startsWith('SUSPENDED:')) {
+          const parts = result.error.split(':');
+          const reason = parts[1] || '不明な理由';
+          const until = parts[2] ? new Date(parts[2]).toLocaleString('ja-JP') : '不明';
+          
+          setModalState({
+            isOpen: true,
+            title: "アカウント停止中",
+            message: `あなたのアカウントは停止されています。\n\n停止理由: ${reason}\n停止期限: ${until}\n\nサポートにお問い合わせください。`,
+            isAlert: true,
+            confirmText: "OK",
+            onConfirm: () => {
+              setModalState({ ...modalState, isOpen: false });
+            }
+          });
+          return;
+        }
+        // ▲▲▲ 停止エラー処理完了 ▲▲▲
+        
+        // 通常の認証失敗の場合
         setModalState({
           isOpen: true,
           title: "ログイン失敗",
