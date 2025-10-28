@@ -73,6 +73,7 @@ export default function ChatListPage() {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedChatIds, setSelectedChatIds] = useState<Set<number>>(new Set());
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(''); // 検索クエリの状態を追加
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: '', message: '' });
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -160,6 +161,15 @@ export default function ChatListPage() {
     setSelectedChatIds(new Set());
   };
 
+  // 検索フィルタリング機能を追加
+  const filteredChats = chats.filter(chat => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    const characterName = chat.characters.name.toLowerCase();
+    const lastMessage = chat.chat_message[0]?.content?.toLowerCase() || '';
+    return characterName.includes(query) || lastMessage.includes(query);
+  });
+
   if (loading) {
     return <div className="flex h-screen items-center justify-center bg-[#1c1c1e] text-gray-400">ローディング中...</div>;
   }
@@ -203,14 +213,16 @@ export default function ChatListPage() {
           <input
             type="text"
             placeholder="チャット検索"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full rounded-lg border-none bg-[#2c2c2e] p-2.5 pl-10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
           />
         </div>
       )}
 
       <main>
-        {chats.length > 0 ? (
-          chats.map((chat) => (
+        {filteredChats.length > 0 ? (
+          filteredChats.map((chat) => (
             <div key={chat.id} className={`mb-4 flex items-center rounded-xl p-2 transition-colors ${isSelectionMode ? 'hover:bg-[#2c2c2e]' : ''}`}>
               {isSelectionMode && (
                 <input
@@ -246,7 +258,9 @@ export default function ChatListPage() {
             </div>
           ))
         ) : (
-          <p className="pt-12 text-center text-gray-500">チャット履歴がありません。</p>
+          <p className="pt-12 text-center text-gray-500">
+            {searchQuery.trim() ? '検索結果がありません。' : 'チャット履歴がありません。'}
+          </p>
         )}
       </main>
     </div>
