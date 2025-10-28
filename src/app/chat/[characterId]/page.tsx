@@ -79,7 +79,6 @@ export default function ChatPage() {
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [editingUserContent, setEditingUserContent] = useState("");
   const [editingModelContent, setEditingModelContent] = useState("");
-  const [isNewChatSession, setIsNewChatSession] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -159,7 +158,6 @@ export default function ChatPage() {
                 timestamp: new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
             }));
             setRawMessages(formattedMessages);
-            setIsNewChatSession(formattedMessages.length === 0);
         } catch (e) {
             console.error(e);
             setModalState({ isOpen: true, title: "エラー", message: "チャット読込失敗", onConfirm: () => router.back() });
@@ -469,7 +467,6 @@ export default function ChatPage() {
 
       <main className="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
         <ChatMessageList
-          isNewChatSession={isNewChatSession}
           characterInfo={characterInfo}
           rawMessages={rawMessages} // ▼▼▼【Stale State修正】 `rawMessages` 만을 전달합니다.
           // turns={turns} // ★★★【Stale State修正】이 prop을 제거합니다. 

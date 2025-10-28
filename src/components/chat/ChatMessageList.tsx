@@ -6,7 +6,6 @@ import ChatMessageParser from '@/components/ChatMessageParser';
 import type { Turn, Message, CharacterInfo, CharacterImageInfo } from '@/types/chat';
 
 interface ChatMessageListProps {
-  isNewChatSession: boolean;
   characterInfo: CharacterInfo;
   rawMessages: Message[];
   // turns: Turn[]; // ★★★【Stale State 수정】`turns` prop을 제거합니다.
@@ -67,7 +66,7 @@ const EditableTextarea: React.FC<{
 };
 
 const ChatMessageList: React.FC<ChatMessageListProps> = ({
-  isNewChatSession, characterInfo, rawMessages, isLoading, regeneratingTurnId, editingMessageId,
+  characterInfo, rawMessages, isLoading, regeneratingTurnId, editingMessageId,
   editingUserContent, editingModelContent, setEditingUserContent, setEditingModelContent,
   handleEditStart, handleEditCancel, handleEditSave, handleDelete, handleRegenerate, switchModelMessage,
   prioritizeImagesByKeyword, showChatImage, isMultiImage, setLightboxImage,
@@ -99,22 +98,29 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
 
   return (
     <>
-      {isNewChatSession && (characterInfo.firstSituation || characterInfo.firstMessage) && (
-        <div className="space-y-3">
+      {/* 初期状況と初期メッセージを常に表示（チャット形式で統一） */}
+      {(characterInfo.firstSituation || characterInfo.firstMessage) && (
+        <div className="space-y-4">
+          {/* 初期状況（ナレーション風） */}
           {characterInfo.firstSituation && (
-            <div className="bg-gray-900/60 border border-gray-700 rounded-xl p-3">
-              <p className="text-gray-400 whitespace-pre-wrap">{characterInfo.firstSituation}</p>
+            <div className="flex justify-center">
+              <div className="bg-gray-900/60 border border-gray-700 rounded-xl p-3 max-w-xs md:max-w-md lg:max-w-2xl">
+                <p className="text-gray-400 text-sm whitespace-pre-wrap text-center">{characterInfo.firstSituation}</p>
+              </div>
             </div>
           )}
+          {/* 初期メッセージ（AIの最初の挨拶） */}
           {characterInfo.firstMessage && (
-            <div className="bg-gray-800 rounded-xl p-3">
-              <ChatMessageParser
-                content={characterInfo.firstMessage}
-                characterImages={characterInfo.characterImages.slice(1)}
-                showImage={showChatImage}
-                isMultiImage={isMultiImage}
-                onImageClick={setLightboxImage}
-              />
+            <div className="flex flex-col items-start">
+              <div className="bg-gray-800 px-4 py-2 rounded-xl max-w-xs md:max-w-md lg:max-w-2xl">
+                <ChatMessageParser
+                  content={characterInfo.firstMessage}
+                  characterImages={prioritizeImagesByKeyword(characterInfo.firstMessage, characterInfo.characterImages)}
+                  showImage={showChatImage}
+                  isMultiImage={isMultiImage}
+                  onImageClick={setLightboxImage}
+                />
+              </div>
             </div>
           )}
         </div>
