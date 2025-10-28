@@ -125,7 +125,12 @@ export async function POST(request: Request, context: any) {
 
         console.time("⏱️ DB History+Persona Query");
         // ▼▼▼【修正】ユーザーが閲覧しているバージョンを考慮した履歴取得 ▼▼▼
-        let historyWhereClause: any = { 
+        let historyWhereClause: {
+            chatId: number;
+            createdAt: { lt: Date };
+            isActive?: boolean;
+            OR?: Array<{ role: string } | { id: { in: number[] } }>;
+        } = { 
             chatId: chatId, 
             createdAt: { lt: new Date() } 
         };
