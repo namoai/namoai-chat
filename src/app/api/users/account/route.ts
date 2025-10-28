@@ -70,7 +70,7 @@ export async function DELETE() {
       });
 
       // 6. ユーザーのブロック関係を削除
-      await tx.Block.deleteMany({
+      await tx.block.deleteMany({
         where: {
           OR: [
             { blockerId: userId },
@@ -103,11 +103,11 @@ export async function DELETE() {
       });
 
       // 10. NextAuth関連のセッションとアカウントを削除
-      await tx.Session.deleteMany({
+      await tx.session.deleteMany({
         where: { userId: userId },
       });
 
-      await tx.Account.deleteMany({
+      await tx.account.deleteMany({
         where: { userId: userId },
       });
 
