@@ -30,13 +30,13 @@ const CustomModal = ({ state }: { state: ModalState }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
       <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-sm mx-4">
-        <h2 className="text-lg font-bold mb-4">{state.title}</h2>
-        <p className="text-sm text-gray-300 mb-6 whitespace-pre-wrap">{state.message}</p>
+        <h2 className="text-lg font-bold mb-4 text-white">{state.title}</h2>
+        <p className="text-sm text-gray-200 mb-6 whitespace-pre-wrap">{state.message}</p>
         <div className={`flex justify-end gap-4`}>
           {!state.isAlert && (
-            <button onClick={state.onClose} className="border border-gray-600 hover:bg-gray-700 py-2 px-4 rounded-lg transition-colors cursor-pointer">キャンセル</button>
+            <button onClick={state.onClose} className="border border-gray-600 text-white hover:bg-gray-700 py-2 px-4 rounded-lg transition-colors cursor-pointer">キャンセル</button>
           )}
-          <button onClick={state.onConfirm} className={`${state.confirmText === '削除' ? 'bg-red-600 hover:bg-red-700' : 'bg-pink-600 hover:bg-pink-700'} py-2 px-4 rounded-lg transition-colors cursor-pointer`}>
+          <button onClick={state.onConfirm} className={`${state.confirmText === '削除' ? 'bg-red-600 hover:bg-red-700' : 'bg-pink-600 hover:bg-pink-700'} text-white py-2 px-4 rounded-lg transition-colors cursor-pointer`}>
             {state.confirmText || 'OK'}
           </button>
         </div>

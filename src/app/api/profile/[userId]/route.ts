@@ -106,9 +106,17 @@ export async function GET(request: NextRequest) {
       prisma.follows.count({ where: { followerId: profileUserId } }),
       prisma.characters.findMany({
         where: { author_id: profileUserId },
-        orderBy: { createdAt: 'asc' }, // ※既存と同等の意味合いなら asc/desc は要件に合わせて維持
+        orderBy: { createdAt: 'asc' },
         include: {
-          characterImages: { where: { isMain: true }, take: 1 },
+          // メイン画像がない場合は最初の画像を取得
+          characterImages: { 
+            orderBy: [
+              { isMain: 'desc' },  // メイン画像を優先
+              { displayOrder: 'asc' },  // 次に表示順
+              { id: 'asc' }  // 最後にID順
+            ],
+            take: 1 
+          },
           _count: { select: { favorites: true, chat: true } },
         },
       }),

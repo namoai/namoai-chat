@@ -89,10 +89,10 @@ const NotificationModal = ({ modalState, setModalState }: { modalState: ModalSta
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex justify-center items-center">
             <div className="bg-gray-800 rounded-lg p-6 w-full max-w-sm m-4">
-                <h2 className="text-xl font-bold mb-4">{modalState.title}</h2>
-                <p className="text-gray-300 mb-6">{modalState.message}</p>
+                <h2 className="text-xl font-bold mb-4 text-white">{modalState.title}</h2>
+                <p className="text-gray-200 mb-6">{modalState.message}</p>
                 <div className="flex justify-end">
-                    <Button onClick={handleConfirm} className="bg-pink-600 hover:bg-pink-500">
+                    <Button onClick={handleConfirm} className="bg-pink-600 text-white hover:bg-pink-500">
                         確認
                     </Button>
                 </div>

@@ -20,10 +20,10 @@ const CustomModal = ({ isOpen, onClose, title, message }: ModalProps) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
       <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-sm mx-4">
-        <h2 className="text-lg font-bold mb-4">{title}</h2>
-        <p className="text-sm text-gray-300 mb-6">{message}</p>
+        <h2 className="text-lg font-bold mb-4 text-white">{title}</h2>
+        <p className="text-sm text-gray-200 mb-6">{message}</p>
         <div className="flex justify-end">
-          <button onClick={onClose} className="bg-pink-600 hover:bg-pink-700 py-2 px-4 rounded-lg">
+          <button onClick={onClose} className="bg-pink-600 text-white hover:bg-pink-700 py-2 px-4 rounded-lg">
             OK
           </button>
         </div>

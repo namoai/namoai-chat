@@ -31,12 +31,12 @@ const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalSta
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex justify-center items-center">
       <div className="bg-gray-800 rounded-lg p-6 w-full max-w-sm m-4">
-        <h2 className="text-xl font-bold mb-4">{modalState.title}</h2>
-        <p className="text-gray-300 mb-6">{modalState.message}</p>
+        <h2 className="text-xl font-bold mb-4 text-white">{modalState.title}</h2>
+        <p className="text-gray-200 mb-6">{modalState.message}</p>
         <div className="flex justify-end gap-4">
           <button 
             onClick={handleConfirm} 
-            className="px-4 py-2 bg-pink-600 hover:bg-pink-500 rounded-lg transition-colors"
+            className="px-4 py-2 bg-pink-600 text-white hover:bg-pink-500 rounded-lg transition-colors"
           >
             {modalState.confirmText || 'OK'}
           </button>

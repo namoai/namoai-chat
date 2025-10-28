@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import Image from 'next/image'; // 画像最適化のため追加
 import {
   ArrowLeft,
   Plus,
@@ -83,18 +84,18 @@ const ConfirmationModal = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
       <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-sm mx-4">
-        <h2 className="text-lg font-bold mb-4">{title}</h2>
-        <p className="text-sm text-gray-300 mb-6 whitespace-pre-wrap">
+        <h2 className="text-lg font-bold mb-4 text-white">{title}</h2>
+        <p className="text-sm text-gray-200 mb-6 whitespace-pre-wrap">
           {message}
         </p>
         <div className="flex justify-end gap-4">
           <Button
             onClick={onClose}
-            className="border border-gray-600 hover:bg-gray-700 py-2 px-4 rounded-lg transition-colors"
+            className="border border-gray-600 text-white hover:bg-gray-700 py-2 px-4 rounded-lg transition-colors"
           >
             {cancelText}
           </Button>
-          <Button onClick={onConfirm} className="bg-red-600 hover:bg-red-700 py-2 px-4 rounded-lg transition-colors">
+          <Button onClick={onConfirm} className="bg-red-600 text-white hover:bg-red-700 py-2 px-4 rounded-lg transition-colors">
             {confirmText}
           </Button>
         </div>
@@ -119,12 +120,12 @@ const AlertModal = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
       <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-sm mx-4">
-        <h2 className="text-lg font-bold mb-4">{title}</h2>
-        <p className="text-sm text-gray-300 mb-6 whitespace-pre-wrap">
+        <h2 className="text-lg font-bold mb-4 text-white">{title}</h2>
+        <p className="text-sm text-gray-200 mb-6 whitespace-pre-wrap">
           {message}
         </p>
         <div className="flex justify-end gap-4">
-          <Button onClick={onClose} className="bg-pink-500 hover:bg-pink-600 py-2 px-4 rounded-lg transition-colors">
+          <Button onClick={onClose} className="bg-pink-500 text-white hover:bg-pink-600 py-2 px-4 rounded-lg transition-colors">
             確認
           </Button>
         </div>
@@ -454,7 +455,7 @@ export default function CharacterManagementPage() {
               className="bg-[#1C1C1E] p-3 rounded-lg flex items-center gap-4"
             >
               <a href={`/chat/${char.id}`} className="flex-grow flex items-center gap-4 min-w-0">
-                <img
+                <Image
                   src={
                     char.characterImages[0]?.imageUrl ||
                     "https://placehold.co/64x64/1C1C1E/FFFFFF?text=..."

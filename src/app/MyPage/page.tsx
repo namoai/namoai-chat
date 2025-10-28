@@ -40,13 +40,13 @@ const CustomModal = ({ isOpen, onClose, onConfirm, title, message, confirmText, 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
       <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-sm mx-4">
-        <h2 className="text-lg font-bold mb-4">{title}</h2>
-        <p className="text-sm text-gray-300 mb-6">{message}</p>
+        <h2 className="text-lg font-bold mb-4 text-white">{title}</h2>
+        <p className="text-sm text-gray-200 mb-6">{message}</p>
         <div className={`flex ${isAlert ? 'justify-end' : 'justify-end gap-4'}`}>
           {!isAlert && (
-            <button onClick={onClose} className="border border-gray-600 hover:bg-gray-700 py-2 px-4 rounded-lg">{cancelText || 'キャンセル'}</button>
+            <button onClick={onClose} className="border border-gray-600 text-white hover:bg-gray-700 py-2 px-4 rounded-lg">{cancelText || 'キャンセル'}</button>
           )}
-          <button onClick={onConfirm} className={`bg-pink-600 hover:bg-pink-700 py-2 px-4 rounded-lg`}>{confirmText || 'OK'}</button>
+          <button onClick={onConfirm} className={`bg-pink-600 text-white hover:bg-pink-700 py-2 px-4 rounded-lg`}>{confirmText || 'OK'}</button>
         </div>
       </div>
     </div>
