@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, MoreVertical, Heart, MessageSquare, User, Share2, ShieldBan, ShieldCheck, Edit, KeyRound, X, UserMinus } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Heart, MessageSquare, User, Share2, ShieldBan, ShieldCheck, Edit, KeyRound, X, UserMinus, Trash2 } from 'lucide-react';
 // ▼▼▼【修正】Next.jsのImageコンポーネントをインポートします ▼▼▼
 import Image from 'next/image';
+import { signOut } from 'next-auth/react';
 
 // 型定義
 type FollowUser = {
@@ -109,6 +110,13 @@ export default function UserProfilePage() {
   
   const [modalState, setModalState] = useState<{type: 'followers' | 'following' | 'blocked', users: (FollowUser | BlockedUser)[]} | null>(null);
   const [isModalLoading, setIsModalLoading] = useState(false);
+  
+  // 会員退会用の確認モーダル状態
+  const [deleteAccountModal, setDeleteAccountModal] = useState<{
+    isOpen: boolean;
+    stage: 'first' | 'second' | 'success' | 'error';
+    message: string;
+  }>({ isOpen: false, stage: 'first', message: '' });
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -238,6 +246,53 @@ export default function UserProfilePage() {
     return num;
   };
 
+  // 会員退会処理
+  const handleAccountDelete = async () => {
+    try {
+      const response = await fetch('/api/users/account', {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'アカウント削除に失敗しました。');
+      }
+
+      // 削除成功メッセージを表示
+      setDeleteAccountModal({
+        isOpen: true,
+        stage: 'success',
+        message: '会員退会が完了しました。またお会いできる日を楽しみにしています。\nご利用ありがとうございました。',
+      });
+    } catch (error) {
+      console.error('アカウント削除エラー:', error);
+      setDeleteAccountModal({
+        isOpen: true,
+        stage: 'error',
+        message: error instanceof Error ? error.message : 'アカウント削除中にエラーが発生しました。',
+      });
+    }
+  };
+
+  // 会員退会の最終確認（2段階目）
+  const handleAccountDeleteFinalConfirm = () => {
+    setDeleteAccountModal({
+      isOpen: true,
+      stage: 'second',
+      message: '本当に会員退会を進めますか？\n退会すると、すべてのデータが削除され、元に戻すことはできません。',
+    });
+  };
+
+  // 会員退会の初回確認（1段階目）
+  const handleAccountDeleteConfirm = () => {
+    setShowMenu(false);
+    setDeleteAccountModal({
+      isOpen: true,
+      stage: 'first',
+      message: '会員退会を進めますか？',
+    });
+  };
+
   if (loading || sessionStatus === 'loading') return <div className="min-h-screen bg-black text-white flex justify-center items-center">ローディング中...</div>;
   if (error) return <div className="min-h-screen bg-black text-white flex justify-center items-center"><p className="text-red-500">{error}</p></div>;
   if (!profile) return <div className="min-h-screen bg-black text-white flex justify-center items-center">ユーザーが見つかりません。</div>;
@@ -267,6 +322,80 @@ export default function UserProfilePage() {
               onUnblock={(id) => handleBlock(id)}
           />
       )}
+      
+      {/* 会員退会確認モーダル */}
+      {deleteAccountModal.isOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex justify-center items-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h2 className="text-xl font-bold mb-4 text-white">
+              {deleteAccountModal.stage === 'first' && '会員退会'}
+              {deleteAccountModal.stage === 'second' && '⚠️ 最終確認'}
+              {deleteAccountModal.stage === 'success' && '✅ 会員退会完了'}
+              {deleteAccountModal.stage === 'error' && '❌ エラー'}
+            </h2>
+            <p className="text-gray-200 mb-6 whitespace-pre-line leading-relaxed">
+              {deleteAccountModal.message}
+            </p>
+            <div className="flex justify-end gap-3">
+              {deleteAccountModal.stage === 'first' && (
+                <>
+                  <button 
+                    onClick={() => setDeleteAccountModal({ ...deleteAccountModal, isOpen: false })} 
+                    className="px-5 py-2.5 border border-gray-600 text-gray-200 hover:bg-gray-800 hover:border-gray-500 rounded-lg transition-all duration-200 font-medium"
+                  >
+                    キャンセル
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setDeleteAccountModal({ ...deleteAccountModal, isOpen: false });
+                      setTimeout(() => handleAccountDeleteFinalConfirm(), 300);
+                    }}
+                    className="px-5 py-2.5 bg-pink-600 text-white hover:bg-pink-500 rounded-lg transition-all duration-200 font-medium shadow-lg hover:shadow-pink-500/50"
+                  >
+                    次へ
+                  </button>
+                </>
+              )}
+              {deleteAccountModal.stage === 'second' && (
+                <>
+                  <button 
+                    onClick={() => setDeleteAccountModal({ ...deleteAccountModal, isOpen: false })} 
+                    className="px-5 py-2.5 border border-gray-600 text-gray-200 hover:bg-gray-800 hover:border-gray-500 rounded-lg transition-all duration-200 font-medium"
+                  >
+                    キャンセル
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setDeleteAccountModal({ ...deleteAccountModal, isOpen: false });
+                      handleAccountDelete();
+                    }}
+                    className="px-5 py-2.5 bg-red-600 text-white hover:bg-red-500 rounded-lg transition-all duration-200 font-bold shadow-lg hover:shadow-red-500/50"
+                  >
+                    退会する
+                  </button>
+                </>
+              )}
+              {(deleteAccountModal.stage === 'success' || deleteAccountModal.stage === 'error') && (
+                <button 
+                  onClick={() => {
+                    setDeleteAccountModal({ ...deleteAccountModal, isOpen: false });
+                    if (deleteAccountModal.stage === 'success') {
+                      signOut({ callbackUrl: '/' });
+                    }
+                  }}
+                  className={`px-6 py-2.5 rounded-lg transition-all duration-200 font-medium shadow-lg ${
+                    deleteAccountModal.stage === 'success' 
+                      ? 'bg-pink-600 text-white hover:bg-pink-500 hover:shadow-pink-500/50' 
+                      : 'bg-gray-700 text-white hover:bg-gray-600'
+                  }`}
+                >
+                  OK
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="bg-black min-h-screen text-white">
         <div className="mx-auto max-w-4xl">
           <header className="flex items-center justify-between p-4 sticky top-0 bg-black/80 backdrop-blur-sm z-10">
@@ -281,6 +410,8 @@ export default function UserProfilePage() {
                       <button onClick={() => window.location.href = '/profile-edit'} className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"><Edit size={16} /> プロフィール編集</button>
                       <button onClick={() => window.location.href = '/change-password'} className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"><KeyRound size={16} /> パスワード変更</button>
                       <button onClick={() => handleShowList('blocked')} className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"><UserMinus size={16} /> ブロックリスト</button>
+                      <div className="border-t border-gray-700 my-1"></div>
+                      <button onClick={handleAccountDeleteConfirm} className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2 text-red-400"><Trash2 size={16} /> 会員退会</button>
                     </>
                   ) : (
                     <>

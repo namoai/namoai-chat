@@ -155,6 +155,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
     });
   };
 
+
   const myMenuItems: MenuItem[] = [
     { icon: <User size={20} className="text-gray-400" />, text: "キャラクター管理", action: "/character-management" },
     {
@@ -287,6 +288,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
           <LogOut size={20} className="text-red-500 mr-3" />
           <span className="text-red-500 font-semibold">ログアウト</span>
         </button>
+
       </main>
     </>
   );

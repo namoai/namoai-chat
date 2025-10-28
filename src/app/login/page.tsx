@@ -54,13 +54,21 @@ function LoginComponent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // ▼▼▼【修正点】alertをモーダルに置き換え ▼▼▼
+  // URLパラメータのエラーを監視してモーダル表示
   useEffect(() => {
     const error = searchParams.get("error");
     if (error) {
       let errorMessage = "ログインに失敗しました。後でもう一度お試しください。";
+      
+      // エラーの種類に応じてメッセージを変更
       if (error === "CredentialsSignin") {
-        errorMessage = "メールアドレスまたはパスワードが正しくありません。";
+        errorMessage = "メールアドレスまたはパスワードが正しくありません。入力内容をご確認ください。";
+      } else if (error === "OAuthAccountNotLinked") {
+        errorMessage = "このメールアドレスは別のログイン方法で登録されています。";
+      } else if (error === "OAuthCallback") {
+        errorMessage = "外部サービスとの連携でエラーが発生しました。";
+      } else if (error === "SessionRequired") {
+        errorMessage = "セッションが無効です。再度ログインしてください。";
       }
       
       setModalState({
@@ -68,21 +76,68 @@ function LoginComponent() {
         title: "ログインエラー",
         message: errorMessage,
         isAlert: true,
+        confirmText: "OK",
         onConfirm: () => {
+          // URLからエラーパラメータを削除
           router.replace('/login', { scroll: false });
         }
       });
     }
   }, [searchParams, router]);
-  // ▲▲▲【修正完了】▲▲▲
 
   const handleLogin = async () => {
-    await signIn("credentials", {
-      redirect: true,
-      callbackUrl: "/MyPage",
-      email,
-      password,
-    });
+    // 入力値の検証
+    if (!email || !password) {
+      setModalState({
+        isOpen: true,
+        title: "入力エラー",
+        message: "メールアドレスとパスワードを入力してください。",
+        isAlert: true,
+        confirmText: "OK",
+        onConfirm: () => {
+          setModalState({ ...modalState, isOpen: false });
+        }
+      });
+      return;
+    }
+
+    try {
+      // ログイン処理を実行
+      const result = await signIn("credentials", {
+        redirect: false, // 手動でリダイレクトを制御
+        email,
+        password,
+      });
+
+      if (result?.error) {
+        // 認証失敗の場合
+        setModalState({
+          isOpen: true,
+          title: "ログイン失敗",
+          message: "メールアドレスまたはパスワードが正しくありません。\n登録されていない場合は、新規会員登録をお願いします。",
+          isAlert: true,
+          confirmText: "OK",
+          onConfirm: () => {
+            setModalState({ ...modalState, isOpen: false });
+          }
+        });
+      } else if (result?.ok) {
+        // 認証成功の場合、マイページへリダイレクト
+        router.push("/MyPage");
+      }
+    } catch (error) {
+      console.error('ログインエラー:', error);
+      setModalState({
+        isOpen: true,
+        title: "エラー",
+        message: "ログイン処理中にエラーが発生しました。しばらくしてから再度お試しください。",
+        isAlert: true,
+        confirmText: "OK",
+        onConfirm: () => {
+          setModalState({ ...modalState, isOpen: false });
+        }
+      });
+    }
   };
 
   return (
