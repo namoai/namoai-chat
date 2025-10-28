@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { Ban, LogOut } from 'lucide-react';
 
-export default function SuspendedPage() {
+// useSearchParamsを使用するコンポーネントを分離
+function SuspendedContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [suspensionInfo, setSuspensionInfo] = useState({
@@ -98,6 +99,19 @@ export default function SuspendedPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+// メインコンポーネント（Suspenseで包む）
+export default function SuspendedPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white">読み込み中...</div>
+      </div>
+    }>
+      <SuspendedContent />
+    </Suspense>
   );
 }
 
