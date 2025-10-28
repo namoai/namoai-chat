@@ -136,6 +136,17 @@ export const authOptions: NextAuthOptions = {
               emailVerified: new Date(),
             },
           });
+        } else {
+          // ▼▼▼【新機能】OAuth ログイン時の停止チェック ▼▼▼
+          if (dbUser.suspendedUntil) {
+            const now = new Date();
+            if (dbUser.suspendedUntil > now) {
+              console.log(`OAuth認証失敗: ユーザー ${dbUser.email} は停止中です (期限: ${dbUser.suspendedUntil})`);
+              // 停止情報をURLパラメータとして返す
+              return `/suspended?reason=${encodeURIComponent(dbUser.suspensionReason || '不明な理由')}&until=${dbUser.suspendedUntil.toISOString()}`;
+            }
+          }
+          // ▲▲▲ 停止チェック完了 ▲▲▲
         }
         return true;
       }

@@ -73,6 +73,22 @@ const LoggedInView = ({ session }: { session: Session }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // ▼▼▼【新機能】停止状態チェック ▼▼▼
+        const profileRes = await fetch('/api/users/profile');
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          if (profileData.suspendedUntil) {
+            const now = new Date();
+            const suspendedUntil = new Date(profileData.suspendedUntil);
+            if (suspendedUntil > now) {
+              // 停止中の場合は停止ページにリダイレクト
+              window.location.href = `/suspended?reason=${encodeURIComponent(profileData.suspensionReason || '不明な理由')}&until=${profileData.suspendedUntil}`;
+              return;
+            }
+          }
+        }
+        // ▲▲▲ 停止チェック完了 ▲▲▲
+
         const pointsRes = await fetch('/api/users/points');
         if (pointsRes.ok) {
           const pointsData = await pointsRes.json();
