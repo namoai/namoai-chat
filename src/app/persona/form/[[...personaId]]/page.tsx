@@ -170,7 +170,8 @@ export default function PersonaFormPage() {
   const handleModalConfirm = () => {
     closeModal();
     if (modalState.title === '成功') {
-      router.push('/persona/list');
+      // ペルソナリストから戻るボタンを押したときに、再度フォームページに戻らないようにreplaceを使用
+      router.replace('/persona/list');
       router.refresh();
     }
   };

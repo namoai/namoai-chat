@@ -122,8 +122,8 @@ function LoginComponent() {
           }
         });
       } else if (result?.ok) {
-        // 認証成功の場合、マイページへリダイレクト
-        router.push("/MyPage");
+        // 認証成功の場合、マイページへリダイレクト（replaceで履歴を残さない）
+        router.replace("/MyPage");
       }
     } catch (error) {
       console.error('ログインエラー:', error);

@@ -90,7 +90,8 @@ export default function SignUpPage() {
       }
 
       alert("登録成功！ログイン画面へ移動します。");
-      router.push("/login");
+      // 登録成功後はreplaceを使用して履歴を残さない
+      router.replace("/login");
     } catch (error) {
       console.error("通信エラー:", error);
       alert("サーバーエラーが発生しました。");
@@ -106,7 +107,7 @@ export default function SignUpPage() {
     <div className="min-h-screen bg-black text-white flex flex-col items-center px-4 py-8 relative">
       {/* ✅ 로그인 화면으로 돌아가기 버튼 추가 */}
       <button
-        onClick={() => router.push("/login")}
+        onClick={() => router.back()}
         className="absolute top-4 left-4 text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-md cursor-pointer flex items-center gap-2"
       >
         <ArrowLeft size={16} />
