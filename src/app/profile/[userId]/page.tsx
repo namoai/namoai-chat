@@ -297,7 +297,18 @@ export default function UserProfilePage() {
   if (error) return <div className="min-h-screen bg-black text-white flex justify-center items-center"><p className="text-red-500">{error}</p></div>;
   if (!profile) return <div className="min-h-screen bg-black text-white flex justify-center items-center">ユーザーが見つかりません。</div>;
   
-  const isMyProfile = session?.user?.id === userId;
+  // プロフィールが本人のものかどうかを確認（文字列と数値の両方を考慮）
+  const isMyProfile = session?.user?.id ? 
+    (String(session.user.id) === String(userId) || Number(session.user.id) === Number(userId)) : 
+    false;
+  
+  // デバッグ用ログ（本番環境では削除推奨）
+  console.log('プロフィール確認:', { 
+    sessionUserId: session?.user?.id, 
+    urlUserId: userId, 
+    isMyProfile,
+    profileId: profile.id 
+  });
 
   if (profile.isBlocked && !isMyProfile) {
       return (
