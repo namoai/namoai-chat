@@ -165,10 +165,16 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
               const activeModelMessage = turn.modelMessages[turn.activeModelIndex];
               if (!activeModelMessage) return null;
               const isEditingModel = editingMessageId === activeModelMessage.id;
+              const isRegenerating = regeneratingTurnId === turn.turnId; // このターンが再生成中かどうか
               return (
                 <div className="flex flex-col items-start group">
                   <div className="bg-gray-800 px-4 py-2 rounded-xl max-w-xs md:max-w-md lg:max-w-2xl">
-                    {isEditingModel ? (
+                    {isRegenerating ? (
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <RefreshCw size={16} className="animate-spin" />
+                        <span>再生成中...</span>
+                      </div>
+                    ) : isEditingModel ? (
                       <EditableTextarea
                         value={editingModelContent}
                         onChange={setEditingModelContent}
