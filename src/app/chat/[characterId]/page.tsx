@@ -60,6 +60,7 @@ export default function ChatPage() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [regeneratingTurnId, setRegeneratingTurnId] = useState<number | null>(null); // 再生成中のターンIDを管理
   const [characterInfo, setCharacterInfo] = useState<CharacterInfo | null>(null);
   const [chatId, setChatId] = useState<number | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -363,6 +364,7 @@ export default function ChatPage() {
   const handleRegenerate = async (turnId: number) => {
      if (isLoading || !chatId) return;
     setIsLoading(true);
+    setRegeneratingTurnId(turnId); // ローディング表示のために再生成中のターンIDを設定
     try {
         const res = await fetch('/api/chat/messages', {
             method: 'POST',
@@ -378,18 +380,18 @@ export default function ChatPage() {
         // 新しいバージョンを追加（isActive状態は変更しない - 全てのバージョンを保持）
         setRawMessages(prev => [...prev, newMessage]);
         
-        // 新しく生成されたメッセージを自動的に表示するためにswitchModelMessageを呼び出す
-        setTimeout(() => {
-            const turn = turns.find(t => t.turnId === turnId);
-            if (turn) {
-                // 最新バージョン（最後に追加されたもの）に切り替え
-                switchModelMessage(turnId, 'next');
+        // 最新バージョンを自動的に表示するためにisActiveを設定
+        setRawMessages(prev => prev.map(m => {
+            if (m.turnId === turnId && m.role === 'model') {
+                return { ...m, isActive: m.id === newMessage.id };
             }
-        }, 100);
+            return m;
+        }));
     } catch (error) {
         setModalState({ isOpen: true, title: "エラー", message: (error as Error).message, isAlert: true });
     } finally {
         setIsLoading(false);
+        setRegeneratingTurnId(null);
     }
   };
   // ▲▲▲ 修正ここまで ▲▲▲
@@ -460,6 +462,7 @@ export default function ChatPage() {
           rawMessages={rawMessages} // ▼▼▼【Stale State修正】 `rawMessages` 만을 전달합니다.
           // turns={turns} // ★★★【Stale State修正】이 prop을 제거합니다. 
           isLoading={isLoading}
+          regeneratingTurnId={regeneratingTurnId}
           editingMessageId={editingMessageId}
           editingUserContent={editingUserContent}
           editingModelContent={editingModelContent}

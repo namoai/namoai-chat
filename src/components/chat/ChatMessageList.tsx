@@ -11,6 +11,7 @@ interface ChatMessageListProps {
   rawMessages: Message[];
   // turns: Turn[]; // ★★★【Stale State 수정】`turns` prop을 제거합니다.
   isLoading: boolean;
+  regeneratingTurnId: number | null; // 再生成中のターンIDを追加
   editingMessageId: number | null;
   editingUserContent: string;
   editingModelContent: string;
@@ -66,7 +67,7 @@ const EditableTextarea: React.FC<{
 };
 
 const ChatMessageList: React.FC<ChatMessageListProps> = ({
-  isNewChatSession, characterInfo, rawMessages, isLoading, editingMessageId,
+  isNewChatSession, characterInfo, rawMessages, isLoading, regeneratingTurnId, editingMessageId,
   editingUserContent, editingModelContent, setEditingUserContent, setEditingModelContent,
   handleEditStart, handleEditCancel, handleEditSave, handleDelete, handleRegenerate, switchModelMessage,
   prioritizeImagesByKeyword, showChatImage, isMultiImage, setLightboxImage,
@@ -189,8 +190,14 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => handleEditStart(activeModelMessage)} className="p-1 hover:text-pink-400"><Edit3 size={14} /></button>
                         <button onClick={() => handleDelete(activeModelMessage.id)} className="p-1 hover:text-red-500"><Trash2 size={14} /></button>
-                        {/* 全てのターンで再生成ボタンを表示 */}
-                        <button onClick={() => handleRegenerate(turn.turnId)} className="p-1 hover:text-green-400"><RefreshCw size={14} /></button>
+                        {/* 全てのターンで再生成ボタンを表示 - ローディング中は回転アニメーション */}
+                        <button 
+                          onClick={() => handleRegenerate(turn.turnId)} 
+                          className={`p-1 hover:text-green-400 ${regeneratingTurnId === turn.turnId ? 'text-green-400' : ''}`}
+                          disabled={regeneratingTurnId === turn.turnId}
+                        >
+                          <RefreshCw size={14} className={regeneratingTurnId === turn.turnId ? 'animate-spin' : ''} />
+                        </button>
                       </div>
                       {turn.modelMessages.length > 1 && (
                         <div className="flex items-center gap-2">
