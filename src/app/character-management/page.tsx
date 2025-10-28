@@ -228,7 +228,8 @@ export default function CharacterManagementPage() {
   const fetchCharacters = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/characters");
+      // 自分が作成したキャラクターのみを取得
+      const response = await fetch("/api/characters?mode=my");
       if (!response.ok)
         throw new Error("キャラクターの読み込みに失敗しました。");
       const data = await response.json();
