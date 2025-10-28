@@ -211,13 +211,14 @@ export default function ChatListPage() {
       <main>
         {chats.length > 0 ? (
           chats.map((chat) => (
-            <div key={chat.id} className={`mb-4 flex items-center justify-between rounded-xl p-2 transition-colors ${isSelectionMode ? 'hover:bg-[#2c2c2e]' : ''}`}>
+            <div key={chat.id} className={`mb-4 flex items-center rounded-xl p-2 transition-colors ${isSelectionMode ? 'hover:bg-[#2c2c2e]' : ''}`}>
               {isSelectionMode && (
                 <input
                   type="checkbox"
                   checked={selectedChatIds.has(chat.id)}
                   onChange={() => handleToggleSelection(chat.id)}
-                  className="form-checkbox h-5 w-5 bg-gray-700 border-gray-600 text-pink-500 focus:ring-pink-500 rounded mr-4"
+                  className="flex-shrink-0 w-5 h-5 mr-3 accent-pink-500 cursor-pointer"
+                  style={{ minWidth: '20px', minHeight: '20px' }}
                 />
               )}
               <Link href={isSelectionMode ? '#' : `/chat/${chat.characterId}?chatId=${chat.id}`} className="flex flex-grow items-start overflow-hidden">
