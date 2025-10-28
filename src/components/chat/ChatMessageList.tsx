@@ -189,10 +189,8 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => handleEditStart(activeModelMessage)} className="p-1 hover:text-pink-400"><Edit3 size={14} /></button>
                         <button onClick={() => handleDelete(activeModelMessage.id)} className="p-1 hover:text-red-500"><Trash2 size={14} /></button>
-                        {turnIndex === processedTurns.length - 1 && (
-                          // ▼▼▼【Stale State 수정】`turn` 객체 대신 `turn.turnId`를 전달합니다. ▼▼▼
-                          <button onClick={() => handleRegenerate(turn.turnId)} className="p-1 hover:text-green-400"><RefreshCw size={14} /></button>
-                        )}
+                        {/* 全てのターンで再生成ボタンを表示 */}
+                        <button onClick={() => handleRegenerate(turn.turnId)} className="p-1 hover:text-green-400"><RefreshCw size={14} /></button>
                       </div>
                       {turn.modelMessages.length > 1 && (
                         <div className="flex items-center gap-2">

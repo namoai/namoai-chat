@@ -180,7 +180,22 @@ export async function DELETE(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "認証が必要です。" }, { status: 401 });
 
-    const { messageId } = await request.json();
+    const body = await request.json();
+    
+    // 一括削除（再生成時に使用）
+    if (body.messageIds && Array.isArray(body.messageIds)) {
+        try {
+            await prisma.chat_message.deleteMany({
+                where: { id: { in: body.messageIds } }
+            });
+            return NextResponse.json({ message: `${body.messageIds.length}件のメッセージが削除されました。` });
+        } catch (error) {
+            console.error("一括メッセージ削除エラー:", error);
+            return NextResponse.json({ error: "一括削除中にエラーが発生しました。" }, { status: 500 });
+        }
+    }
+
+    const { messageId } = body;
     if (!messageId) return NextResponse.json({ error: "メッセージIDが必要です。" }, { status: 400 });
 
     try {

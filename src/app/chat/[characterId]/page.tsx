@@ -348,6 +348,31 @@ export default function ChatPage() {
      if (isLoading || !chatId) return;
     setIsLoading(true);
     try {
+        // 再生成する前に、該当ターン以降の全てのメッセージを削除
+        const targetMessage = rawMessages.find(m => m.turnId === turnId && m.role === 'user');
+        if (targetMessage) {
+            const laterMessages = rawMessages.filter(m => 
+                m.turnId !== null && 
+                m.turnId > turnId
+            );
+            
+            // サーバーから該当ターン以降のメッセージを削除
+            if (laterMessages.length > 0) {
+                await fetch('/api/chat/messages', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        messageIds: laterMessages.map(m => m.id) 
+                    }),
+                });
+            }
+            
+            // ローカル状態から該当ターン以降のメッセージを削除
+            setRawMessages(prev => prev.filter(m => 
+                m.turnId === null || m.turnId <= turnId
+            ));
+        }
+
         const res = await fetch('/api/chat/messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
