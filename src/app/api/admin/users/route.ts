@@ -37,6 +37,10 @@ export async function GET(request: NextRequest) {
         nickname: true,
         role: true,
         created_at: true,
+        suspendedUntil: true,
+        suspensionReason: true,
+        phone: true,
+        bio: true,
       },
     });
     return NextResponse.json(users);

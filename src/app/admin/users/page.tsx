@@ -206,26 +206,65 @@ export default function AdminUsersPage() {
   };
 
   const handleUnsuspend = async (userId: number) => {
-    try {
-      const response = await fetch('/api/admin/users/suspend', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
-      });
+    setModalState({
+      isOpen: true,
+      title: '確認',
+      message: 'このユーザーの停止を解除しますか？',
+      confirmText: '解除',
+      onConfirm: async () => {
+        try {
+          const response = await fetch('/api/admin/users/suspend', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+          });
 
-      if (response.ok) {
-        setModalState({ isOpen: true, title: '成功', message: 'ユーザーの停止を解除しました。', isAlert: true });
-        fetchUsers(searchQuery);
-      } else {
-        const data = await response.json();
-        setModalState({ isOpen: true, title: 'エラー', message: `解除に失敗しました: ${data.error}`, isAlert: true });
+          if (response.ok) {
+            setModalState({ isOpen: true, title: '成功', message: 'ユーザーの停止を解除しました。', isAlert: true });
+            fetchUsers(searchQuery);
+          } else {
+            const data = await response.json();
+            setModalState({ isOpen: true, title: 'エラー', message: `解除に失敗しました: ${data.error}`, isAlert: true });
+          }
+        } catch (error) {
+          console.error('停止解除エラー:', error);
+          setModalState({ isOpen: true, title: 'エラー', message: '解除処理中にエラーが発生しました。', isAlert: true });
+        }
       }
-    } catch (error) {
-      console.error('停止解除エラー:', error);
-      setModalState({ isOpen: true, title: 'エラー', message: '解除処理中にエラーが発生しました。', isAlert: true });
-    }
+    });
   };
   // ▲▲▲ 停止機能完了 ▲▲▲
+
+  // ▼▼▼【新機能】ユーザー削除機能 ▼▼▼
+  const handleDeleteUser = async (userId: number, userName: string) => {
+    setModalState({
+      isOpen: true,
+      title: '削除確認',
+      message: `本当に「${userName}」を削除しますか？\n\nこの操作は取り消せません。ユーザーが作成したキャラクターは作成者が匿名化されて残ります。`,
+      confirmText: '削除',
+      onConfirm: async () => {
+        try {
+          const response = await fetch('/api/admin/users/delete', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+          });
+
+          if (response.ok) {
+            setModalState({ isOpen: true, title: '成功', message: 'ユーザーを削除しました。', isAlert: true });
+            fetchUsers(searchQuery);
+          } else {
+            const data = await response.json();
+            setModalState({ isOpen: true, title: 'エラー', message: `削除に失敗しました: ${data.error}`, isAlert: true });
+          }
+        } catch (error) {
+          console.error('ユーザー削除エラー:', error);
+          setModalState({ isOpen: true, title: 'エラー', message: '削除処理中にエラーが発生しました。', isAlert: true });
+        }
+      }
+    });
+  };
+  // ▲▲▲ 削除機能完了 ▲▲▲
 
   // ▼▼▼【新機能】ユーザー情報編集機能 ▼▼▼
   const openEditModal = async (user: User) => {
@@ -576,6 +615,12 @@ export default function AdminUsersPage() {
                             停止
                           </button>
                         )}
+                        <button 
+                          onClick={() => handleDeleteUser(user.id, user.name)}
+                          className="bg-gray-700 hover:bg-gray-800 text-white text-xs px-3 py-1 rounded"
+                        >
+                          削除
+                        </button>
                       </div>
                     </td>
                   </tr>
