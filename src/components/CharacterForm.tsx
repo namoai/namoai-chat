@@ -227,8 +227,13 @@ export default function CharacterForm({ isEditMode, initialData, session, status
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: '', message: '' });
 
+  // ▼▼▼【修正】initialDataを1回だけ読み込むためのフラグ ▼▼▼
+  const [isInitialized, setIsInitialized] = useState(false);
+  // ▲▲▲
+
   useEffect(() => {
-    if (isEditMode && initialData) {
+    // 初回のみinitialDataからロード（画像を上書きしないように）
+    if (isEditMode && initialData && !isInitialized) {
       setForm({
         name: initialData.name || "",
         description: initialData.description || "",
@@ -243,16 +248,23 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         firstSituationDate: initialData.firstSituationDate ? new Date(initialData.firstSituationDate).toISOString().split('T')[0] : "",
         firstSituationPlace: initialData.firstSituationPlace || "",
       });
-      setImages(
-        initialData.characterImages?.map((img) => ({
-          id: img.id,
-          imageUrl: img.imageUrl,
-          keyword: img.keyword || "",
-        })) || []
-      );
+      
+      // 編集モードの場合のみ既存画像をロード（新規作成時は空のまま）
+      if (initialData.characterImages && initialData.characterImages.length > 0) {
+        setImages(
+          initialData.characterImages.map((img) => ({
+            id: img.id,
+            imageUrl: img.imageUrl,
+            keyword: img.keyword || "",
+          }))
+        );
+      }
+      
       setLorebooks(initialData.lorebooks || []);
+      setIsInitialized(true);
+      console.log('[初期化] initialDataから読み込み完了');
     }
-  }, [isEditMode, initialData]);
+  }, [isEditMode, initialData, isInitialized]);
 
   // ▼▼▼【ページ離脱防止】作成中のデータがある場合は警告を表示 ▼▼▼
   useEffect(() => {
