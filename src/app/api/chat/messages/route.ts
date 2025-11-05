@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
         
         // ▼▼▼【画像タグパース】{{img:N}}と![](URL)をimageUrlsに変換 ▼▼▼
         const matchedImageUrls: string[] = [];
-        const availableImages = chatRoom.characters.characterImages || [];
+        // availableImages は既に上で宣言済み (86行目)
         const nonMainImages = availableImages.filter(img => !img.isMain);
         
         // 1. {{img:N}} 形式
