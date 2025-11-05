@@ -282,19 +282,6 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       }
     };
 
-    // ブラウザの戻る/進むボタンを押した時の警告
-    const handlePopState = () => {
-      if (hasUnsavedChanges && !isSubmitting) {
-        const confirmLeave = window.confirm(
-          "作成中のデータが失われます。本当に離れますか？\n\n添付した画像は保存されません。"
-        );
-        if (!confirmLeave) {
-          // ユーザーがキャンセルした場合、元の状態に戻す
-          window.history.pushState(null, "", window.location.href);
-        }
-      }
-    };
-
     // サイト内リンククリック時の警告
     const handleClick = (e: MouseEvent) => {
       if (hasUnsavedChanges && !isSubmitting) {
@@ -314,16 +301,11 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       }
     };
 
-    // 現在のURLをhistoryに追加（戻るボタン対策）
-    window.history.pushState(null, "", window.location.href);
-
     window.addEventListener("beforeunload", handleBeforeUnload);
-    window.addEventListener("popstate", handlePopState);
     document.addEventListener("click", handleClick, true); // キャプチャフェーズで実行
     
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      window.removeEventListener("popstate", handlePopState);
       document.removeEventListener("click", handleClick, true);
     };
   }, [form.name, form.description, images, lorebooks, isSubmitting]);
