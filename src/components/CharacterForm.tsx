@@ -254,6 +254,69 @@ export default function CharacterForm({ isEditMode, initialData, session, status
     }
   }, [isEditMode, initialData]);
 
+  // ▼▼▼【ページ離脱防止】作成中のデータがある場合は警告を表示 ▼▼▼
+  useEffect(() => {
+    const hasUnsavedChanges = 
+      form.name.trim() !== "" || 
+      form.description.trim() !== "" || 
+      images.some(img => img.file) || // 新規アップロード画像がある
+      lorebooks.length > 0;
+
+    // ブラウザのタブを閉じる/新規タブへの移動を防止
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges && !isSubmitting) {
+        e.preventDefault();
+        return (e.returnValue = "作成中のデータが失われます。本当に離れますか？");
+      }
+    };
+
+    // ブラウザの戻る/進むボタンを押した時の警告
+    const handlePopState = () => {
+      if (hasUnsavedChanges && !isSubmitting) {
+        const confirmLeave = window.confirm(
+          "作成中のデータが失われます。本当に離れますか？\n\n添付した画像は保存されません。"
+        );
+        if (!confirmLeave) {
+          // ユーザーがキャンセルした場合、元の状態に戻す
+          window.history.pushState(null, "", window.location.href);
+        }
+      }
+    };
+
+    // サイト内リンククリック時の警告
+    const handleClick = (e: MouseEvent) => {
+      if (hasUnsavedChanges && !isSubmitting) {
+        const target = e.target as HTMLElement;
+        const link = target.closest("a");
+        
+        // リンククリックの場合のみ確認
+        if (link && link.href && !link.href.startsWith("javascript:")) {
+          const confirmLeave = window.confirm(
+            "作成中のデータが失われます。本当に離れますか？\n\n添付した画像は保存されません。"
+          );
+          if (!confirmLeave) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }
+      }
+    };
+
+    // 現在のURLをhistoryに追加（戻るボタン対策）
+    window.history.pushState(null, "", window.location.href);
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("popstate", handlePopState);
+    document.addEventListener("click", handleClick, true); // キャプチャフェーズで実行
+    
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("popstate", handlePopState);
+      document.removeEventListener("click", handleClick, true);
+    };
+  }, [form.name, form.description, images, lorebooks, isSubmitting]);
+  // ▲▲▲【ページ離脱防止 終了】▲▲▲
+
   useEffect(() => {
     if (status === "unauthenticated") {
         setModalState({
