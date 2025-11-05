@@ -224,7 +224,7 @@ export default function ChatPage() {
       const response = await fetch(`/api/chat/messages?chatId=${chatId}&limit=100`);
       if (response.ok) {
         const data = await response.json();
-        const messages = data.messages.map((msg: any) => ({
+        const messages = data.messages.map((msg: Message) => ({
           ...msg,
           timestamp: new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
         }));

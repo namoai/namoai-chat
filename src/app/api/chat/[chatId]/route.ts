@@ -293,7 +293,7 @@ export async function POST(request: Request, context: any) {
         const heartbeatInterval = setInterval(() => {
           try {
             sendEvent('heartbeat', { timestamp: Date.now() });
-          } catch (e) {
+          } catch {
             // 接続が既に閉じられている場合は無視
           }
         }, 5000); // 5秒ごとにハートビートを送信
