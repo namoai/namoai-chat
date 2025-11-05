@@ -88,11 +88,11 @@ export async function POST(request: NextRequest) {
         const availableImages = chatRoom.characters.characterImages || [];
         const imageList = availableImages
             .filter(img => !img.isMain)
-            .map((img, index) => `${index + 1}. "${img.keyword}" - Use: {{img:${index + 1}}}`)
+            .map((img, index) => `${index + 1}. "${img.keyword}" - Use: {img:${index + 1}}`)
             .join('\n');
         
         const imageInstruction = imageList 
-            ? `# Available Images\nYou can display images by including tags in your response:\n${imageList}\n\nUsage: Insert {{img:N}} at appropriate moments.`
+            ? `# Available Images\nYou can display images by including tags in your response:\n${imageList}\n\nUsage: Insert {img:N} at appropriate moments.`
             : "";
         
         const lengthInstruction = `# Response Length\n- Aim for 800-1100 characters (including spaces) per response.\n- Provide rich, detailed descriptions and dialogue.`;
@@ -128,20 +128,20 @@ export async function POST(request: NextRequest) {
         let aiReply = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!aiReply) throw new Error("モデルから有効な応答がありませんでした。");
         
-        // ▼▼▼【画像タグパース】{{img:N}}と![](URL)をimageUrlsに変換 ▼▼▼
+        // ▼▼▼【画像タグパース】{img:N}と![](URL)をimageUrlsに変換 ▼▼▼
         const matchedImageUrls: string[] = [];
         // availableImages は既に上で宣言済み (86行目)
         const nonMainImages = availableImages.filter(img => !img.isMain);
         
-        // 1. {{img:N}} 形式
-        const imgTagRegex = /{{img:(\d+)}}/g;
+        // 1. {img:N} 形式
+        const imgTagRegex = /\{img:(\d+)\}/g;
         aiReply = aiReply.replace(imgTagRegex, (match, indexStr) => {
             const index = parseInt(indexStr, 10) - 1;
             if (index >= 0 && index < nonMainImages.length) {
                 matchedImageUrls.push(nonMainImages[index].imageUrl);
-                console.log(`📸 画像タグ検出 (再生成): {{img:${indexStr}}} -> ${nonMainImages[index].imageUrl}`);
+                console.log(`📸 画像タグ検出 (再生成): {img:${indexStr}} -> ${nonMainImages[index].imageUrl}`);
             } else {
-                console.warn(`⚠️ 無効な画像インデックス (再生成): {{img:${indexStr}}}`);
+                console.warn(`⚠️ 無効な画像インデックス (再生成): {img:${indexStr}}`);
             }
             return ''; // タグを削除
         });

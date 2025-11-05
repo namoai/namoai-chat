@@ -245,11 +245,11 @@ export async function POST(request: Request, context: any) {
     const availableImages = worldSetting.characterImages || [];
     const imageList = availableImages
       .filter(img => !img.isMain)
-      .map((img, index) => `${index + 1}. "${img.keyword}" - Use: {{img:${index + 1}}}`)
+      .map((img, index) => `${index + 1}. "${img.keyword}" - Use: {img:${index + 1}}`)
       .join('\n');
     
     const imageInstruction = imageList 
-      ? `# Available Images\nYou can display images by including tags in your response:\n${imageList}\n\nUsage: Insert {{img:N}} at appropriate moments in your narration. Example: \`Alice smiled warmly. {{img:1}}\``
+      ? `# Available Images\nYou can display images by including tags in your response:\n${imageList}\n\nUsage: Insert {img:N} at appropriate moments in your narration. Example: \`Alice smiled warmly. {img:1}\``
       : "";
     // ▲▲▲
     

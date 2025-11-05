@@ -29,24 +29,24 @@ async function safeParseJSON<T>(res: Response): Promise<T | null> {
   }
 }
 
-// ▼▼▼【画像タグパース】{{img:N}}タグと![](URL)を検出してimageUrlsに変換 ▼▼▼
+// ▼▼▼【画像タグパース】{img:N}タグと![](URL)を検出してimageUrlsに変換 ▼▼▼
 function parseImageTags(text: string, characterImages: CharacterImageInfo[]): { 
   cleanText: string; 
   imageUrls: string[];
 } {
   const imageUrls: string[] = [];
   
-  // 1. {{img:N}} 形式をパース
-  const imgTagRegex = /{{img:(\d+)}}/g;
+  // 1. {img:N} 形式をパース
+  const imgTagRegex = /\{img:(\d+)\}/g;
   let cleanText = text.replace(imgTagRegex, (match, indexStr) => {
     const index = parseInt(indexStr, 10) - 1; // 1-indexed to 0-indexed
     const nonMainImages = characterImages.filter(img => !img.isMain);
     
     if (index >= 0 && index < nonMainImages.length) {
       imageUrls.push(nonMainImages[index].imageUrl);
-      console.log(`📸 画像タグ検出: {{img:${indexStr}}} -> ${nonMainImages[index].imageUrl}`);
+      console.log(`📸 画像タグ検出: {img:${indexStr}} -> ${nonMainImages[index].imageUrl}`);
     } else {
-      console.warn(`⚠️ 無効な画像インデックス: {{img:${indexStr}}}`);
+      console.warn(`⚠️ 無効な画像インデックス: {img:${indexStr}}`);
     }
     
     return ''; // タグを削除
@@ -383,7 +383,7 @@ export default function ChatPage() {
                     } else if (eventData.responseChunk) {
                         hasReceivedData = true;
                         lastHeartbeatTime = Date.now();
-                        // ▼▼▼【画像タグパース】{{img:N}}をimageUrlsに変換 ▼▼▼
+                        // ▼▼▼【画像タグパース】{img:N}をimageUrlsに変換 ▼▼▼
                         const characterImages = characterInfo?.characterImages || [];
                         const { cleanText, imageUrls: newImageUrls } = parseImageTags(eventData.responseChunk, characterImages);
                         // ▲▲▲
