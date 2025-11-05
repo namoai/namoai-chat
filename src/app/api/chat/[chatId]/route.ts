@@ -273,7 +273,7 @@ export async function POST(request: Request, context: any) {
           const result = await chatSession.sendMessageStream(message);
 
           let finalResponseText = ""; // 最終的なAIの応答テキスト
-          let sentImageUrls = new Set<string>(); // 送信済み画像URLを追跡
+          const sentImageUrls = new Set<string>(); // 送信済み画像URLを追跡
 
           // 画像マッチング用のデータを準備
           const availableImages = worldSetting.characterImages || [];

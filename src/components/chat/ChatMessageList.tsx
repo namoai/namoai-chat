@@ -1,5 +1,6 @@
 // src/components/chat/ChatMessageList.tsx
 import React, { useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { Edit3, Trash2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import ChatMessageParser from '@/components/ChatMessageParser';
 // ▼▼▼【버그 수정】 `Turn` 타입을 다시 임포트합니다. ▼▼▼
@@ -200,12 +201,14 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                         {activeModelMessage.imageUrls && activeModelMessage.imageUrls.length > 0 && showChatImage && (
                           <div className="mt-3 space-y-2">
                             {activeModelMessage.imageUrls.map((imageUrl, imgIndex) => (
-                              <div key={`matched-img-${imgIndex}`} className="relative w-full max-w-xs rounded-lg overflow-hidden shadow-lg">
-                                <img
+                              <div key={`matched-img-${imgIndex}`} className="relative w-full max-w-xs rounded-lg overflow-hidden shadow-lg cursor-zoom-in" onClick={() => setLightboxImage(imageUrl)}>
+                                <Image
                                   src={imageUrl}
                                   alt={`マッチした画像 ${imgIndex + 1}`}
-                                  className="w-full object-contain cursor-zoom-in"
-                                  onClick={() => setLightboxImage(imageUrl)}
+                                  width={400}
+                                  height={300}
+                                  className="w-full object-contain"
+                                  priority={imgIndex === 0}
                                 />
                               </div>
                             ))}
