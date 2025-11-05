@@ -249,18 +249,25 @@ export async function POST(request: Request, context: any) {
       .join('\n');
     
     const imageInstruction = imageList 
-      ? `# Available Images\nYou can display images by including tags in your response:\n${imageList}\n\nUsage: Insert {{img:N}} at appropriate moments in your narration. Example: \`*Alice smiled warmly* {{img:1}}\``
+      ? `# Available Images\nYou can display images by including tags in your response:\n${imageList}\n\nUsage: Insert {{img:N}} at appropriate moments in your narration. Example: \`Alice smiled warmly. {{img:1}}\``
       : "";
     // ▲▲▲
     
     const formattingInstruction = `# Response Format (Required)
 - You are the narrator and game master of this world. Describe the actions and dialogue of characters from a third-person perspective.
-- Narration: Use character names in third person, enclosed in asterisks (*). Example: \`*Alice smiled.\` \`*Taro and Bob exchanged glances.\`
-- Dialogue: Enclose in quotation marks (「」) and make it clear who is speaking. Example: \`Alice「Hello」\` or \`「Alice: Hello」\`
-- For multiple characters, describe each character's actions and speech.
-- Separate narration and dialogue with line breaks.
+- Narration: Write in third person naturally. All narration text will be displayed in gray color automatically.
+- Dialogue: Enclose in Japanese quotation marks (「」) ONLY. Dialogue will be displayed in white color. Example: 「Hello」 or Alice「Hello」
+- Status Window: For character status, location info, or game system information, wrap them in code blocks using triple backticks (\`\`\`). Example:
+\`\`\`
+📅91日目 | 🏫 教室 | 🌤️ 晴れ
+キャラクター: 太郎、花子
+💖関係: 友人 → 恋人候補
+\`\`\`
+- For multiple characters, describe each character's actions and speech naturally.
+- Separate narration and dialogue with line breaks for readability.
 - Continue from the initial situation and opening message provided above.
-- **Response Length**: Aim for 800-1100 characters (including spaces) per response. Provide rich, detailed descriptions and dialogue.`;
+- **Response Length**: Aim for 800-1100 characters (including spaces) per response. Provide rich, detailed descriptions and dialogue.
+- **IMPORTANT**: Always include a status window at the end of your response using code blocks (\`\`\`) to show current situation, characters present, relationships, etc.`;
 
     const systemTemplate = replacePlaceholders(worldSetting.systemTemplate);
 
