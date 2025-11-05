@@ -10,6 +10,18 @@
   # ※ Netlify Proプラン以上で利用可能
   payload_size_limit = "30mb"
 
+[build]
+  # ▼▼▼【重要】ビルド時にGSMから環境変数を取得してNEXT_PUBLIC_変数を設定 ▼▼▼
+  command = """
+    echo "🔐 Loading secrets from Google Secret Manager..." && \
+    export NEXT_PUBLIC_SUPABASE_URL=$(gcloud secrets versions access latest --secret="SUPABASE_URL" 2>/dev/null || echo $SUPABASE_URL) && \
+    export NEXT_PUBLIC_SUPABASE_ANON_KEY=$(gcloud secrets versions access latest --secret="SUPABASE_ANON_KEY" 2>/dev/null || echo $NEXT_PUBLIC_SUPABASE_ANON_KEY) && \
+    echo "✅ NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:0:30}..." && \
+    echo "✅ NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:0:30}..." && \
+    npm run build
+  """
+  # ▲▲▲
+
 [build.environment]
   # Secret Manager を使用するため secrets scanning を無効化
   SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
