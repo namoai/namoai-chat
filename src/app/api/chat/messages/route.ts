@@ -82,7 +82,19 @@ export async function POST(request: NextRequest) {
             boostInstruction = `\n# 追加指示\n- 今回の応答に限り、通常よりも意図的に長く、約${boostMultiplier}倍の詳細な内容で返答してください。`;
         }
         
-        const systemInstructionText = [char.systemTemplate, userPersonaInfo, boostInstruction].filter(Boolean).join('\n\n');
+        // ▼▼▼【画像リスト】AIが使用できる画像のリスト ▼▼▼
+        const availableImages = chatRoom.characters.characterImages || [];
+        const imageList = availableImages
+            .filter(img => !img.isMain)
+            .map((img, index) => `${index + 1}. "${img.keyword}" - Use: {{img:${index + 1}}}`)
+            .join('\n');
+        
+        const imageInstruction = imageList 
+            ? `# Available Images\nYou can display images by including tags in your response:\n${imageList}\n\nUsage: Insert {{img:N}} at appropriate moments.`
+            : "";
+        // ▲▲▲
+        
+        const systemInstructionText = [char.systemTemplate, imageInstruction, userPersonaInfo, boostInstruction].filter(Boolean).join('\n\n');
 
         const userMessageForTurn = await prisma.chat_message.findUnique({ where: { id: turnId } });
         if (!userMessageForTurn) throw new Error("対象のメッセージが見つかりません。");
@@ -109,24 +121,28 @@ export async function POST(request: NextRequest) {
         
         const result = await chat.sendMessage(userMessageForTurn.content);
 
-        const aiReply = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
+        let aiReply = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!aiReply) throw new Error("モデルから有効な応答がありませんでした。");
         
-        // ▼▼▼【効率的な画像出力】応答テキストからキーワードマッチング ▼▼▼
+        // ▼▼▼【画像タグパース】{{img:N}}をimageUrlsに変換 ▼▼▼
         const matchedImageUrls: string[] = [];
         const availableImages = chatRoom.characters.characterImages || [];
-        const lowerReply = aiReply.toLowerCase();
+        const nonMainImages = availableImages.filter(img => !img.isMain);
+        const imgTagRegex = /{{img:(\d+)}}/g;
         
-        for (const img of availableImages) {
-            if (img.keyword && !img.isMain) {
-                const lowerKeyword = img.keyword.toLowerCase();
-                if (lowerReply.includes(lowerKeyword)) {
-                    matchedImageUrls.push(img.imageUrl);
-                }
+        aiReply = aiReply.replace(imgTagRegex, (match, indexStr) => {
+            const index = parseInt(indexStr, 10) - 1;
+            if (index >= 0 && index < nonMainImages.length) {
+                matchedImageUrls.push(nonMainImages[index].imageUrl);
+                console.log(`📸 画像タグ検出 (再生成): {{img:${indexStr}}} -> ${nonMainImages[index].imageUrl}`);
+            } else {
+                console.warn(`⚠️ 無効な画像インデックス (再生成): {{img:${indexStr}}}`);
             }
-        }
+            return ''; // タグを削除
+        });
+        
         console.log(`📸 再生成時の画像マッチング: ${matchedImageUrls.length}件`);
-        // ▲▲▲ 効率的な画像出力ここまで ▲▲▲
+        // ▲▲▲
         
         const latestVersion = await prisma.chat_message.findFirst({
             where: { turnId: turnId, role: 'model' },

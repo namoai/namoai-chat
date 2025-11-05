@@ -29,6 +29,32 @@ async function safeParseJSON<T>(res: Response): Promise<T | null> {
   }
 }
 
+// ▼▼▼【画像タグパース】{{img:N}}タグを検出してimageUrlsに変換 ▼▼▼
+function parseImageTags(text: string, characterImages: CharacterImageInfo[]): { 
+  cleanText: string; 
+  imageUrls: string[];
+} {
+  const imageUrls: string[] = [];
+  const imgTagRegex = /{{img:(\d+)}}/g;
+  
+  const cleanText = text.replace(imgTagRegex, (match, indexStr) => {
+    const index = parseInt(indexStr, 10) - 1; // 1-indexed to 0-indexed
+    const nonMainImages = characterImages.filter(img => !img.isMain);
+    
+    if (index >= 0 && index < nonMainImages.length) {
+      imageUrls.push(nonMainImages[index].imageUrl);
+      console.log(`📸 画像タグ検出: {{img:${indexStr}}} -> ${nonMainImages[index].imageUrl}`);
+    } else {
+      console.warn(`⚠️ 無効な画像インデックス: {{img:${indexStr}}}`);
+    }
+    
+    return ''; // タグを削除
+  });
+  
+  return { cleanText, imageUrls };
+}
+// ▲▲▲
+
 const prioritizeImagesByKeyword = (userText: string, allImages: CharacterImageInfo[]): CharacterImageInfo[] => {
   const images = allImages.slice(1);
   if (!userText.trim()) return images;
@@ -258,37 +284,37 @@ export default function ChatPage() {
                         finalTurnIdRef.current = realUserMessage.turnId;
                         setRawMessages(prev => prev.map(msg => msg.id === tempUserMessageId ? realUserMessage : msg));
                     } else if (eventData.responseChunk) {
+                        // ▼▼▼【画像タグパース】{{img:N}}をimageUrlsに変換 ▼▼▼
+                        const characterImages = characterInfo?.characterImages || [];
+                        const { cleanText, imageUrls: newImageUrls } = parseImageTags(eventData.responseChunk, characterImages);
+                        // ▲▲▲
+                        
                         if (!tempModelMessageId) {
                             tempModelMessageId = Date.now() + 1;
                             const turnIdForModel = finalTurnIdRef.current || tempUserMessageId;
                             const newModelMessage: Message = {
                                 id: tempModelMessageId,
                                 role: 'model',
-                                content: eventData.responseChunk,
+                                content: cleanText,
                                 createdAt: new Date().toISOString(),
                                 turnId: turnIdForModel,
                                 version: 1,
                                 isActive: true,
                                 timestamp: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-                                imageUrls: [], // 初期化
+                                imageUrls: newImageUrls, // タグから抽出した画像
                             };
                             setRawMessages(prev => [...prev, newModelMessage]);
                         } else {
                             setRawMessages(prev => prev.map(msg =>
                                 msg.id === tempModelMessageId
-                                    ? { ...msg, content: msg.content + eventData.responseChunk }
+                                    ? { 
+                                        ...msg, 
+                                        content: msg.content + cleanText,
+                                        imageUrls: [...(msg.imageUrls || []), ...newImageUrls]
+                                      }
                                     : msg
                             ));
                         }
-                    } else if (eventData.imageUrl) {
-                        // ▼▼▼【効率的な画像出力】キーワードマッチした画像をメッセージに追加 ▼▼▼
-                        console.log(`📸 画像受信: ${eventData.keyword} (${eventData.imageUrl})`);
-                        setRawMessages(prev => prev.map(msg =>
-                            msg.id === tempModelMessageId
-                                ? { ...msg, imageUrls: [...(msg.imageUrls || []), eventData.imageUrl] }
-                                : msg
-                        ));
-                        // ▲▲▲ 効率的な画像出力ここまで ▲▲▲
                     } else if (eventData.modelMessage) {
                         setRawMessages(prev => prev.map(msg =>
                             msg.id === tempModelMessageId

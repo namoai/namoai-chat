@@ -240,6 +240,18 @@ export async function POST(request: Request, context: any) {
     }
     const initialContextText = initialContext.join("\n\n");
     
+    // ▼▼▼【画像リスト】AIが使用できる画像のリスト ▼▼▼
+    const availableImages = worldSetting.characterImages || [];
+    const imageList = availableImages
+      .filter(img => !img.isMain)
+      .map((img, index) => `${index + 1}. "${img.keyword}" - Use: {{img:${index + 1}}}`)
+      .join('\n');
+    
+    const imageInstruction = imageList 
+      ? `# Available Images\nYou can display images by including tags in your response:\n${imageList}\n\nUsage: Insert {{img:N}} at appropriate moments in your narration. Example: \`*Alice smiled warmly* {{img:1}}\``
+      : "";
+    // ▲▲▲
+    
     const formattingInstruction = `# Response Format (Required)
 - You are the narrator and game master of this world. Describe the actions and dialogue of characters from a third-person perspective.
 - Narration: Use character names in third person, enclosed in asterisks (*). Example: \`*Alice smiled.\` \`*Taro and Bob exchanged glances.\`
@@ -251,7 +263,7 @@ export async function POST(request: Request, context: any) {
     const systemTemplate = replacePlaceholders(worldSetting.systemTemplate);
 
     // Assemble final system prompt
-    const systemInstructionText = [systemTemplate, initialContextText, formattingInstruction, userPersonaInfo, lorebookInfo].filter(Boolean).join("\n\n");
+    const systemInstructionText = [systemTemplate, initialContextText, imageInstruction, formattingInstruction, userPersonaInfo, lorebookInfo].filter(Boolean).join("\n\n");
     console.log("ステップ4: システムプロンプト構築完了");
     console.timeEnd("⏱️ Prompt Construction");
 
@@ -292,19 +304,6 @@ export async function POST(request: Request, context: any) {
           const result = await chatSession.sendMessageStream(message);
 
           let finalResponseText = ""; // 最終的なAIの応答テキスト
-          const sentImageUrls = new Set<string>(); // 送信済み画像URLを追跡
-
-          // 画像マッチング用のデータを準備
-          const availableImages = worldSetting.characterImages || [];
-          console.log(`📸 画像マッチング準備: ${availableImages.length}枚の画像があります`);
-          const imagesByKeyword = new Map<string, typeof availableImages[0]>();
-          availableImages.forEach(img => {
-            if (img.keyword && !img.isMain) {
-              imagesByKeyword.set(img.keyword.toLowerCase(), img);
-              console.log(`📸 キーワード登録: "${img.keyword}" -> ${img.imageUrl}`);
-            }
-          });
-          console.log(`📸 マッチング対象: ${imagesByKeyword.size}個のキーワード`);
 
           // ストリームを反復処理
           for await (const item of result.stream) {
@@ -317,23 +316,6 @@ export async function POST(request: Request, context: any) {
             
             sendEvent('ai-update', { responseChunk: chunk }); // チャンクをクライアントに送信
             finalResponseText += chunk;
-
-            // ▼▼▼【効率的な画像出力】キーワードベースで自動マッチング ▼▼▼
-            if (imagesByKeyword.size > 0) {
-              const lowerText = finalResponseText.toLowerCase();
-              for (const [keyword, image] of imagesByKeyword.entries()) {
-                if (lowerText.includes(keyword) && !sentImageUrls.has(image.imageUrl)) {
-                  // キーワードが検出され、まだ送信していない画像の場合
-                  sendEvent('image-match', { 
-                    imageUrl: image.imageUrl, 
-                    keyword: image.keyword 
-                  });
-                  sentImageUrls.add(image.imageUrl);
-                  console.log(`📸 画像送信: ${image.keyword} (${image.imageUrl})`);
-                }
-              }
-            }
-            // ▲▲▲ 効率的な画像出力ここまで ▲▲▲
           }
           console.timeEnd("⏱️ AI sendMessageStream Total"); // AI応答完了
 
