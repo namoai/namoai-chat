@@ -138,15 +138,27 @@ export async function POST(request: Request, context: any) {
         
         // activeVersionsが指定されている場合、該当バージョンのみを取得
         if (activeVersions && Object.keys(activeVersions).length > 0) {
-            const versionIds = Object.values(activeVersions).map(id => Number(id));
-            historyWhereClause = {
-                chatId: chatId,
-                createdAt: { lt: new Date() },
-                OR: [
-                    { role: 'user' },  // ユーザーメッセージは全て含める
-                    { id: { in: versionIds } }  // 指定されたバージョンのモデルメッセージ
-                ]
-            };
+            // ▼▼▼【修正】INT4範囲を超える値（Date.now()で生成された一時ID）をフィルタリング ▼▼▼
+            const MAX_INT4 = 2147483647; // INT4の最大値
+            const versionIds = Object.values(activeVersions)
+                .map(id => Number(id))
+                .filter(id => id > 0 && id <= MAX_INT4); // 有効なINT4範囲内のIDのみ
+            
+            // 有効なIDがある場合のみ特別なクエリを使用
+            if (versionIds.length > 0) {
+                historyWhereClause = {
+                    chatId: chatId,
+                    createdAt: { lt: new Date() },
+                    OR: [
+                        { role: 'user' },  // ユーザーメッセージは全て含める
+                        { id: { in: versionIds } }  // 指定されたバージョンのモデルメッセージ
+                    ]
+                };
+            } else {
+                // 有効なIDがない場合は通常のisActive=trueのみ
+                historyWhereClause.isActive = true;
+            }
+            // ▲▲▲
         } else {
             // 通常はisActive=trueのメッセージのみ
             historyWhereClause.isActive = true;
