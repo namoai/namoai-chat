@@ -10,6 +10,14 @@
   # ※ Netlify Proプラン以上で利用可能
   payload_size_limit = "30mb"
 
+# Next.js App Router API routesのタイムアウト設定
+# Next.js 15のサーバーレス関数は別途設定が必要な場合があります
+[functions."app/api/chat/*/route"]
+  max_duration = 30
+
+[functions."app/api/chat/messages/route"]
+  max_duration = 30
+
 [build]
   # ▼▼▼【GSM】ビルド時にGSM認証を設定してNEXT_PUBLIC変数をロード ▼▼▼
   command = "node scripts/load-gsm-secrets.js && npm run build"

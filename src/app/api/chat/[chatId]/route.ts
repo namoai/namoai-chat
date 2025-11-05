@@ -286,31 +286,41 @@ export async function POST(request: Request, context: any) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
         };
 
-        let firstChunkReceived = false;
-        console.time("⏱️ AI TTFB"); // AIからの最初の応答までの時間
+        let firstChunkReceived = false;
+        console.time("⏱️ AI TTFB"); // AIからの最初の応答までの時間
 
-        try {
-          // ユーザーメッセージの保存をクライアントに通知 (再生成または新規)
-          if (isRegeneration) {
-            sendEvent('regeneration-start', { turnId: turnIdForModel });
-          } else {
-            sendEvent('user-message-saved', { userMessage: userMessageForHistory });
-          }
+        // ▼▼▼【タイムアウト対策】ハートビートを送信して接続を維持 ▼▼▼
+        const heartbeatInterval = setInterval(() => {
+          try {
+            sendEvent('heartbeat', { timestamp: Date.now() });
+          } catch (e) {
+            // 接続が既に閉じられている場合は無視
+          }
+        }, 5000); // 5秒ごとにハートビートを送信
+        // ▲▲▲
 
-          console.log("ステップ5: Vertex AI (Gemini) モデル呼び出し開始");
-          console.time("⏱️ AI sendMessageStream Total"); // AI応答完了までの総時間
-          const modelToUse = settings?.model || "gemini-2.5-flash"; // デフォルトモデル
-          console.log(`使用モデル: ${modelToUse}`);
-          const generativeModel = vertex_ai.getGenerativeModel({ model: modelToUse, safetySettings });
-          
-          // チャットセッションを開始（履歴とシステム指示を渡す）
-          const chatSession = generativeModel.startChat({ 
-            history: chatHistory, 
-            systemInstruction: systemInstructionText 
-          });
-          
-          // ストリーミングでメッセージを送信
-          const result = await chatSession.sendMessageStream(message);
+        try {
+          // ユーザーメッセージの保存をクライアントに通知 (再生成または新規)
+          if (isRegeneration) {
+            sendEvent('regeneration-start', { turnId: turnIdForModel });
+          } else {
+            sendEvent('user-message-saved', { userMessage: userMessageForHistory });
+          }
+
+          console.log("ステップ5: Vertex AI (Gemini) モデル呼び出し開始");
+          console.time("⏱️ AI sendMessageStream Total"); // AI応答完了までの総時間
+          const modelToUse = settings?.model || "gemini-2.5-flash"; // デフォルトモデル
+          console.log(`使用モデル: ${modelToUse}`);
+          const generativeModel = vertex_ai.getGenerativeModel({ model: modelToUse, safetySettings });
+          
+          // チャットセッションを開始（履歴とシステム指示を渡す）
+          const chatSession = generativeModel.startChat({ 
+            history: chatHistory, 
+            systemInstruction: systemInstructionText 
+          });
+          
+          // ストリーミングでメッセージを送信
+          const result = await chatSession.sendMessageStream(message);
 
           let finalResponseText = ""; // 最終的なAIの応答テキスト
 
@@ -353,15 +363,18 @@ export async function POST(request: Request, context: any) {
           // AIメッセージの保存完了をクライアントに通知
           sendEvent('ai-message-saved', { modelMessage: newModelMessage });
 
-        } catch (e) {
-          if (!firstChunkReceived) console.timeEnd("⏱️ AI TTFB"); // エラー発生時もTTFB記録
-          console.timeEnd("⏱️ AI sendMessageStream Total"); // エラー発生時も総時間記録
-          console.error("ストリーム内部エラー:", e);
-          const errorMessage = e instanceof Error ? e.message : 'ストリーム処理中に不明なエラーが発生しました。';
-          sendEvent('error', { message: errorMessage }); // エラーをクライアントに送信
-        } finally {
-          sendEvent('stream-end', { message: 'Stream ended' }); // ストリーム終了を通知
-          controller.close(); // ストリームコントローラーを閉じる
+        } catch (e) {
+          if (!firstChunkReceived) console.timeEnd("⏱️ AI TTFB"); // エラー発生時もTTFB記録
+          console.timeEnd("⏱️ AI sendMessageStream Total"); // エラー発生時も総時間記録
+          console.error("ストリーム内部エラー:", e);
+          const errorMessage = e instanceof Error ? e.message : 'ストリーム処理中に不明なエラーが発生しました。';
+          sendEvent('error', { message: errorMessage }); // エラーをクライアントに送信
+        } finally {
+          // ▼▼▼【タイムアウト対策】ハートビートを停止 ▼▼▼
+          clearInterval(heartbeatInterval);
+          // ▲▲▲
+          sendEvent('stream-end', { message: 'Stream ended' }); // ストリーム終了を通知
+          controller.close(); // ストリームコントローラーを閉じる
           console.timeEnd("⏱️ 全体API処理時間"); // API処理全体の時間記録終了
         }
       }

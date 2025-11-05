@@ -216,6 +216,38 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [rawMessages]);
 
+  // ▼▼▼【タイムアウト対策】タイムアウト時の復旧処理：DBからメッセージを再読み込み ▼▼▼
+  const handleTimeoutRecovery = async () => {
+    if (!chatId) return;
+    try {
+      console.log("タイムアウト復旧: DBからメッセージを再読み込み中...");
+      const response = await fetch(`/api/chat/messages?chatId=${chatId}&limit=100`);
+      if (response.ok) {
+        const data = await response.json();
+        const messages = data.messages.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+        }));
+        setRawMessages(messages);
+        setModalState({ 
+          isOpen: true, 
+          title: "接続タイムアウト", 
+          message: "接続がタイムアウトしましたが、保存されたメッセージを表示しました。", 
+          isAlert: true 
+        });
+      }
+    } catch (e) {
+      console.error("タイムアウト復旧エラー:", e);
+      setModalState({ 
+        isOpen: true, 
+        title: "エラー", 
+        message: "タイムアウト後にメッセージの復旧に失敗しました。ページをリロードしてください。", 
+        isAlert: true 
+      });
+    }
+  };
+  // ▲▲▲
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading || !chatId) return;
@@ -275,16 +307,46 @@ export default function ChatPage() {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
+        
+        // ▼▼▼【タイムアウト対策】タイムアウト監視とハートビート処理 ▼▼▼
+        let lastHeartbeatTime = Date.now();
+        let hasReceivedData = false;
+        const timeoutDuration = 30000; // 30秒タイムアウト
+        
+        const timeoutCheckInterval = setInterval(() => {
+          const timeSinceLastHeartbeat = Date.now() - lastHeartbeatTime;
+          if (timeSinceLastHeartbeat > timeoutDuration && !hasReceivedData) {
+            console.warn("タイムアウト: 30秒以内にデータを受信できませんでした");
+            clearInterval(timeoutCheckInterval);
+            reader.cancel(); // リーダーをキャンセル
+            // タイムアウト時はDBからメッセージを再読み込み
+            handleTimeoutRecovery();
+          }
+        }, 5000); // 5秒ごとにチェック
+        // ▲▲▲
 
         while (true) {
             const { value, done } = await reader.read();
-            if (done) break;
+            if (done) {
+              clearInterval(timeoutCheckInterval);
+              break;
+            }
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
             buffer = lines.pop() || "";
 
             for (const line of lines) {
+                // ▼▼▼【タイムアウト対策】event: 行を処理 ▼▼▼
+                if (line.startsWith("event: ")) {
+                  const eventType = line.substring(7).trim();
+                  if (eventType === "heartbeat") {
+                    lastHeartbeatTime = Date.now();
+                    continue;
+                  }
+                }
+                // ▲▲▲
+                
                 if (!line.startsWith("data: ")) continue;
                 
                 const dataStr = line.substring(6);
@@ -292,8 +354,18 @@ export default function ChatPage() {
 
                 try {
                     const eventData = JSON.parse(dataStr);
+                    
+                    // ▼▼▼【タイムアウト対策】ハートビートイベント処理 ▼▼▼
+                    if (eventData.timestamp && Object.keys(eventData).length === 1) {
+                      // heartbeatイベント（timestampのみ）
+                      lastHeartbeatTime = Date.now();
+                      continue;
+                    }
+                    // ▲▲▲
 
                     if (eventData.userMessage) {
+                        hasReceivedData = true;
+                        lastHeartbeatTime = Date.now();
                         const realUserMessage = {
                             ...eventData.userMessage,
                             timestamp: new Date(eventData.userMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
@@ -301,6 +373,8 @@ export default function ChatPage() {
                         finalTurnIdRef.current = realUserMessage.turnId;
                         setRawMessages(prev => prev.map(msg => msg.id === tempUserMessageId ? realUserMessage : msg));
                     } else if (eventData.responseChunk) {
+                        hasReceivedData = true;
+                        lastHeartbeatTime = Date.now();
                         // ▼▼▼【画像タグパース】{{img:N}}をimageUrlsに変換 ▼▼▼
                         const characterImages = characterInfo?.characterImages || [];
                         const { cleanText, imageUrls: newImageUrls } = parseImageTags(eventData.responseChunk, characterImages);
@@ -344,10 +418,18 @@ export default function ChatPage() {
                 }
             }
         }
+        clearInterval(timeoutCheckInterval);
         await fetchUserPoints();
     } catch (error) {
-        setRawMessages(prev => prev.filter(msg => msg.id !== tempUserMessageId && msg.id !== tempModelMessageId));
-        setModalState({ isOpen: true, title: "送信エラー", message: (error as Error).message, isAlert: true });
+        clearInterval(timeoutCheckInterval);
+        // ▼▼▼【タイムアウト対策】エラー時もDBからメッセージを再読み込みを試みる ▼▼▼
+        if ((error as Error).name === 'AbortError' || (error as Error).message.includes('timeout')) {
+          handleTimeoutRecovery();
+        } else {
+          setRawMessages(prev => prev.filter(msg => msg.id !== tempUserMessageId && msg.id !== tempModelMessageId));
+          setModalState({ isOpen: true, title: "送信エラー", message: (error as Error).message, isAlert: true });
+        }
+        // ▲▲▲
     } finally {
         setIsLoading(false);
     }
