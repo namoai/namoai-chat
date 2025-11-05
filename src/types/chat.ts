@@ -11,6 +11,8 @@ export interface CharacterImageInfo {
   imageUrl: string;
   // 優先マッチ用キーワード（ユーザー入力に含まれれば優先表示）
   keyword?: string | null;
+  // メイン画像（アイコン）かどうか
+  isMain?: boolean;
 }
 
 export interface CharacterInfo {
