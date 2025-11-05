@@ -225,19 +225,33 @@ export async function POST(request: Request, context: any) {
       lorebookInfo = `# 関連情報 (ロアブック)\n- 以下の設定は会話のキーワードに基づき有効化された。優先度順。\n- ${triggeredLorebooks.join("\n- ")}`;
     }
 
-    // ▼▼▼【バグ修正】 ハードコードされた文字列にもプレースホルダー置換を適用 ▼▼▼
-    const userPersonaInfo = persona ? `# ユーザー設定\n- ${persona.nickname}, ${persona.age || "年齢未設定"}, ${persona.gender || "性別未設定"}\n- 詳細: ${replacePlaceholders(persona.description)}` : "";
-    const formattingInstruction = `# 応答フォーマット (必須)
-- あなたは世界観のナレーター兼司会者です。登場人物たちの行動と会話を第三者視点で描写してください。
-- 地の文: 登場人物の名前を使って三人称で書き、アスタリスク(*)で囲む。例: \`*アリスは微笑んだ。\` \`*太郎とボブが顔を見合わせた。\`
-- セリフ: 鍵括弧(「」)で囲み、誰が話しているか明確にする。例: \`「アリス: こんにちは」\` または \`アリス「こんにちは」\`
-- 複数の登場人物がいる場合、それぞれの行動と発言を描写してください。
-- 地の文とセリフは改行で分ける。`;
+    // ▼▼▼ Build system prompt components ▼▼▼
+    const userPersonaInfo = persona 
+      ? `# User Settings\n- ${persona.nickname}, ${persona.age || "Age unset"}, ${persona.gender || "Gender unset"}\n- Details: ${replacePlaceholders(persona.description)}` 
+      : "";
+    
+    // Initial situation and message
+    const initialContext = [];
+    if (worldSetting.firstSituation) {
+      initialContext.push(`# Initial Situation\n${replacePlaceholders(worldSetting.firstSituation)}`);
+    }
+    if (worldSetting.firstMessage) {
+      initialContext.push(`# Opening Message\n${replacePlaceholders(worldSetting.firstMessage)}`);
+    }
+    const initialContextText = initialContext.join("\n\n");
+    
+    const formattingInstruction = `# Response Format (Required)
+- You are the narrator and game master of this world. Describe the actions and dialogue of characters from a third-person perspective.
+- Narration: Use character names in third person, enclosed in asterisks (*). Example: \`*Alice smiled.\` \`*Taro and Bob exchanged glances.\`
+- Dialogue: Enclose in quotation marks (「」) and make it clear who is speaking. Example: \`Alice「Hello」\` or \`「Alice: Hello」\`
+- For multiple characters, describe each character's actions and speech.
+- Separate narration and dialogue with line breaks.
+- Continue from the initial situation and opening message provided above.`;
 
     const systemTemplate = replacePlaceholders(worldSetting.systemTemplate);
 
-    // システムプロンプトの最終組み立て (シンプル化)
-    const systemInstructionText = [systemTemplate, formattingInstruction, userPersonaInfo, lorebookInfo].filter(Boolean).join("\n\n");
+    // Assemble final system prompt
+    const systemInstructionText = [systemTemplate, initialContextText, formattingInstruction, userPersonaInfo, lorebookInfo].filter(Boolean).join("\n\n");
     console.log("ステップ4: システムプロンプト構築完了");
     console.timeEnd("⏱️ Prompt Construction");
 
