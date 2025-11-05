@@ -459,13 +459,17 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       formData.append('newImageCount', String(newImageIndex));
     } else {
       formData.append("userId", session.user.id);
-      formData.append("imageCount", String(images.length));
-      images.forEach((imageMeta, index) => {
+      // ▼▼▼【修正】fileがある画像のみをカウント ▼▼▼
+      let actualImageIndex = 0;
+      images.forEach((imageMeta) => {
         if(imageMeta.file){
-            formData.append(`image_${index}`, imageMeta.file);
-            formData.append(`keyword_${index}`, imageMeta.keyword);
+            formData.append(`image_${actualImageIndex}`, imageMeta.file);
+            formData.append(`keyword_${actualImageIndex}`, imageMeta.keyword);
+            actualImageIndex++;
         }
       });
+      formData.append("imageCount", String(actualImageIndex));
+      // ▲▲▲
     }
 
     const url = isEditMode ? `/api/characters/${initialData?.id}` : "/api/characters";
@@ -475,8 +479,19 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       const response = await fetch(url, { method, body: formData });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "サーバーリクエストに失敗しました。");
+        // ▼▼▼【修正】エラーレスポンスのJSON解析を安全に処理 ▼▼▼
+        let errorMessage = "サーバーリクエストに失敗しました。";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (jsonError) {
+          // JSON解析失敗時はテキストで取得を試みる
+          const errorText = await response.text();
+          console.error('サーバーエラー (非JSON):', errorText);
+          errorMessage = `サーバーエラー (${response.status}): ${errorText.substring(0, 100)}`;
+        }
+        throw new Error(errorMessage);
+        // ▲▲▲
       }
 
       setModalState({
