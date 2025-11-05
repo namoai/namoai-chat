@@ -29,15 +29,16 @@ async function safeParseJSON<T>(res: Response): Promise<T | null> {
   }
 }
 
-// ▼▼▼【画像タグパース】{{img:N}}タグを検出してimageUrlsに変換 ▼▼▼
+// ▼▼▼【画像タグパース】{{img:N}}タグと![](URL)を検出してimageUrlsに変換 ▼▼▼
 function parseImageTags(text: string, characterImages: CharacterImageInfo[]): { 
   cleanText: string; 
   imageUrls: string[];
 } {
   const imageUrls: string[] = [];
-  const imgTagRegex = /{{img:(\d+)}}/g;
   
-  const cleanText = text.replace(imgTagRegex, (match, indexStr) => {
+  // 1. {{img:N}} 形式をパース
+  const imgTagRegex = /{{img:(\d+)}}/g;
+  let cleanText = text.replace(imgTagRegex, (match, indexStr) => {
     const index = parseInt(indexStr, 10) - 1; // 1-indexed to 0-indexed
     const nonMainImages = characterImages.filter(img => !img.isMain);
     
@@ -48,6 +49,22 @@ function parseImageTags(text: string, characterImages: CharacterImageInfo[]): {
       console.warn(`⚠️ 無効な画像インデックス: {{img:${indexStr}}}`);
     }
     
+    return ''; // タグを削除
+  });
+  
+  // 2. ![](URL) 形式（Markdown）をパース
+  const markdownImgRegex = /!\[\]\((https?:\/\/[^\s)]+)\)/g;
+  cleanText = cleanText.replace(markdownImgRegex, (match, url) => {
+    imageUrls.push(url);
+    console.log(`📸 Markdown画像検出: ![](${url})`);
+    return ''; // タグを削除
+  });
+  
+  // 3. ![alt](URL) 形式もサポート
+  const markdownImgWithAltRegex = /!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g;
+  cleanText = cleanText.replace(markdownImgWithAltRegex, (match, alt, url) => {
+    imageUrls.push(url);
+    console.log(`📸 Markdown画像検出: ![${alt}](${url})`);
     return ''; // タグを削除
   });
   

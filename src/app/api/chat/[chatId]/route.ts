@@ -258,7 +258,8 @@ export async function POST(request: Request, context: any) {
 - Dialogue: Enclose in quotation marks (「」) and make it clear who is speaking. Example: \`Alice「Hello」\` or \`「Alice: Hello」\`
 - For multiple characters, describe each character's actions and speech.
 - Separate narration and dialogue with line breaks.
-- Continue from the initial situation and opening message provided above.`;
+- Continue from the initial situation and opening message provided above.
+- **Response Length**: Aim for 800-1100 characters (including spaces) per response. Provide rich, detailed descriptions and dialogue.`;
 
     const systemTemplate = replacePlaceholders(worldSetting.systemTemplate);
 

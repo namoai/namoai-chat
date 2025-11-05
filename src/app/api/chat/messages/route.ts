@@ -92,9 +92,11 @@ export async function POST(request: NextRequest) {
         const imageInstruction = imageList 
             ? `# Available Images\nYou can display images by including tags in your response:\n${imageList}\n\nUsage: Insert {{img:N}} at appropriate moments.`
             : "";
+        
+        const lengthInstruction = `# Response Length\n- Aim for 800-1100 characters (including spaces) per response.\n- Provide rich, detailed descriptions and dialogue.`;
         // ▲▲▲
         
-        const systemInstructionText = [char.systemTemplate, imageInstruction, userPersonaInfo, boostInstruction].filter(Boolean).join('\n\n');
+        const systemInstructionText = [char.systemTemplate, imageInstruction, lengthInstruction, userPersonaInfo, boostInstruction].filter(Boolean).join('\n\n');
 
         const userMessageForTurn = await prisma.chat_message.findUnique({ where: { id: turnId } });
         if (!userMessageForTurn) throw new Error("対象のメッセージが見つかりません。");
@@ -124,12 +126,13 @@ export async function POST(request: NextRequest) {
         let aiReply = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!aiReply) throw new Error("モデルから有効な応答がありませんでした。");
         
-        // ▼▼▼【画像タグパース】{{img:N}}をimageUrlsに変換 ▼▼▼
+        // ▼▼▼【画像タグパース】{{img:N}}と![](URL)をimageUrlsに変換 ▼▼▼
         const matchedImageUrls: string[] = [];
         const availableImages = chatRoom.characters.characterImages || [];
         const nonMainImages = availableImages.filter(img => !img.isMain);
-        const imgTagRegex = /{{img:(\d+)}}/g;
         
+        // 1. {{img:N}} 形式
+        const imgTagRegex = /{{img:(\d+)}}/g;
         aiReply = aiReply.replace(imgTagRegex, (match, indexStr) => {
             const index = parseInt(indexStr, 10) - 1;
             if (index >= 0 && index < nonMainImages.length) {
@@ -139,6 +142,22 @@ export async function POST(request: NextRequest) {
                 console.warn(`⚠️ 無効な画像インデックス (再生成): {{img:${indexStr}}}`);
             }
             return ''; // タグを削除
+        });
+        
+        // 2. ![](URL) 形式（Markdown）
+        const markdownImgRegex = /!\[\]\((https?:\/\/[^\s)]+)\)/g;
+        aiReply = aiReply.replace(markdownImgRegex, (match, url) => {
+            matchedImageUrls.push(url);
+            console.log(`📸 Markdown画像検出 (再生成): ![](${url})`);
+            return '';
+        });
+        
+        // 3. ![alt](URL) 形式
+        const markdownImgWithAltRegex = /!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g;
+        aiReply = aiReply.replace(markdownImgWithAltRegex, (match, alt, url) => {
+            matchedImageUrls.push(url);
+            console.log(`📸 Markdown画像検出 (再生成): ![${alt}](${url})`);
+            return '';
         });
         
         console.log(`📸 再生成時の画像マッチング: ${matchedImageUrls.length}件`);
