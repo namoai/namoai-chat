@@ -312,7 +312,7 @@ export async function POST(request: Request) {
             // ▼▼▼【新規】直接アップロード方式（images配列がある場合）▼▼▼
             if (data.images && Array.isArray(data.images)) {
                 console.log('[POST/JSON] 直接アップロード方式での作成');
-                const { userId, images, lorebooks, imagesToDelete, ...formFields } = data;
+                const { userId, images, lorebooks, ...formFields } = data;
                 
                 if (!userId) {
                     return NextResponse.json({ message: '認証情報が見つかりません。' }, { status: 401 });

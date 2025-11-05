@@ -19,7 +19,7 @@ export async function uploadImageToStorage(file: File, bucket: string = 'charact
 
   console.log(`[Supabase Upload] アップロード開始: ${file.name} (${Math.round(file.size / 1024)}KB)`);
 
-  const { data, error } = await supabaseClient.storage
+  const { error } = await supabaseClient.storage
     .from(bucket)
     .upload(objectKey, file, {
       contentType: file.type || 'image/jpeg',
