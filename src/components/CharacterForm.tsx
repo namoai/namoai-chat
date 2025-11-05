@@ -479,16 +479,22 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       const response = await fetch(url, { method, body: formData });
 
       if (!response.ok) {
-        // ▼▼▼【修正】エラーレスポンスのJSON解析を安全に処理 ▼▼▼
+        // ▼▼▼【修正】エラーレスポンスの安全な処理（Response cloneを使用） ▼▼▼
         let errorMessage = "サーバーリクエストに失敗しました。";
         try {
-          const errorData = await response.json();
+          // responseをcloneして複数回読めるようにする
+          const clonedResponse = response.clone();
+          const errorData = await clonedResponse.json();
           errorMessage = errorData.message || errorMessage;
         } catch {
-          // JSON解析失敗時はテキストで取得を試みる
-          const errorText = await response.text();
-          console.error('サーバーエラー (非JSON):', errorText);
-          errorMessage = `サーバーエラー (${response.status}): ${errorText.substring(0, 100)}`;
+          // JSON解析失敗時は元のresponseからテキストで取得
+          try {
+            const errorText = await response.text();
+            console.error('サーバーエラー (非JSON):', errorText);
+            errorMessage = `サーバーエラー (${response.status}): ${errorText.substring(0, 100)}`;
+          } catch {
+            errorMessage = `サーバーエラー (${response.status})`;
+          }
         }
         throw new Error(errorMessage);
         // ▲▲▲
