@@ -484,7 +484,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
-        } catch (jsonError) {
+        } catch {
           // JSON解析失敗時はテキストで取得を試みる
           const errorText = await response.text();
           console.error('サーバーエラー (非JSON):', errorText);
