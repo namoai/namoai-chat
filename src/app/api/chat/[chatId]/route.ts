@@ -227,7 +227,12 @@ export async function POST(request: Request, context: any) {
 
     // ▼▼▼【バグ修正】 ハードコードされた文字列にもプレースホルダー置換を適用 ▼▼▼
     const userPersonaInfo = persona ? `# ユーザー設定\n- ${persona.nickname}, ${persona.age || "年齢未設定"}, ${persona.gender || "性別未設定"}\n- 詳細: ${replacePlaceholders(persona.description)}` : "";
-    const formattingInstruction = replacePlaceholders(`# 応答フォーマット (必須)\n- 地の文: 三人称(\`{{char}}\`を使用)で書き、アスタリスク(*)で囲む。例: \`*{{char}}は微笑んだ。\`\n- セリフ: 鍵括弧(「」)で囲む。例: \`「こんにちは」\`\n- 地の文とセリフは改行で分ける。`);
+    const formattingInstruction = `# 応答フォーマット (必須)
+- あなたは世界観のナレーター兼司会者です。登場人物たちの行動と会話を第三者視点で描写してください。
+- 地の文: 登場人物の名前を使って三人称で書き、アスタリスク(*)で囲む。例: \`*アリスは微笑んだ。\` \`*太郎とボブが顔を見合わせた。\`
+- セリフ: 鍵括弧(「」)で囲み、誰が話しているか明確にする。例: \`「アリス: こんにちは」\` または \`アリス「こんにちは」\`
+- 複数の登場人物がいる場合、それぞれの行動と発言を描写してください。
+- 地の文とセリフは改行で分ける。`;
 
     const systemTemplate = replacePlaceholders(worldSetting.systemTemplate);
 
@@ -277,12 +282,15 @@ export async function POST(request: Request, context: any) {
 
           // 画像マッチング用のデータを準備
           const availableImages = worldSetting.characterImages || [];
+          console.log(`📸 画像マッチング準備: ${availableImages.length}枚の画像があります`);
           const imagesByKeyword = new Map<string, typeof availableImages[0]>();
           availableImages.forEach(img => {
             if (img.keyword && !img.isMain) {
               imagesByKeyword.set(img.keyword.toLowerCase(), img);
+              console.log(`📸 キーワード登録: "${img.keyword}" -> ${img.imageUrl}`);
             }
           });
+          console.log(`📸 マッチング対象: ${imagesByKeyword.size}個のキーワード`);
 
           // ストリームを反復処理
           for await (const item of result.stream) {
