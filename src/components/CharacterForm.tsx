@@ -362,15 +362,76 @@ export default function CharacterForm({ isEditMode, initialData, session, status
     setLorebooks(newLorebooks);
   };
   
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ▼▼▼【画像圧縮】大きな画像を自動圧縮 ▼▼▼
+  const compressImage = async (file: File): Promise<File> => {
+    // 1MB以下の画像はそのまま返す
+    if (file.size <= 1024 * 1024) {
+      return file;
+    }
+
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // 最大サイズを1920pxに制限
+          const maxSize = 1920;
+          if (width > maxSize || height > maxSize) {
+            if (width > height) {
+              height = (height * maxSize) / width;
+              width = maxSize;
+            } else {
+              width = (width * maxSize) / height;
+              height = maxSize;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                console.log(`[画像圧縮] ${file.name}: ${Math.round(file.size / 1024)}KB → ${Math.round(compressedFile.size / 1024)}KB`);
+                resolve(compressedFile);
+              } else {
+                resolve(file);
+              }
+            },
+            'image/jpeg',
+            0.85 // 品質85%
+          );
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+  // ▲▲▲【画像圧縮 終了】▲▲▲
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length + images.length > 10) {
       setModalState({ isOpen: true, title: 'アップロード上限', message: '画像は最大10枚までアップロードできます。' });
       return;
     }
-    const newImages: DisplayImage[] = files.map((file) => ({ file, keyword: "" }));
+
+    // ▼▼▼【画像圧縮】ファイルを圧縮してから追加 ▼▼▼
+    const compressedFiles = await Promise.all(files.map(compressImage));
+    const newImages: DisplayImage[] = compressedFiles.map((file) => ({ file, keyword: "" }));
     setImages((prev) => [...prev, ...newImages]);
     e.target.value = "";
+    // ▲▲▲
   };
 
   const handleImageDelete = (indexToDelete: number) => {

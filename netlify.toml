@@ -6,6 +6,9 @@
 [functions."*"]
   # 全てのFunctionに対して30秒のタイムアウトを設定
   max_duration = 30
+  # 画像アップロードのため最大ペイロードサイズを30MBに拡大（Netlifyの最大値）
+  # ※ Netlify Proプラン以上で利用可能
+  payload_size_limit = "30mb"
 
 [build.environment]
   # Secret Manager を使用するため secrets scanning を無効化
