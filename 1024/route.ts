@@ -38,23 +38,9 @@ type ImageMetaData = {
 // =================================================================================
 
 // ★ OpenAIクライアント (Embedding生成用)
-// ▼▼▼【重要】遅延初期化 - Secret Manager から OPENAI_API_KEY をロードした後に使用
-let openaiClient: OpenAI | null = null;
-
-function getOpenAIClient(): OpenAI {
-  if (!openaiClient) {
-    const rawApiKey = process.env.OPENAI_API_KEY;
-    const cleanedApiKey = rawApiKey
-      ?.replace(/\s/g, '')
-      .replace(/\\n|\\r|\\t/g, '');
-
-    openaiClient = new OpenAI({
-      apiKey: cleanedApiKey,
-      baseURL: 'https://api.openai.com/v1', // ▼▼▼【重要】Netlify AI Gatewayをバイパスして直接OpenAI APIを呼び出す
-    });
-  }
-  return openaiClient;
-}
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 // =================================================================================
 //  ヘルパー関数 (Helper Functions)
@@ -68,7 +54,6 @@ function getOpenAIClient(): OpenAI {
 async function getEmbedding(text: string): Promise<number[]> {
   if (!text) return [];
   const sanitizedText = text.replace(/\n/g, ' ');
-  const openai = getOpenAIClient(); // ▼▼▼【重要】遅延初期化されたクライアントを取得
   const response = await openai.embeddings.create({
     model: "text-embedding-3-small",
     input: sanitizedText,
@@ -136,69 +121,24 @@ async function loadSecret(name: string, version = 'latest') {
     const [acc] = await client.accessSecretVersion({
         name: `projects/${projectId}/secrets/${name}/versions/${version}`,
     });
-    const value = acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
-    return value.trim(); // ▼▼▼【重要】前後の空白・改行を削除
+    return acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
 }
 
 /**
  * Supabase 接続に必要な環境変数を準備
  */
 async function ensureSupabaseEnv() {
-    // ▼▼▼【Netlify対応】Secret Manager接続失敗でも環境変数があればOK ▼▼▼
-    try {
-        await ensureGcpCredsFile();
+    await ensureGcpCredsFile();
 
-        if (!process.env.SUPABASE_URL) {
-            process.env.SUPABASE_URL = await loadSecret('SUPABASE_URL');
-        }
-        if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-            process.env.SUPABASE_SERVICE_ROLE_KEY = await loadSecret('SUPABASE_SERVICE_ROLE_KEY');
-        }
-        // ▼▼▼【重要】OPENAI_API_KEY を Secret Manager から強制取得（Netlify環境変数より優先）
-        try {
-            const openaiKeyFromGSM = await loadSecret('OPENAI_API_KEY');
-            if (openaiKeyFromGSM && openaiKeyFromGSM.startsWith('sk-')) {
-                process.env.OPENAI_API_KEY = openaiKeyFromGSM;
-                console.log('[ensureSupabaseEnv] OPENAI_API_KEY loaded from Secret Manager (sk-...)');
-            } else {
-                console.warn('[ensureSupabaseEnv] Secret Manager returned invalid OPENAI_API_KEY, using env var');
-            }
-        } catch (e) {
-            console.warn('[ensureSupabaseEnv] Failed to load OPENAI_API_KEY from Secret Manager:', e);
-        }
-        // ▲▲▲
-    } catch (error) {
-        // Secret Manager 接続失敗（Netlify環境など）
-        console.warn('[ensureSupabaseEnv] Secret Manager接続失敗、環境変数を使用:', error);
-        
-        // 環境変数がない場合のみエラー
-        if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.OPENAI_API_KEY) {
-            throw new Error('必須の環境変数が設定されていません。SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEYを確認してください。');
-        }
+    if (!process.env.SUPABASE_URL) {
+        process.env.SUPABASE_URL = await loadSecret('SUPABASE_URL');
     }
-    // ▲▲▲【Netlify対応 終了】
-
-    // ▼▼▼【重要】Netlify環境変数に含まれる可能性のある空白・改行・タブを全て削除
-    if (process.env.SUPABASE_URL) {
-        process.env.SUPABASE_URL = process.env.SUPABASE_URL
-            .replace(/\s/g, '')  // 実際のホワイトスペース削除
-            .replace(/\\n|\\r|\\t/g, '');  // リテラル文字列 \n \r \t 削除
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        process.env.SUPABASE_SERVICE_ROLE_KEY = await loadSecret('SUPABASE_SERVICE_ROLE_KEY');
     }
-    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-            .replace(/\s/g, '')  // 実際のホワイトスペース削除
-            .replace(/\\n|\\r|\\t/g, '');  // リテラル文字列 \n \r \t 削除
-    }
-    if (process.env.OPENAI_API_KEY) {
-        process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY
-            .replace(/\s/g, '')  // 実際のホワイトスペース削除
-            .replace(/\\n|\\r|\\t/g, '');  // リテラル文字列 \n \r \t 削除
-    }
-    // ▲▲▲
 
     console.info('[diag] has SUPABASE_URL?', !!process.env.SUPABASE_URL);
     console.info('[diag] has SUPABASE_SERVICE_ROLE_KEY?', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-    console.info('[diag] has OPENAI_API_KEY?', !!process.env.OPENAI_API_KEY);
 }
 
 // =================================================================================

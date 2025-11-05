@@ -1,0 +1,19 @@
+カテゴリ,項目名,詳細説明,関連ファイル(Frontend),関連ファイル(Backend),関連ファイル(Component),関連テーブル
+主要機能,会員登録,メールアドレスとパスワードによる新規会員登録機能,src/app/register/page.tsx,src/app/api/register/route.ts,,users
+主要機能,ログイン,メール認証とGoogle OAuthによるログイン機能,src/app/login/page.tsx,src/app/api/auth/[...nextauth]/route.ts,,users / Account / Session
+主要機能,プロフィール管理,ニックネーム・画像・自己紹介の編集機能,src/app/profile-edit/page.tsx,src/app/api/users/profile/route.ts,,users
+主要機能,プロフィール閲覧,他ユーザーのプロフィールを閲覧する機能,src/app/profile/[userId]/page.tsx,src/app/api/profile/[userId]/route.ts,,users
+主要機能,マイページ,ログインユーザー専用のマイページ（停止状態チェック含む）,src/app/MyPage/page.tsx,,,users
+主要機能,パスワード変更,既存のパスワードを変更する機能（OAuth専用ユーザーは非表示）,src/app/change-password/page.tsx,src/app/api/users/change-password/route.ts,,users
+主要機能,セーフティフィルター設定,不適切なコンテンツをフィルタリングする設定機能,,src/app/api/users/safety-filter/route.ts,,users
+主要機能,会員退会,2段階確認によるアカウント削除機能（キャラクター保持オプション付き）,src/app/MyPage/page.tsx（退会ボタン）,src/app/api/users/account/route.ts,,users及び関連テーブル全体
+主要機能,アカウント停止ページ,停止中のユーザー専用ページ（停止理由と期限表示）,src/app/suspended/page.tsx,,,users.suspendedUntil / users.suspensionReason
+ライブラリ,NextAuth設定,NextAuthの認証設定とプロバイダー設定,,,src/lib/nextauth.ts,
+ライブラリ,Prismaクライアント,データベース接続用のPrismaクライアント初期化,,,src/lib/prisma.ts,
+データベース,usersテーブル,ユーザー基本情報（名前・メール・パスワード・権限・停止情報など）,,,,users
+データベース,Accountテーブル,OAuth連携アカウント情報（Google等）,,,,Account
+データベース,Sessionテーブル,セッション管理用テーブル,,,,Session
+データベース,VerificationTokenテーブル,メール認証トークン保存用,,,,VerificationToken
+セキュリティ,停止中ログインブロック,停止中ユーザーのログイン試行を拒否し停止情報を表示,src/app/login/page.tsx（一般）/ src/app/suspended/page.tsx（OAuth）,src/app/api/auth/[...nextauth]/route.ts,,users.suspendedUntil
+セキュリティ,既存セッション保護,マイページアクセス時に停止状態を再確認してリダイレクト,src/app/MyPage/page.tsx,,,users.suspendedUntil
+

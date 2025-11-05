@@ -60,7 +60,12 @@ export async function POST(request: NextRequest) {
 
         const chatRoom = await prisma.chat.findUnique({
             where: { id: chatId },
-            include: { characters: true, users: { select: { defaultPersonaId: true } } },
+            include: { 
+                characters: { 
+                    include: { characterImages: true } 
+                }, 
+                users: { select: { defaultPersonaId: true } } 
+            },
         });
 
         if (!chatRoom || !chatRoom.characters) return NextResponse.json({ error: "チャットまたはキャラクターが見つかりません。" }, { status: 404 });
@@ -107,6 +112,22 @@ export async function POST(request: NextRequest) {
         const aiReply = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!aiReply) throw new Error("モデルから有効な応答がありませんでした。");
         
+        // ▼▼▼【効率的な画像出力】応答テキストからキーワードマッチング ▼▼▼
+        const matchedImageUrls: string[] = [];
+        const availableImages = chatRoom.characters.characterImages || [];
+        const lowerReply = aiReply.toLowerCase();
+        
+        for (const img of availableImages) {
+            if (img.keyword && !img.isMain) {
+                const lowerKeyword = img.keyword.toLowerCase();
+                if (lowerReply.includes(lowerKeyword)) {
+                    matchedImageUrls.push(img.imageUrl);
+                }
+            }
+        }
+        console.log(`📸 再生成時の画像マッチング: ${matchedImageUrls.length}件`);
+        // ▲▲▲ 効率的な画像出力ここまで ▲▲▲
+        
         const latestVersion = await prisma.chat_message.findFirst({
             where: { turnId: turnId, role: 'model' },
             orderBy: { version: 'desc' }
@@ -127,7 +148,7 @@ export async function POST(request: NextRequest) {
             }
         });
 
-        return NextResponse.json({ newMessage });
+        return NextResponse.json({ newMessage, imageUrls: matchedImageUrls });
 
     } catch (error) {
         console.error("再生成APIエラー:", error);

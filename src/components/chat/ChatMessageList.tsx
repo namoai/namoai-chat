@@ -188,13 +188,31 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                         onCancel={handleEditCancel}
                       />
                     ) : (
-                      <ChatMessageParser
-                        content={activeModelMessage.content}
-                        characterImages={prioritizedImages}
-                        showImage={showChatImage}
-                        isMultiImage={isMultiImage}
-                        onImageClick={setLightboxImage}
-                      />
+                      <>
+                        <ChatMessageParser
+                          content={activeModelMessage.content}
+                          characterImages={prioritizedImages}
+                          showImage={showChatImage}
+                          isMultiImage={isMultiImage}
+                          onImageClick={setLightboxImage}
+                        />
+                        {/* ▼▼▼【効率的な画像出力】キーワードマッチした画像を表示 ▼▼▼ */}
+                        {activeModelMessage.imageUrls && activeModelMessage.imageUrls.length > 0 && showChatImage && (
+                          <div className="mt-3 space-y-2">
+                            {activeModelMessage.imageUrls.map((imageUrl, imgIndex) => (
+                              <div key={`matched-img-${imgIndex}`} className="relative w-full max-w-xs rounded-lg overflow-hidden shadow-lg">
+                                <img
+                                  src={imageUrl}
+                                  alt={`マッチした画像 ${imgIndex + 1}`}
+                                  className="w-full object-contain cursor-zoom-in"
+                                  onClick={() => setLightboxImage(imageUrl)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* ▲▲▲ 効率的な画像出力ここまで ▲▲▲ */}
+                      </>
                     )}
                   </div>
                   {!isEditingModel && (

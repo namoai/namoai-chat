@@ -270,6 +270,7 @@ export default function ChatPage() {
                                 version: 1,
                                 isActive: true,
                                 timestamp: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+                                imageUrls: [], // 初期化
                             };
                             setRawMessages(prev => [...prev, newModelMessage]);
                         } else {
@@ -279,6 +280,15 @@ export default function ChatPage() {
                                     : msg
                             ));
                         }
+                    } else if (eventData.imageUrl) {
+                        // ▼▼▼【効率的な画像出力】キーワードマッチした画像をメッセージに追加 ▼▼▼
+                        console.log(`📸 画像受信: ${eventData.keyword} (${eventData.imageUrl})`);
+                        setRawMessages(prev => prev.map(msg =>
+                            msg.id === tempModelMessageId
+                                ? { ...msg, imageUrls: [...(msg.imageUrls || []), eventData.imageUrl] }
+                                : msg
+                        ));
+                        // ▲▲▲ 効率的な画像出力ここまで ▲▲▲
                     } else if (eventData.modelMessage) {
                         setRawMessages(prev => prev.map(msg =>
                             msg.id === tempModelMessageId
@@ -386,6 +396,7 @@ export default function ChatPage() {
         const newMessage = {
             ...data.newMessage,
             timestamp: new Date(data.newMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+            imageUrls: data.imageUrls || [], // ▼▼▼【効率的な画像出力】再生成時の画像URLを追加 ▼▼▼
         };
         // 新しいバージョンを追加（isActive状態は変更しない - 全てのバージョンを保持）
         setRawMessages(prev => [...prev, newMessage]);

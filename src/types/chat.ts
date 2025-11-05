@@ -41,6 +41,8 @@ export interface Message extends DbMessage {
   thinkingText?: string;
   // ▼▼▼【修正】AIの応答を待つ間の仮メッセージかどうかを判定するフラグを追加 ▼▼▼
   isProvisional?: boolean;
+  // ▼▼▼【効率的な画像出力】キーワードマッチで表示する画像URLリスト ▼▼▼
+  imageUrls?: string[];
 }
 
 export interface Turn {
