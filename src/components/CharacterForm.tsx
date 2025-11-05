@@ -15,6 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { X, Plus, Trash2, GripVertical } from "lucide-react";
+import { uploadImageToStorage } from "@/lib/supabase-client";
 
 // --- 定数と型定義（共通） ---
 const CATEGORIES = [
@@ -226,6 +227,9 @@ export default function CharacterForm({ isEditMode, initialData, session, status
   const [isHashtagModalOpen, setIsHashtagModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: '', message: '' });
+  // ▼▼▼【画像アップロード進行状況】▼▼▼
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  // ▲▲▲
 
   // ▼▼▼【修正】initialDataを1回だけ読み込むためのフラグ ▼▼▼
   const [isInitialized, setIsInitialized] = useState(false);
@@ -481,45 +485,55 @@ export default function CharacterForm({ isEditMode, initialData, session, status
     if (isSubmitting) return;
     setIsSubmitting(true);
 
-    const formData = new FormData();
-
-    Object.entries(form).forEach(([key, value]) => {
-        formData.append(key, Array.isArray(value) ? JSON.stringify(value) : String(value));
-    });
-
-    formData.append('lorebooks', JSON.stringify(lorebooks));
-
-    if (isEditMode) {
-      formData.append('imagesToDelete', JSON.stringify(imagesToDelete));
-      let newImageIndex = 0;
-      images.forEach((img) => {
-        if (img.file) {
-          formData.append(`new_image_${newImageIndex}`, img.file);
-          formData.append(`new_keyword_${newImageIndex}`, img.keyword);
-          newImageIndex++;
-        }
-      });
-      formData.append('newImageCount', String(newImageIndex));
-    } else {
-      formData.append("userId", session.user.id);
-      // ▼▼▼【修正】fileがある画像のみをカウント ▼▼▼
-      let actualImageIndex = 0;
-      images.forEach((imageMeta) => {
-        if(imageMeta.file){
-            formData.append(`image_${actualImageIndex}`, imageMeta.file);
-            formData.append(`keyword_${actualImageIndex}`, imageMeta.keyword);
-            actualImageIndex++;
-        }
-      });
-      formData.append("imageCount", String(actualImageIndex));
-      // ▲▲▲
-    }
-
-    const url = isEditMode ? `/api/characters/${initialData?.id}` : "/api/characters";
-    const method = isEditMode ? "PUT" : "POST";
-
     try {
-      const response = await fetch(url, { method, body: formData });
+      // ▼▼▼【直接アップロード】新しい画像をSupabaseに直接アップロード ▼▼▼
+      const uploadedImageData: Array<{ imageUrl: string; keyword: string }> = [];
+      const newImagesToUpload = images.filter(img => img.file);
+      
+      if (newImagesToUpload.length > 0) {
+        setUploadProgress({ current: 0, total: newImagesToUpload.length });
+        
+        for (let i = 0; i < newImagesToUpload.length; i++) {
+          const img = newImagesToUpload[i];
+          try {
+            const imageUrl = await uploadImageToStorage(img.file!);
+            uploadedImageData.push({ imageUrl, keyword: img.keyword });
+            setUploadProgress({ current: i + 1, total: newImagesToUpload.length });
+          } catch (uploadError) {
+            throw new Error(`画像 ${i + 1} のアップロードに失敗しました: ${uploadError instanceof Error ? uploadError.message : '不明なエラー'}`);
+          }
+        }
+        
+        setUploadProgress(null);
+      }
+
+      // 既存の画像（編集モード用）
+      const existingImages = images
+        .filter(img => !img.file && img.imageUrl)
+        .map(img => ({ imageUrl: img.imageUrl!, keyword: img.keyword }));
+      
+      // 全ての画像データをマージ
+      const allImages = [...existingImages, ...uploadedImageData];
+      // ▲▲▲【直接アップロード 終了】▲▲▲
+
+      // ▼▼▼【JSON送信】FormDataの代わりにJSONで送信 ▼▼▼
+      const requestData = {
+        ...form,
+        userId: session.user.id,
+        lorebooks,
+        images: allImages, // { imageUrl, keyword }[]
+        imagesToDelete: isEditMode ? imagesToDelete : [],
+      };
+
+      const url = isEditMode ? `/api/characters/${initialData?.id}` : "/api/characters";
+      const method = isEditMode ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData),
+      });
+      // ▲▲▲【JSON送信 終了】▲▲▲
 
       if (!response.ok) {
         // ▼▼▼【修正】エラーレスポンスの安全な処理（Response cloneを使用） ▼▼▼
@@ -567,6 +581,28 @@ export default function CharacterForm({ isEditMode, initialData, session, status
   return (
     <>
       <NotificationModal modalState={modalState} setModalState={setModalState} />
+      
+      {/* ▼▼▼【アップロード進行状況表示】▼▼▼ */}
+      {uploadProgress && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="bg-gray-900 p-8 rounded-lg max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4 text-center">画像をアップロード中...</h3>
+            <div className="mb-4">
+              <div className="w-full bg-gray-700 rounded-full h-4 overflow-hidden">
+                <div 
+                  className="bg-pink-500 h-full transition-all duration-300"
+                  style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+            <p className="text-center text-gray-400">
+              {uploadProgress.current} / {uploadProgress.total} 枚完了
+            </p>
+          </div>
+        </div>
+      )}
+      {/* ▲▲▲【アップロード進行状況表示 終了】▲▲▲ */}
+
       <div className="min-h-screen bg-black text-white px-4 py-8 max-w-4xl mx-auto font-sans">
         <button onClick={() => window.history.back()} className="mb-4 text-pink-400 hover:underline cursor-pointer">
           ← 戻る

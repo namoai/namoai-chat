@@ -315,6 +315,88 @@ export async function PUT(
       return NextResponse.json({ error: 'このキャラクターを編集する権限がありません。' }, { status: 403 });
     }
     
+    // ▼▼▼【JSON方式】直接アップロード（クライアントから画像URL受信）▼▼▼
+    const contentType = request.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      console.log('[PUT/JSON] 直接アップロード方式での更新');
+      const data = await request.json();
+      const { images, lorebooks, imagesToDelete, ...formFields } = data;
+      
+      await ensureSupabaseEnv();
+      
+      // トランザクション外でlorebook埋め込み生成
+      const lorebookEmbeddings: { content: string; keywords: string[]; embeddingString: string }[] = [];
+      if (lorebooks && lorebooks.length > 0) {
+        for (const lore of lorebooks) {
+          const embedding = await getEmbedding(lore.content);
+          const embeddingString = `[${embedding.join(',')}]`;
+          lorebookEmbeddings.push({
+            content: lore.content,
+            keywords: lore.keywords || [],
+            embeddingString
+          });
+        }
+      }
+      
+      // トランザクション
+      const updatedCharacter = await prisma.$transaction(async (tx) => {
+        // 画像削除
+        if (imagesToDelete && imagesToDelete.length > 0) {
+          await tx.character_images.deleteMany({ where: { id: { in: imagesToDelete } } });
+        }
+        
+        // 既存画像の更新 + 新規画像追加
+        // まず既存画像を全削除して、受信した画像リストで再作成（シンプル）
+        await tx.character_images.deleteMany({ where: { characterId: characterIdToUpdate } });
+        
+        if (images && images.length > 0) {
+          await tx.character_images.createMany({
+            data: images.map((img: { imageUrl: string; keyword: string }, index: number) => ({
+              characterId: characterIdToUpdate,
+              imageUrl: img.imageUrl,
+              keyword: img.keyword || '',
+              isMain: index === 0,
+              displayOrder: index,
+            }))
+          });
+        }
+        
+        // キャラクター情報更新
+        const updated = await tx.characters.update({
+          where: { id: characterIdToUpdate },
+          data: {
+            name: formFields.name,
+            description: formFields.description ?? null,
+            systemTemplate: formFields.systemTemplate ?? null,
+            firstSituation: formFields.firstSituation ?? null,
+            firstMessage: formFields.firstMessage ?? null,
+            visibility: formFields.visibility,
+            safetyFilter: formFields.safetyFilter !== false,
+            category: formFields.category ?? null,
+            hashtags: formFields.hashtags ?? [],
+            detailSetting: formFields.detailSetting ?? null,
+          }
+        });
+        
+        // ロアブック更新（全削除＆再作成）
+        await tx.lorebooks.deleteMany({ where: { characterId: characterIdToUpdate } });
+        if (lorebookEmbeddings.length > 0) {
+          for (const lore of lorebookEmbeddings) {
+            await tx.$executeRaw`
+              INSERT INTO "lorebooks" ("content", "keywords", "characterId", "embedding")
+              VALUES (${lore.content}, ${lore.keywords}::text[], ${characterIdToUpdate}, ${lore.embeddingString}::vector)
+            `;
+          }
+        }
+        
+        return updated;
+      });
+      
+      return NextResponse.json({ message: 'キャラクターが正常に更新されました。', character: updatedCharacter }, { status: 200 });
+    }
+    // ▲▲▲【JSON方式 終了】▲▲▲
+    
+    // ▼▼▼【FormData方式】既存の処理 ▼▼▼
     const formData = await request.formData();
 
     const lorebooksString = formData.get('lorebooks') as string;

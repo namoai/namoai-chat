@@ -305,9 +305,81 @@ export async function POST(request: Request) {
 
         const contentType = request.headers.get("content-type") || "";
 
-        // === JSON（インポート） ===
+        // === JSON（通常作成 または インポート） ===
         if (contentType.includes("application/json")) {
             const data = await request.json();
+            
+            // ▼▼▼【新規】直接アップロード方式（images配列がある場合）▼▼▼
+            if (data.images && Array.isArray(data.images)) {
+                console.log('[POST/JSON] 直接アップロード方式での作成');
+                const { userId, images, lorebooks, imagesToDelete, ...formFields } = data;
+                
+                if (!userId) {
+                    return NextResponse.json({ message: '認証情報が見つかりません。' }, { status: 401 });
+                }
+                
+                const userIdNum = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+                if (isNaN(userIdNum)) {
+                    return NextResponse.json({ message: '無効なユーザーIDです。' }, { status: 400 });
+                }
+                
+                if (!formFields.name?.trim()) {
+                    return NextResponse.json({ message: 'キャラクターの名前は必須項目です。' }, { status: 400 });
+                }
+                
+                const newCharacter = await prisma.$transaction(async (tx) => {
+                    const character = await tx.characters.create({
+                        data: {
+                            name: formFields.name,
+                            description: formFields.description ?? null,
+                            systemTemplate: formFields.systemTemplate ?? null,
+                            firstSituation: formFields.firstSituation ?? null,
+                            firstMessage: formFields.firstMessage ?? null,
+                            visibility: formFields.visibility || 'public',
+                            safetyFilter: formFields.safetyFilter !== false,
+                            category: formFields.category ?? null,
+                            hashtags: formFields.hashtags ?? [],
+                            detailSetting: formFields.detailSetting ?? null,
+                            author: { connect: { id: userIdNum } },
+                        }
+                    });
+                    
+                    // 画像登録（既にSupabaseにアップロード済みのURL）
+                    if (images && images.length > 0) {
+                        await tx.character_images.createMany({
+                            data: images.map((img: { imageUrl: string; keyword: string }, index: number) => ({
+                                characterId: character.id,
+                                imageUrl: img.imageUrl,
+                                keyword: img.keyword || '',
+                                isMain: index === 0,
+                                displayOrder: index,
+                            }))
+                        });
+                    }
+                    
+                    // ロアブック保存
+                    if (lorebooks && lorebooks.length > 0) {
+                        for (const lore of lorebooks) {
+                            const embedding = await getEmbedding(lore.content);
+                            const embeddingString = `[${embedding.join(',')}]`;
+                            await tx.$executeRaw`
+                                INSERT INTO "lorebooks" ("content", "keywords", "characterId", "embedding")
+                                VALUES (${lore.content}, ${lore.keywords || []}::text[], ${character.id}, ${embeddingString}::vector)
+                            `;
+                        }
+                    }
+                    
+                    return character;
+                });
+                
+                return NextResponse.json({ 
+                    message: 'キャラクターが正常に作成されました！', 
+                    character: newCharacter 
+                }, { status: 201 });
+            }
+            // ▲▲▲【新規 終了】▲▲▲
+            
+            // ▼▼▼【既存】インポート用（characterDataがある場合）▼▼▼
             const { userId, characterData: sourceCharacter } = data as {
                 userId?: string | number;
                 characterData: {
@@ -359,7 +431,7 @@ export async function POST(request: Request) {
                     });
                 }
 
-                // ▼▼▼ ロアブックを1件ずつ埋め込み生成して保存 ▼▼▼
+                // ロアブックを1件ずつ埋め込み生成して保存
                 if (sourceCharacter.lorebooks && sourceCharacter.lorebooks.length > 0) {
                     for (const lore of sourceCharacter.lorebooks) {
                         const embedding = await getEmbedding(lore.content);
@@ -370,11 +442,11 @@ export async function POST(request: Request) {
                         `;
                     }
                 }
-                // ▲▲▲ ここまで ▲▲▲
 
                 return character;
             });
             return NextResponse.json({ message: 'キャラクターのインポートに成功しました！', character: newCharacter }, { status: 201 });
+            // ▲▲▲【既存 終了】▲▲▲
         }
 
         // === FormData（通常作成） ===
