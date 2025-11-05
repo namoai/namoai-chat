@@ -43,6 +43,12 @@ export default function CharacterEditPage() {
 
   const fetchCharacterData = useCallback(async () => {
     if (!characterId || !session?.user) return;
+    // ▼▼▼【最適化】既にデータがある場合は再取得しない（ページ遷移時の強制リロード防止） ▼▼▼
+    if (initialData) {
+      console.log('[CharacterEditPage] データは既に存在するため、再取得をスキップします');
+      return;
+    }
+    // ▲▲▲
     try {
       setLoading(true);
       const response = await fetch(`/api/characters/${characterId}`);
@@ -74,7 +80,7 @@ export default function CharacterEditPage() {
     } finally {
       setLoading(false);
     }
-  }, [characterId, session]);
+  }, [characterId, session, initialData]);
 
   useEffect(() => {
     if (status === "authenticated") {

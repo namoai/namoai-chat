@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 // ▼▼▼【修正】コンパイルエラーを解消するため、next/imageのインポートを削除します ▼▼▼
 // import Image from 'next/image';
 import { Button } from "@/components/ui/button";
@@ -206,6 +207,7 @@ const HashtagModal = ({ isOpen, onClose, onComplete, initialHashtags }: HashtagM
 
 
 export default function CharacterForm({ isEditMode, initialData, session, status }: CharacterFormProps) {
+  const router = useRouter();
   const [step, setStep] = useState(0);
   
   const [form, setForm] = useState<FormState>({
@@ -406,7 +408,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         isOpen: true,
         title: '成功',
         message: isEditMode ? "キャラクター情報が更新されました。" : "キャラクターが正常に登録されました！",
-        onConfirm: () => window.location.href = "/MyPage",
+        onConfirm: () => router.push("/MyPage"),
       });
 
     } catch (error) {
