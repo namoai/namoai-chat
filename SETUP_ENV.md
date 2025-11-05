@@ -1,32 +1,29 @@
-# 🔧 환경 변수 설정 가이드
+# 🔧 環境変数設定ガイド
 
-## 📋 필수 환경 변수
+## 📋 必須環境変数
 
-### 1️⃣ **Supabase Storage (クライアントサイド直接アップロード用)**
-
-ブラウザから直接Supabase Storageに画像をアップロードするために、以下の環境変数が必要です:
-
-```bash
-# .env.local に追加
-NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-```
-
-#### **Supabase Anon Keyの取得方法**
+### 1️⃣ **Supabaseから値を取得**
 
 1. [Supabase Dashboard](https://supabase.com/dashboard) にログイン
 2. プロジェクトを選択
 3. 左サイドバーの **Settings** → **API** に移動
-4. **Project API keys** セクションで `anon` `public` キーをコピー
+4. 以下2つをコピー:
+   - **Project URL** (例: `https://abcdefgh.supabase.co`)
+   - **anon public key** (例: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`)
 
-### 2️⃣ **Netlify環境変数設定**
+### 2️⃣ **Netlify環境変数設定** ⭐ 重要
 
-Netlify Dashboardで以下の環境変数を追加してください:
+Netlify Dashboard → Site configuration → Environment variables → **Add a variable** で以下2つを追加:
 
 ```
-NEXT_PUBLIC_SUPABASE_URL = https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+変数名: NEXT_PUBLIC_SUPABASE_URL
+値: https://your-project.supabase.co
+
+変数名: NEXT_PUBLIC_SUPABASE_ANON_KEY
+値: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
+
+**💡 Note:** GSMではなくNetlify環境変数に追加してください。`NEXT_PUBLIC_*`変数はビルド時に必要で、公開されても安全です。
 
 ## 🔒 セキュリティ設定
 

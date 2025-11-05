@@ -11,7 +11,7 @@
   payload_size_limit = "30mb"
 
 [build]
-  # ▼▼▼【GSM】既存のSUPABASE_URLとSUPABASE_ANON_KEYをNEXT_PUBLIC_*として使用 ▼▼▼
+  # ▼▼▼【GSM】ビルド時にGSM認証を設定してNEXT_PUBLIC変数をロード ▼▼▼
   command = "node scripts/load-gsm-secrets.js && npm run build"
   # ▲▲▲
 
