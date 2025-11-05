@@ -283,6 +283,10 @@ export default function ChatPage() {
     setRawMessages(prev => [...prev, tempUserMessage]);
 
     let tempModelMessageId: number | null = null;
+    
+    // ▼▼▼【タイムアウト対策】タイムアウト監視用の変数を先に宣言 ▼▼▼
+    let timeoutCheckInterval: NodeJS.Timeout | null = null;
+    // ▲▲▲
 
     try {
         const response = await fetch(`/api/chat/${chatId}`, {
@@ -313,11 +317,13 @@ export default function ChatPage() {
         let hasReceivedData = false;
         const timeoutDuration = 30000; // 30秒タイムアウト
         
-        const timeoutCheckInterval = setInterval(() => {
+        timeoutCheckInterval = setInterval(() => {
           const timeSinceLastHeartbeat = Date.now() - lastHeartbeatTime;
           if (timeSinceLastHeartbeat > timeoutDuration && !hasReceivedData) {
             console.warn("タイムアウト: 30秒以内にデータを受信できませんでした");
-            clearInterval(timeoutCheckInterval);
+            if (timeoutCheckInterval) {
+              clearInterval(timeoutCheckInterval);
+            }
             reader.cancel(); // リーダーをキャンセル
             // タイムアウト時はDBからメッセージを再読み込み
             handleTimeoutRecovery();
@@ -328,7 +334,9 @@ export default function ChatPage() {
         while (true) {
             const { value, done } = await reader.read();
             if (done) {
-              clearInterval(timeoutCheckInterval);
+              if (timeoutCheckInterval) {
+                clearInterval(timeoutCheckInterval);
+              }
               break;
             }
 
@@ -418,10 +426,14 @@ export default function ChatPage() {
                 }
             }
         }
-        clearInterval(timeoutCheckInterval);
+        if (timeoutCheckInterval) {
+          clearInterval(timeoutCheckInterval);
+        }
         await fetchUserPoints();
     } catch (error) {
-        clearInterval(timeoutCheckInterval);
+        if (timeoutCheckInterval) {
+          clearInterval(timeoutCheckInterval);
+        }
         // ▼▼▼【タイムアウト対策】エラー時もDBからメッセージを再読み込みを試みる ▼▼▼
         if ((error as Error).name === 'AbortError' || (error as Error).message.includes('timeout')) {
           handleTimeoutRecovery();
