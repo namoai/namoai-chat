@@ -435,8 +435,20 @@ export async function POST(request: Request) {
             const file = formData.get(`image_${i}`) as File | null;
             const keyword = (formData.get(`keyword_${i}`) as string) || '';
             if (!file || file.size === 0) {
+                console.log(`[POST] 画像 ${i}: スキップ (ファイルなし)`);
                 continue;
             }
+
+            console.log(`[POST] 画像 ${i} アップロード開始: ${file.name} (${file.size} bytes, ${file.type})`);
+
+            // ▼▼▼【ファイルサイズチェック】10MBを超える場合はエラー ▼▼▼
+            if (file.size > 10 * 1024 * 1024) {
+                console.error(`[POST] 画像 ${i}: ファイルサイズが大きすぎます (${file.size} bytes)`);
+                return NextResponse.json({ 
+                    message: `画像ファイルが大きすぎます（最大10MB）。現在: ${Math.round(file.size / 1024 / 1024)}MB` 
+                }, { status: 400 });
+            }
+            // ▲▲▲
 
             const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'png';
             const safeFileName = `${randomUUID()}.${fileExtension}`;
@@ -453,8 +465,14 @@ export async function POST(request: Request) {
 
             if (uploadErr) {
                 console.error(`[POST] Supabaseアップロード失敗(index=${i}):`, uploadErr);
-                return NextResponse.json({ message: '画像アップロードに失敗しました。' }, { status: 500 });
+                console.error(`[POST] エラー詳細 - message:`, uploadErr.message);
+                console.error(`[POST] エラー詳細 - name:`, uploadErr.name);
+                return NextResponse.json({ 
+                    message: `画像アップロードに失敗しました: ${uploadErr.message}` 
+                }, { status: 500 });
             }
+
+            console.log(`[POST] 画像 ${i} アップロード成功: ${objectKey}`);
 
             const { data: pub } = sb.storage.from(bucket).getPublicUrl(objectKey);
             const imageUrl = pub.publicUrl;
@@ -527,6 +545,13 @@ export async function POST(request: Request) {
         );
     } catch (error) {
         console.error('--- ❌ [POST] 致命的エラー:', error);
+        // ▼▼▼【詳細ログ】エラーの詳細情報を出力 ▼▼▼
+        if (error instanceof Error) {
+            console.error('[POST] エラー名:', error.name);
+            console.error('[POST] エラーメッセージ:', error.message);
+            console.error('[POST] スタックトレース:', error.stack);
+        }
+        // ▲▲▲
         return NextResponse.json(
             { message: error instanceof Error ? error.message : '不明なサーバーエラーが発生しました' },
             { status: 500 }
