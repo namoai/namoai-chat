@@ -1,5 +1,4 @@
 import { prisma } from './prisma';
-import { embeddingToVectorString } from './embeddings';
 
 /**
  * ベクトル類似度検索 (cosine distance使用)
