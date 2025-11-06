@@ -474,8 +474,8 @@ export async function PUT(
   try {
     const { memoryId, content } = await request.json();
 
-    if (!content || content.length > MAX_MEMORY_LENGTH) {
-      return NextResponse.json({ error: `内容は${MAX_MEMORY_LENGTH}文字以内で入力してください。` }, { status: 400 });
+    if (!content) {
+      return NextResponse.json({ error: '内容を入力してください。' }, { status: 400 });
     }
 
     const memory = await prisma.detailed_memories.findUnique({
@@ -491,11 +491,76 @@ export async function PUT(
       return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
     }
 
-    const memoryContent = content.substring(0, MAX_MEMORY_LENGTH);
+    // 最初の2000文字は既存メモリを更新
+    const firstPart = content.substring(0, MAX_MEMORY_LENGTH);
+    const remainingContent = content.substring(MAX_MEMORY_LENGTH);
+    
     const updated = await prisma.detailed_memories.update({
       where: { id: memoryId },
-      data: { content: memoryContent },
+      data: { content: firstPart },
     });
+
+    // 残りがある場合は新しいメモリを作成
+    const createdMemories = [];
+    let remaining = remainingContent;
+    
+    while (remaining.length > 0) {
+      const memoryContent = remaining.substring(0, MAX_MEMORY_LENGTH);
+      remaining = remaining.substring(MAX_MEMORY_LENGTH);
+      
+      const newMemory = await prisma.detailed_memories.create({
+        data: {
+          chatId: memory.chatId,
+          content: memoryContent,
+          keywords: memory.keywords || [],
+        },
+      });
+      
+      createdMemories.push(newMemory);
+      
+      (async () => {
+        try {
+          const embedding = await getEmbedding(memoryContent);
+          const embeddingString = `[${embedding.join(',')}]`;
+          await prisma.$executeRawUnsafe(
+            `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+            embeddingString,
+            newMemory.id
+          );
+        } catch (error) {
+          console.error('詳細記憶embedding生成エラー:', error);
+        }
+      })();
+      
+      if (remaining.length <= MAX_MEMORY_LENGTH) {
+        if (remaining.length > 0) {
+          const finalMemory = await prisma.detailed_memories.create({
+            data: {
+              chatId: memory.chatId,
+              content: remaining,
+              keywords: memory.keywords || [],
+            },
+          });
+          
+          createdMemories.push(finalMemory);
+          
+          (async () => {
+            try {
+              const embedding = await getEmbedding(finalMemory.content);
+              const embeddingString = `[${embedding.join(',')}]`;
+              await prisma.$executeRawUnsafe(
+                `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+                embeddingString,
+                finalMemory.id
+              );
+            } catch (error) {
+              console.error('詳細記憶embedding生成エラー:', error);
+            }
+          })();
+        }
+        break;
+      }
+    }
 
     // ▼▼▼【ベクトル検索】更新された詳細記憶のembeddingを再生成▼▼▼
     (async () => {
