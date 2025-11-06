@@ -404,21 +404,6 @@ ${conversationText}`;
           return NextResponse.json({ error: '要約の生成に失敗しました。' }, { status: 500 });
         }
       }
-
-      // 最初のメモリを返す（既存のコードとの互換性のため）
-      const firstMemory = await prisma.detailed_memories.findFirst({
-        where: { chatId: chatIdNum },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (!firstMemory) {
-        return NextResponse.json({ error: 'メモリの作成に失敗しました。' }, { status: 500 });
-      }
-
-      return NextResponse.json({ 
-        memory: { ...firstMemory, index: existingCount + 1 },
-        message: '要約処理を開始しました。バックグラウンドで順次処理されます。'
-      });
     } else {
       // 手動作成の場合（保存個数制限なし、2000文字を超える場合は自動分割）
 
