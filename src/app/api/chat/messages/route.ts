@@ -143,6 +143,9 @@ export async function POST(request: NextRequest) {
         const modelMessagesMap = new Map<number, typeof messagesBeforeRegen[0]>();
         
         for (const msg of messagesBeforeRegen) {
+            // turnIdがnullの場合はスキップ
+            if (!msg.turnId) continue;
+            
             // 再生成対象のturnIdは完全に除外
             if (msg.turnId === turnId) continue;
             
