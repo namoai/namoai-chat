@@ -213,6 +213,10 @@ export default function ChatPage() {
                 timestamp: new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
             }));
             setRawMessages(formattedMessages);
+            // メッセージ読み込み後にスクロール（少し遅延を入れて確実に）
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+            }, 200);
         } catch (e) {
             console.error("チャット読込エラー:", e);
             const errorMessage = e instanceof Error ? e.message : "チャット読込失敗";
@@ -232,19 +236,24 @@ export default function ChatPage() {
 
   // チャットルームに入った時とメッセージが追加された時に自動スクロール
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    // 少し遅延を入れて確実にスクロール
+    const timer = setTimeout(() => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }
+    }, 50);
+    return () => clearTimeout(timer);
   }, [rawMessages]);
 
   // 初回ロード時にも自動スクロール
   useEffect(() => {
-    if (!isInitialLoading && messagesEndRef.current) {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-      }, 100);
+    if (!isInitialLoading && rawMessages.length > 0 && messagesEndRef.current) {
+      const timer = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+      }, 300);
+      return () => clearTimeout(timer);
     }
-  }, [isInitialLoading]);
+  }, [isInitialLoading, rawMessages.length]);
 
   // ▼▼▼【タイムアウト対策】タイムアウト時の復旧処理：DBからメッセージを再読み込み ▼▼▼
   const handleTimeoutRecovery = async () => {

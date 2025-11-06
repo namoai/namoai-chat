@@ -109,14 +109,14 @@ export async function POST(
       // 自動要約の場合（保存個数制限なし、ただし適用時は最大3個まで）
       console.log('自動要約モード開始, chatId:', chatIdNum);
 
-      // 最新の会話を取得
+      // 最新の会話を取得（10件に減らして高速化）
       const messages = await prisma.chat_message.findMany({
         where: {
           chatId: chatIdNum,
           isActive: true,
         },
         orderBy: { createdAt: 'desc' },
-        take: 20,
+        take: 10,
       });
 
       if (messages.length === 0) {
@@ -137,8 +137,9 @@ export async function POST(
         location: 'asia-northeast1',
       });
 
+      // より高速なモデルを使用（gemini-2.5-flash）
       const generativeModel = vertex_ai.getGenerativeModel({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-2.5-flash',
         safetySettings,
       });
 
