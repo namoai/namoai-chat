@@ -48,6 +48,13 @@ export async function GET(
     const memories = await prisma.detailed_memories.findMany({
       where: { chatId: chatIdNum },
       orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        content: true,
+        keywords: true,
+        createdAt: true,
+        lastApplied: true,
+      },
     });
 
     // インデックスを追加（1-3）
@@ -142,125 +149,238 @@ export async function POST(
       const initialCount = Math.min(10, messagesToSummarize.length);
       const batchSize = 5;
       
-      // 最初の10個まで順次要約（1個から10個まで）- 全て非同期で処理
-      const summarizeInitialBatches = async () => {
-        for (let count = 1; count <= initialCount; count++) {
-          const batchMessages = messagesToSummarize.slice(0, count);
-          
-          if (batchMessages.length === 0) continue;
+      // 最初のバッチ（1個）を同期的に処理して、最初のメモリを作成
+      let firstBatchCompleted = false;
+      let firstMemoryCreated = false;
+      
+      // 最初の1個のバッチを同期処理
+      if (messagesToSummarize.length > 0) {
+        const firstBatch = messagesToSummarize.slice(0, 1);
+        const conversationText = firstBatch
+          .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
+          .join('\n\n');
 
-          const conversationText = batchMessages
-            .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
-            .join('\n\n');
+        try {
+          console.log(`最初のバッチ（1個）要約開始`);
+          const vertex_ai = new VertexAI({
+            project: process.env.GOOGLE_PROJECT_ID || '',
+            location: 'asia-northeast1',
+          });
 
-          // 要約処理（非同期）
-          (async () => {
-            try {
-              console.log(`バッチ ${count} 要約開始 (${batchMessages.length}件)`);
-              const vertex_ai = new VertexAI({
-                project: process.env.GOOGLE_PROJECT_ID || '',
-                location: 'asia-northeast1',
-              });
+          const generativeModel = vertex_ai.getGenerativeModel({
+            model: 'gemini-2.5-flash',
+            safetySettings,
+          });
 
-              const generativeModel = vertex_ai.getGenerativeModel({
-                model: 'gemini-2.5-flash',
-                safetySettings,
-              });
-
-              const prompt = `以下の会話履歴を、AIが理解しやすいように簡潔に要約してください。
+          const prompt = `以下の会話履歴を、AIが理解しやすいように要約してください。
 
 【重要】
 - 会話の進行内容と実際の出来事のみを要約してください
 - 背景設定、キャラクター説明、初期状況などの固定情報は含めないでください
 - ユーザーとAIの実際の対話と行動のみを要約してください
-- 2000文字以内で簡潔に記述してください
+- 会話の重要なポイント、イベント、感情の変化などを漏れなく含めてください
+- 要約は詳細に記述してください（2000文字以内、可能な限り詳細に）
 
 会話履歴：
 ${conversationText}`;
 
-              const result = await generativeModel.generateContent(prompt);
-              const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          const result = await generativeModel.generateContent(prompt);
+          const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-              if (!summary) {
-                console.error(`バッチ ${count} 要約が空です`);
-                return;
+          if (summary) {
+            const extractedKeywords = extractKeywords(conversationText);
+            
+            let remainingSummary = summary;
+            
+            while (remainingSummary.length > 0 && !firstMemoryCreated) {
+              const memoryContent = remainingSummary.substring(0, MAX_MEMORY_LENGTH);
+              remainingSummary = remainingSummary.substring(MAX_MEMORY_LENGTH);
+              
+              const newMemory = await prisma.detailed_memories.create({
+                data: {
+                  chatId: chatIdNum,
+                  content: memoryContent,
+                  keywords: extractedKeywords,
+                },
+              });
+              
+              if (!firstMemoryCreated) {
+                firstMemoryCreated = true;
+                firstBatchCompleted = true;
               }
-
-              const extractedKeywords = extractKeywords(conversationText);
               
-              // 2000文字を超える場合は複数のメモリに分割
-              let remainingSummary = summary;
-              
-              while (remainingSummary.length > 0) {
-                const memoryContent = remainingSummary.substring(0, MAX_MEMORY_LENGTH);
-                remainingSummary = remainingSummary.substring(MAX_MEMORY_LENGTH);
-                
-                const newMemory = await prisma.detailed_memories.create({
-                  data: {
-                    chatId: chatIdNum,
-                    content: memoryContent,
-                    keywords: extractedKeywords,
-                  },
-                });
-                
-                // embedding生成（非同期）
-                (async () => {
-                  try {
-                    const embedding = await getEmbedding(memoryContent);
-                    const embeddingString = `[${embedding.join(',')}]`;
-                    await prisma.$executeRawUnsafe(
-                      `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
-                      embeddingString,
-                      newMemory.id
-                    );
-                  } catch (error) {
-                    console.error('詳細記憶embedding生成エラー:', error);
-                  }
-                })();
-                
-                if (remainingSummary.length <= MAX_MEMORY_LENGTH) {
-                  if (remainingSummary.length > 0) {
-                    const finalMemory = await prisma.detailed_memories.create({
-                      data: {
-                        chatId: chatIdNum,
-                        content: remainingSummary.substring(0, MAX_MEMORY_LENGTH),
-                        keywords: extractedKeywords,
-                      },
-                    });
-                    
-                    (async () => {
-                      try {
-                        const embedding = await getEmbedding(finalMemory.content);
-                        const embeddingString = `[${embedding.join(',')}]`;
-                        await prisma.$executeRawUnsafe(
-                          `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
-                          embeddingString,
-                          finalMemory.id
-                        );
-                      } catch (error) {
-                        console.error('詳細記憶embedding生成エラー:', error);
-                      }
-                    })();
-                  }
-                  break;
+              // embedding生成（非同期）
+              (async () => {
+                try {
+                  const embedding = await getEmbedding(memoryContent);
+                  const embeddingString = `[${embedding.join(',')}]`;
+                  await prisma.$executeRawUnsafe(
+                    `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+                    embeddingString,
+                    newMemory.id
+                  );
+                } catch (error) {
+                  console.error('詳細記憶embedding生成エラー:', error);
                 }
-              }
+              })();
               
-              console.log(`バッチ ${count} 要約完了`);
-            } catch (error) {
-              console.error(`バッチ ${count} 要約エラー:`, error);
+              if (remainingSummary.length <= MAX_MEMORY_LENGTH) {
+                if (remainingSummary.length > 0) {
+                  const finalMemory = await prisma.detailed_memories.create({
+                    data: {
+                      chatId: chatIdNum,
+                      content: remainingSummary.substring(0, MAX_MEMORY_LENGTH),
+                      keywords: extractedKeywords,
+                    },
+                  });
+                  
+                  (async () => {
+                    try {
+                      const embedding = await getEmbedding(finalMemory.content);
+                      const embeddingString = `[${embedding.join(',')}]`;
+                      await prisma.$executeRawUnsafe(
+                        `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+                        embeddingString,
+                        finalMemory.id
+                      );
+                    } catch (error) {
+                      console.error('詳細記憶embedding生成エラー:', error);
+                    }
+                  })();
+                }
+                break;
+              }
             }
-          })();
-          
-          // 順次処理のため、各バッチ間に少し待機（サーバー負荷軽減）
-          if (count < initialCount) {
-            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            console.log(`最初のバッチ（1個）要約完了`);
           }
+        } catch (error) {
+          console.error(`最初のバッチ要約エラー:`, error);
         }
-      };
+      }
 
-      // 最初の10個を非同期で処理開始（ブロックしない）
-      summarizeInitialBatches().catch(console.error);
+      // 最初の10個を非同期で処理開始（2個目から、ブロックしない）
+      if (messagesToSummarize.length > 1) {
+        const summarizeRemainingInitialBatches = async () => {
+          const startCount = 2; // 2個目から開始
+          for (let count = startCount; count <= initialCount; count++) {
+            const batchMessages = messagesToSummarize.slice(0, count);
+            
+            if (batchMessages.length === 0) continue;
+
+            const conversationText = batchMessages
+              .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
+              .join('\n\n');
+
+            // 要約処理（非同期）
+            (async () => {
+              try {
+                console.log(`バッチ ${count} 要約開始 (${batchMessages.length}件)`);
+                const vertex_ai = new VertexAI({
+                  project: process.env.GOOGLE_PROJECT_ID || '',
+                  location: 'asia-northeast1',
+                });
+
+                const generativeModel = vertex_ai.getGenerativeModel({
+                  model: 'gemini-2.5-flash',
+                  safetySettings,
+                });
+
+                const prompt = `以下の会話履歴を、AIが理解しやすいように要約してください。
+
+【重要】
+- 会話の進行内容と実際の出来事のみを要約してください
+- 背景設定、キャラクター説明、初期状況などの固定情報は含めないでください
+- ユーザーとAIの実際の対話と行動のみを要約してください
+- 会話の重要なポイント、イベント、感情の変化などを漏れなく含めてください
+- 要約は詳細に記述してください（2000文字以内、可能な限り詳細に）
+
+会話履歴：
+${conversationText}`;
+
+                const result = await generativeModel.generateContent(prompt);
+                const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+                if (!summary) {
+                  console.error(`バッチ ${count} 要約が空です`);
+                  return;
+                }
+
+                const extractedKeywords = extractKeywords(conversationText);
+                
+                // 2000文字を超える場合は複数のメモリに分割
+                let remainingSummary = summary;
+                
+                while (remainingSummary.length > 0) {
+                  const memoryContent = remainingSummary.substring(0, MAX_MEMORY_LENGTH);
+                  remainingSummary = remainingSummary.substring(MAX_MEMORY_LENGTH);
+                  
+                  const newMemory = await prisma.detailed_memories.create({
+                    data: {
+                      chatId: chatIdNum,
+                      content: memoryContent,
+                      keywords: extractedKeywords,
+                    },
+                  });
+                  
+                  // embedding生成（非同期）
+                  (async () => {
+                    try {
+                      const embedding = await getEmbedding(memoryContent);
+                      const embeddingString = `[${embedding.join(',')}]`;
+                      await prisma.$executeRawUnsafe(
+                        `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+                        embeddingString,
+                        newMemory.id
+                      );
+                    } catch (error) {
+                      console.error('詳細記憶embedding生成エラー:', error);
+                    }
+                  })();
+                  
+                  if (remainingSummary.length <= MAX_MEMORY_LENGTH) {
+                    if (remainingSummary.length > 0) {
+                      const finalMemory = await prisma.detailed_memories.create({
+                        data: {
+                          chatId: chatIdNum,
+                          content: remainingSummary.substring(0, MAX_MEMORY_LENGTH),
+                          keywords: extractedKeywords,
+                        },
+                      });
+                      
+                      (async () => {
+                        try {
+                          const embedding = await getEmbedding(finalMemory.content);
+                          const embeddingString = `[${embedding.join(',')}]`;
+                          await prisma.$executeRawUnsafe(
+                            `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+                            embeddingString,
+                            finalMemory.id
+                          );
+                        } catch (error) {
+                          console.error('詳細記憶embedding生成エラー:', error);
+                        }
+                      })();
+                    }
+                    break;
+                  }
+                }
+                
+                console.log(`バッチ ${count} 要約完了`);
+              } catch (error) {
+                console.error(`バッチ ${count} 要約エラー:`, error);
+              }
+            })();
+            
+            // 順次処理のため、各バッチ間に少し待機（サーバー負荷軽減）
+            if (count < initialCount) {
+              await new Promise(resolve => setTimeout(resolve, 200));
+            }
+          }
+        };
+        
+        summarizeRemainingInitialBatches().catch(console.error);
+      }
 
       // 10個以降は5個単位で要約（非同期、バックグラウンド処理）
       if (messagesToSummarize.length > 10) {
@@ -287,13 +407,14 @@ ${conversationText}`;
                 safetySettings,
               });
 
-              const prompt = `以下の会話履歴を、AIが理解しやすいように簡潔に要約してください。
+              const prompt = `以下の会話履歴を、AIが理解しやすいように要約してください。
 
 【重要】
 - 会話の進行内容と実際の出来事のみを要約してください
 - 背景設定、キャラクター説明、初期状況などの固定情報は含めないでください
 - ユーザーとAIの実際の対話と行動のみを要約してください
-- 2000文字以内で簡潔に記述してください
+- 会話の重要なポイント、イベント、感情の変化などを漏れなく含めてください
+- 要約は詳細に記述してください（2000文字以内、可能な限り詳細に）
 
 会話履歴：
 ${conversationText}`;
@@ -377,7 +498,11 @@ ${conversationText}`;
         })().catch(console.error);
       }
 
-      // 最初のメモリを返す（既存のコードとの互換性のため）
+      // 最初のメモリを返す（最初のバッチが完了しているはず）
+      if (!firstBatchCompleted) {
+        return NextResponse.json({ error: 'メモリの作成に失敗しました。' }, { status: 500 });
+      }
+
       const firstMemory = await prisma.detailed_memories.findFirst({
         where: { chatId: chatIdNum },
         orderBy: { createdAt: 'desc' },
@@ -388,7 +513,7 @@ ${conversationText}`;
       }
 
       return NextResponse.json({ 
-        memory: { ...firstMemory, index: existingCount + 1 },
+        memory: { ...firstMemory, index: 1 },
         message: '再要約を開始しました。最初の10個まで処理し、その後5個単位でバックグラウンドで処理されます。'
       });
     } else {

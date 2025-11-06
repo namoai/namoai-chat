@@ -184,15 +184,16 @@ export default function ChatPage() {
   const scrollToBottom = useCallback(() => {
     // 複数の方法を試行して確実にスクロール
     const attemptScroll = () => {
-      // 方法1: messagesEndRefを使用
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
-      }
-      
-      // 方法2: main要素のscrollTopを直接設定
+      // 方法1: main要素のscrollTopを直接設定（最優先）
       if (mainScrollRef.current) {
         const scrollContainer = mainScrollRef.current;
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+        scrollContainer.scrollTop = maxScroll;
+      }
+      
+      // 方法2: messagesEndRefを使用
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
       }
       
       // 方法3: window.scrollToも試行（フォールバック）
@@ -212,10 +213,14 @@ export default function ChatPage() {
       setTimeout(() => {
         attemptScroll();
         
-        // 最後の試行
+        // 追加の遅延で再度試行
         setTimeout(() => {
           attemptScroll();
-        }, 100);
+          // 最後の 확실한 시도
+          setTimeout(() => {
+            attemptScroll();
+          }, 200);
+        }, 300);
       }, 100);
     });
   }, []);

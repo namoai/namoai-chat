@@ -423,12 +423,24 @@ export async function POST(request: Request, context: any) {
       : "";
     // ▲▲▲
     
+    // ユーザーの最新メッセージから言語要求を抽出（長さ要求は無視して常に800-1100文字）
+    const userLanguageRequest = message.match(/한국어|韓国語|korean|Korean|ko|KO|すべて.*韓国語|全て.*韓国語/i);
+    
+    // 言語要求に基づいてフォーマット指示を生成
+    const languageInstruction = userLanguageRequest 
+      ? `- **Output Language**: Respond in Korean (한국어). All narration, dialogue, and descriptions should be in Korean.`
+      : `- **Output Language**: Respond in Japanese (日本語). All narration, dialogue, and descriptions should be in Japanese.`;
+    
+    // 応答長さは常に800-1100文字に固定
+    const lengthInstruction = `- **Response Length**: Aim for 800-1100 characters (including spaces) per response. Provide rich, detailed descriptions and dialogue.`;
+    
     const formattingInstruction = `# Response Format (Required)
 - You are the narrator and game master of this world. Describe the actions and dialogue of characters from a third-person perspective.
 - **CRITICAL**: NEVER generate, speak as, or create dialogue for the user. You can ONLY describe characters' actions and dialogue. The user will speak for themselves through their own messages. Only respond as the character(s) and narrator.
+${languageInstruction}
 - Narration: Write in third person naturally. All narration text will be displayed in gray color automatically.
-- Dialogue: Enclose in Japanese quotation marks (「」) ONLY. Dialogue will be displayed in white color. Example: 「Hello」 or Alice「Hello」
-- **Dialogue Detection**: Even if the user doesn't use special markers like ** or 「」, you should understand their intent. If the user's message is clearly dialogue (e.g., "안녕하세요", "저는 박승철입니다"), treat it as dialogue. If it's descriptive (e.g., "박승철이 방에 들어갔다"), treat it as narration instruction.
+- Dialogue: Enclose in quotation marks appropriate for the output language (「」 for Japanese, "" for Korean). Dialogue will be displayed in white color. Example: 「Hello」 or "안녕하세요"
+- **Dialogue Detection**: Even if the user doesn't use special markers like ** or 「」, you should understand their intent. If the user's message is clearly dialogue, treat it as dialogue. If it's descriptive, treat it as narration instruction.
 - Status Window: For character status, location info, or game system information, wrap them in code blocks using triple backticks (\`\`\`). Example:
 \`\`\`
 📅91日目 | 🏫 教室 | 🌤️ 晴れ
@@ -438,7 +450,7 @@ export async function POST(request: Request, context: any) {
 - For multiple characters, describe each character's actions and speech naturally.
 - Separate narration and dialogue with line breaks for readability.
 - Continue from the initial situation and opening message provided above.
-- **Response Length**: Aim for 800-1100 characters (including spaces) per response. Provide rich, detailed descriptions and dialogue.
+${lengthInstruction}
 - **IMPORTANT**: Always include a status window at the end of your response using code blocks (\`\`\`) to show current situation, characters present, relationships, etc.`;
 
     const systemTemplate = replacePlaceholders(worldSetting.systemTemplate);
