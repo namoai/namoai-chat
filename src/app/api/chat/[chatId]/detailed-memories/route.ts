@@ -12,8 +12,8 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
-const MAX_DETAILED_MEMORIES = 3;
 const MAX_MEMORY_LENGTH = 2000;
+// 注意: 保存個数制限は削除されました。適用時の最大個数は3個です（route.tsで制御）。
 
 // GET: 詳細記憶の一覧を取得
 export async function GET(
@@ -102,10 +102,7 @@ export async function POST(
     });
 
     if (autoSummarize) {
-      // 自動要約の場合
-      if (existingCount >= MAX_DETAILED_MEMORIES) {
-        return NextResponse.json({ error: `詳細記憶は最大${MAX_DETAILED_MEMORIES}個までです。` }, { status: 400 });
-      }
+      // 自動要約の場合（保存個数制限なし、ただし適用時は最大3個まで）
 
       // 最新の会話を取得
       const messages = await prisma.chat_message.findMany({
@@ -152,12 +149,11 @@ ${conversationText}`;
       // キーワードを抽出（簡単な方法：会話から重要な単語を抽出）
       const extractedKeywords = extractKeywords(conversationText);
       
-      // 2000文字を超える場合は複数のメモリに分割
+      // 2000文字を超える場合は複数のメモリに分割（保存個数制限なし）
       const createdMemories = [];
       let remainingSummary = summary;
-      let currentIndex = existingCount;
       
-      while (remainingSummary.length > 0 && currentIndex < MAX_DETAILED_MEMORIES) {
+      while (remainingSummary.length > 0) {
         const memoryContent = remainingSummary.substring(0, MAX_MEMORY_LENGTH);
         remainingSummary = remainingSummary.substring(MAX_MEMORY_LENGTH);
         
@@ -194,7 +190,7 @@ ${conversationText}`;
       }
       
       // 最後の残り部分がある場合
-      if (remainingSummary.length > 0 && currentIndex < MAX_DETAILED_MEMORIES) {
+      if (remainingSummary.length > 0) {
         const finalMemory = await prisma.detailed_memories.create({
           data: {
             chatId: chatIdNum,
@@ -233,10 +229,7 @@ ${conversationText}`;
         createdCount: createdMemories.length 
       });
     } else {
-      // 手動作成の場合
-      if (existingCount >= MAX_DETAILED_MEMORIES) {
-        return NextResponse.json({ error: `詳細記憶は最大${MAX_DETAILED_MEMORIES}個までです。` }, { status: 400 });
-      }
+      // 手動作成の場合（保存個数制限なし）
 
       if (!content || content.length > MAX_MEMORY_LENGTH) {
         return NextResponse.json({ error: `内容は${MAX_MEMORY_LENGTH}文字以内で入力してください。` }, { status: 400 });
