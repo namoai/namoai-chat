@@ -109,14 +109,26 @@ export async function POST(
       // 自動要約の場合（保存個数制限なし、ただし適用時は最大3個まで）
       console.log('自動要約モード開始, chatId:', chatIdNum);
 
-      // 最新の会話を取得（10件に減らして高速化）
+      // 全メッセージ数を取得して自動的に適切な数を選択
+      const totalMessageCount = await prisma.chat_message.count({
+        where: {
+          chatId: chatIdNum,
+          isActive: true,
+        },
+      });
+
+      // メッセージ数に応じて取得数を自動調整（多くても20件、少なければ全件）
+      const takeCount = totalMessageCount <= 20 ? totalMessageCount : 20;
+      console.log(`全メッセージ数: ${totalMessageCount}, 取得数: ${takeCount}`);
+
+      // 最新の会話を取得
       const messages = await prisma.chat_message.findMany({
         where: {
           chatId: chatIdNum,
           isActive: true,
         },
         orderBy: { createdAt: 'desc' },
-        take: 10,
+        take: takeCount,
       });
 
       if (messages.length === 0) {
@@ -137,9 +149,9 @@ export async function POST(
         location: 'asia-northeast1',
       });
 
-      // より高速なモデルを使用（gemini-2.5-flash）
+      // gemini-2.5-proを使用（高品質な要約のため）
       const generativeModel = vertex_ai.getGenerativeModel({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.5-pro',
         safetySettings,
       });
 

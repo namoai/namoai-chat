@@ -160,14 +160,26 @@ export async function POST(
       return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
     }
 
-    // 会話履歴を取得（最新30件に減らして高速化）
+    // 全メッセージ数を取得して自動的に適切な数を選択
+    const totalMessageCount = await prisma.chat_message.count({
+      where: {
+        chatId: chatIdNum,
+        isActive: true,
+      },
+    });
+
+    // メッセージ数に応じて取得数を自動調整（多くても50件、少なければ全件）
+    const takeCount = totalMessageCount <= 50 ? totalMessageCount : 50;
+    console.log(`全メッセージ数: ${totalMessageCount}, 取得数: ${takeCount}`);
+
+    // 会話履歴を取得
     const messages = await prisma.chat_message.findMany({
       where: {
         chatId: chatIdNum,
         isActive: true,
       },
       orderBy: { createdAt: 'asc' },
-      take: 30,
+      take: takeCount,
     });
 
     if (messages.length === 0) {
@@ -185,9 +197,9 @@ export async function POST(
       location: 'asia-northeast1',
     });
 
-    // より高速なモデルを使用（gemini-2.5-flash）
+    // gemini-2.5-proを使用（高品質な要約のため）
     const generativeModel = vertex_ai.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.5-pro',
       safetySettings,
     });
 
