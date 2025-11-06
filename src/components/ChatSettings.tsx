@@ -186,15 +186,7 @@ export default function ChatSettings({
   const [isBackMemoryModalOpen, setIsBackMemoryModalOpen] = useState(false);
   const [isDetailedMemoryModalOpen, setIsDetailedMemoryModalOpen] = useState(false);
   const [backMemory, setBackMemory] = useState({ content: '', autoSummarize: true });
-  const [detailedMemories, setDetailedMemories] = useState<any[]>([]);
-
-  // バックメモリと詳細記憶を読み込む
-  useEffect(() => {
-    if (isOpen && chatId) {
-      fetchBackMemory();
-      fetchDetailedMemories();
-    }
-  }, [isOpen, chatId]);
+  const [detailedMemories, setDetailedMemories] = useState<Array<{ id: number; content: string; keywords: string[]; createdAt: string; index: number }>>([]);
 
   const fetchBackMemory = async () => {
     if (!chatId) return;
@@ -222,6 +214,15 @@ export default function ChatSettings({
     }
   };
 
+  // バックメモリと詳細記憶を読み込む
+  useEffect(() => {
+    if (isOpen && chatId) {
+      fetchBackMemory();
+      fetchDetailedMemories();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, chatId]);
+
   const handleSaveBackMemory = async (content: string, autoSummarize: boolean) => {
     if (!chatId) return;
     try {
@@ -239,7 +240,7 @@ export default function ChatSettings({
     }
   };
 
-  const handleSaveDetailedMemory = async (memory: any) => {
+  const handleSaveDetailedMemory = async (memory: { content: string; keywords: string[] }) => {
     if (!chatId) return;
     try {
       const res = await fetch(`/api/chat/${chatId}/detailed-memories`, {
@@ -288,7 +289,7 @@ export default function ChatSettings({
     }
   };
 
-  const handleAutoSummarizeDetailedMemory = async (index: number) => {
+  const handleAutoSummarizeDetailedMemory = async () => {
     if (!chatId) return;
     try {
       const res = await fetch(`/api/chat/${chatId}/detailed-memories`, {

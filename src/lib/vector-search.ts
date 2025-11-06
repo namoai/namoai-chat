@@ -24,7 +24,6 @@ export async function vectorSimilaritySearch<T extends { id: number }>(
   }
 
   const embeddingString = embeddingToVectorString(queryEmbedding);
-  const similarityOperator = '<=';
   
   // WHERE句を構成
   const whereSQL = whereClause ? `WHERE ${whereClause} AND` : 'WHERE';

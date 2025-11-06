@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Search, MoreVertical, Clock } from 'lucide-react';
 
 type DetailedMemory = {
@@ -24,9 +24,7 @@ type DetailedMemoryModalProps = {
 export default function DetailedMemoryModal({
   isOpen,
   onClose,
-  chatId,
   memories,
-  onSave,
   onUpdate,
   onDelete,
   onAutoSummarize,
@@ -127,13 +125,13 @@ export default function DetailedMemoryModal({
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">全体記憶</h3>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => onAutoSummarize(0)}
-                  className="flex items-center gap-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-md text-sm"
-                >
-                  <Clock size={16} />
-                  <span>再要約</span>
-                </button>
+              <button
+                onClick={() => onAutoSummarize(1)}
+                className="flex items-center gap-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-md text-sm"
+              >
+                <Clock size={16} />
+                <span>再要約</span>
+              </button>
                 <select
                   value={sortOrder}
                   onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}

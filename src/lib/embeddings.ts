@@ -1,5 +1,4 @@
 import OpenAI from 'openai';
-import { loadSecret } from './secrets-loader';
 
 // OpenAIクライアントを遅延初期化
 let openaiClient: OpenAI | null = null;

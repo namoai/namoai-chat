@@ -223,16 +223,12 @@ ${conversationText}`;
 
 // PUT: 詳細記憶を更新
 export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ chatId: string }> }
+  request: NextRequest
 ) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
     return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
   }
-
-  const { chatId } = await params;
-  const chatIdNum = parseInt(chatId, 10);
 
   try {
     const { memoryId, content } = await request.json();
@@ -285,15 +281,13 @@ export async function PUT(
 
 // DELETE: 詳細記憶を削除
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ chatId: string }> }
+  request: NextRequest
 ) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
     return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
   }
 
-  const { chatId } = await params;
   const searchParams = request.nextUrl.searchParams;
   const memoryId = searchParams.get('memoryId');
 
