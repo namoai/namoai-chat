@@ -206,7 +206,7 @@ export async function POST(request: Request, context: any) {
             }),
             prisma.detailed_memories.findMany({
                 where: { chatId: chatId },
-                orderBy: { createdAt: "desc" },
+                orderBy: { createdAt: "asc" }, // 順番通りに適用するため昇順
             }),
         ]);
         
@@ -331,50 +331,34 @@ export async function POST(request: Request, context: any) {
     const triggeredMemoryIds = new Set<number>();
     
     if (detailedMemories && detailedMemories.length > 0) {
-      // 1. ベクトル検索（embeddingがある場合、非同期で実行）
-      const vectorSearchPromise = (async () => {
-        try {
-          const messageEmbedding = await getEmbedding(message);
-          const vectorMatched = await searchSimilarDetailedMemories(messageEmbedding, chatId, 3);
-          return vectorMatched;
-        } catch (error) {
-          console.error('ベクトル検索エラー:', error);
-          return [];
-        }
-      })();
+      // 1-3個の場合は必ず全て適用、4個以上の場合はキーワードマッチングで最大3個選択
+      const memoryCount = detailedMemories.length;
       
-      // ベクトル検索結果を待機（タイムアウト付き）
-      try {
-        const vectorMatched = await Promise.race([
-          vectorSearchPromise,
-          new Promise<[]>(resolve => setTimeout(() => resolve([]), 1500)) // 1.5秒タイムアウト
-        ]);
-        
-        for (const mem of vectorMatched) {
-          if (triggeredMemories.length >= 3 || triggeredMemoryIds.has(mem.id)) continue;
-          triggeredMemories.push(mem.content);
-          triggeredMemoryIds.add(mem.id);
-          // 最後に適用された時刻を更新（非同期、エラー無視）
+      if (memoryCount <= 3) {
+        // 1-3個の場合は順番通りに全て適用（createdAt順）
+        for (const memory of detailedMemories) {
+          triggeredMemories.push(memory.content);
+          triggeredMemoryIds.add(memory.id);
+          // 非同期で更新（エラー無視）
           prisma.detailed_memories.update({
-            where: { id: mem.id },
+            where: { id: memory.id },
             data: { lastApplied: new Date() },
           }).catch(() => {});
         }
-      } catch {
-        // エラーは無視して続行
-      }
-      
-      // 2. キーワードマッチング（ベクトル検索で見つからなかった場合の補完）
-      if (triggeredMemories.length < 3) {
+        console.log(`詳細記憶: ${memoryCount}個全て適用（1-3個のため全適用）`);
+      } else {
+        // 4個以上の場合はキーワードマッチングで最大3個選択
         const lowerMessage = message.toLowerCase();
         const lowerHistory = orderedHistory.length > 0 
           ? orderedHistory.map(msg => msg.content.toLowerCase()).join(' ')
           : '';
         const combinedText = lowerHistory ? `${lowerMessage} ${lowerHistory}` : lowerMessage;
         
+        // キーワードマッチングで順番通りに選択（createdAt順）
         for (const memory of detailedMemories) {
-          if (triggeredMemories.length >= 3 || triggeredMemoryIds.has(memory.id)) break;
+          if (triggeredMemories.length >= 3) break;
           
+          // キーワードがある場合はマッチング、ない場合はスキップ
           if (memory.keywords && Array.isArray(memory.keywords) && memory.keywords.length > 0) {
             const hasMatch = memory.keywords.some((keyword) => {
               return keyword && combinedText.includes(keyword.toLowerCase());
@@ -391,6 +375,23 @@ export async function POST(request: Request, context: any) {
             }
           }
         }
+        
+        // キーワードマッチングで3個に満たない場合は、順番通りに追加（キーワードなしでも）
+        if (triggeredMemories.length < 3) {
+          for (const memory of detailedMemories) {
+            if (triggeredMemories.length >= 3) break;
+            if (triggeredMemoryIds.has(memory.id)) continue;
+            
+            triggeredMemories.push(memory.content);
+            triggeredMemoryIds.add(memory.id);
+            // 非同期で更新（エラー無視）
+            prisma.detailed_memories.update({
+              where: { id: memory.id },
+              data: { lastApplied: new Date() },
+            }).catch(() => {});
+          }
+        }
+        console.log(`詳細記憶: キーワードマッチングで${triggeredMemories.length}個適用`);
       }
     }
     console.timeEnd("⏱️ Detailed Memory Search");
