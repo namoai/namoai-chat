@@ -11,7 +11,7 @@ import {
 } from "@google-cloud/vertexai";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
-import { getEmbedding, embeddingToVectorString } from "@/lib/embeddings";
+import { getEmbedding } from "@/lib/embeddings";
 import { searchSimilarMessages, searchSimilarDetailedMemories } from "@/lib/vector-search";
 
 // VertexAIクライアントの初期化
@@ -350,7 +350,7 @@ export async function POST(request: Request, context: any) {
             data: { lastApplied: new Date() },
           }).catch(() => {});
         }
-      } catch (error) {
+      } catch {
         // エラーは無視して続行
       }
       

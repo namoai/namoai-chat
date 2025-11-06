@@ -64,7 +64,6 @@ export async function searchSimilarMessages(
     return [];
   }
 
-  const embeddingString = embeddingToVectorString(queryEmbedding);
   const excludeClause = excludeTurnIds.length > 0 
     ? `"chatId" = ${chatId} AND "isActive" = true AND "turnId" NOT IN (${excludeTurnIds.join(',')})`
     : `"chatId" = ${chatId} AND "isActive" = true`;
