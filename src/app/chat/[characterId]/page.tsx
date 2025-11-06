@@ -817,17 +817,22 @@ export default function ChatPage() {
                             ));
                         }
                     } else if (eventData.modelMessage) {
-                        // 最終メッセージで更新（画像URLも含める）
-                        const finalMessage = {
-                            ...eventData.modelMessage,
-                            timestamp: new Date(eventData.modelMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-                            imageUrls: eventData.modelMessage.imageUrls || [],
-                        };
-                        setRawMessages(prev => prev.map(m => 
-                            m.id === tempModelMessageId
-                                ? finalMessage
-                                : m
-                        ));
+                        // 最終メッセージで更新（ストリーミング中に収集した画像URLを保持）
+                        setRawMessages(prev => prev.map(m => {
+                            if (m.id === tempModelMessageId) {
+                                // ストリーミング中に収集した画像URLを保持（重複除去）
+                                const existingImageUrls = m.imageUrls || [];
+                                const serverImageUrls = eventData.modelMessage.imageUrls || [];
+                                const allImageUrls = [...new Set([...existingImageUrls, ...serverImageUrls])];
+                                
+                                return {
+                                    ...eventData.modelMessage,
+                                    timestamp: new Date(eventData.modelMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+                                    imageUrls: allImageUrls,
+                                };
+                            }
+                            return m;
+                        }));
                     } else if (eventData.error) {
                         throw new Error(eventData.error);
                     }
