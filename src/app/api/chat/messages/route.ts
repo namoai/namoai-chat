@@ -191,26 +191,67 @@ export async function POST(request: NextRequest) {
         let detailedMemoryInfo = "";
         const detailedMemories = await prisma.detailed_memories.findMany({
           where: { chatId: chatId },
-          orderBy: { createdAt: "desc" },
+          orderBy: { createdAt: "asc" }, // 順番通りに適用するため昇順
         });
         
         if (detailedMemories && detailedMemories.length > 0) {
-          // キーワードマッチング（ベクトル検索は省略して高速化）
           const triggeredMemories: string[] = [];
-          const lowerMessage = userMessageForTurn.content.toLowerCase();
-          const lowerHistory = historyMessages.map(msg => msg.content.toLowerCase()).join(' ');
-          const combinedText = `${lowerMessage} ${lowerHistory}`;
+          const memoryCount = detailedMemories.length;
           
-          for (const memory of detailedMemories) {
-            if (triggeredMemories.length >= 3) break;
-            if (memory.keywords && Array.isArray(memory.keywords) && memory.keywords.length > 0) {
-              const hasMatch = memory.keywords.some((keyword) => {
-                return keyword && combinedText.includes(keyword.toLowerCase());
-              });
-              if (hasMatch) {
-                triggeredMemories.push(memory.content);
+          if (memoryCount <= 3) {
+            // 1-3個の場合は必ず全て適用（順番通り）
+            for (const memory of detailedMemories) {
+              triggeredMemories.push(memory.content);
+              // 非同期で更新（エラー無視）
+              prisma.detailed_memories.update({
+                where: { id: memory.id },
+                data: { lastApplied: new Date() },
+              }).catch(() => {});
+            }
+            console.log(`再生成詳細記憶: ${memoryCount}個全て適用（1-3個のため全適用）`);
+          } else {
+            // 4個以上の場合はキーワードマッチングで最大3個選択
+            const lowerMessage = userMessageForTurn.content.toLowerCase();
+            const lowerHistory = historyMessages.map(msg => msg.content.toLowerCase()).join(' ');
+            const combinedText = `${lowerMessage} ${lowerHistory}`;
+            const triggeredMemoryIds = new Set<number>();
+            
+            // キーワードマッチングで順番通りに選択
+            for (const memory of detailedMemories) {
+              if (triggeredMemories.length >= 3) break;
+              
+              if (memory.keywords && Array.isArray(memory.keywords) && memory.keywords.length > 0) {
+                const hasMatch = memory.keywords.some((keyword) => {
+                  return keyword && combinedText.includes(keyword.toLowerCase());
+                });
+                if (hasMatch) {
+                  triggeredMemories.push(memory.content);
+                  triggeredMemoryIds.add(memory.id);
+                  // 非同期で更新（エラー無視）
+                  prisma.detailed_memories.update({
+                    where: { id: memory.id },
+                    data: { lastApplied: new Date() },
+                  }).catch(() => {});
+                }
               }
             }
+            
+            // キーワードマッチングで3個に満たない場合は、順番通りに追加
+            if (triggeredMemories.length < 3) {
+              for (const memory of detailedMemories) {
+                if (triggeredMemories.length >= 3) break;
+                if (triggeredMemoryIds.has(memory.id)) continue;
+                
+                triggeredMemories.push(memory.content);
+                triggeredMemoryIds.add(memory.id);
+                // 非同期で更新（エラー無視）
+                prisma.detailed_memories.update({
+                  where: { id: memory.id },
+                  data: { lastApplied: new Date() },
+                }).catch(() => {});
+              }
+            }
+            console.log(`再生成詳細記憶: キーワードマッチングで${triggeredMemories.length}個適用`);
           }
           
           if (triggeredMemories.length > 0) {
