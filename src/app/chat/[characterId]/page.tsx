@@ -180,6 +180,33 @@ export default function ChatPage() {
     loadCharacterInfo();
   }, [characterId, router]);
 
+  // 最下部へスクロールする関数
+  const scrollToBottom = useCallback(() => {
+    // 複数の方法で確実にスクロール
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        // 方法1: messagesEndRefを使用
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+        }
+        // 方法2: main要素のscrollTopを直接設定
+        if (mainScrollRef.current) {
+          mainScrollRef.current.scrollTop = mainScrollRef.current.scrollHeight;
+        }
+      }, 50);
+      
+      // 追加で確実にスクロール（2回試行）
+      setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+        }
+        if (mainScrollRef.current) {
+          mainScrollRef.current.scrollTop = mainScrollRef.current.scrollHeight;
+        }
+      }, 200);
+    });
+  }, []);
+
   useEffect(() => {
     if (!characterId) return;
     const chatIdFromUrl = searchParams.get("chatId");
@@ -235,34 +262,6 @@ export default function ChatPage() {
     };
     loadChatSession();
   }, [characterId, searchParams, router, scrollToBottom]);
-
-
-  // 最下部へスクロールする関数
-  const scrollToBottom = useCallback(() => {
-    // 複数の方法で確実にスクロール
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        // 方法1: messagesEndRefを使用
-        if (messagesEndRef.current) {
-          messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
-        }
-        // 方法2: main要素のscrollTopを直接設定
-        if (mainScrollRef.current) {
-          mainScrollRef.current.scrollTop = mainScrollRef.current.scrollHeight;
-        }
-      }, 50);
-      
-      // 追加で確実にスクロール（2回試行）
-      setTimeout(() => {
-        if (messagesEndRef.current) {
-          messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
-        }
-        if (mainScrollRef.current) {
-          mainScrollRef.current.scrollTop = mainScrollRef.current.scrollHeight;
-        }
-      }, 200);
-    });
-  }, []);
 
   // チャットルームに入った時、メッセージ追加時、新規ロード時に確実に最下部へスクロール
   useEffect(() => {
