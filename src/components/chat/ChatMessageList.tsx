@@ -98,6 +98,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   // ▲▲▲ 修正ここまで ▲▲▲
 
   return (
+    <React.Fragment>
     <>
       {/* 初期状況と初期メッセージを常に表示（チャット形式で統一） */}
       {(characterInfo.firstSituation || characterInfo.firstMessage) && (
@@ -244,7 +245,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           </div>
         </div>
       )}
-    </>
+    </React.Fragment>
   );
 };
 
