@@ -1,5 +1,5 @@
 // src/components/chat/ChatMessageList.tsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, Fragment } from 'react';
 import Image from 'next/image';
 import { Edit3, Trash2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import ChatMessageParser from '@/components/ChatMessageParser';
@@ -98,7 +98,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   // ▲▲▲ 修正ここまで ▲▲▲
 
   return (
-    <React.Fragment>
+    <Fragment>
       {/* 初期状況と初期メッセージを常に表示（チャット形式で統一） */}
       {(characterInfo.firstSituation || characterInfo.firstMessage) && (
         <div className="space-y-4">
@@ -244,7 +244,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           </div>
         </div>
       )}
-    </React.Fragment>
+    </Fragment>
   );
 };
 
