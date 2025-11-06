@@ -483,9 +483,6 @@ function extractKeywords(text: string): string[] {
     .slice(0, 10)
     .map(([word]) => word);
 }
-    return NextResponse.json({ error: '内部サーバーエラーが発生しました。' }, { status: 500 });
-  }
-}
 
 // PUT: 詳細記憶を更新
 export async function PUT(
