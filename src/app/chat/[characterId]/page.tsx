@@ -757,6 +757,10 @@ export default function ChatPage() {
             for (const line of lines) {
                 // イベントタイプを確認（一般チャットと同じ形式）
                 if (line.startsWith("event: ")) {
+                    const eventType = line.substring(7).trim();
+                    if (eventType === "heartbeat") {
+                        continue; // ハートビートは無視
+                    }
                     // ai-updateイベントは次のdata行で処理
                     continue;
                 }
@@ -768,6 +772,11 @@ export default function ChatPage() {
 
                 try {
                     const eventData = JSON.parse(dataStr);
+                    
+                    // ハートビートイベントをスキップ
+                    if (eventData.timestamp && Object.keys(eventData).length === 1) {
+                        continue;
+                    }
                     
                     if (eventData.responseChunk) {
                         // ▼▼▼【画像タグパース】{img:N}をimageUrlsに変換 ▼▼▼
