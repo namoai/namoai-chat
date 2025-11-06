@@ -102,7 +102,7 @@ export default function DetailedMemoryModal({
         <div className="flex justify-between items-center p-6 border-b border-gray-700">
           <div>
             <h2 className="text-2xl font-bold">詳細記憶</h2>
-            <p className="text-sm text-gray-400 mt-1">最大3つまで保存できます。関連キーワードで自動的に適用されます。</p>
+            <p className="text-sm text-gray-400 mt-1">無制限に保存できます。関連キーワードで自動的に適用され、適用時は最大3つまでです。</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-full transition-colors">
             <X size={24} />
