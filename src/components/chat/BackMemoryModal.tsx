@@ -81,8 +81,8 @@ export default function BackMemoryModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-gray-800 text-white rounded-lg w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4" onClick={onClose}>
+      <div className="bg-gray-800 text-white rounded-lg w-full max-w-2xl sm:max-w-4xl lg:max-w-6xl h-[85vh] sm:h-[90vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {/* ヘッダー */}
         <div className="flex justify-between items-center p-6 border-b border-gray-700">
           <div>
@@ -145,10 +145,17 @@ export default function BackMemoryModal({
               </div>
             </div>
           ) : (
-            <div className="w-full h-[500px] bg-gray-900 border border-gray-700 rounded-md p-4 overflow-y-auto">
-              <p className="text-white whitespace-pre-wrap text-sm leading-relaxed">
-                {content || <span className="text-gray-500">内容がありません。自動要約ボタンを押すか、編集ボタンで入力してください。</span>}
-              </p>
+            <div className="relative">
+              <div className="w-full h-[400px] sm:h-[500px] bg-gray-900 border border-gray-700 rounded-md p-4 overflow-y-auto">
+                <p className="text-white whitespace-pre-wrap text-sm leading-relaxed">
+                  {content || <span className="text-gray-500">内容がありません。自動要約ボタンを押すか、編集ボタンで入力してください。</span>}
+                </p>
+              </div>
+              {content && (
+                <div className="absolute bottom-4 right-4 text-sm text-gray-400">
+                  {content.length} / 3000
+                </div>
+              )}
             </div>
           )}
         </div>

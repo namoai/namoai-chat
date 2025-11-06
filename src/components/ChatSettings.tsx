@@ -289,7 +289,7 @@ export default function ChatSettings({
     }
   };
 
-  const handleAutoSummarizeDetailedMemory = async () => {
+  const handleAutoSummarizeDetailedMemory = async (index?: number) => {
     if (!chatId) return;
     try {
       const res = await fetch(`/api/chat/${chatId}/detailed-memories`, {

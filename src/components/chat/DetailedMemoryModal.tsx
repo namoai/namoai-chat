@@ -35,6 +35,7 @@ export default function DetailedMemoryModal({
   const [editingContent, setEditingContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [showMenuId, setShowMenuId] = useState<number | null>(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
 
   // 最近適用されたメモリを取得
   const recentlyApplied = memories
@@ -95,8 +96,8 @@ export default function DetailedMemoryModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-gray-800 text-white rounded-lg w-full max-w-6xl h-[90vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4" onClick={onClose}>
+      <div className="bg-gray-800 text-white rounded-lg w-full max-w-2xl sm:max-w-4xl lg:max-w-6xl h-[85vh] sm:h-[90vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {/* ヘッダー */}
         <div className="flex justify-between items-center p-6 border-b border-gray-700">
           <div>
@@ -129,11 +130,21 @@ export default function DetailedMemoryModal({
               <h3 className="text-lg font-semibold">全体記憶</h3>
               <div className="flex items-center gap-2">
               <button
-                onClick={() => onAutoSummarize(1)}
-                className="flex items-center gap-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-md text-sm"
+                onClick={async () => {
+                  setIsSummarizing(true);
+                  try {
+                    await onAutoSummarize(1);
+                  } catch (error) {
+                    console.error('再要約エラー:', error);
+                  } finally {
+                    setIsSummarizing(false);
+                  }
+                }}
+                disabled={isSummarizing}
+                className="flex items-center gap-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:opacity-50 rounded-md text-sm transition-colors"
               >
-                <Clock size={16} />
-                <span>再要約</span>
+                <Clock size={16} className={isSummarizing ? 'animate-spin' : ''} />
+                <span>{isSummarizing ? '要約中...' : '再要約'}</span>
               </button>
                 <select
                   value={sortOrder}
