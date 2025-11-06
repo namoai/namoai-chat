@@ -684,6 +684,164 @@ ${conversationText}`;
           }
           // ▲▲▲
           
+          // ▼▼▼【詳細記憶自動要約】autoSummarizeがONの場合、メッセージが追加されたら自動要約▼▼▼
+          if (backMemory && backMemory.autoSummarize) {
+            (async () => {
+              try {
+                // メッセージ数を取得
+                const messageCount = await prisma.chat_message.count({
+                  where: { chatId, isActive: true },
+                });
+                
+                // 要約を実行する条件:
+                // - 10個以下: 毎回実行（ただし2個以上）
+                // - 10個超過: 5個単位で実行（10, 15, 20, 25...）
+                let shouldSummarize = false;
+                if (messageCount <= 10) {
+                  shouldSummarize = messageCount >= 2; // 2個以上なら毎回（最初の1個はスキップ）
+                } else {
+                  shouldSummarize = messageCount % 5 === 0; // 5個単位
+                }
+                
+                if (shouldSummarize) {
+                  console.log(`詳細記憶自動要約を開始 (メッセージ数: ${messageCount})`);
+                  
+                  // 既存の詳細記憶数を確認（重複防止）
+                  const existingMemoriesCount = await prisma.detailed_memories.count({
+                    where: { chatId },
+                  });
+                  
+                  // 会話履歴を取得
+                  const messages = await prisma.chat_message.findMany({
+                    where: {
+                      chatId,
+                      isActive: true,
+                    },
+                    orderBy: { createdAt: 'asc' },
+                    take: messageCount <= 10 ? messageCount : 50, // 10個以下は全件、それ以上は最新50件
+                  });
+
+                  // メッセージが2個以上ある場合のみ要約実行
+                  if (messages.length >= 2) {
+                    // 要約範囲を決定: 1-1, 1-2, 1-3... 1-10, その後は 11-15, 16-20...
+                    let messagesToSummarize: typeof messages = [];
+                    
+                    if (messageCount <= 10) {
+                      // 1-10個: 1-1, 1-2, 1-3... 1-10 の順で要約
+                      messagesToSummarize = messages.slice(0, messageCount);
+                    } else {
+                      // 10個超過: 5個単位で要約（11-15, 16-20...）
+                      const startIndex = Math.floor((messageCount - 1) / 5) * 5; // 5の倍数に調整
+                      messagesToSummarize = messages.slice(startIndex, messageCount);
+                    }
+                    
+                    if (messagesToSummarize.length === 0) {
+                      console.log('要約するメッセージがありません');
+                      return;
+                    }
+                    
+                    // 会話をテキストに変換
+                    const conversationText = messagesToSummarize
+                      .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
+                      .join('\n\n');
+
+                    // Vertex AIで要約
+                    const summaryVertexAI = new VertexAI({
+                      project: process.env.GOOGLE_PROJECT_ID || '',
+                      location: 'asia-northeast1',
+                    });
+
+                    const summaryModel = summaryVertexAI.getGenerativeModel({
+                      model: 'gemini-2.5-flash',
+                      safetySettings,
+                    });
+
+                    const prompt = `以下の会話履歴を、AIが理解しやすいように簡潔に要約してください。
+
+【重要】
+- 会話の進行内容と実際の出来事のみを要約してください
+- 背景設定、キャラクター説明、初期状況などの固定情報は含めないでください
+- ユーザーとAIの実際の対話と行動のみを要約してください
+- 会話の重要なポイント、イベント、感情の変化などを簡潔に含めてください
+- 冗長な描写や詳細な状況説明は省略し、核心的な内容のみを記述してください
+- 要約は簡潔に記述してください（2000文字以内、可能な限り簡潔に）
+
+会話履歴：
+${conversationText}`;
+
+                    const result = await summaryModel.generateContent(prompt);
+                    const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+                    if (summary) {
+                      // キーワード抽出
+                      const extractKeywords = (text: string): string[] => {
+                        const words = text.toLowerCase().match(/\b\w{3,}\b/g) || [];
+                        const wordCount: { [key: string]: number } = {};
+                        words.forEach(word => {
+                          wordCount[word] = (wordCount[word] || 0) + 1;
+                        });
+                        return Object.entries(wordCount)
+                          .sort((a, b) => b[1] - a[1])
+                          .slice(0, 10)
+                          .map(([word]) => word);
+                      };
+                      
+                      const extractedKeywords = extractKeywords(conversationText);
+                      
+                      // 要約が2000文字を超える場合のみ分割、それ以外は1つのメモリとして保存
+                      const MAX_MEMORY_LENGTH = 2000;
+                      if (summary.length > MAX_MEMORY_LENGTH) {
+                        // 2000文字を超える場合: 分割
+                        let remainingSummary = summary;
+                        
+                        while (remainingSummary.length > 0) {
+                          const memoryContent = remainingSummary.substring(0, MAX_MEMORY_LENGTH);
+                          remainingSummary = remainingSummary.substring(MAX_MEMORY_LENGTH);
+                          
+                          await prisma.detailed_memories.create({
+                            data: {
+                              chatId,
+                              content: memoryContent,
+                              keywords: extractedKeywords,
+                            },
+                          });
+                          
+                          // 残りが2000文字以下なら終了
+                          if (remainingSummary.length <= MAX_MEMORY_LENGTH) {
+                            if (remainingSummary.length > 0) {
+                              await prisma.detailed_memories.create({
+                                data: {
+                                  chatId,
+                                  content: remainingSummary,
+                                  keywords: extractedKeywords,
+                                },
+                              });
+                            }
+                            break;
+                          }
+                        }
+                      } else {
+                        // 2000文字以下の場合: 1つのメモリとして保存
+                        await prisma.detailed_memories.create({
+                          data: {
+                            chatId,
+                            content: summary,
+                            keywords: extractedKeywords,
+                          },
+                        });
+                      }
+                      
+                      console.log('詳細記憶自動要約が完了しました');
+                    }
+                  }
+                }
+              } catch (error) {
+                console.error('詳細記憶自動要約エラー:', error);
+              }
+            })();
+          }
+          // ▲▲▲
+          
           // AIメッセージの保存完了をクライアントに通知
           sendEvent('ai-message-saved', { modelMessage: newModelMessage });
 
