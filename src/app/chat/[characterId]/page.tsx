@@ -369,28 +369,21 @@ export default function ChatPage() {
       scrollToBottom();
     };
     
+    // 再生成中またはローディング中は自動スクロールを無効化
+    if (regeneratingTurnId !== null || isLoading) return;
+    
     // 즉시 시도
     scrollAfterRender();
     
-    // 추가 지연으로 재시도 (더 많은 시도)
-    const timer1 = setTimeout(scrollAfterRender, 50);
-    const timer2 = setTimeout(scrollAfterRender, 100);
-    const timer3 = setTimeout(scrollAfterRender, 200);
-    const timer4 = setTimeout(scrollAfterRender, 300);
-    const timer5 = setTimeout(scrollAfterRender, 500);
-    const timer6 = setTimeout(scrollAfterRender, 1000);
-    const timer7 = setTimeout(scrollAfterRender, 1500);
+    // 추가 지연으로 재시도
+    const timer1 = setTimeout(scrollAfterRender, 100);
+    const timer2 = setTimeout(scrollAfterRender, 300);
     
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
-      clearTimeout(timer3);
-      clearTimeout(timer4);
-      clearTimeout(timer5);
-      clearTimeout(timer6);
-      clearTimeout(timer7);
     };
-  }, [rawMessages.length, isInitialLoading, scrollToBottom, regeneratingTurnId]);
+  }, [rawMessages.length, isInitialLoading, scrollToBottom, regeneratingTurnId, isLoading]);
 
   // ▼▼▼【タイムアウト対策】タイムアウト時の復旧処理：DBからメッセージを再読み込み ▼▼▼
   const handleTimeoutRecovery = async () => {
