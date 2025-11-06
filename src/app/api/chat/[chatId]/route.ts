@@ -723,43 +723,49 @@ ${conversationText}`;
 
                   // メッセージが2個以上ある場合のみ要約実行
                   if (messages.length >= 2) {
-                    // 要約範囲を決定: 1-1, 1-2, 1-3... 1-10, その後は 11-15, 16-20...
-                    let messagesToSummarize: typeof messages = [];
-                    let summaryRange = '';
+                    // スライディングウィンドウ方式: 5個ずつまとめて要約（1-5, 6-10, 11-15...）
+                    const windowSize = 5;
+                    let startIndex = 0;
+                    let endIndex = messageCount;
                     
-                    if (messageCount <= 10) {
-                      // 1-10個: 1-1, 1-2, 1-3... 1-10 の順で要約（各メッセージごとに）
-                      // 例: 2個目なら 1-2, 3個目なら 1-3...
-                      messagesToSummarize = messages.slice(0, messageCount);
-                      summaryRange = `1-${messageCount}`;
-                    } else {
-                      // 10個超過: 5個単位で要約（11-15, 16-20...）
-                      const startIndex = Math.floor((messageCount - 1) / 5) * 5; // 5の倍数に調整
-                      messagesToSummarize = messages.slice(startIndex, messageCount);
-                      summaryRange = `${startIndex + 1}-${messageCount}`;
+                    // 最後のウィンドウの開始位置を計算
+                    if (messageCount > windowSize) {
+                      // 5個単位で区切る（1-5, 6-10, 11-15...）
+                      startIndex = Math.floor((messageCount - 1) / windowSize) * windowSize;
+                      endIndex = messageCount;
                     }
+                    
+                    const messagesToSummarize = messages.slice(startIndex, endIndex);
                     
                     if (messagesToSummarize.length === 0) {
                       console.log('要約するメッセージがありません');
                       return;
                     }
                     
-                    // 重複防止: 既に同じ範囲の要約があるか確認（最後のメッセージIDで判定）
+                    // 重複防止: 最後のメッセージIDで既存の要約を確認
                     const lastMessageId = messagesToSummarize[messagesToSummarize.length - 1]?.id;
                     if (lastMessageId) {
-                      const existingMemory = await prisma.detailed_memories.findFirst({
-                        where: {
-                          chatId,
-                          // キーワードに範囲情報を含むか確認（簡易的な重複チェック）
-                          keywords: {
-                            has: summaryRange,
-                          },
-                        },
+                      // 最後のメッセージID 이후에 생성された要約があるか確認
+                      const lastMessage = await prisma.chat_message.findUnique({
+                        where: { id: lastMessageId },
+                        select: { createdAt: true },
                       });
                       
-                      if (existingMemory) {
-                        console.log(`詳細記憶自動要約: 範囲 ${summaryRange} は既に要約済みのためスキップ`);
-                        return;
+                      if (lastMessage) {
+                        // このメッセージ 이후에 생성된要約があるか確認
+                        const existingMemory = await prisma.detailed_memories.findFirst({
+                          where: {
+                            chatId,
+                            createdAt: {
+                              gte: lastMessage.createdAt,
+                            },
+                          },
+                        });
+                        
+                        if (existingMemory) {
+                          console.log(`詳細記憶自動要約: メッセージ ${lastMessageId} 以降は既に要約済みのためスキップ`);
+                          return;
+                        }
                       }
                     }
                     
@@ -810,8 +816,7 @@ ${conversationText}`;
                       };
                       
                       const extractedKeywords = extractKeywords(conversationText);
-                      // 範囲情報をキーワードに追加（重複防止用）
-                      extractedKeywords.push(summaryRange);
+                      // 範囲情報はキーワードに含めない（実際のキーワードのみでマッチング）
                       
                       // 要約が2000文字を超える場合のみ分割、それ以外は1つのメモリとして保存
                       const MAX_MEMORY_LENGTH = 2000;
