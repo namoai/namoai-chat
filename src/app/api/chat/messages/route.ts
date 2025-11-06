@@ -117,7 +117,10 @@ export async function POST(request: NextRequest) {
             parts: [{ text: msg.content }],
         }));
 
-        const generativeModel = vertex_ai.getGenerativeModel({ model: "gemini-2.5-pro", safetySettings });
+        // チャット生成APIと同じように、設定からモデルを取得（デフォルト: gemini-2.5-flash）
+        const modelToUse = settings?.model || "gemini-2.5-flash";
+        console.log(`再生成使用モデル: ${modelToUse}`);
+        const generativeModel = vertex_ai.getGenerativeModel({ model: modelToUse, safetySettings });
         const chat = generativeModel.startChat({ 
             history: chatHistory, 
             systemInstruction: systemInstructionText 
