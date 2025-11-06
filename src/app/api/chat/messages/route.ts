@@ -127,49 +127,62 @@ export async function POST(request: NextRequest) {
         // ▲▲▲
         
         console.time("⏱️ 履歴取得");
-        // ▼▼▼【修正】一般チャットAPIと同じようにactiveVersionsを処理 ▼▼▼
-        let historyWhereClause: {
-            chatId: number;
-            createdAt: { lt: Date };
-            isActive?: boolean;
-            OR?: Array<{ role: string } | { id: { in: number[] } }>;
-        } = { 
-            chatId: chatId, 
-            createdAt: { lt: userMessageForTurn.createdAt } 
-        };
-        
-        // activeVersionsが指定されている場合、該当バージョンのみを取得
-        if (activeVersions && Object.keys(activeVersions).length > 0) {
-            const MAX_INT4 = 2147483647; // INT4の最大値
-            const versionIds = Object.values(activeVersions)
-                .map(id => Number(id))
-                .filter(id => id > 0 && id <= MAX_INT4); // 有効なINT4範囲内のIDのみ
-            
-            // 有効なIDがある場合のみ特別なクエリを使用
-            if (versionIds.length > 0) {
-                historyWhereClause = {
-                    chatId: chatId,
-                    createdAt: { lt: userMessageForTurn.createdAt },
-                    OR: [
-                        { role: 'user' },  // ユーザーメッセージは全て含める
-                        { id: { in: versionIds } }  // 指定されたバージョンのモデルメッセージ
-                    ]
-                };
-            } else {
-                // 有効なIDがない場合は通常のisActive=trueのみ
-                historyWhereClause.isActive = true;
-            }
-        } else {
-            // 通常はisActive=trueのメッセージのみ
-            historyWhereClause.isActive = true;
-        }
-        // ▲▲▲
-        
-        const historyMessages = await prisma.chat_message.findMany({
-            where: historyWhereClause,
+        // ▼▼▼【修正】再生成時は、再生成対象のturnIdを除き、各turnIdの最新アクティブバージョンを取得 ▼▼▼
+        // 再生成対象のturnIdより前のメッセージを取得
+        const messagesBeforeRegen = await prisma.chat_message.findMany({
+            where: {
+                chatId: chatId,
+                createdAt: { lt: userMessageForTurn.createdAt },
+            },
             orderBy: { createdAt: 'asc' },
         });
+        
+        // 各turnIdごとに最新のアクティブバージョンを選択
+        // ただし、再生成対象のturnIdは完全に除外（再生成前の状態を保持）
+        const userMessagesMap = new Map<number, typeof messagesBeforeRegen[0]>();
+        const modelMessagesMap = new Map<number, typeof messagesBeforeRegen[0]>();
+        
+        for (const msg of messagesBeforeRegen) {
+            // 再生成対象のturnIdは完全に除外
+            if (msg.turnId === turnId) continue;
+            
+            if (msg.role === 'user') {
+                // ユーザーメッセージは常に含める（各turnId당 하나）
+                if (!userMessagesMap.has(msg.turnId) || userMessagesMap.get(msg.turnId)!.createdAt < msg.createdAt) {
+                    userMessagesMap.set(msg.turnId, msg);
+                }
+            } else if (msg.role === 'model') {
+                // モデルメッセージは、activeVersionsが指定されている場合はそのバージョンを優先
+                if (activeVersions && activeVersions[msg.turnId] === msg.id) {
+                    modelMessagesMap.set(msg.turnId, msg);
+                } else if (!activeVersions) {
+                    // activeVersionsが指定されていない場合は、isActive=trueの最新を選択
+                    if (msg.isActive) {
+                        if (!modelMessagesMap.has(msg.turnId) || modelMessagesMap.get(msg.turnId)!.createdAt < msg.createdAt) {
+                            modelMessagesMap.set(msg.turnId, msg);
+                        }
+                    } else if (!modelMessagesMap.has(msg.turnId)) {
+                        // アクティブなメッセージがない場合は、最新バージョンを選択
+                        const latestForTurn = messagesBeforeRegen
+                            .filter(m => m.turnId === msg.turnId && m.role === 'model')
+                            .sort((a, b) => (b.version || 0) - (a.version || 0))[0];
+                        if (latestForTurn) {
+                            modelMessagesMap.set(msg.turnId, latestForTurn);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // userとmodelを結合し、createdAtでソート
+        const historyMessages = [
+            ...Array.from(userMessagesMap.values()),
+            ...Array.from(modelMessagesMap.values())
+        ].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+        
+        console.log(`再生成履歴: ${historyMessages.length}件のメッセージを取得（再生成対象turnId: ${turnId}を除く）`);
         console.timeEnd("⏱️ 履歴取得");
+        // ▲▲▲
         
         // ▼▼▼【詳細記憶】関連する詳細記憶を追加 ▼▼▼
         let detailedMemoryInfo = "";
