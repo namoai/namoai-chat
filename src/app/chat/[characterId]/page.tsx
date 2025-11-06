@@ -575,7 +575,10 @@ export default function ChatPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chatId, turnId: turnId, settings: generationSettings }),
         });
-        if (!res.ok) throw new Error("再生成に失敗しました");
+        if (!res.ok) {
+          const errorData = await safeParseJSON<{ error?: string; message?: string }>(res);
+          throw new Error(errorData?.error || errorData?.message || `HTTP ${res.status}: 再生成に失敗しました`);
+        }
         const data = await res.json();
         const newMessage = {
             ...data.newMessage,
