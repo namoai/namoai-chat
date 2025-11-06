@@ -810,6 +810,8 @@ ${conversationText}`;
                       };
                       
                       const extractedKeywords = extractKeywords(conversationText);
+                      // 範囲情報をキーワードに追加（重複防止用）
+                      extractedKeywords.push(summaryRange);
                       
                       // 要約が2000文字を超える場合のみ分割、それ以外は1つのメモリとして保存
                       const MAX_MEMORY_LENGTH = 2000;
