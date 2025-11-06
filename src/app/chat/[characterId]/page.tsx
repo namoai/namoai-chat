@@ -180,30 +180,43 @@ export default function ChatPage() {
     loadCharacterInfo();
   }, [characterId, router]);
 
-  // 最下部へスクロールする関数
+  // 最下部へスクロールする関数（より強力な方法）
   const scrollToBottom = useCallback(() => {
-    // 複数の方法で確実にスクロール
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        // 方法1: messagesEndRefを使用
-        if (messagesEndRef.current) {
-          messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
-        }
-        // 方法2: main要素のscrollTopを直接設定
-        if (mainScrollRef.current) {
-          mainScrollRef.current.scrollTop = mainScrollRef.current.scrollHeight;
-        }
-      }, 50);
+    // 複数の方法を試行して確実にスクロール
+    const attemptScroll = () => {
+      // 方法1: messagesEndRefを使用
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+      }
       
-      // 追加で確実にスクロール（2回試行）
+      // 方法2: main要素のscrollTopを直接設定
+      if (mainScrollRef.current) {
+        const scrollContainer = mainScrollRef.current;
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+      
+      // 方法3: window.scrollToも試行（フォールバック）
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'auto' });
+      }
+    };
+    
+    // 即座に試行
+    attemptScroll();
+    
+    // requestAnimationFrameで試行
+    requestAnimationFrame(() => {
+      attemptScroll();
+      
+      // さらに遅延して試行
       setTimeout(() => {
-        if (messagesEndRef.current) {
-          messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
-        }
-        if (mainScrollRef.current) {
-          mainScrollRef.current.scrollTop = mainScrollRef.current.scrollHeight;
-        }
-      }, 200);
+        attemptScroll();
+        
+        // 最後の試行
+        setTimeout(() => {
+          attemptScroll();
+        }, 100);
+      }, 100);
     });
   }, []);
 
@@ -281,10 +294,25 @@ export default function ChatPage() {
   useEffect(() => {
     if (rawMessages.length === 0) return;
     
+    // isInitialLoading이 false가 된 후에 스크롤
+    if (isInitialLoading) {
+      // 로딩 중일 때는 로딩 완료 후 스크롤
+      return;
+    }
+    
     const timer = setTimeout(() => {
       scrollToBottom();
-    }, 150);
-    return () => clearTimeout(timer);
+    }, 200);
+    
+    // 추가로 DOM 업데이트 후 스크롤
+    const timer2 = setTimeout(() => {
+      scrollToBottom();
+    }, 500);
+    
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(timer2);
+    };
   }, [rawMessages.length, isInitialLoading, scrollToBottom]);
 
   // ▼▼▼【タイムアウト対策】タイムアウト時の復旧処理：DBからメッセージを再読み込み ▼▼▼

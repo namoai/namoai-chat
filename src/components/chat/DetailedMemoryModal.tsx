@@ -37,10 +37,11 @@ export default function DetailedMemoryModal({
   const [showMenuId, setShowMenuId] = useState<number | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
 
-  // 最近適用されたメモリを取得
-  const recentlyApplied = memories
+  // 現在適用中のメモリを取得（最大3つ、lastAppliedが最新のもの）
+  const currentlyApplied = memories
     .filter(m => m.lastApplied)
-    .sort((a, b) => new Date(b.lastApplied || 0).getTime() - new Date(a.lastApplied || 0).getTime())[0];
+    .sort((a, b) => new Date(b.lastApplied || 0).getTime() - new Date(a.lastApplied || 0).getTime())
+    .slice(0, 3); // 最大3つまで
 
   // フィルタリングとソート
   const filteredMemories = memories
@@ -110,16 +111,38 @@ export default function DetailedMemoryModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-          {/* 最近適用された記憶 */}
-          {recentlyApplied && (
+          {/* 現在適用中の記憶（最大3つ） */}
+          {currentlyApplied.length > 0 && (
             <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-2">最近適用された記憶</h3>
-              <div className="bg-gray-700 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-purple-400 font-semibold">{recentlyApplied.index}-10</span>
-                  <span className="text-white">{recentlyApplied.index}</span>
-                </div>
-                <p className="text-gray-300 line-clamp-2">{recentlyApplied.content}</p>
+              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <span className="bg-green-600 text-white px-2 py-1 rounded text-xs">適用中</span>
+                現在適用中の記憶（最大3つ）
+              </h3>
+              <div className="space-y-3">
+                {currentlyApplied.map((memory, idx) => (
+                  <div key={memory.id} className="bg-green-900/30 border border-green-700 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="bg-green-600 text-white px-2 py-0.5 rounded text-xs font-semibold">
+                          {idx + 1}
+                        </span>
+                        <span className="text-green-400 text-xs">
+                          {memory.lastApplied ? new Date(memory.lastApplied).toLocaleString('ja-JP') : ''}
+                        </span>
+                      </div>
+                      {memory.keywords && memory.keywords.length > 0 && (
+                        <div className="flex gap-1 flex-wrap">
+                          {memory.keywords.slice(0, 3).map((keyword, kIdx) => (
+                            <span key={kIdx} className="bg-gray-700 text-gray-300 px-2 py-0.5 rounded text-xs">
+                              {keyword}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-gray-200 whitespace-pre-wrap">{memory.content}</p>
+                  </div>
+                ))}
               </div>
             </div>
           )}
