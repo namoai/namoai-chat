@@ -48,14 +48,29 @@ export async function POST(req: Request) {
 
     // 1) chatId 指定があれば最優先でそのレコードだけ返す（所有者チェック）
     if (chatIdRaw != null) {
+      console.time("⏱️ find-or-create: chatId指定");
       const chatId = Number(chatIdRaw);
       if (!Number.isFinite(chatId)) {
         return NextResponse.json({ error: "Invalid chatId" }, { status: 400 });
       }
       const exact = await prisma.chat.findFirst({
         where: { id: chatId, userId },
-        include: { chat_message: { orderBy: { createdAt: "asc" } } },
+        include: { 
+          chat_message: { 
+            orderBy: { createdAt: "asc" },
+            select: {
+              id: true,
+              role: true,
+              content: true,
+              createdAt: true,
+              turnId: true,
+              version: true,
+              isActive: true,
+            }
+          } 
+        },
       });
+      console.timeEnd("⏱️ find-or-create: chatId指定");
       if (!exact) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
@@ -76,6 +91,7 @@ export async function POST(req: Request) {
 
     // 2) 強制新規
     if (forceNew) {
+      console.time("⏱️ find-or-create: 強制新規作成");
       const created = await prisma.chat.create({
         data: {
           userId,
@@ -84,23 +100,51 @@ export async function POST(req: Request) {
           updatedAt: now,
         },
         include: {
-          chat_message: { orderBy: { createdAt: "asc" } },
+          chat_message: { 
+            orderBy: { createdAt: "asc" },
+            select: {
+              id: true,
+              role: true,
+              content: true,
+              createdAt: true,
+              turnId: true,
+              version: true,
+              isActive: true,
+            }
+          },
         },
       });
+      console.timeEnd("⏱️ find-or-create: 強制新規作成");
       return NextResponse.json(created);
     }
 
     // 3) 既存があれば最新を返す（無ければ作る）
+    console.time("⏱️ find-or-create: 既存検索");
     const latest = await prisma.chat.findFirst({
       where: { userId, characterId },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      include: { chat_message: { orderBy: { createdAt: "asc" } } },
+      include: { 
+        chat_message: { 
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            role: true,
+            content: true,
+            createdAt: true,
+            turnId: true,
+            version: true,
+            isActive: true,
+          }
+        } 
+      },
     });
+    console.timeEnd("⏱️ find-or-create: 既存検索");
 
     if (latest) {
       return NextResponse.json(latest);
     }
 
+    console.time("⏱️ find-or-create: 新規作成");
     const created = await prisma.chat.create({
       data: {
         userId,
@@ -108,8 +152,22 @@ export async function POST(req: Request) {
         createdAt: now,
         updatedAt: now,
       },
-      include: { chat_message: { orderBy: { createdAt: "asc" } } },
+      include: { 
+        chat_message: { 
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            role: true,
+            content: true,
+            createdAt: true,
+            turnId: true,
+            version: true,
+            isActive: true,
+          }
+        } 
+      },
     });
+    console.timeEnd("⏱️ find-or-create: 新規作成");
 
     return NextResponse.json(created);
   } catch (err) {

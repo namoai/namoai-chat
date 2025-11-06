@@ -36,22 +36,24 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+        console.log("再生成API開始");
+        console.time("⏱️ 再生成API処理時間");
+        
         // ポイント消費ロジック
         const boostMultiplier = settings?.responseBoostMultiplier || 1.0;
         const boostCostMap: { [key: number]: number } = { 1.5: 1, 3.0: 2, 5.0: 4 };
         const boostCost = boostCostMap[boostMultiplier] || 0;
         const totalPointsToConsume = 1 + boostCost;
 
+        console.time("⏱️ ポイント消費");
         await prisma.$transaction(async (tx) => {
             const userPointsRecord = await tx.points.findUnique({ where: { user_id: userId } });
             const currentUserPoints = (userPointsRecord?.free_points || 0) + (userPointsRecord?.paid_points || 0);
             if (currentUserPoints < totalPointsToConsume) throw new Error("ポイントが不足しています。");
             
             let remainingCost = totalPointsToConsume;
-            // ▼▼▼ 【修正】letをconstに変更 ▼▼▼
             const freePointsAfter = Math.max(0, (userPointsRecord?.free_points || 0) - remainingCost);
             remainingCost = Math.max(0, remainingCost - (userPointsRecord?.free_points || 0));
-            // ▼▼▼ 【修正】letをconstに変更 ▼▼▼
             const paidPointsAfter = Math.max(0, (userPointsRecord?.paid_points || 0) - remainingCost);
             
             await tx.points.update({
@@ -59,24 +61,34 @@ export async function POST(request: NextRequest) {
                 data: { free_points: freePointsAfter, paid_points: paidPointsAfter },
             });
         });
+        console.timeEnd("⏱️ ポイント消費");
 
-        const chatRoom = await prisma.chat.findUnique({
-            where: { id: chatId },
-            include: { 
-                characters: { 
-                    include: { characterImages: true } 
-                }, 
-                users: { select: { defaultPersonaId: true } } 
-            },
-        });
+        // DBクエリを並列化して高速化
+        console.time("⏱️ DBクエリ");
+        const [chatRoom, userMessageForTurn] = await Promise.all([
+            prisma.chat.findUnique({
+                where: { id: chatId },
+                include: { 
+                    characters: { 
+                        include: { characterImages: true } 
+                    }, 
+                    users: { select: { defaultPersonaId: true } } 
+                },
+            }),
+            prisma.chat_message.findUnique({ where: { id: turnId } })
+        ]);
+        console.timeEnd("⏱️ DBクエリ");
 
         if (!chatRoom || !chatRoom.characters) return NextResponse.json({ error: "チャットまたはキャラクターが見つかりません。" }, { status: 404 });
+        if (!userMessageForTurn) throw new Error("対象のメッセージが見つかりません。");
         
         // システムプロンプト構築
         let userPersonaInfo = "";
         if (chatRoom.users.defaultPersonaId) {
+            console.time("⏱️ ペルソナ取得");
             const p = await prisma.personas.findUnique({ where: { id: chatRoom.users.defaultPersonaId }});
             if (p) userPersonaInfo = `# ユーザーのペルソナ設定\n- ニックネーム: ${p.nickname}\n- 年齢: ${p.age||'未設定'}\n- 性別: ${p.gender||'未設定'}\n- 詳細情報: ${p.description}`;
+            console.timeEnd("⏱️ ペルソナ取得");
         }
         const char = chatRoom.characters;
         let boostInstruction = "";
@@ -100,9 +112,7 @@ export async function POST(request: NextRequest) {
         
         const systemInstructionText = [char.systemTemplate, imageInstruction, lengthInstruction, userPersonaInfo, boostInstruction].filter(Boolean).join('\n\n');
 
-        const userMessageForTurn = await prisma.chat_message.findUnique({ where: { id: turnId } });
-        if (!userMessageForTurn) throw new Error("対象のメッセージが見つかりません。");
-
+        console.time("⏱️ 履歴取得");
         const historyMessages = await prisma.chat_message.findMany({
             where: {
                 chatId: chatId,
@@ -111,6 +121,7 @@ export async function POST(request: NextRequest) {
             },
             orderBy: { createdAt: 'asc' },
         });
+        console.timeEnd("⏱️ 履歴取得");
 
         const chatHistory: Content[] = historyMessages.map(msg => ({
             role: msg.role as "user" | "model",
@@ -120,13 +131,24 @@ export async function POST(request: NextRequest) {
         // チャット生成APIと同じように、設定からモデルを取得（デフォルト: gemini-2.5-flash）
         const modelToUse = settings?.model || "gemini-2.5-flash";
         console.log(`再生成使用モデル: ${modelToUse}`);
+        
+        console.time("⏱️ Vertex AI応答生成");
         const generativeModel = vertex_ai.getGenerativeModel({ model: modelToUse, safetySettings });
         const chat = generativeModel.startChat({ 
             history: chatHistory, 
             systemInstruction: systemInstructionText 
         });
         
-        const result = await chat.sendMessage(userMessageForTurn.content);
+        // タイムアウト処理付きでVertex AIを呼び出し（25秒でタイムアウト、Netlify関数制限より余裕を持たせる）
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error("Vertex AI応答がタイムアウトしました（25秒）。再試行してください。")), 25000);
+        });
+        
+        const result = await Promise.race([
+            chat.sendMessage(userMessageForTurn.content),
+            timeoutPromise
+        ]) as Awaited<ReturnType<typeof chat.sendMessage>>;
+        console.timeEnd("⏱️ Vertex AI応答生成");
 
         let aiReply = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!aiReply) throw new Error("モデルから有効な応答がありませんでした。");
@@ -168,6 +190,7 @@ export async function POST(request: NextRequest) {
         console.log(`📸 再生成時の画像マッチング: ${matchedImageUrls.length}件`);
         // ▲▲▲
         
+        console.time("⏱️ メッセージ保存");
         const latestVersion = await prisma.chat_message.findFirst({
             where: { turnId: turnId, role: 'model' },
             orderBy: { version: 'desc' }
@@ -187,7 +210,9 @@ export async function POST(request: NextRequest) {
                 isActive: true,
             }
         });
-
+        console.timeEnd("⏱️ メッセージ保存");
+        
+        console.timeEnd("⏱️ 再生成API処理時間");
         return NextResponse.json({ newMessage, imageUrls: matchedImageUrls });
 
     } catch (error) {

@@ -269,9 +269,17 @@ export default function ChatPage() {
             });
             setRawMessages(formattedMessages);
             // メッセージ読み込み後にスクロール（確実に最下部へ）
+            // DOM更新後に複数回試行して確実にスクロール
             requestAnimationFrame(() => {
               setTimeout(() => {
                 scrollToBottom();
+                // 追加の遅延で再度試行
+                setTimeout(() => {
+                  scrollToBottom();
+                  setTimeout(() => {
+                    scrollToBottom();
+                  }, 200);
+                }, 300);
               }, 100);
             });
         } catch (e) {
@@ -299,6 +307,20 @@ export default function ChatPage() {
       // 로딩 중일 때는 로딩 완료 후 스크롤
       return;
     }
+    
+    // メッセージが表示された後に確実に最下部へスクロール
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        scrollToBottom();
+        // 追加の遅延で再度試行（DOM更新を待つ）
+        setTimeout(() => {
+          scrollToBottom();
+          setTimeout(() => {
+            scrollToBottom();
+          }, 200);
+        }, 300);
+      }, 100);
+    });
     
     const timer = setTimeout(() => {
       scrollToBottom();
