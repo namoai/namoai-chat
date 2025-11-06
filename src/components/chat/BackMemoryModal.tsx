@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Edit2, Save, XCircle } from 'lucide-react';
 
 type BackMemoryModalProps = {
   isOpen: boolean;
@@ -20,22 +20,37 @@ export default function BackMemoryModal({
 }: BackMemoryModalProps) {
   const [content, setContent] = useState(initialContent);
   const [autoSummarize, setAutoSummarize] = useState(initialAutoSummarize);
+  const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [editContent, setEditContent] = useState(initialContent);
 
   useEffect(() => {
     if (isOpen) {
       setContent(initialContent);
       setAutoSummarize(initialAutoSummarize);
+      setEditContent(initialContent);
+      setIsEditing(false);
     }
   }, [isOpen, initialContent, initialAutoSummarize]);
 
+  const handleEdit = () => {
+    setEditContent(content);
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setEditContent(content);
+    setIsEditing(false);
+  };
+
   const handleSave = async () => {
-    if (content.length > 3000) return;
+    if (editContent.length > 3000) return;
     setIsSaving(true);
     try {
-      await onSave(content, autoSummarize);
-      onClose();
+      await onSave(editContent, autoSummarize);
+      setContent(editContent);
+      setIsEditing(false);
     } catch (error) {
       console.error('保存エラー:', error);
     } finally {
@@ -52,7 +67,10 @@ export default function BackMemoryModal({
       });
       if (!response.ok) throw new Error('自動要約に失敗しました');
       const data = await response.json();
-      setContent(data.summary || '');
+      const newContent = data.summary || '';
+      setContent(newContent);
+      setEditContent(newContent);
+      await onSave(newContent, autoSummarize);
     } catch (error) {
       console.error('自動要約エラー:', error);
     } finally {
@@ -63,77 +81,108 @@ export default function BackMemoryModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-gray-800 text-white rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col m-4" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-gray-800 text-white rounded-lg w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {/* ヘッダー */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-700">
-          <h2 className="text-xl font-bold">メモリブック</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-full">
+        <div className="flex justify-between items-center p-6 border-b border-gray-700">
+          <div>
+            <h2 className="text-2xl font-bold">メモリブック</h2>
+            <p className="text-sm text-gray-400 mt-1">
+              会話履歴が自動的に要約され、キャラクターがより長く記憶できるようになります。
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-full transition-colors">
             <X size={24} />
           </button>
         </div>
 
-        {/* 説明 */}
-        <div className="p-4 border-b border-gray-700">
-          <p className="text-sm text-gray-300">
-            会話履歴が自動的に要約され、キャラクターがより長く記憶できるようになります。
-          </p>
-          <a href="#" className="text-sm text-blue-400 hover:underline mt-1 inline-block">
-            もっと知る &gt;
-          </a>
-        </div>
-
         {/* 自動要約セクション */}
-        <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+        <div className="p-6 border-b border-gray-700 flex items-center justify-between bg-gray-750">
           <div className="flex-1">
-            <p className="text-sm text-gray-300">会話内容を自動的に要約します</p>
+            <p className="text-sm font-medium text-gray-300">会話内容を自動的に要約します</p>
+            <p className="text-xs text-gray-500 mt-1">メッセージが20件、40件、60件...になるたびに自動要約されます</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
               type="checkbox"
               checked={autoSummarize}
               onChange={(e) => setAutoSummarize(e.target.checked)}
+              disabled={isEditing}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+            <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600 peer-disabled:opacity-50"></div>
           </label>
         </div>
 
         {/* 内容エリア */}
-        <div className="flex-1 p-4 overflow-y-auto">
-          <label className="block text-sm font-medium mb-2">
-            内容 <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="メモリブックの内容を入力してください。"
-              className="w-full h-64 bg-gray-900 border border-gray-700 rounded-md p-3 resize-none text-white placeholder-gray-500"
-              maxLength={3000}
-            />
-            <div className={`absolute bottom-2 right-2 text-sm ${content.length > 3000 ? 'text-red-500' : 'text-gray-400'}`}>
-              {content.length} / 3000
-            </div>
+        <div className="flex-1 p-6 overflow-y-auto">
+          <div className="flex justify-between items-center mb-4">
+            <label className="block text-sm font-medium">
+              内容 <span className="text-red-500">*</span>
+            </label>
+            {!isEditing && (
+              <button
+                onClick={handleEdit}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors"
+              >
+                <Edit2 size={16} />
+                編集
+              </button>
+            )}
           </div>
+          
+          {isEditing ? (
+            <div className="relative">
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                placeholder="メモリブックの内容を入力してください。"
+                className="w-full h-[500px] bg-gray-900 border border-gray-700 rounded-md p-4 resize-none text-white placeholder-gray-500 text-sm"
+                maxLength={3000}
+              />
+              <div className={`absolute bottom-4 right-4 text-sm ${editContent.length > 3000 ? 'text-red-500' : 'text-gray-400'}`}>
+                {editContent.length} / 3000
+              </div>
+            </div>
+          ) : (
+            <div className="w-full h-[500px] bg-gray-900 border border-gray-700 rounded-md p-4 overflow-y-auto">
+              <p className="text-white whitespace-pre-wrap text-sm leading-relaxed">
+                {content || <span className="text-gray-500">内容がありません。自動要約ボタンを押すか、編集ボタンで入力してください。</span>}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* ボタン */}
-        <div className="p-4 border-t border-gray-700 flex gap-2">
-          <button
-            onClick={handleAutoSummarize}
-            disabled={isSummarizing}
-            className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-500 text-white font-bold py-2 px-4 rounded-md transition-colors"
-          >
-            {isSummarizing ? '要約中...' : '自動要約'}
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={isSaving || content.length > 3000}
-            className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-500 text-white font-bold py-2 px-4 rounded-md transition-colors"
-          >
-            {isSaving ? '保存中...' : '保存'}
-          </button>
+        <div className="p-6 border-t border-gray-700 flex gap-3">
+          {isEditing ? (
+            <>
+              <button
+                onClick={handleCancel}
+                disabled={isSaving}
+                className="flex-1 flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-500 text-white font-bold py-3 px-4 rounded-md transition-colors"
+              >
+                <XCircle size={20} />
+                キャンセル
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving || editContent.length > 3000}
+                className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-500 text-white font-bold py-3 px-4 rounded-md transition-colors"
+              >
+                <Save size={20} />
+                {isSaving ? '保存中...' : '保存'}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleAutoSummarize}
+              disabled={isSummarizing}
+              className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-500 text-white font-bold py-3 px-4 rounded-md transition-colors"
+            >
+              {isSummarizing ? '要約中...' : '今すぐ自動要約を実行'}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -95,17 +95,20 @@ export default function DetailedMemoryModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-gray-800 text-white rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col m-4" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-gray-800 text-white rounded-lg w-full max-w-6xl h-[90vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {/* ヘッダー */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-700">
-          <h2 className="text-xl font-bold">詳細記憶</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-full">
+        <div className="flex justify-between items-center p-6 border-b border-gray-700">
+          <div>
+            <h2 className="text-2xl font-bold">詳細記憶</h2>
+            <p className="text-sm text-gray-400 mt-1">最大3つまで保存できます。関連キーワードで自動的に適用されます。</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-full transition-colors">
             <X size={24} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-6">
           {/* 最近適用された記憶 */}
           {recentlyApplied && (
             <div className="mb-6">

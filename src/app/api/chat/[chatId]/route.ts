@@ -507,9 +507,100 @@ export async function POST(request: Request, context: any) {
             }
           })();
           // ▲▲▲
-          
-          // AIメッセージの保存完了をクライアントに通知
-          sendEvent('ai-message-saved', { modelMessage: newModelMessage });
+          
+          // ▼▼▼【自動要約】autoSummarizeがONの場合、一定のメッセージ数に達したら自動要約▼▼▼
+          if (backMemory && backMemory.autoSummarize) {
+            (async () => {
+              try {
+                // メッセージ数が20の倍数になったら自動要約（例: 20, 40, 60...）
+                const messageCount = await prisma.chat_message.count({
+                  where: { chatId, isActive: true },
+                });
+                
+                if (messageCount > 0 && messageCount % 20 === 0) {
+                  console.log(`自動要約を開始 (メッセージ数: ${messageCount})`);
+                  
+                  // 会話履歴を取得（最新50件）
+                  const messages = await prisma.chat_message.findMany({
+                    where: {
+                      chatId,
+                      isActive: true,
+                    },
+                    orderBy: { createdAt: 'asc' },
+                    take: 50,
+                  });
+
+                  if (messages.length > 0) {
+                    // 会話をテキストに変換
+                    const conversationText = messages
+                      .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
+                      .join('\n\n');
+
+                    // Vertex AIで要約
+                    const summaryVertexAI = new VertexAI({
+                      project: process.env.GOOGLE_PROJECT_ID || '',
+                      location: 'asia-northeast1',
+                    });
+
+                    const summaryModel = summaryVertexAI.getGenerativeModel({
+                      model: 'gemini-2.5-pro',
+                      safetySettings,
+                    });
+
+                    const prompt = `以下の会話履歴を日本語で要約してください。以下の形式で整理してください：
+
+[ストーリー要約]
+- 主な出来事や展開を簡潔に箇条書きでまとめてください
+
+[イベント要約]
+- 具体的なイベントやシーンを箇条書きでまとめてください
+
+[キャラクターの役割]
+- 各キャラクターの特徴、役割、関係性を簡潔にまとめてください
+
+要約は3000文字以内で、AIが理解しやすい形式で記述してください。
+
+会話履歴：
+${conversationText}`;
+
+                    const result = await summaryModel.generateContent(prompt);
+                    const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+                    if (summary) {
+                      // 要約を保存
+                      await prisma.chat.update({
+                        where: { id: chatId },
+                        data: { backMemory: summary },
+                      });
+
+                      // embeddingを生成
+                      (async () => {
+                        try {
+                          const embedding = await getEmbedding(summary);
+                          const embeddingString = embeddingToVectorString(embedding);
+                          await prisma.$executeRaw`
+                            UPDATE "chat" 
+                            SET "backMemoryEmbedding" = ${embeddingString}::vector 
+                            WHERE "id" = ${chatId}
+                          `;
+                        } catch (error) {
+                          console.error('バックメモリembedding生成エラー:', error);
+                        }
+                      })();
+                      
+                      console.log('自動要約が完了しました');
+                    }
+                  }
+                }
+              } catch (error) {
+                console.error('自動要約エラー:', error);
+              }
+            })();
+          }
+          // ▲▲▲
+          
+          // AIメッセージの保存完了をクライアントに通知
+          sendEvent('ai-message-saved', { modelMessage: newModelMessage });
 
         } catch (e) {
           if (!firstChunkReceived) console.timeEnd("⏱️ AI TTFB"); // エラー発生時もTTFB記録
