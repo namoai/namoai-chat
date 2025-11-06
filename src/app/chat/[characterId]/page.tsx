@@ -764,7 +764,6 @@ export default function ChatPage() {
             for (const line of lines) {
                 // イベントタイプを確認（一般チャットと同じ形式）
                 if (line.startsWith("event: ")) {
-                    const eventType = line.substring(7).trim();
                     // ai-updateイベントは次のdata行で処理
                     continue;
                 }
