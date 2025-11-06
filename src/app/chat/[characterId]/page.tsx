@@ -236,10 +236,24 @@ export default function ChatPage() {
             
             setChatId(data.id);
             setUserNote(data.userNote || "");
-            const formattedMessages = (data.chat_message || []).map((msg: DbMessage) => ({
+            // メッセージをロード時に画像を再パース（新規作成時と同じ順序を保証）
+            const characterImages = characterInfo?.characterImages || [];
+            const formattedMessages = (data.chat_message || []).map((msg: DbMessage) => {
+              // モデルメッセージの場合、画像タグを再パースしてimageUrlsを設定
+              if (msg.role === 'model' && msg.content) {
+                const { imageUrls } = parseImageTags(msg.content, characterImages);
+                return {
+                  ...msg,
+                  timestamp: new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+                  imageUrls: imageUrls || [], // 画像URLを設定（順序を保持）
+                };
+              }
+              return {
                 ...msg,
                 timestamp: new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-            }));
+                imageUrls: [], // ユーザーメッセージは画像なし
+              };
+            });
             setRawMessages(formattedMessages);
             // メッセージ読み込み後にスクロール（確実に最下部へ）
             requestAnimationFrame(() => {
