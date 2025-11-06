@@ -142,20 +142,21 @@ export async function POST(
       const initialCount = Math.min(10, messagesToSummarize.length);
       const batchSize = 5;
       
-      // 最初の10個まで順次要約（1個から10個まで）
-      for (let count = 1; count <= initialCount; count++) {
-        const batchMessages = messagesToSummarize.slice(0, count);
-        
-        if (batchMessages.length === 0) continue;
+      // 最初の10個まで順次要約（1個から10個まで）- 全て非同期で処理
+      const summarizeInitialBatches = async () => {
+        for (let count = 1; count <= initialCount; count++) {
+          const batchMessages = messagesToSummarize.slice(0, count);
+          
+          if (batchMessages.length === 0) continue;
 
-        const conversationText = batchMessages
-          .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
-          .join('\n\n');
+          const conversationText = batchMessages
+            .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
+            .join('\n\n');
 
-        // 要約処理
-        const summarizeBatch = async (msgBatch: typeof batchMessages, batchNum: number) => {
+          // 要約処理（非同期）
+          (async () => {
             try {
-              console.log(`バッチ ${batchNum} 要約開始 (${msgBatch.length}件)`);
+              console.log(`バッチ ${count} 要約開始 (${batchMessages.length}件)`);
               const vertex_ai = new VertexAI({
                 project: process.env.GOOGLE_PROJECT_ID || '',
                 location: 'asia-northeast1',
@@ -181,7 +182,7 @@ ${conversationText}`;
               const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
               if (!summary) {
-                console.error(`バッチ ${batchNum} 要約が空です`);
+                console.error(`バッチ ${count} 要約が空です`);
                 return;
               }
 
@@ -245,21 +246,21 @@ ${conversationText}`;
                 }
               }
               
-              console.log(`バッチ ${batchNum} 要約完了`);
+              console.log(`バッチ ${count} 要約完了`);
             } catch (error) {
-              console.error(`バッチ ${batchNum} 要約エラー:`, error);
+              console.error(`バッチ ${count} 要約エラー:`, error);
             }
-          };
-
-          // 最後のバッチ（10個目）のみ同期で処理し、それ以外は非同期
-          if (count === initialCount) {
-            await summarizeBatch(batchMessages, count);
-          } else {
-            // 非同期で処理（ブロックしない）
-            summarizeBatch(batchMessages, count).catch(console.error);
+          })();
+          
+          // 順次処理のため、各バッチ間に少し待機（サーバー負荷軽減）
+          if (count < initialCount) {
+            await new Promise(resolve => setTimeout(resolve, 200));
           }
         }
-      }
+      };
+
+      // 最初の10個を非同期で処理開始（ブロックしない）
+      summarizeInitialBatches().catch(console.error);
 
       // 10個以降は5個単位で要約（非同期、バックグラウンド処理）
       if (messagesToSummarize.length > 10) {
