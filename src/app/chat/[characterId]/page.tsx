@@ -234,7 +234,7 @@ export default function ChatPage() {
         }
     };
     loadChatSession();
-  }, [characterId, searchParams, router]);
+  }, [characterId, searchParams, router, scrollToBottom]);
 
 
   // 最下部へスクロールする関数
