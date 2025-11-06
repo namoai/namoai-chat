@@ -483,7 +483,6 @@ function extractKeywords(text: string): string[] {
     .slice(0, 10)
     .map(([word]) => word);
 }
-      let remainingContent = content;
       
       while (remainingContent.length > 0) {
         const memoryContent = remainingContent.substring(0, MAX_MEMORY_LENGTH);
