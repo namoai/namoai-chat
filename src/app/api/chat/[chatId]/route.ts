@@ -12,7 +12,7 @@ import {
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
 import { getEmbedding } from "@/lib/embeddings";
-import { searchSimilarMessages } from "@/lib/vector-search";
+import { searchSimilarMessages, searchSimilarDetailedMemories } from "@/lib/vector-search";
 
 // VertexAIクライアントの初期化
 const vertex_ai = new VertexAI({
@@ -331,7 +331,7 @@ export async function POST(request: Request, context: any) {
     const triggeredMemoryIds = new Set<number>();
     
     if (detailedMemories && detailedMemories.length > 0) {
-      // 1-3個の場合は必ず全て適用、4個以上の場合はキーワードマッチングで最大3個選択
+      // 1-3個の場合は必ず全て適用、4個以上の場合はキーワードマッチング + ベクトル検索で最大3個選択
       const memoryCount = detailedMemories.length;
       
       if (memoryCount <= 3) {
@@ -347,36 +347,61 @@ export async function POST(request: Request, context: any) {
         }
         console.log(`詳細記憶: ${memoryCount}個全て適用（1-3個のため全適用）`);
       } else {
-        // 4個以上の場合はキーワードマッチングで最大3個選択
+        // 4個以上の場合はキーワードマッチング + ベクトル検索で最大3個選択
         const lowerMessage = message.toLowerCase();
         const lowerHistory = orderedHistory.length > 0 
           ? orderedHistory.map(msg => msg.content.toLowerCase()).join(' ')
           : '';
         const combinedText = lowerHistory ? `${lowerMessage} ${lowerHistory}` : lowerMessage;
         
-        // キーワードマッチングで順番通りに選択（createdAt順）
+        // ベクトル検索で関連メモリを取得（非同期、タイムアウト付き）
+        let vectorMatchedMemories: Array<{ id: number; content: string; keywords: string[]; similarity: number }> = [];
+        try {
+          const messageEmbedding = await getEmbedding(combinedText);
+          const vectorSearchPromise = searchSimilarDetailedMemories(messageEmbedding, chatId, 5);
+          vectorMatchedMemories = await Promise.race([
+            vectorSearchPromise,
+            new Promise<typeof vectorMatchedMemories>((resolve) => 
+              setTimeout(() => resolve([]), 1500) // 1.5秒タイムアウト
+            ),
+          ]);
+        } catch (error) {
+          console.error('詳細記憶ベクトル検索エラー:', error);
+        }
+        
+        const vectorMatchedIds = new Set(vectorMatchedMemories.map(m => m.id));
+        
+        // キーワードマッチング + ベクトル検索で順番通りに選択（createdAt順）
         for (const memory of detailedMemories) {
           if (triggeredMemories.length >= 3) break;
           
-          // キーワードがある場合はマッチング、ない場合はスキップ
+          // キーワードマッチングまたはベクトル検索でマッチした場合
+          let hasMatch = false;
+          
+          // キーワードマッチング
           if (memory.keywords && Array.isArray(memory.keywords) && memory.keywords.length > 0) {
-            const hasMatch = memory.keywords.some((keyword) => {
+            hasMatch = memory.keywords.some((keyword) => {
               return keyword && combinedText.includes(keyword.toLowerCase());
             });
-            
-            if (hasMatch) {
-              triggeredMemories.push(memory.content);
-              triggeredMemoryIds.add(memory.id);
-              // 非同期で更新（エラー無視）
-              prisma.detailed_memories.update({
-                where: { id: memory.id },
-                data: { lastApplied: new Date() },
-              }).catch(() => {});
-            }
+          }
+          
+          // ベクトル検索でマッチした場合も追加
+          if (!hasMatch && vectorMatchedIds.has(memory.id)) {
+            hasMatch = true;
+          }
+          
+          if (hasMatch) {
+            triggeredMemories.push(memory.content);
+            triggeredMemoryIds.add(memory.id);
+            // 非同期で更新（エラー無視）
+            prisma.detailed_memories.update({
+              where: { id: memory.id },
+              data: { lastApplied: new Date() },
+            }).catch(() => {});
           }
         }
         
-        // キーワードマッチングで3個に満たない場合は、順番通りに追加（キーワードなしでも）
+        // キーワードマッチング + ベクトル検索で3個に満たない場合は、順番通りに追加（キーワードなしでも）
         if (triggeredMemories.length < 3) {
           for (const memory of detailedMemories) {
             if (triggeredMemories.length >= 3) break;
@@ -391,7 +416,7 @@ export async function POST(request: Request, context: any) {
             }).catch(() => {});
           }
         }
-        console.log(`詳細記憶: キーワードマッチングで${triggeredMemories.length}個適用`);
+        console.log(`詳細記憶: キーワードマッチング + ベクトル検索で${triggeredMemories.length}個適用（ベクトル検索: ${vectorMatchedMemories.length}件）`);
       }
     }
     console.timeEnd("⏱️ Detailed Memory Search");
@@ -797,12 +822,15 @@ ${conversationText}`;
                     const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
                     if (summary) {
-                      // キーワード抽出
+                      // キーワード抽出（範囲情報を除外）
                       const extractKeywords = (text: string): string[] => {
                         const words = text.toLowerCase().match(/\b\w{3,}\b/g) || [];
                         const wordCount: { [key: string]: number } = {};
                         words.forEach(word => {
-                          wordCount[word] = (wordCount[word] || 0) + 1;
+                          // 範囲情報パターンを除外（例: "1-5", "6-10", "11-15"など）
+                          if (!/^\d+-\d+$/.test(word)) {
+                            wordCount[word] = (wordCount[word] || 0) + 1;
+                          }
                         });
                         return Object.entries(wordCount)
                           .sort((a, b) => b[1] - a[1])
@@ -811,7 +839,6 @@ ${conversationText}`;
                       };
                       
                       const extractedKeywords = extractKeywords(conversationText);
-                      // 範囲情報はキーワードに含めない（実際のキーワードのみでマッチング）
                       
                       // 要約が2000文字を超える場合のみ分割、それ以外は1つのメモリとして保存
                       const MAX_MEMORY_LENGTH = 2000;

@@ -467,12 +467,15 @@ export async function DELETE(
 
 // キーワード抽出関数
 function extractKeywords(text: string): string[] {
-  // 簡単なキーワード抽出（実際の実装ではより高度な処理が必要）
+  // キーワード抽出（範囲情報を除外）
   const words = text.toLowerCase().match(/\b\w{3,}\b/g) || [];
   const wordCount: { [key: string]: number } = {};
   
   words.forEach(word => {
-    wordCount[word] = (wordCount[word] || 0) + 1;
+    // 範囲情報パターンを除外（例: "1-5", "6-10", "11-15"など）
+    if (!/^\d+-\d+$/.test(word)) {
+      wordCount[word] = (wordCount[word] || 0) + 1;
+    }
   });
   
   return Object.entries(wordCount)
