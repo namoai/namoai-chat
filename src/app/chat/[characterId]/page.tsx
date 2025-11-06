@@ -808,9 +808,9 @@ export default function ChatPage() {
 
       <main 
         ref={(el) => {
-          mainScrollRef.current = el;
-          // ref가 설정되면 즉시 최하단으로 스크롤
           if (el) {
+            mainScrollRef.current = el as HTMLDivElement;
+            // ref가 설정되면 즉시 최하단으로 스크롤
             setTimeout(() => {
               el.scrollTop = el.scrollHeight;
               el.scrollTop = 999999999;
@@ -821,6 +821,8 @@ export default function ChatPage() {
             setTimeout(() => {
               el.scrollTop = el.scrollHeight;
             }, 500);
+          } else {
+            mainScrollRef.current = null;
           }
         }}
         className="flex-1 overflow-y-auto p-4 space-y-6 pb-24"
