@@ -198,7 +198,7 @@ export async function POST(request: Request, context: any) {
             prisma.chat_message.findMany({
                 where: historyWhereClause,
                 orderBy: { createdAt: "desc" },
-                take: 10, // 履歴は最新10件を取得
+                take: 20, // 履歴は最新20件を取得（10件から増加）
             }),
             prisma.chat.findUnique({
                 where: { id: chatId },
@@ -225,7 +225,7 @@ export async function POST(request: Request, context: any) {
             try {
               const messageEmbedding = await getEmbedding(message);
               const excludeTurnIds = orderedHistory.map(msg => msg.turnId || 0).filter(id => id > 0);
-              const matched = await searchSimilarMessages(messageEmbedding, chatId, excludeTurnIds, 5);
+              const matched = await searchSimilarMessages(messageEmbedding, chatId, excludeTurnIds, 10); // 5件から10件に増加
               return matched;
             } catch (error) {
               console.error('ベクトル検索エラー（メッセージ）:', error);
