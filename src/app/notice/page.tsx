@@ -80,7 +80,7 @@ export default function NoticesPage() {
               <PlusCircle />
             </button>
           ) : (
-            <div className="w-10 h-10"></div> // ボタン領域만큼 공간 확보
+            <div className="w-10 h-10"></div> // ボタン領域分のスペースを確保
           )}
         </header>
 

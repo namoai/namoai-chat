@@ -4,13 +4,15 @@ export const dynamic = "force-dynamic"; // ▼▼▼【重要】キャッシュ�
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
-  VertexAI,
-  HarmCategory,
-  HarmBlockThreshold,
-  Content,
+  VertexAI,
+  HarmCategory,
+  HarmBlockThreshold,
+  Content,
 } from "@google-cloud/vertexai";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
+import { getEmbedding, embeddingToVectorString } from "@/lib/embeddings";
+import { searchSimilarMessages, searchSimilarDetailedMemories } from "@/lib/vector-search";
 
 // VertexAIクライアントの初期化
 const vertex_ai = new VertexAI({
@@ -89,8 +91,24 @@ export async function POST(request: Request, context: any) {
             cost = Math.max(0, cost - (p?.free_points || 0));
             const paidAfter = Math.max(0, (p?.paid_points || 0) - cost);
             await tx.points.update({ where: { user_id: userId }, data: { free_points: freeAfter, paid_points: paidAfter } });
-            const newUserMessage = await tx.chat_message.create({ data: { chatId: chatId, role: "user", content: message, version: 1, isActive: true } });
-            return await tx.chat_message.update({ where: { id: newUserMessage.id }, data: { turnId: newUserMessage.id } });
+             const newUserMessage = await tx.chat_message.create({ data: { chatId: chatId, role: "user", content: message, version: 1, isActive: true } });
+             const updatedMessage = await tx.chat_message.update({ where: { id: newUserMessage.id }, data: { turnId: newUserMessage.id } });
+             // ▼▼▼【ベクトル検索】メッセージのembeddingを非同期で生成（応答速度を維持）▼▼▼
+             (async () => {
+               try {
+                 const embedding = await getEmbedding(message);
+                 const embeddingString = embeddingToVectorString(embedding);
+                 await prisma.$executeRaw`
+                   UPDATE "chat_message" 
+                   SET "embedding" = ${embeddingString}::vector 
+                   WHERE "id" = ${newUserMessage.id}
+                 `;
+               } catch (error) {
+                 console.error('メッセージembedding生成エラー:', error);
+               }
+             })();
+             // ▲▲▲
+             return updatedMessage;
         });
         turnIdForModel = userMessageForHistory.id;
         console.log("ステップ3: ユーザーメッセージ保存完了");
@@ -111,7 +129,7 @@ export async function POST(request: Request, context: any) {
                 characters: { // 'characters' テーブルには世界観・シナリオ設定が含まれる
                     include: {
                         lorebooks: { orderBy: { id: "asc" } },
-                        characterImages: { orderBy: { id: "asc" } }, // id 정렬 사용
+                        characterImages: { orderBy: { id: "asc" } }, // idでソート
                     },
                 },
                 users: { select: { defaultPersonaId: true, nickname: true } },
@@ -181,13 +199,28 @@ export async function POST(request: Request, context: any) {
                 orderBy: { createdAt: "desc" },
             }),
         ]);
+        
         console.timeEnd("⏱️ DB History+Persona Query");
 
         const orderedHistory = history.reverse();
+        
+        // ▼▼▼【ベクトル検索】最新10件に加えて、関連メッセージをベクトル検索で追加▼▼▼
+        let vectorMatchedMessages: Array<{ id: number; content: string; role: string; createdAt: Date }> = [];
+        try {
+          const messageEmbedding = await getEmbedding(message);
+          const excludeTurnIds = orderedHistory.map(msg => msg.turnId || 0).filter(id => id > 0);
+          const matched = await searchSimilarMessages(messageEmbedding, chatId, excludeTurnIds, 5);
+          // 既存履歴に含まれていないメッセージのみ追加
+          const existingIds = new Set(orderedHistory.map(h => h.id));
+          vectorMatchedMessages = matched.filter(m => !existingIds.has(m.id));
+        } catch (error) {
+          console.error('ベクトル検索エラー（メッセージ）:', error);
+        }
+        // ▲▲▲
         console.log("ステップ2.5: ペルソナと履歴の取得完了");
         console.log(`使用されたバージョン: ${activeVersions ? JSON.stringify(activeVersions) : 'デフォルト(isActive)'}`);
         console.timeEnd("⏱️ Context Fetch Total (DB Only)");
-        return { chatRoom, persona, orderedHistory, backMemory, detailedMemories };
+        return { chatRoom, persona, orderedHistory, backMemory, detailedMemories, vectorMatchedMessages };
     })();
 
     // 2つの並列処理が完了するのを待ちます。
@@ -196,7 +229,7 @@ export async function POST(request: Request, context: any) {
     console.timeEnd("⏱️ Promise.all(DBWrite, Context)");
 
     const { userMessageForHistory, turnIdForModel } = dbWriteResult;
-    const { chatRoom, persona, orderedHistory, backMemory, detailedMemories } = contextResult;
+    const { chatRoom, persona, orderedHistory, backMemory, detailedMemories, vectorMatchedMessages } = contextResult;
 
     const worldSetting = chatRoom.characters; // 'char' から 'worldSetting' に変数名を変更 (意味を明確化)
     const user = chatRoom.users;
@@ -211,11 +244,25 @@ export async function POST(request: Request, context: any) {
       return text.replace(/{{char}}/g, worldName).replace(/{{user}}/g, userNickname);
     };
 
-    // AIモデルに渡すチャット履歴を作成（プレースホルダーを置換）
-    const chatHistory: Content[] = orderedHistory.map(msg => ({
-      role: msg.role as "user" | "model",
-      parts: [{ text: replacePlaceholders(msg.content) }],
-    }));
+    // AIモデルに渡すチャット履歴を作成（プレースホルダーを置換）
+    // 最新10件 + ベクトル検索で見つかった関連メッセージを統合
+    const allHistoryMessages = [
+      ...orderedHistory,
+      ...vectorMatchedMessages.map(m => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        createdAt: m.createdAt,
+        turnId: null,
+        version: 1,
+        isActive: true,
+      }))
+    ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    
+    const chatHistory: Content[] = allHistoryMessages.map(msg => ({
+      role: msg.role as "user" | "model",
+      parts: [{ text: replacePlaceholders(msg.content) }],
+    }));
 
     console.time("⏱️ Prompt Construction");
     console.log("ステップ4: 完全なシステムプロンプトの構築開始");
@@ -246,49 +293,61 @@ export async function POST(request: Request, context: any) {
       lorebookInfo = `# 関連情報 (ロアブック)\n- 以下の設定は会話のキーワードに基づき有効化された。優先度順。\n- ${triggeredLorebooks.join("\n- ")}`;
     }
 
-    // ▼▼▼ 詳細記憶のキーワードマッチング ▼▼▼
+    // ▼▼▼ 詳細記憶のベクトル検索 + キーワードマッチング（ハイブリッド）▼▼▼
     console.time("⏱️ Detailed Memory Search");
     let detailedMemoryInfo = "";
     const triggeredMemories: string[] = [];
+    const triggeredMemoryIds = new Set<number>();
+    
     if (detailedMemories && detailedMemories.length > 0) {
-      const lowerMessage = message.toLowerCase();
-      const lowerHistory = orderedHistory.map(msg => msg.content.toLowerCase()).join(' ');
-      const combinedText = `${lowerMessage} ${lowerHistory}`;
-      
-      for (const memory of detailedMemories) {
-        if (triggeredMemories.length >= 3) break; // 最大3個まで
+      // 1. ベクトル検索（embeddingがある場合）
+      try {
+        const messageEmbedding = await getEmbedding(message);
+        const vectorMatched = await searchSimilarDetailedMemories(messageEmbedding, chatId, 3);
         
-        if (memory.keywords && Array.isArray(memory.keywords) && memory.keywords.length > 0) {
-          const hasMatch = memory.keywords.some((keyword) => {
-            return keyword && combinedText.includes(keyword.toLowerCase());
+        for (const mem of vectorMatched) {
+          if (triggeredMemories.length >= 3 || triggeredMemoryIds.has(mem.id)) continue;
+          triggeredMemories.push(mem.content);
+          triggeredMemoryIds.add(mem.id);
+          // 最後に適用された時刻を更新
+          await prisma.detailed_memories.update({
+            where: { id: mem.id },
+            data: { lastApplied: new Date() },
           });
+        }
+      } catch (error) {
+        console.error('ベクトル検索エラー:', error);
+      }
+      
+      // 2. キーワードマッチング（ベクトル検索で見つからなかった場合の補完）
+      if (triggeredMemories.length < 3) {
+        const lowerMessage = message.toLowerCase();
+        const lowerHistory = orderedHistory.map(msg => msg.content.toLowerCase()).join(' ');
+        const combinedText = `${lowerMessage} ${lowerHistory}`;
+        
+        for (const memory of detailedMemories) {
+          if (triggeredMemories.length >= 3 || triggeredMemoryIds.has(memory.id)) break;
           
-          if (hasMatch) {
-            triggeredMemories.push(memory.content);
-            // 最後に適用された時刻を更新
-            await prisma.detailed_memories.update({
-              where: { id: memory.id },
-              data: { lastApplied: new Date() },
+          if (memory.keywords && Array.isArray(memory.keywords) && memory.keywords.length > 0) {
+            const hasMatch = memory.keywords.some((keyword) => {
+              return keyword && combinedText.includes(keyword.toLowerCase());
             });
-          }
-        } else {
-          // キーワードがない場合は内容から検索
-          const contentWords = memory.content.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-          const hasMatch = contentWords.some((word) => combinedText.includes(word));
-          
-          if (hasMatch) {
-            triggeredMemories.push(memory.content);
-            await prisma.detailed_memories.update({
-              where: { id: memory.id },
-              data: { lastApplied: new Date() },
-            });
+            
+            if (hasMatch) {
+              triggeredMemories.push(memory.content);
+              triggeredMemoryIds.add(memory.id);
+              await prisma.detailed_memories.update({
+                where: { id: memory.id },
+                data: { lastApplied: new Date() },
+              });
+            }
           }
         }
       }
     }
     console.timeEnd("⏱️ Detailed Memory Search");
     if (triggeredMemories.length > 0) {
-      detailedMemoryInfo = `# 詳細記憶\n- 以下の記憶は会話のキーワードに基づき有効化された。\n${triggeredMemories.map((mem, idx) => `- 記憶${idx + 1}: ${mem}`).join('\n')}`;
+      detailedMemoryInfo = `# 詳細記憶\n- 以下の記憶は会話の内容に基づき有効化された。\n${triggeredMemories.map((mem, idx) => `- 記憶${idx + 1}: ${mem}`).join('\n')}`;
     }
     // ▲▲▲
 
@@ -425,13 +484,29 @@ export async function POST(request: Request, context: any) {
             // 新しいバージョン番号を計算
             const lastVersion = await tx.chat_message.findFirst({ where: { turnId: turnIdForModel, role: 'model' }, orderBy: { version: 'desc' } });
             const newVersionNumber = (lastVersion?.version || 0) + 1;
-            // 新しいモデルメッセージを作成
-            return await tx.chat_message.create({
-              data: { chatId, role: "model", content: finalResponseText, turnId: turnIdForModel, version: newVersionNumber, isActive: true },
-            });
-          });
-          console.log("ステップ6: AI応答の保存完了");
-          console.timeEnd("⏱️ DB Write (AI Msg)");
+            // 新しいモデルメッセージを作成
+            return await tx.chat_message.create({
+              data: { chatId, role: "model", content: finalResponseText, turnId: turnIdForModel, version: newVersionNumber, isActive: true },
+            });
+          });
+          console.log("ステップ6: AI応答の保存完了");
+          console.timeEnd("⏱️ DB Write (AI Msg)");
+          
+          // ▼▼▼【ベクトル検索】AIメッセージのembeddingを非同期で生成▼▼▼
+          (async () => {
+            try {
+              const embedding = await getEmbedding(finalResponseText);
+              const embeddingString = embeddingToVectorString(embedding);
+              await prisma.$executeRaw`
+                UPDATE "chat_message" 
+                SET "embedding" = ${embeddingString}::vector 
+                WHERE "id" = ${newModelMessage.id}
+              `;
+            } catch (error) {
+              console.error('AIメッセージembedding生成エラー:', error);
+            }
+          })();
+          // ▲▲▲
           
           // AIメッセージの保存完了をクライアントに通知
           sendEvent('ai-message-saved', { modelMessage: newModelMessage });

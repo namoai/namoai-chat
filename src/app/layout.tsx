@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
-// 1. AppShell과 Providersコンポーネントをインポートします
+// 1. AppShellとProvidersコンポーネントをインポートします
 import AppShell from "@/components/AppShell";
 import Providers from "@/components/Providers";
 

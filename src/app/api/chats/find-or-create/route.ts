@@ -16,9 +16,9 @@ type RequestBody = {
 /**
  * POST /api/chats/find-or-create
  * Body:
- * - chatId?: number            ← 있으면 이것만으로 조회 (소유자 검증)
- * - characterId?: number       ← 없으면 chatId 필요
- * - forceNew?: boolean         ← true면 characterId로 무조건 새로 생성
+ * - chatId?: number            ← あればこれだけで検索 (所有者検証)
+ * - characterId?: number       ← なければchatIdが必要
+ * - forceNew?: boolean         ← trueならcharacterIdで常に新規作成
  *
  * ポリシー:
  * - chatId があれば最優先でそのチャットのみ返却（所有者チェック込み）

@@ -31,7 +31,7 @@ export async function PATCH(request: NextRequest) {
     try {
         const { userNote } = await request.json();
         
-        // userNoteが文字列であるかを確認 (userNote가 문자열인지 확인)
+        // userNoteが文字列であるかを確認
         if (typeof userNote !== 'string') {
             return NextResponse.json({ error: "ノートの内容が無効です。" }, { status: 400 });
         }
@@ -46,7 +46,7 @@ export async function PATCH(request: NextRequest) {
         }
         // ▲▲▲【ここまで修正】▲▲▲
 
-        // ユーザーがこのチャットの所有者であることを確認 (사용자가 이 채팅의 소유자인지 확인)
+        // ユーザーがこのチャットの所有者であることを確認
         const chat = await prisma.chat.findFirst({
             where: {
                 id: chatId,
@@ -58,7 +58,7 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: "チャットが見つからないか、アクセス権がありません。" }, { status: 404 });
         }
 
-        // ユーザーノートを更新 (사용자 노트 업데이트)
+        // ユーザーノートを更新
         const updatedChat = await prisma.chat.update({
             where: { id: chatId },
             data: { userNote: userNote },

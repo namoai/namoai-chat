@@ -3,13 +3,13 @@ import React, { useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Edit3, Trash2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import ChatMessageParser from '@/components/ChatMessageParser';
-// ▼▼▼【버그 수정】 `Turn` 타입을 다시 임포트합니다. ▼▼▼
+// ▼▼▼【バグ修正】 `Turn`型を再度インポートします。▼▼▼
 import type { Turn, Message, CharacterInfo, CharacterImageInfo } from '@/types/chat';
 
 interface ChatMessageListProps {
   characterInfo: CharacterInfo;
   rawMessages: Message[];
-  // turns: Turn[]; // ★★★【Stale State 수정】`turns` prop을 제거합니다.
+  // turns: Turn[]; // ★★★【Stale State修正】`turns` propを削除します。
   isLoading: boolean;
   regeneratingTurnId: number | null; // 再生成中のターンIDを追加
   editingMessageId: number | null;
@@ -21,7 +21,7 @@ interface ChatMessageListProps {
   handleEditCancel: () => void;
   handleEditSave: () => void;
   handleDelete: (messageId: number) => void;
-  // ▼▼▼【Stale State 수정】`Turn` 객체 대신 `turnId` (number)를 받도록 수정합니다. ▼▼▼
+  // ▼▼▼【Stale State修正】`Turn`オブジェクトの代わりに`turnId` (number)を受け取るように修正します。▼▼▼
   handleRegenerate: (turnId: number) => void;
   switchModelMessage: (turnId: number, direction: 'next' | 'prev') => void;
   prioritizeImagesByKeyword: (userText: string, allImages: CharacterImageInfo[]) => CharacterImageInfo[];
@@ -71,15 +71,15 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   editingUserContent, editingModelContent, setEditingUserContent, setEditingModelContent,
   handleEditStart, handleEditCancel, handleEditSave, handleDelete, handleRegenerate, switchModelMessage,
   prioritizeImagesByKeyword, showChatImage, isMultiImage, setLightboxImage,
-  // turns, // ★★★【Stale State 수정】`turns` prop을 받지 않습니다.
+  // turns, // ★★★【Stale State修正】`turns` propを受け取りません。
 }) => {
   
-  // ▼▼▼【Stale State 수정】`rawMessages`에만 의존하도록 `useMemo`를 수정합니다. ▼▼▼
+  // ▼▼▼【Stale State修正】`rawMessages`のみに依存するように`useMemo`を修正します。▼▼▼
   const processedTurns = React.useMemo(() => {
     const userMessages = rawMessages.filter(m => m.role === 'user');
     const modelMessages = rawMessages.filter(m => m.role === 'model');
 
-    // `rawMessages`를 기반으로 턴을 재구성합니다.
+    // `rawMessages`を基にターンを再構成します。
     return userMessages.map(userMsg => {
       const correspondingModels = modelMessages
         .filter(modelMsg => modelMsg.turnId === userMsg.turnId)
@@ -92,9 +92,9 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
         userMessage: userMsg,
         modelMessages: correspondingModels,
         activeModelIndex: activeModel ? correspondingModels.indexOf(activeModel) : -1,
-      } as Turn; // `Turn` 타입으로 캐스팅
+      } as Turn; // `Turn`型にキャスト
     }).filter(turn => turn.userMessage);
-  }, [rawMessages]); // ★★★【Stale State 수정】`turns` 의존성을 제거합니다.
+  }, [rawMessages]); // ★★★【Stale State修正】`turns`依存性を削除します。
   // ▲▲▲ 修正ここまで ▲▲▲
 
   return (

@@ -18,7 +18,7 @@ async function getNotice(id: number): Promise<notices | null> {
   }
 }
 
-// params를 any로 지정해서 타입 충돌 방지
+// paramsをanyで指定して型衝突を防止
 export default async function NoticeEditAdminPage({
   params,
 }: {

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
 import { VertexAI } from '@google-cloud/aiplatform';
 import { HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { getEmbedding, embeddingToVectorString } from '@/lib/embeddings';
 
 const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -151,14 +152,31 @@ ${conversationText}`;
 
       // キーワードを抽出（簡単な方法：会話から重要な単語を抽出）
       const extractedKeywords = extractKeywords(conversationText);
+      const memoryContent = summary.substring(0, MAX_MEMORY_LENGTH);
 
       const newMemory = await prisma.detailed_memories.create({
         data: {
           chatId: chatIdNum,
-          content: summary.substring(0, MAX_MEMORY_LENGTH),
+          content: memoryContent,
           keywords: extractedKeywords,
         },
       });
+
+      // ▼▼▼【ベクトル検索】詳細記憶のembeddingを生成▼▼▼
+      (async () => {
+        try {
+          const embedding = await getEmbedding(memoryContent);
+          const embeddingString = embeddingToVectorString(embedding);
+          await prisma.$executeRaw`
+            UPDATE "detailed_memories" 
+            SET "embedding" = ${embeddingString}::vector 
+            WHERE "id" = ${newMemory.id}
+          `;
+        } catch (error) {
+          console.error('詳細記憶embedding生成エラー:', error);
+        }
+      })();
+      // ▲▲▲
 
       return NextResponse.json({ memory: { ...newMemory, index: existingCount + 1 } });
     } else {
@@ -171,13 +189,30 @@ ${conversationText}`;
         return NextResponse.json({ error: `内容は${MAX_MEMORY_LENGTH}文字以内で入力してください。` }, { status: 400 });
       }
 
+      const memoryContent = content.substring(0, MAX_MEMORY_LENGTH);
       const newMemory = await prisma.detailed_memories.create({
         data: {
           chatId: chatIdNum,
-          content: content.substring(0, MAX_MEMORY_LENGTH),
+          content: memoryContent,
           keywords: keywords || [],
         },
       });
+
+      // ▼▼▼【ベクトル検索】詳細記憶のembeddingを生成▼▼▼
+      (async () => {
+        try {
+          const embedding = await getEmbedding(memoryContent);
+          const embeddingString = embeddingToVectorString(embedding);
+          await prisma.$executeRaw`
+            UPDATE "detailed_memories" 
+            SET "embedding" = ${embeddingString}::vector 
+            WHERE "id" = ${newMemory.id}
+          `;
+        } catch (error) {
+          console.error('詳細記憶embedding生成エラー:', error);
+        }
+      })();
+      // ▲▲▲
 
       return NextResponse.json({ memory: { ...newMemory, index: existingCount + 1 } });
     }
@@ -220,10 +255,27 @@ export async function PUT(
       return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
     }
 
+    const memoryContent = content.substring(0, MAX_MEMORY_LENGTH);
     const updated = await prisma.detailed_memories.update({
       where: { id: memoryId },
-      data: { content: content.substring(0, MAX_MEMORY_LENGTH) },
+      data: { content: memoryContent },
     });
+
+    // ▼▼▼【ベクトル検索】更新された詳細記憶のembeddingを再生成▼▼▼
+    (async () => {
+      try {
+        const embedding = await getEmbedding(memoryContent);
+        const embeddingString = embeddingToVectorString(embedding);
+        await prisma.$executeRaw`
+          UPDATE "detailed_memories" 
+          SET "embedding" = ${embeddingString}::vector 
+          WHERE "id" = ${memoryId}
+        `;
+      } catch (error) {
+        console.error('詳細記憶embedding更新エラー:', error);
+      }
+    })();
+    // ▲▲▲
 
     return NextResponse.json({ memory: updated });
   } catch (error) {

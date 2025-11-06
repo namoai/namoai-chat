@@ -1,6 +1,6 @@
 export const runtime = 'nodejs';
 
-console.log("✅ /api/register 라우트 실행됨!");
+console.log("✅ /api/register ルート実行!");
 
 import { NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma'
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("登録エラー:", error);
 
-    // JSONでエラーレスポンス返却 (HTML 방지)
+    // JSONでエラーレスポンス返却 (HTML防止)
     return NextResponse.json(
       { error: "サーバーエラーが発生しました。" },
       { status: 500 }

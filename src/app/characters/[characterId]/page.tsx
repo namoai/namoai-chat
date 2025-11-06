@@ -278,16 +278,16 @@ type CharacterDetail = {
   isFavorited?: boolean;
 };
 
-// ✅ 여기부터 경고 해결을 위한 핵심 수정
+// ✅ ここから警告解決のための核心修正
 export default function CharacterDetailPage({
-  // ❗️Next.js(React 19)에서 params가 Promise이므로, 타입도 Promise로 받습니다.
+  // ❗️Next.js(React 19)ではparamsがPromiseなので、型もPromiseで受け取ります。
   params,
 }: {
   params: Promise<{ characterId: string }>;
 }) {
   const router = useRouter();
 
-  // ❗️React.use()로 params를 언랩하여 안전하게 접근합니다.
+  // ❗️React.use()でparamsをアンラップして安全にアクセスします。
   const { characterId: characterIdRaw } = React.use(params);
   const characterId: string | null = characterIdRaw ?? null;
 
@@ -346,7 +346,7 @@ export default function CharacterDetailPage({
       }
     };
     fetchCharacter();
-  // ❗️의존성도 params.characterId → characterId 로 교체
+  // ❗️依存性もparams.characterId → characterId に置き換え
   }, [characterId]);
 
   const handleFavorite = async () => {

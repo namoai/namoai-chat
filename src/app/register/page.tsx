@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Mail, Lock, User, Phone, Smile, ArrowLeft } from "lucide-react"; // ✅ 버튼 아이콘 추가
+import { Mail, Lock, User, Phone, Smile, ArrowLeft } from "lucide-react"; // ✅ ボタンアイコンを追加
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -105,7 +105,7 @@ export default function SignUpPage() {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center px-4 py-8 relative">
-      {/* ✅ 로그인 화면으로 돌아가기 버튼 추가 */}
+      {/* ✅ ログイン画面に戻るボタンを追加 */}
       <button
         onClick={() => router.back()}
         className="absolute top-4 left-4 text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-md cursor-pointer flex items-center gap-2"

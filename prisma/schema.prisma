@@ -63,7 +63,7 @@ model users {
   interactions                  interactions[]
   personas                      personas[]
   points                        points?
-  // ▼▼▼【수정】 에러를 유발하는 중복된 'sessions' 필드를 삭제했습니다. ▼▼▼
+  // ▼▼▼【修正】エラーを引き起こす重複した'sessions'フィールドを削除しました。▼▼▼
 }
 
 model character_images {
@@ -110,18 +110,21 @@ model points {
 }
 
 model chat {
-  id                Int                 @id @default(autoincrement())
-  userId            Int
-  characterId       Int
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  userNote          String?
-  backMemory        String?             @db.Text
-  autoSummarize     Boolean             @default(true)
-  characters        characters          @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  users             users               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  chat_message      chat_message[]
-  detailed_memories detailed_memories[]
+  id                  Int                 @id @default(autoincrement())
+  userId              Int
+  characterId         Int
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  userNote            String?
+  backMemory          String?             @db.Text
+  backMemoryEmbedding Unsupported("vector")?
+  autoSummarize       Boolean             @default(true)
+  characters          characters          @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  users               users               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat_message        chat_message[]
+  detailed_memories   detailed_memories[]
+
+  @@index([backMemoryEmbedding])
 }
 
 model chat_message {
@@ -133,10 +136,12 @@ model chat_message {
   turnId    Int?
   version   Int      @default(1)
   isActive  Boolean  @default(true)
+  embedding Unsupported("vector")?
   chat      chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@index([chatId, turnId, isActive])
   @@index([chatId, isActive, createdAt], map: "chat_message_chatId_isActive_createdAt_idx")
+  @@index([embedding])
 }
 
 model follows {
@@ -269,15 +274,17 @@ model detailed_memories {
   chatId      Int
   content     String    @db.Text
   keywords    String[] // キーワード配列
+  embedding   Unsupported("vector")?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   lastApplied DateTime? // 最後に適用された時刻
   chat        chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@index([chatId, createdAt])
+  @@index([embedding])
 }
 
-// ▼▼▼【수정】 불필요하고 중복 에러를 유발하는 'sessions' 모델을 삭제했습니다. ▼▼▼
+// ▼▼▼【修正】不要で重複エラーを引き起こす'sessions'モデルを削除しました。▼▼▼
 
 enum Role {
   USER

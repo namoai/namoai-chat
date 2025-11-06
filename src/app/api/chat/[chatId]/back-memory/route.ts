@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
 import { VertexAI } from '@google-cloud/aiplatform';
 import { HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { getEmbedding, embeddingToVectorString } from '@/lib/embeddings';
 
 const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -95,6 +96,31 @@ export async function PUT(
         autoSummarize: autoSummarize !== undefined ? autoSummarize : undefined,
       },
     });
+
+    // ▼▼▼【ベクトル検索】バックメモリのembeddingを生成▼▼▼
+    if (content && content.trim().length > 0) {
+      (async () => {
+        try {
+          const embedding = await getEmbedding(content);
+          const embeddingString = embeddingToVectorString(embedding);
+          await prisma.$executeRaw`
+            UPDATE "chat" 
+            SET "backMemoryEmbedding" = ${embeddingString}::vector 
+            WHERE "id" = ${chatIdNum}
+          `;
+        } catch (error) {
+          console.error('バックメモリembedding生成エラー:', error);
+        }
+      })();
+    } else {
+      // 内容が空の場合はembeddingも削除
+      await prisma.$executeRaw`
+        UPDATE "chat" 
+        SET "backMemoryEmbedding" = NULL 
+        WHERE "id" = ${chatIdNum}
+      `;
+    }
+    // ▲▲▲
 
     return NextResponse.json({
       backMemory: updated.backMemory || '',
@@ -194,6 +220,22 @@ ${conversationText}`;
       where: { id: chatIdNum },
       data: { backMemory: summary },
     });
+
+    // ▼▼▼【ベクトル検索】要約のembeddingを生成▼▼▼
+    (async () => {
+      try {
+        const embedding = await getEmbedding(summary);
+        const embeddingString = embeddingToVectorString(embedding);
+        await prisma.$executeRaw`
+          UPDATE "chat" 
+          SET "backMemoryEmbedding" = ${embeddingString}::vector 
+          WHERE "id" = ${chatIdNum}
+        `;
+      } catch (error) {
+        console.error('バックメモリembedding生成エラー:', error);
+      }
+    })();
+    // ▲▲▲
 
     return NextResponse.json({ summary: updated.backMemory || '' });
   } catch (error) {
