@@ -287,72 +287,8 @@ export default function ChatPage() {
                 imageUrls: [], // ユーザーメッセージは画像なし
               };
             });
-            
-            // ▼▼▼【ストリーミング効果】新規고침 시 메시지를 스트리밍 효과로 표시 (일반 출력과 동일) ▼▼▼
-            // 메시지를 하나씩 추가하고, 각 메시지의 텍스트도 한 글자씩 추가하여 스트리밍 효과 시뮬레이션
-            setRawMessages([]);
-            formattedMessages.forEach((msg: Message, msgIndex: number) => {
-              // 메시지 추가 지연 (메시지 간 간격)
-              setTimeout(() => {
-                setRawMessages(prev => {
-                  if (prev.some(m => m.id === msg.id)) {
-                    return prev;
-                  }
-                  
-                  // 모델 메시지의 경우 텍스트를 한 글자씩 추가
-                  if (msg.role === 'model' && msg.content) {
-                    const fullContent = msg.content;
-                    const emptyMessage: Message = {
-                      ...msg,
-                      content: '',
-                    };
-                    
-                    // 빈 메시지를 먼저 추가
-                    const messagesWithEmpty = [...prev, emptyMessage];
-                    
-                    // 텍스트를 한 글자씩 추가
-                    let charIndex = 0;
-                    const addChar = () => {
-                      if (charIndex < fullContent.length) {
-                        setRawMessages(current => {
-                          const updated = current.map(m => 
-                            m.id === msg.id 
-                              ? { ...m, content: fullContent.substring(0, charIndex + 1) }
-                              : m
-                          );
-                          charIndex++;
-                          if (charIndex < fullContent.length) {
-                            setTimeout(addChar, 10); // 각 글자마다 10ms 지연
-                          }
-                          return updated;
-                        });
-                      }
-                    };
-                    
-                    // 첫 글자 추가 시작
-                    setTimeout(() => {
-                      setRawMessages(current => {
-                        return current.map(m => 
-                          m.id === msg.id 
-                            ? { ...m, content: fullContent.substring(0, 1) }
-                            : m
-                        );
-                      });
-                      charIndex = 1;
-                      if (charIndex < fullContent.length) {
-                        setTimeout(addChar, 10);
-                      }
-                    }, 50);
-                    
-                    return messagesWithEmpty;
-                  } else {
-                    // 유저 메시지는 즉시 표시
-                    return [...prev, msg];
-                  }
-                });
-              }, msgIndex * 100); // 각 메시지마다 100ms 지연
-            });
-            // ▲▲▲
+            // 브라우저 새로고침 시 완성된 메시지를 바로 표시 (스트리밍 효과 없음)
+            setRawMessages(formattedMessages);
             
             // ▼▼▼【新規追加】새로고침 시 자동 요약 트리거 (autoSummarize가 true인 경우) ▼▼▼
             if (data.autoSummarize !== false && formattedMessages.length >= 2) {
