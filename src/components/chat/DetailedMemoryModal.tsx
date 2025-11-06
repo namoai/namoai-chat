@@ -97,7 +97,7 @@ export default function DetailedMemoryModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4" onClick={onClose}>
-      <div className="bg-gray-800 text-white rounded-lg w-full max-w-2xl sm:max-w-4xl lg:max-w-6xl h-[85vh] sm:h-[90vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-gray-800 text-white rounded-lg w-full max-w-4xl sm:max-w-5xl lg:max-w-7xl xl:max-w-[90vw] h-[85vh] sm:h-[90vh] flex flex-col shadow-2xl mx-auto" onClick={(e) => e.stopPropagation()}>
         {/* ヘッダー */}
         <div className="flex justify-between items-center p-6 border-b border-gray-700">
           <div>

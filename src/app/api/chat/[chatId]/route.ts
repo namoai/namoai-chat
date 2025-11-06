@@ -425,8 +425,10 @@ export async function POST(request: Request, context: any) {
     
     const formattingInstruction = `# Response Format (Required)
 - You are the narrator and game master of this world. Describe the actions and dialogue of characters from a third-person perspective.
+- **CRITICAL**: NEVER generate, speak as, or create dialogue for the user. You can ONLY describe characters' actions and dialogue. The user will speak for themselves through their own messages. Only respond as the character(s) and narrator.
 - Narration: Write in third person naturally. All narration text will be displayed in gray color automatically.
 - Dialogue: Enclose in Japanese quotation marks (「」) ONLY. Dialogue will be displayed in white color. Example: 「Hello」 or Alice「Hello」
+- **Dialogue Detection**: Even if the user doesn't use special markers like ** or 「」, you should understand their intent. If the user's message is clearly dialogue (e.g., "안녕하세요", "저는 박승철입니다"), treat it as dialogue. If it's descriptive (e.g., "박승철이 방에 들어갔다"), treat it as narration instruction.
 - Status Window: For character status, location info, or game system information, wrap them in code blocks using triple backticks (\`\`\`). Example:
 \`\`\`
 📅91日目 | 🏫 教室 | 🌤️ 晴れ

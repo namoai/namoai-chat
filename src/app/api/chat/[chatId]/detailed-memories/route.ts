@@ -143,7 +143,7 @@ export async function POST(
 ${conversationText}`;
 
       const result = await generativeModel.generateContent(prompt);
-      const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      let summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
       if (!summary) {
         return NextResponse.json({ error: '要約の生成に失敗しました。' }, { status: 500 });
@@ -151,33 +151,87 @@ ${conversationText}`;
 
       // キーワードを抽出（簡単な方法：会話から重要な単語を抽出）
       const extractedKeywords = extractKeywords(conversationText);
-      const memoryContent = summary.substring(0, MAX_MEMORY_LENGTH);
-
-      const newMemory = await prisma.detailed_memories.create({
-        data: {
-          chatId: chatIdNum,
-          content: memoryContent,
-          keywords: extractedKeywords,
-        },
-      });
-
-      // ▼▼▼【ベクトル検索】詳細記憶のembeddingを生成▼▼▼
-      (async () => {
-        try {
-          const embedding = await getEmbedding(memoryContent);
-          const embeddingString = embeddingToVectorString(embedding);
-          await prisma.$executeRaw`
-            UPDATE "detailed_memories" 
-            SET "embedding" = ${embeddingString}::vector 
-            WHERE "id" = ${newMemory.id}
-          `;
-        } catch (error) {
-          console.error('詳細記憶embedding生成エラー:', error);
+      
+      // 2000文字を超える場合は複数のメモリに分割
+      const createdMemories = [];
+      let remainingSummary = summary;
+      let currentIndex = existingCount;
+      
+      while (remainingSummary.length > 0 && currentIndex < MAX_DETAILED_MEMORIES) {
+        const memoryContent = remainingSummary.substring(0, MAX_MEMORY_LENGTH);
+        remainingSummary = remainingSummary.substring(MAX_MEMORY_LENGTH);
+        
+        const newMemory = await prisma.detailed_memories.create({
+          data: {
+            chatId: chatIdNum,
+            content: memoryContent,
+            keywords: extractedKeywords,
+          },
+        });
+        
+        createdMemories.push(newMemory);
+        currentIndex++;
+        
+        // 次のメモリ用のembeddingを生成（非同期）
+        (async () => {
+          try {
+            const embedding = await getEmbedding(memoryContent);
+            const embeddingString = `[${embedding.join(',')}]`;
+            await prisma.$executeRawUnsafe(
+              `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+              embeddingString,
+              newMemory.id
+            );
+          } catch (error) {
+            console.error('詳細記憶embedding生成エラー:', error);
+          }
+        })();
+        
+        // 残りが2000文字以下なら終了
+        if (remainingSummary.length <= MAX_MEMORY_LENGTH) {
+          break;
         }
-      })();
-      // ▲▲▲
+      }
+      
+      // 最後の残り部分がある場合
+      if (remainingSummary.length > 0 && currentIndex < MAX_DETAILED_MEMORIES) {
+        const finalMemory = await prisma.detailed_memories.create({
+          data: {
+            chatId: chatIdNum,
+            content: remainingSummary.substring(0, MAX_MEMORY_LENGTH),
+            keywords: extractedKeywords,
+          },
+        });
+        
+        createdMemories.push(finalMemory);
+        
+        // embedding生成（非同期）
+        (async () => {
+          try {
+            const embedding = await getEmbedding(finalMemory.content);
+            const embeddingString = `[${embedding.join(',')}]`;
+            await prisma.$executeRawUnsafe(
+              `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+              embeddingString,
+              finalMemory.id
+            );
+          } catch (error) {
+            console.error('詳細記憶embedding生成エラー:', error);
+          }
+        })();
+      }
+      
+      // 最初に作成されたメモリを返す（既存のコードとの互換性のため）
+      const newMemory = createdMemories[0];
 
-      return NextResponse.json({ memory: { ...newMemory, index: existingCount + 1 } });
+      if (!newMemory) {
+        return NextResponse.json({ error: 'メモリの作成に失敗しました。' }, { status: 500 });
+      }
+
+      return NextResponse.json({ 
+        memory: { ...newMemory, index: existingCount + 1 },
+        createdCount: createdMemories.length 
+      });
     } else {
       // 手動作成の場合
       if (existingCount >= MAX_DETAILED_MEMORIES) {

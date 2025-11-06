@@ -297,11 +297,15 @@ export default function ChatSettings({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ autoSummarize: true }),
       });
-      if (res.ok) {
-        await fetchDetailedMemories();
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || '自動要約に失敗しました');
       }
+      // メモリを再取得
+      await fetchDetailedMemories();
     } catch (error) {
       console.error('自動要約エラー:', error);
+      alert(error instanceof Error ? error.message : '自動要約に失敗しました');
       throw error;
     }
   };
