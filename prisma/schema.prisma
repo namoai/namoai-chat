@@ -283,7 +283,8 @@ model detailed_memories {
   chat        chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@index([chatId, createdAt])
-  @@index([embedding])
+  // Note: embedding index is created manually via SQL (ivfflat)
+  // @@index([embedding]) - removed to use ivfflat index
 }
 
 // ▼▼▼【修正】不要で重複エラーを引き起こす'sessions'モデルを削除しました。▼▼▼

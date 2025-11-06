@@ -596,16 +596,16 @@ ${conversationText}`;
                         data: { backMemory: summary },
                       });
 
-                      // embeddingを生成
+                      // embeddingを生成（非同期、エラー無視）
                       (async () => {
                         try {
                           const embedding = await getEmbedding(summary);
-                          const embeddingString = embeddingToVectorString(embedding);
-                          await prisma.$executeRaw`
-                            UPDATE "chat" 
-                            SET "backMemoryEmbedding" = ${embeddingString}::vector 
-                            WHERE "id" = ${chatId}
-                          `;
+                          const embeddingString = `[${embedding.join(',')}]`;
+                          await prisma.$executeRawUnsafe(
+                            `UPDATE "chat" SET "backMemoryEmbedding" = $1::vector WHERE "id" = $2`,
+                            embeddingString,
+                            chatId
+                          );
                         } catch (error) {
                           console.error('バックメモリembedding生成エラー:', error);
                         }
