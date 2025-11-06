@@ -342,14 +342,18 @@ ${lengthInstruction}
                     let fullResponse = "";
                     
                     // ストリームからチャンクを読み取り（一般チャットと同じ：画像タグはそのまま送信）
+                    let chunkCount = 0;
                     for await (const chunk of result.stream) {
                         const chunkText = chunk.candidates?.[0]?.content?.parts?.[0]?.text || "";
                         if (chunkText) {
+                            chunkCount++;
                             fullResponse += chunkText;
                             // チャンクごとにクライアントに送信（画像タグはそのまま送信、クライアントでパース）
+                            console.log(`🔄 再生成ストリーミング: チャンク${chunkCount}送信 (${chunkText.length}文字)`);
                             sendEvent("ai-update", { responseChunk: chunkText });
                         }
                     }
+                    console.log(`🔄 再生成ストリーミング: 合計${chunkCount}チャンク送信完了`);
                     
                     console.timeEnd("⏱️ Vertex AI応答生成");
                     
@@ -414,8 +418,8 @@ ${lengthInstruction}
                     });
                     console.timeEnd("⏱️ メッセージ保存");
                     
-                    // 最終メッセージを送信
-                    sendEvent("message", { 
+                    // 最終メッセージを送信（一般チャットと同じ形式: ai-message-saved）
+                    sendEvent("ai-message-saved", { 
                         modelMessage: {
                             ...newMessage,
                             imageUrls: matchedImageUrls

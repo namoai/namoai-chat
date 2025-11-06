@@ -779,6 +779,7 @@ export default function ChatPage() {
                     }
                     
                     if (eventData.responseChunk) {
+                        console.log(`🔄 再生成ストリーミング: チャンク受信 (${eventData.responseChunk.length}文字)`);
                         // ▼▼▼【画像タグパース】{img:N}をimageUrlsに変換 ▼▼▼
                         const characterImages = characterInfo?.characterImages || [];
                         const { cleanText, imageUrls: newImageUrls } = parseImageTags(eventData.responseChunk, characterImages);
@@ -819,7 +820,8 @@ export default function ChatPage() {
                             ));
                         }
                     } else if (eventData.modelMessage) {
-                        // 最終メッセージで更新（ストリーミング中に収集した内容と画像URLを保持）
+                        // 最終メッセージで更新（一般チャットと同じ形式: ai-message-saved）
+                        // ストリーミング中に収集した内容と画像URLを保持
                         setRawMessages(prev => prev.map(m => {
                             if (m.id === tempModelMessageId) {
                                 // ストリーミング中に収集した画像URLを保持（重複除去）
