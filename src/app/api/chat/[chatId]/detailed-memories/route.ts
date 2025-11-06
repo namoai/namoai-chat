@@ -441,8 +441,7 @@ export async function PUT(
 
 // DELETE: 詳細記憶の削除
 export async function DELETE(
-  request: Request,
-  { params }: { params: { chatId: string } }
+  request: Request
 ) {
   try {
     const session = await getServerSession(authOptions);
