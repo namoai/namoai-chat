@@ -819,7 +819,7 @@ export default function ChatPage() {
                             ));
                         }
                     } else if (eventData.modelMessage) {
-                        // 最終メッセージで更新（ストリーミング中に収集した画像URLを保持）
+                        // 最終メッセージで更新（ストリーミング中に収集した内容と画像URLを保持）
                         setRawMessages(prev => prev.map(m => {
                             if (m.id === tempModelMessageId) {
                                 // ストリーミング中に収集した画像URLを保持（重複除去）
@@ -827,10 +827,13 @@ export default function ChatPage() {
                                 const serverImageUrls = eventData.modelMessage.imageUrls || [];
                                 const allImageUrls = [...new Set([...existingImageUrls, ...serverImageUrls])];
                                 
+                                // ストリーミング中に 수집한 content를 유지（서버의 content는 이미지 태그가 포함된 원본）
+                                // 하지만 스트리밍 중에 이미 파싱된 cleanText가 있으므로, 서버의 원본 content를 사용
                                 return {
                                     ...eventData.modelMessage,
                                     timestamp: new Date(eventData.modelMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
                                     imageUrls: allImageUrls,
+                                    // content는 서버에서 보낸 원본을 사용（이미지 태그 포함）
                                 };
                             }
                             return m;
