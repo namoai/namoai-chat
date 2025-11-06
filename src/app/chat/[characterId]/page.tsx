@@ -807,17 +807,24 @@ export default function ChatPage() {
       />
 
       <main 
-        ref={mainScrollRef} 
+        ref={(el) => {
+          mainScrollRef.current = el;
+          // ref가 설정되면 즉시 최하단으로 스크롤
+          if (el) {
+            setTimeout(() => {
+              el.scrollTop = el.scrollHeight;
+              el.scrollTop = 999999999;
+            }, 0);
+            setTimeout(() => {
+              el.scrollTop = el.scrollHeight;
+            }, 100);
+            setTimeout(() => {
+              el.scrollTop = el.scrollHeight;
+            }, 500);
+          }
+        }}
         className="flex-1 overflow-y-auto p-4 space-y-6 pb-24"
         style={{ scrollBehavior: 'auto' }}
-        onLoad={() => {
-          // 컴포넌트 로드 시 즉시 최하단으로 스크롤
-          setTimeout(() => {
-            if (mainScrollRef.current) {
-              mainScrollRef.current.scrollTop = mainScrollRef.current.scrollHeight;
-            }
-          }, 0);
-        }}
       >
         <ChatMessageList
           characterInfo={characterInfo}
