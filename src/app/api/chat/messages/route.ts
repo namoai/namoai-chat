@@ -70,7 +70,10 @@ export async function POST(request: NextRequest) {
                 where: { id: chatId },
                 include: { 
                     characters: { 
-                        include: { characterImages: true } 
+                        include: { 
+                            characterImages: true,
+                            lorebooks: { orderBy: { id: "asc" } }
+                        } 
                     }, 
                     users: { select: { defaultPersonaId: true } } 
                 },
