@@ -508,16 +508,26 @@ export async function POST(request: Request, context: any) {
           })();
           // ▲▲▲
           
-          // ▼▼▼【自動要約】autoSummarizeがONの場合、メッセージ가 추가될 때마다自動要約▼▼▼
+          // ▼▼▼【自動要約】autoSummarizeがONの場合、メッセージが追加されたら自動要約▼▼▼
           if (backMemory && backMemory.autoSummarize) {
             (async () => {
               try {
-                // メッセージ数が1個以上になったら自動要約（毎回実行）
+                // メッセージ数を取得
                 const messageCount = await prisma.chat_message.count({
                   where: { chatId, isActive: true },
                 });
                 
-                if (messageCount >= 1) {
+                // 要約を実行する条件:
+                // - 10個以下: 毎回実行
+                // - 10個超過: 5個単位で実行（10, 15, 20, 25...）
+                let shouldSummarize = false;
+                if (messageCount <= 10) {
+                  shouldSummarize = messageCount >= 1; // 1個以上なら毎回
+                } else {
+                  shouldSummarize = messageCount % 5 === 0; // 5個単位
+                }
+                
+                if (shouldSummarize) {
                   console.log(`自動要約を開始 (メッセージ数: ${messageCount})`);
                   
                   // 会話履歴を取得（最新50件）
