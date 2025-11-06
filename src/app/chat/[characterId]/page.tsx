@@ -270,13 +270,15 @@ export default function ChatPage() {
             // メッセージをロード時に画像を再パース（新規作成時と同じ順序を保証）
             const characterImages = characterInfo?.characterImages || [];
             const formattedMessages = (data.chat_message || []).map((msg: DbMessage) => {
-              // モデルメッセージの場合、画像タグを再パースしてimageUrlsを設定
+              // モデルメッセージの場合、画像タグを検出してimageUrlsを設定（contentはそのまま保持）
               if (msg.role === 'model' && msg.content) {
+                // DB에 저장된 content에는 이미지 태그가 남아있으므로, ChatMessageParser가 직접 파싱할 수 있음
+                // imageUrls는 참고용으로만 추출 (실제 표시는 ChatMessageParser가 content에서 직접 처리)
                 const { imageUrls } = parseImageTags(msg.content, characterImages);
                 return {
                   ...msg,
                   timestamp: new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-                  imageUrls: imageUrls || [], // 画像URLを設定（順序を保持）
+                  imageUrls: imageUrls || [], // 画像URLを設定（参考用、実際の表示はChatMessageParserがcontentから直接処理）
                 };
               }
               return {
@@ -285,7 +287,22 @@ export default function ChatPage() {
                 imageUrls: [], // ユーザーメッセージは画像なし
               };
             });
-            setRawMessages(formattedMessages);
+            
+            // ▼▼▼【ストリーミング効果】新規고침 시 메시지를 스트리밍 효과로 표시 ▼▼▼
+            // 메시지를 하나씩 추가하여 스트리밍 효과 시뮬레이션
+            setRawMessages([]);
+            formattedMessages.forEach((msg, index) => {
+              setTimeout(() => {
+                setRawMessages(prev => {
+                  // 이미 추가된 메시지인지 확인
+                  if (prev.some(m => m.id === msg.id)) {
+                    return prev;
+                  }
+                  return [...prev, msg];
+                });
+              }, index * 50); // 각 메시지마다 50ms 지연
+            });
+            // ▲▲▲
             
             // ▼▼▼【新規追加】새로고침 시 자동 요약 트리거 (autoSummarize가 true인 경우) ▼▼▼
             if (data.autoSummarize !== false && formattedMessages.length >= 2) {

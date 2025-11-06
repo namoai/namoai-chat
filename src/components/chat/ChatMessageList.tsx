@@ -189,33 +189,18 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                         onCancel={handleEditCancel}
                       />
                     ) : (
-                      <>
-                        <ChatMessageParser
-                          content={activeModelMessage.content}
-                          characterImages={prioritizedImages}
-                          showImage={showChatImage}
-                          isMultiImage={isMultiImage}
-                          onImageClick={setLightboxImage}
-                        />
-                        {/* ▼▼▼【効率的な画像出力】キーワードマッチした画像を表示 ▼▼▼ */}
-                        {activeModelMessage.imageUrls && activeModelMessage.imageUrls.length > 0 && showChatImage && (
-                          <div className="mt-3 space-y-2 flex flex-col items-start">
-                            {activeModelMessage.imageUrls.map((imageUrl, imgIndex) => (
-                              <div key={`matched-img-${imgIndex}`} className="relative w-full max-w-xs rounded-lg overflow-hidden shadow-lg cursor-zoom-in" onClick={() => setLightboxImage(imageUrl)}>
-                                <Image
-                                  src={imageUrl}
-                                  alt={`マッチした画像 ${imgIndex + 1}`}
-                                  width={400}
-                                  height={300}
-                                  className="w-full object-contain"
-                                  priority={imgIndex === 0}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        {/* ▲▲▲ 効率的な画像出力ここまで ▲▲▲ */}
-                      </>
+                      <ChatMessageParser
+                        content={activeModelMessage.content}
+                        characterImages={prioritizedImages}
+                        showImage={showChatImage}
+                        isMultiImage={isMultiImage}
+                        onImageClick={setLightboxImage}
+                      />
+                      {/* 
+                        ▼▼▼【画像表示】ChatMessageParserがcontentから直接画像をパースするため、
+                        imageUrls配列の画像は表示しない（重複を防ぐ）
+                        ▲▲▲
+                      */}
                     )}
                   </div>
                   {!isEditingModel && (
