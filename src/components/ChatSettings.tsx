@@ -290,19 +290,29 @@ export default function ChatSettings({
   };
 
   const handleAutoSummarizeDetailedMemory = async () => {
-    if (!chatId) return;
+    console.log('handleAutoSummarizeDetailedMemory 開始, chatId:', chatId);
+    if (!chatId) {
+      console.error('chatIdがありません');
+      return;
+    }
     try {
+      console.log('API呼び出し開始:', `/api/chat/${chatId}/detailed-memories`);
       const res = await fetch(`/api/chat/${chatId}/detailed-memories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ autoSummarize: true }),
       });
+      console.log('APIレスポンス status:', res.status, res.ok);
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || '自動要約に失敗しました');
+        console.error('APIエラー:', errorData);
+        throw new Error(errorData.error || `HTTP ${res.status}: 自動要約に失敗しました`);
       }
+      const result = await res.json();
+      console.log('API成功, 結果:', result);
       // メモリを再取得
       await fetchDetailedMemories();
+      console.log('メモリ再取得完了');
     } catch (error) {
       console.error('自動要約エラー:', error);
       alert(error instanceof Error ? error.message : '自動要約に失敗しました');

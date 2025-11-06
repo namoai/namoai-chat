@@ -68,20 +68,24 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
+  console.log('詳細記憶 POST API 開始');
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
+    console.error('認証エラー');
     return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
   }
 
   const { chatId } = await params;
   const chatIdNum = parseInt(chatId, 10);
   if (isNaN(chatIdNum)) {
+    console.error('無効なchatId:', chatId);
     return NextResponse.json({ error: '無効なチャットIDです。' }, { status: 400 });
   }
 
   try {
     const body = await request.json();
     const { content, keywords, autoSummarize } = body;
+    console.log('リクエストボディ:', { content: content ? 'あり' : 'なし', keywords, autoSummarize });
 
     const chat = await prisma.chat.findUnique({
       where: { id: chatIdNum },
@@ -103,6 +107,7 @@ export async function POST(
 
     if (autoSummarize) {
       // 自動要約の場合（保存個数制限なし、ただし適用時は最大3個まで）
+      console.log('自動要約モード開始, chatId:', chatIdNum);
 
       // 最新の会話を取得
       const messages = await prisma.chat_message.findMany({
@@ -115,14 +120,17 @@ export async function POST(
       });
 
       if (messages.length === 0) {
+        console.error('要約する会話がありません');
         return NextResponse.json({ error: '要約する会話がありません。' }, { status: 400 });
       }
 
+      console.log('会話メッセージ数:', messages.length);
       const conversationText = messages
         .reverse()
         .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
         .join('\n\n');
 
+      console.log('Vertex AIで要約開始');
       // Vertex AIで要約
       const vertex_ai = new VertexAI({
         project: process.env.GOOGLE_PROJECT_ID || '',
@@ -141,8 +149,10 @@ ${conversationText}`;
 
       const result = await generativeModel.generateContent(prompt);
       const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      console.log('要約生成完了, 長さ:', summary.length);
 
       if (!summary) {
+        console.error('要約が空です');
         return NextResponse.json({ error: '要約の生成に失敗しました。' }, { status: 500 });
       }
 

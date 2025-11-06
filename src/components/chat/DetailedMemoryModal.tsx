@@ -96,8 +96,8 @@ export default function DetailedMemoryModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4" onClick={onClose}>
-      <div className="bg-gray-800 text-white rounded-lg w-full max-w-4xl sm:max-w-5xl lg:max-w-7xl xl:max-w-[90vw] h-[85vh] sm:h-[90vh] flex flex-col shadow-2xl mx-auto" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-2 sm:p-4" onClick={onClose}>
+      <div className="bg-gray-800 text-white rounded-lg w-full max-w-[95vw] sm:max-w-[90vw] lg:max-w-[85vw] xl:max-w-[80vw] h-[90vh] flex flex-col shadow-2xl mx-auto" onClick={(e) => e.stopPropagation()}>
         {/* ヘッダー */}
         <div className="flex justify-between items-center p-6 border-b border-gray-700">
           <div>
@@ -131,11 +131,15 @@ export default function DetailedMemoryModal({
               <div className="flex items-center gap-2">
               <button
                 onClick={async () => {
+                  console.log('再要約ボタンクリック');
                   setIsSummarizing(true);
                   try {
+                    console.log('再要約開始 - onAutoSummarize呼び出し');
                     await onAutoSummarize(1);
+                    console.log('再要約完了');
                   } catch (error) {
                     console.error('再要約エラー:', error);
+                    alert(error instanceof Error ? error.message : '再要約に失敗しました');
                   } finally {
                     setIsSummarizing(false);
                   }
