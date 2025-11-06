@@ -562,7 +562,11 @@ export default function ChatPage() {
                         lastHeartbeatTime = Date.now();
                         // ▼▼▼【画像タグパース】{img:N}をimageUrlsに変換 ▼▼▼
                         const characterImages = characterInfo?.characterImages || [];
+                        console.log(`📸 画像パース: characterImages.length=${characterImages.length}, responseChunk length=${eventData.responseChunk?.length || 0}`);
                         const { cleanText, imageUrls: newImageUrls } = parseImageTags(eventData.responseChunk, characterImages);
+                        if (newImageUrls.length > 0) {
+                          console.log(`📸 画像検出: ${newImageUrls.length}件の画像が見つかりました`, newImageUrls);
+                        }
                         // ▲▲▲
                         
                         if (!tempModelMessageId) {

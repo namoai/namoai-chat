@@ -137,10 +137,20 @@ export async function POST(request: Request, context: any) {
         });
         console.timeEnd("⏱️ DB ChatRoom+Lorebooks Query");
 
-        if (!chatRoom || !chatRoom.characters) {
-            throw new Error("チャットまたは世界観（characters）設定が見つかりません。");
-        }
-        console.log("ステップ2: チャットルーム情報取得完了");
+        if (!chatRoom || !chatRoom.characters) {
+            throw new Error("チャットまたは世界観（characters）設定が見つかりません。");
+        }
+        // ▼▼▼【デバッグ】chatRoom情報をログ出力 ▼▼▼
+        console.log("ステップ2: チャットルーム情報取得完了");
+        console.log(`chatRoom.id: ${chatRoom.id}`);
+        console.log(`chatRoom.characters.id: ${chatRoom.characters?.id}`);
+        console.log(`chatRoom.characters.name: ${chatRoom.characters?.name}`);
+        console.log(`chatRoom.characters.systemTemplate length: ${chatRoom.characters?.systemTemplate?.length || 0}`);
+        console.log(`chatRoom.characters.characterImages count: ${chatRoom.characters?.characterImages?.length || 0}`);
+        if (!chatRoom.characters.systemTemplate || chatRoom.characters.systemTemplate.trim().length === 0) {
+          console.error("⚠️ WARNING: characters.systemTemplate is empty or missing!");
+        }
+        // ▲▲▲
 
         console.time("⏱️ DB History+Persona Query");
         // ▼▼▼【修正】ユーザーが閲覧しているバージョンを考慮した履歴取得 ▼▼▼
@@ -457,8 +467,19 @@ ${lengthInstruction}
 
     // Assemble final system prompt
     const systemInstructionText = [systemTemplate, initialContextText, backMemoryInfo, detailedMemoryInfo, imageInstruction, formattingInstruction, userPersonaInfo, lorebookInfo].filter(Boolean).join("\n\n");
-    console.log("ステップ4: システムプロンプト構築完了");
-    console.timeEnd("⏱️ Prompt Construction");
+    
+    // ▼▼▼【デバッグ】システムプロンプトの内容をログ出力 ▼▼▼
+    console.log("=== システムプロンプト構築完了 ===");
+    console.log(`systemTemplate length: ${systemTemplate?.length || 0}`);
+    console.log(`initialContextText length: ${initialContextText?.length || 0}`);
+    console.log(`imageInstruction length: ${imageInstruction?.length || 0}`);
+    console.log(`formattingInstruction length: ${formattingInstruction?.length || 0}`);
+    console.log(`systemInstructionText total length: ${systemInstructionText?.length || 0}`);
+    if (!systemTemplate || systemTemplate.trim().length === 0) {
+      console.error("⚠️ WARNING: systemTemplate is empty or missing!");
+    }
+    // ▲▲▲
+    console.timeEnd("⏱️ Prompt Construction");
 
     // ストリーム応答を開始
     const stream = new ReadableStream({
