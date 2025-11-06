@@ -101,23 +101,22 @@ export async function PUT(
       (async () => {
         try {
           const embedding = await getEmbedding(content);
-          const embeddingString = embeddingToVectorString(embedding);
-          await prisma.$executeRaw`
-            UPDATE "chat" 
-            SET "backMemoryEmbedding" = ${embeddingString}::vector 
-            WHERE "id" = ${chatIdNum}
-          `;
+          const embeddingString = `[${embedding.join(',')}]`;
+          await prisma.$executeRawUnsafe(
+            `UPDATE "chat" SET "backMemoryEmbedding" = $1::vector WHERE "id" = $2`,
+            embeddingString,
+            chatIdNum
+          );
         } catch (error) {
           console.error('バックメモリembedding生成エラー:', error);
         }
       })();
     } else {
       // 内容が空の場合はembeddingも削除
-      await prisma.$executeRaw`
-        UPDATE "chat" 
-        SET "backMemoryEmbedding" = NULL 
-        WHERE "id" = ${chatIdNum}
-      `;
+      await prisma.$executeRawUnsafe(
+        `UPDATE "chat" SET "backMemoryEmbedding" = NULL WHERE "id" = $1`,
+        chatIdNum
+      );
     }
     // ▲▲▲
 
@@ -224,12 +223,12 @@ ${conversationText}`;
     (async () => {
       try {
         const embedding = await getEmbedding(summary);
-        const embeddingString = embeddingToVectorString(embedding);
-        await prisma.$executeRaw`
-          UPDATE "chat" 
-          SET "backMemoryEmbedding" = ${embeddingString}::vector 
-          WHERE "id" = ${chatIdNum}
-        `;
+        const embeddingString = `[${embedding.join(',')}]`;
+        await prisma.$executeRawUnsafe(
+          `UPDATE "chat" SET "backMemoryEmbedding" = $1::vector WHERE "id" = $2`,
+          embeddingString,
+          chatIdNum
+        );
       } catch (error) {
         console.error('バックメモリembedding生成エラー:', error);
       }

@@ -23,7 +23,8 @@ export async function vectorSimilaritySearch<T extends { id: number }>(
     return [];
   }
 
-  const embeddingString = embeddingToVectorString(queryEmbedding);
+  // PostgreSQL vector 타입 형식으로 변환
+  const vectorValue = `[${queryEmbedding.join(',')}]`;
   
   // WHERE句を構成
   const whereSQL = whereClause ? `WHERE ${whereClause} AND` : 'WHERE';
@@ -33,11 +34,11 @@ export async function vectorSimilaritySearch<T extends { id: number }>(
   // したがって小さいほど類似 (0 = 完全に類似, 2 = 反対)
   const query = `
     SELECT *, 
-           1 - (${embeddingColumn} <=> ${embeddingString}::vector) as similarity
+           1 - (${embeddingColumn} <=> ${vectorValue}::vector) as similarity
     FROM "${table}"
     ${whereSQL} ${embeddingColumn} IS NOT NULL
-      AND (1 - (${embeddingColumn} <=> ${embeddingString}::vector)) >= ${1 - similarityThreshold}
-    ORDER BY ${embeddingColumn} <=> ${embeddingString}::vector
+      AND (1 - (${embeddingColumn} <=> ${vectorValue}::vector)) >= ${1 - similarityThreshold}
+    ORDER BY ${embeddingColumn} <=> ${vectorValue}::vector
     LIMIT ${limit}
   `;
 
@@ -68,13 +69,16 @@ export async function searchSimilarMessages(
     ? `"chatId" = ${chatId} AND "isActive" = true AND "turnId" NOT IN (${excludeTurnIds.join(',')})`
     : `"chatId" = ${chatId} AND "isActive" = true`;
   
+  // PostgreSQL vector 타입 형식으로 변환
+  const vectorValue = `[${queryEmbedding.join(',')}]`;
+  
   const query = `
     SELECT "id", "content", "role", "createdAt"
     FROM "chat_message"
     WHERE ${excludeClause}
       AND "embedding" IS NOT NULL
-      AND (1 - ("embedding" <=> ${embeddingString}::vector)) >= 0.7
-    ORDER BY "embedding" <=> ${embeddingString}::vector
+      AND (1 - ("embedding" <=> ${vectorValue}::vector)) >= 0.7
+    ORDER BY "embedding" <=> ${vectorValue}::vector
     LIMIT ${limit}
   `;
 

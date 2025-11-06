@@ -124,7 +124,8 @@ model chat {
   chat_message        chat_message[]
   detailed_memories   detailed_memories[]
 
-  @@index([backMemoryEmbedding])
+  // Note: backMemoryEmbedding index is created manually via SQL (ivfflat)
+  // @@index([backMemoryEmbedding]) - removed to use ivfflat index
 }
 
 model chat_message {
@@ -141,7 +142,8 @@ model chat_message {
 
   @@index([chatId, turnId, isActive])
   @@index([chatId, isActive, createdAt], map: "chat_message_chatId_isActive_createdAt_idx")
-  @@index([embedding])
+  // Note: embedding index is created manually via SQL (ivfflat)
+  // @@index([embedding]) - removed to use ivfflat index
 }
 
 model follows {

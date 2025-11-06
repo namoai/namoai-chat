@@ -97,12 +97,12 @@ export async function POST(request: Request, context: any) {
              (async () => {
                try {
                  const embedding = await getEmbedding(message);
-                 const embeddingString = embeddingToVectorString(embedding);
-                 await prisma.$executeRaw`
-                   UPDATE "chat_message" 
-                   SET "embedding" = ${embeddingString}::vector 
-                   WHERE "id" = ${newUserMessage.id}
-                 `;
+                 const embeddingString = `[${embedding.join(',')}]`;
+                 await prisma.$executeRawUnsafe(
+                   `UPDATE "chat_message" SET "embedding" = $1::vector WHERE "id" = $2`,
+                   embeddingString,
+                   newUserMessage.id
+                 );
                } catch (error) {
                  console.error('メッセージembedding生成エラー:', error);
                }
@@ -204,17 +204,30 @@ export async function POST(request: Request, context: any) {
 
         const orderedHistory = history.reverse();
         
-        // ▼▼▼【ベクトル検索】最新10件に加えて、関連メッセージをベクトル検索で追加▼▼▼
+        // ▼▼▼【ベクトル検索】最新10件に加えて、関連メッセージをベクトル検索で追加（非同期、オプション）▼▼▼
+        // ベクトル検索は時間がかかるため、メイン処理をブロックしないように非同期で実行
+        // エラーが発生してもチャットは続行可能
+        const vectorSearchPromise = (async () => {
+          try {
+            const messageEmbedding = await getEmbedding(message);
+            const excludeTurnIds = orderedHistory.map(msg => msg.turnId || 0).filter(id => id > 0);
+            const matched = await searchSimilarMessages(messageEmbedding, chatId, excludeTurnIds, 5);
+            return matched;
+          } catch (error) {
+            console.error('ベクトル検索エラー（メッセージ）:', error);
+            return [];
+          }
+        })();
+        // ベクトル検索結果は後で使用（非同期で待機）
         let vectorMatchedMessages: Array<{ id: number; content: string; role: string; createdAt: Date }> = [];
         try {
-          const messageEmbedding = await getEmbedding(message);
-          const excludeTurnIds = orderedHistory.map(msg => msg.turnId || 0).filter(id => id > 0);
-          const matched = await searchSimilarMessages(messageEmbedding, chatId, excludeTurnIds, 5);
+          const matched = await vectorSearchPromise;
           // 既存履歴に含まれていないメッセージのみ追加
           const existingIds = new Set(orderedHistory.map(h => h.id));
           vectorMatchedMessages = matched.filter(m => !existingIds.has(m.id));
         } catch (error) {
-          console.error('ベクトル検索エラー（メッセージ）:', error);
+          // ベクトル検索が失敗しても続行
+          console.error('ベクトル検索結果取得エラー:', error);
         }
         // ▲▲▲
         console.log("ステップ2.5: ペルソナと履歴の取得完了");
@@ -496,12 +509,12 @@ export async function POST(request: Request, context: any) {
           (async () => {
             try {
               const embedding = await getEmbedding(finalResponseText);
-              const embeddingString = embeddingToVectorString(embedding);
-              await prisma.$executeRaw`
-                UPDATE "chat_message" 
-                SET "embedding" = ${embeddingString}::vector 
-                WHERE "id" = ${newModelMessage.id}
-              `;
+              const embeddingString = `[${embedding.join(',')}]`;
+              await prisma.$executeRawUnsafe(
+                `UPDATE "chat_message" SET "embedding" = $1::vector WHERE "id" = $2`,
+                embeddingString,
+                newModelMessage.id
+              );
             } catch (error) {
               console.error('AIメッセージembedding生成エラー:', error);
             }
