@@ -99,7 +99,6 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
 
   return (
     <React.Fragment>
-    <>
       {/* 初期状況と初期メッセージを常に表示（チャット形式で統一） */}
       {(characterInfo.firstSituation || characterInfo.firstMessage) && (
         <div className="space-y-4">
