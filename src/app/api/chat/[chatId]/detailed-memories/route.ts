@@ -166,7 +166,6 @@ ${conversationText}`;
         });
         
         createdMemories.push(newMemory);
-        currentIndex++;
         
         // 次のメモリ用のembeddingを生成（非同期）
         (async () => {
