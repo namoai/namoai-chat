@@ -706,11 +706,6 @@ ${conversationText}`;
                 if (shouldSummarize) {
                   console.log(`詳細記憶自動要約を開始 (メッセージ数: ${messageCount})`);
                   
-                  // 既存の詳細記憶数を確認（重複防止）
-                  const existingMemoriesCount = await prisma.detailed_memories.count({
-                    where: { chatId },
-                  });
-                  
                   // 会話履歴を取得
                   const messages = await prisma.chat_message.findMany({
                     where: {
