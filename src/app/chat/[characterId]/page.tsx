@@ -187,16 +187,29 @@ export default function ChatPage() {
       // 方法1: main要素のscrollTopを直接設定（最優先）
       if (mainScrollRef.current) {
         const scrollContainer = mainScrollRef.current;
+        // 매우 큰 값으로 설정하여 확실히 최하단으로 이동
+        scrollContainer.scrollTop = 999999999;
         // scrollHeight가 변경될 수 있으므로 최신 값으로 계산
         const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight;
         scrollContainer.scrollTop = maxScroll;
         // 추가로 scrollTop을 직접 설정
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        // 한 번 더
+        setTimeout(() => {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        }, 0);
       }
       
-      // 方法2: messagesEndRefを使用
+      // 方法2: window.scrollTo도 사용
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' });
+      
+      // 方法3: messagesEndRefを使用
       if (messagesEndRef.current) {
         messagesEndRef.current.scrollIntoView({ behavior: 'instant', block: 'end', inline: 'nearest' });
+        // 여러 번 시도
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end', inline: 'nearest' });
+        }, 0);
       }
     };
     
@@ -206,19 +219,22 @@ export default function ChatPage() {
     // 여러 번 시도 (DOM 렌더링 완료 대기)
     requestAnimationFrame(() => {
       attemptScroll();
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         attemptScroll();
-        requestAnimationFrame(() => {
+        setTimeout(() => {
           attemptScroll();
           setTimeout(() => {
             attemptScroll();
-            // 최종 시도
             setTimeout(() => {
               attemptScroll();
+              // 최종 시도
+              setTimeout(() => {
+                attemptScroll();
+              }, 1000);
             }, 500);
           }, 300);
-        });
-      }, 100);
+        }, 100);
+      });
     });
   }, []);
 
@@ -295,6 +311,18 @@ export default function ChatPage() {
               })();
             }
             // ▲▲▲
+            
+            // ▼▼▼【강제 스크롤】로드 완료 후 즉시 최하단으로 스크롤 ▼▼▼
+            setTimeout(() => {
+              scrollToBottom();
+              setTimeout(() => {
+                scrollToBottom();
+                setTimeout(() => {
+                  scrollToBottom();
+                }, 500);
+              }, 300);
+            }, 100);
+            // ▲▲▲
         } catch (e) {
             console.error("チャット読込エラー:", e);
             const errorMessage = e instanceof Error ? e.message : "チャット読込失敗";
@@ -306,6 +334,14 @@ export default function ChatPage() {
             });
         } finally {
             setIsInitialLoading(false);
+            // ▼▼▼【강제 스크롤】로딩 완료 후에도 스크롤 ▼▼▼
+            setTimeout(() => {
+              scrollToBottom();
+              setTimeout(() => {
+                scrollToBottom();
+              }, 500);
+            }, 200);
+            // ▲▲▲
         }
     };
     loadChatSession();
@@ -314,45 +350,42 @@ export default function ChatPage() {
 
   // チャットルームに入った時、メッセージ追加時、新規ロード時に確実に最下部へスクロール
   useEffect(() => {
-    if (rawMessages.length === 0) return;
+    if (isInitialLoading || rawMessages.length === 0) return;
     
-    // isInitialLoading이 false가 된 후에 스크롤
-    if (isInitialLoading) {
-      // 로딩 중일 때는 로딩 완료 후 스크롤
-      return;
-    }
-    
-    // DOM이 완전히 렌더링된 후 스크롤
     const scrollAfterRender = () => {
-      // 여러 단계로 스크롤 시도
-      requestAnimationFrame(() => {
-        scrollToBottom();
-        requestAnimationFrame(() => {
-          scrollToBottom();
-          setTimeout(() => {
-            scrollToBottom();
-            setTimeout(() => {
-              scrollToBottom();
-            }, 200);
-          }, 100);
-        });
-      });
+      // 매우 강력한 스크롤 시도
+      if (mainScrollRef.current) {
+        const container = mainScrollRef.current;
+        container.scrollTop = 999999999;
+        container.scrollTop = container.scrollHeight;
+      }
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'instant', block: 'end', inline: 'nearest' });
+      }
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' });
+      scrollToBottom();
     };
     
     // 즉시 시도
     scrollAfterRender();
     
-    // 추가 지연으로 재시도
-    const timer1 = setTimeout(scrollAfterRender, 100);
-    const timer2 = setTimeout(scrollAfterRender, 300);
-    const timer3 = setTimeout(scrollAfterRender, 500);
-    const timer4 = setTimeout(scrollAfterRender, 1000);
+    // 추가 지연으로 재시도 (더 많은 시도)
+    const timer1 = setTimeout(scrollAfterRender, 50);
+    const timer2 = setTimeout(scrollAfterRender, 100);
+    const timer3 = setTimeout(scrollAfterRender, 200);
+    const timer4 = setTimeout(scrollAfterRender, 300);
+    const timer5 = setTimeout(scrollAfterRender, 500);
+    const timer6 = setTimeout(scrollAfterRender, 1000);
+    const timer7 = setTimeout(scrollAfterRender, 1500);
     
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);
       clearTimeout(timer4);
+      clearTimeout(timer5);
+      clearTimeout(timer6);
+      clearTimeout(timer7);
     };
   }, [rawMessages.length, isInitialLoading, scrollToBottom]);
 
@@ -777,6 +810,14 @@ export default function ChatPage() {
         ref={mainScrollRef} 
         className="flex-1 overflow-y-auto p-4 space-y-6 pb-24"
         style={{ scrollBehavior: 'auto' }}
+        onLoad={() => {
+          // 컴포넌트 로드 시 즉시 최하단으로 스크롤
+          setTimeout(() => {
+            if (mainScrollRef.current) {
+              mainScrollRef.current.scrollTop = mainScrollRef.current.scrollHeight;
+            }
+          }, 0);
+        }}
       >
         <ChatMessageList
           characterInfo={characterInfo}
