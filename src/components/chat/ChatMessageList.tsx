@@ -196,11 +196,6 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                         isMultiImage={isMultiImage}
                         onImageClick={setLightboxImage}
                       />
-                      {/* 
-                        ▼▼▼【画像表示】ChatMessageParserがcontentから直接画像をパースするため、
-                        imageUrls配列の画像は表示しない（重複を防ぐ）
-                        ▲▲▲
-                      */}
                     )}
                   </div>
                   {!isEditingModel && (
@@ -249,4 +244,3 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
 };
 
 export default ChatMessageList;
-
