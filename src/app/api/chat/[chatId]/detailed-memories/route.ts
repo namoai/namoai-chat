@@ -262,19 +262,8 @@ ${conversationText}`;
             }
           };
 
-              console.log(`バッチ ${batchNum} 要約完了`);
-            } catch (error) {
-              console.error(`バッチ ${batchNum} 要約エラー:`, error);
-            }
-          };
-
-          // 最初のバッチのみ同期で処理し、それ以外は非同期
-          if (start === 0) {
-            await summarizeBatch(batchMessages, start / batchSize + 1);
-          } else {
-            // 非同期で処理（ブロックしない）
-            summarizeBatch(batchMessages, start / batchSize + 1).catch(console.error);
-          }
+          // 非同期で処理（ブロックしない）
+          summarizeBatch(batchMessages, Math.floor(start / batchSize) + 1).catch(console.error);
           
           // 5個単位ごとに少し待機（サーバー負荷軽減）
           if (start + batchSize < messages.length) {
