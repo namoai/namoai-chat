@@ -22,8 +22,8 @@ export async function vectorSimilaritySearch<T extends { id: number }>(
     return [];
   }
 
-  // PostgreSQL vector型の形式に変換
-  const vectorValue = `[${queryEmbedding.join(',')}]`;
+  // PostgreSQL vector型の形式に変換（文字列として）
+  const vectorString = `[${queryEmbedding.join(',')}]`;
   
   // WHERE句を構成
   const whereSQL = whereClause ? `WHERE ${whereClause} AND` : 'WHERE';
@@ -31,18 +31,19 @@ export async function vectorSimilaritySearch<T extends { id: number }>(
   // クエリ実行 (cosine distance使用)
   // pgvectorのcosine distanceは1 - cosine similarity
   // したがって小さいほど類似 (0 = 完全に類似, 2 = 反対)
+  // ベクトル値を文字列로扱い、::vectorでキャスト
   const query = `
     SELECT *, 
-           1 - (${embeddingColumn} <=> ${vectorValue}::vector) as similarity
+           1 - (${embeddingColumn} <=> $1::vector) as similarity
     FROM "${table}"
     ${whereSQL} ${embeddingColumn} IS NOT NULL
-      AND (1 - (${embeddingColumn} <=> ${vectorValue}::vector)) >= ${1 - similarityThreshold}
-    ORDER BY ${embeddingColumn} <=> ${vectorValue}::vector
+      AND (1 - (${embeddingColumn} <=> $1::vector)) >= ${1 - similarityThreshold}
+    ORDER BY ${embeddingColumn} <=> $1::vector
     LIMIT ${limit}
   `;
 
   try {
-    const results = await prisma.$queryRawUnsafe<T[]>(query);
+    const results = await prisma.$queryRawUnsafe<T[]>(query, vectorString);
     return results;
   } catch (error) {
     console.error(`ベクトル検索エラー (${table}):`, error);
@@ -67,21 +68,21 @@ export async function searchSimilarMessages(
     ? `"chatId" = ${chatId} AND "isActive" = true AND "turnId" NOT IN (${excludeTurnIds.join(',')})`
     : `"chatId" = ${chatId} AND "isActive" = true`;
   
-  // PostgreSQL vector型の形式に変換
-  const vectorValue = `[${queryEmbedding.join(',')}]`;
+  // PostgreSQL vector型の形式に変換（文字列として）
+  const vectorString = `[${queryEmbedding.join(',')}]`;
   
   const query = `
     SELECT "id", "content", "role", "createdAt"
     FROM "chat_message"
     WHERE ${excludeClause}
       AND "embedding" IS NOT NULL
-      AND (1 - ("embedding" <=> ${vectorValue}::vector)) >= 0.7
-    ORDER BY "embedding" <=> ${vectorValue}::vector
+      AND (1 - ("embedding" <=> $1::vector)) >= 0.7
+    ORDER BY "embedding" <=> $1::vector
     LIMIT ${limit}
   `;
 
   try {
-    const results = await prisma.$queryRawUnsafe<Array<{ id: number; content: string; role: string; createdAt: Date }>>(query);
+    const results = await prisma.$queryRawUnsafe<Array<{ id: number; content: string; role: string; createdAt: Date }>>(query, vectorString);
     return results;
   } catch (error) {
     console.error('メッセージベクトル検索エラー:', error);
