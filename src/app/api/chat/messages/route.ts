@@ -354,13 +354,14 @@ ${lengthInstruction}
                     console.timeEnd("⏱️ Vertex AI応答生成");
                     
                     // ▼▼▼【画像タグパース】{img:N}と![](URL)をimageUrlsに変換（最終メッセージ用） ▼▼▼
+                    // 注意: contentは画像タグを含む元のテキストを保存（ChatMessageParserがパース）
+                    // ここでは画像URLのみを抽出して最終メッセージに含める
                     const matchedImageUrls: string[] = [];
                     const nonMainImages = availableImages.filter(img => !img.isMain);
-                    let cleanResponse = fullResponse;
                     
                     // 1. {img:N} 形式
                     const imgTagRegex = /\{img:(\d+)\}/g;
-                    cleanResponse = cleanResponse.replace(imgTagRegex, (match, indexStr) => {
+                    fullResponse.replace(imgTagRegex, (match, indexStr) => {
                         const index = parseInt(indexStr, 10) - 1;
                         if (index >= 0 && index < nonMainImages.length) {
                             matchedImageUrls.push(nonMainImages[index].imageUrl);
@@ -368,12 +369,12 @@ ${lengthInstruction}
                         } else {
                             console.warn(`⚠️ 無効な画像インデックス (再生成): {img:${indexStr}}`);
                         }
-                        return ''; // タグを削除
+                        return ''; // タグは削除しない（contentに保持）
                     });
                     
                     // 2. ![](URL) 形式（Markdown）
                     const markdownImgRegex = /!\[\]\((https?:\/\/[^\s)]+)\)/g;
-                    cleanResponse = cleanResponse.replace(markdownImgRegex, (match, url) => {
+                    fullResponse.replace(markdownImgRegex, (match, url) => {
                         matchedImageUrls.push(url);
                         console.log(`📸 Markdown画像検出 (再生成): ![](${url})`);
                         return '';
@@ -381,7 +382,7 @@ ${lengthInstruction}
                     
                     // 3. ![alt](URL) 形式
                     const markdownImgWithAltRegex = /!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g;
-                    cleanResponse = cleanResponse.replace(markdownImgWithAltRegex, (match, alt, url) => {
+                    fullResponse.replace(markdownImgWithAltRegex, (match, alt, url) => {
                         matchedImageUrls.push(url);
                         console.log(`📸 Markdown画像検出 (再生成): ![${alt}](${url})`);
                         return '';
