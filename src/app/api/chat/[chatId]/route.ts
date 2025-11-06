@@ -578,7 +578,8 @@ export async function POST(request: Request, context: any) {
                     take: 50,
                   });
 
-                  if (messages.length > 0) {
+                  // メッセージが2個以上ある場合のみ要約実行（最初の1個はスキップ）
+                  if (messages.length >= 2) {
                     // 会話をテキストに変換
                     const conversationText = messages
                       .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
