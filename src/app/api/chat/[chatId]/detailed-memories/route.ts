@@ -149,9 +149,9 @@ export async function POST(
         location: 'asia-northeast1',
       });
 
-      // gemini-2.5-proを使用（高品質な要約のため）
+      // gemini-2.5-flashを使用（高速な要約のため）
       const generativeModel = vertex_ai.getGenerativeModel({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-2.5-flash',
         safetySettings,
       });
 
