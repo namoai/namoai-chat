@@ -301,8 +301,7 @@ ${conversationText}`;
       
       // 即座に応答を返す（バックグラウンドで処理中）
       return NextResponse.json({ 
-        message: '再要約を開始しました。バックグラウンドで処理されます。',
-        totalMessages: messagesToSummarize.length
+        message: '再要約を開始しました。バックグラウンドで処理されます。'
       });
     } else {
       // 手動作成の場合（保存個数制限なし、2000文字を超える場合は自動分割）
