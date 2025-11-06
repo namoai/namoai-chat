@@ -565,7 +565,7 @@ export async function PUT(
     // ▼▼▼【ベクトル検索】更新された詳細記憶のembeddingを再生成▼▼▼
     (async () => {
       try {
-        const embedding = await getEmbedding(memoryContent);
+        const embedding = await getEmbedding(firstPart);
         const embeddingString = embeddingToVectorString(embedding);
         await prisma.$executeRaw`
           UPDATE "detailed_memories" 
