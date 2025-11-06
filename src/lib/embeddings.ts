@@ -110,15 +110,15 @@ export async function getEmbedding(text: string): Promise<number[]> {
  * @returns PostgreSQL vector型文字列
  */
 export function embeddingToVectorString(embedding: number[]): string {
-  // PostgreSQL vector型は '[1,2,3]' 형식
+  // PostgreSQL vector型は '[1,2,3]' 形式
   return `[${embedding.join(',')}]`;
 }
 
 /**
- * Prisma에서 사용할 수 있는 벡터 값을 반환 (SQL 파라미터용)
+ * Prismaで使用可能なベクトル値を返す（SQLパラメータ用）
  */
 export function embeddingToPrismaVector(embedding: number[]): string {
-  // Prisma $executeRaw에서 사용할 때는 문자열로 변환
+  // Prisma $executeRawで使用する際は文字列に変換
   return `[${embedding.join(',')}]::vector`;
 }
 

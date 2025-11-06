@@ -23,7 +23,7 @@ export async function vectorSimilaritySearch<T extends { id: number }>(
     return [];
   }
 
-  // PostgreSQL vector 타입 형식으로 변환
+  // PostgreSQL vector型の形式に変換
   const vectorValue = `[${queryEmbedding.join(',')}]`;
   
   // WHERE句を構成
@@ -69,7 +69,7 @@ export async function searchSimilarMessages(
     ? `"chatId" = ${chatId} AND "isActive" = true AND "turnId" NOT IN (${excludeTurnIds.join(',')})`
     : `"chatId" = ${chatId} AND "isActive" = true`;
   
-  // PostgreSQL vector 타입 형식으로 변환
+  // PostgreSQL vector型の形式に変換
   const vectorValue = `[${queryEmbedding.join(',')}]`;
   
   const query = `
