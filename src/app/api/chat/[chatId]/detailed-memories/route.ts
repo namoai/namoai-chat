@@ -140,7 +140,7 @@ export async function POST(
 ${conversationText}`;
 
       const result = await generativeModel.generateContent(prompt);
-      let summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
       if (!summary) {
         return NextResponse.json({ error: '要約の生成に失敗しました。' }, { status: 500 });
