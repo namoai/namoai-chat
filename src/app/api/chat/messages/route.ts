@@ -340,22 +340,22 @@ ${lengthInstruction}
                     ]);
                     
                     let fullResponse = "";
-                    const matchedImageUrls: string[] = [];
-                    const nonMainImages = availableImages.filter(img => !img.isMain);
                     
-                    // ストリームからチャンクを読み取り
+                    // ストリームからチャンクを読み取り（一般チャットと同じ：画像タグはそのまま送信）
                     for await (const chunk of result.stream) {
                         const chunkText = chunk.candidates?.[0]?.content?.parts?.[0]?.text || "";
                         if (chunkText) {
                             fullResponse += chunkText;
-                            // チャンクごとにクライアントに送信（一般チャットと同じ形式）
+                            // チャンクごとにクライアントに送信（画像タグはそのまま送信、クライアントでパース）
                             sendEvent("ai-update", { responseChunk: chunkText });
                         }
                     }
                     
                     console.timeEnd("⏱️ Vertex AI応答生成");
                     
-                    // ▼▼▼【画像タグパース】{img:N}と![](URL)をimageUrlsに変換 ▼▼▼
+                    // ▼▼▼【画像タグパース】{img:N}と![](URL)をimageUrlsに変換（最終メッセージ用） ▼▼▼
+                    const matchedImageUrls: string[] = [];
+                    const nonMainImages = availableImages.filter(img => !img.isMain);
                     let cleanResponse = fullResponse;
                     
                     // 1. {img:N} 形式
