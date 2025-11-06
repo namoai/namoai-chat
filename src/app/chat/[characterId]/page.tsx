@@ -124,6 +124,8 @@ export default function ChatPage() {
   const [editingModelContent, setEditingModelContent] = useState("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const hasReceivedResponseRef = useRef(false);
+  const tempUserMessageIdRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const finalTurnIdRef = useRef<number | null>(null);
 
@@ -228,9 +230,21 @@ export default function ChatPage() {
   }, [characterId, searchParams, router]);
 
 
+  // チャットルームに入った時とメッセージが追加された時に自動スクロール
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [rawMessages]);
+
+  // 初回ロード時にも自動スクロール
+  useEffect(() => {
+    if (!isInitialLoading && messagesEndRef.current) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      }, 100);
+    }
+  }, [isInitialLoading]);
 
   // ▼▼▼【タイムアウト対策】タイムアウト時の復旧処理：DBからメッセージを再読み込み ▼▼▼
   const handleTimeoutRecovery = async () => {
@@ -272,6 +286,7 @@ export default function ChatPage() {
     const messageToSend = input;
     setInput("");
     finalTurnIdRef.current = null;
+    hasReceivedResponseRef.current = false;
 
     // ▼▼▼【追加】ユーザーが現在閲覧している各ターンのバージョンを収集 ▼▼▼
     const activeVersions: { [turnId: number]: number } = {};
@@ -286,6 +301,8 @@ export default function ChatPage() {
     // ▲▲▲【追加完了】▲▲▲
 
     const tempUserMessageId = Date.now();
+    tempUserMessageIdRef.current = tempUserMessageId;
+    hasReceivedResponseRef.current = false;
     const tempUserMessage: Message = {
       id: tempUserMessageId,
       role: 'user',
@@ -398,6 +415,7 @@ export default function ChatPage() {
                         setRawMessages(prev => prev.map(msg => msg.id === tempUserMessageId ? realUserMessage : msg));
                     } else if (eventData.responseChunk) {
                         hasReceivedData = true;
+                        hasReceivedResponseRef.current = true; // 応答が開始された
                         lastHeartbeatTime = Date.now();
                         // ▼▼▼【画像タグパース】{img:N}をimageUrlsに変換 ▼▼▼
                         const characterImages = characterInfo?.characterImages || [];
@@ -446,6 +464,7 @@ export default function ChatPage() {
           clearInterval(timeoutCheckInterval);
         }
         await fetchUserPoints();
+        hasReceivedResponseRef.current = true; // 正常完了
     } catch (error) {
         if (timeoutCheckInterval) {
           clearInterval(timeoutCheckInterval);
@@ -454,12 +473,24 @@ export default function ChatPage() {
         if ((error as Error).name === 'AbortError' || (error as Error).message.includes('timeout')) {
           handleTimeoutRecovery();
         } else {
+          // 応答が開始されていない場合はメッセージ削除とポイント返金
+          if (!hasReceivedResponseRef.current && tempUserMessageIdRef.current) {
+            try {
+              await fetch(`/api/chat/${chatId}/cancel?turnId=${tempUserMessageIdRef.current}&refund=true`, {
+                method: 'POST',
+              });
+            } catch (cancelError) {
+              console.error('キャンセル処理エラー:', cancelError);
+            }
+          }
           setRawMessages(prev => prev.filter(msg => msg.id !== tempUserMessageId && msg.id !== tempModelMessageId));
           setModalState({ isOpen: true, title: "送信エラー", message: (error as Error).message, isAlert: true });
         }
         // ▲▲▲
     } finally {
         setIsLoading(false);
+        hasReceivedResponseRef.current = false;
+        tempUserMessageIdRef.current = null;
     }
   };
 

@@ -361,29 +361,30 @@ export default function ChatSettings({
         {isNoteModalOpen && <NoteModal note={userNote} onSave={onSaveNote} onClose={() => setNoteModalOpen(false)} />}
         {isSaveModalOpen && <SaveConversationModal onSaveAsTxt={onSaveConversationAsTxt} onClose={() => setIsSaveModalOpen(false)} />}
         {isStyleModalOpen && <StyleSettingsModal settings={chatStyleSettings} onSave={handleSaveStyleSettings} onClose={() => setIsStyleModalOpen(false)} />}
-        {isBackMemoryModalOpen && chatId && (
-          <BackMemoryModal
-            isOpen={isBackMemoryModalOpen}
-            onClose={() => setIsBackMemoryModalOpen(false)}
-            chatId={chatId}
-            initialContent={backMemory.content}
-            autoSummarize={backMemory.autoSummarize}
-            onSave={handleSaveBackMemory}
-          />
-        )}
-        {isDetailedMemoryModalOpen && chatId && (
-          <DetailedMemoryModal
-            isOpen={isDetailedMemoryModalOpen}
-            onClose={() => setIsDetailedMemoryModalOpen(false)}
-            chatId={chatId}
-            memories={detailedMemories}
-            onSave={handleSaveDetailedMemory}
-            onUpdate={handleUpdateDetailedMemory}
-            onDelete={handleDeleteDetailedMemory}
-            onAutoSummarize={handleAutoSummarizeDetailedMemory}
-          />
-        )}
       </div>
+      {/* モーダルはChatSettingsの外に配置してz-indexの問題を回避 */}
+      {isBackMemoryModalOpen && chatId && (
+        <BackMemoryModal
+          isOpen={isBackMemoryModalOpen}
+          onClose={() => setIsBackMemoryModalOpen(false)}
+          chatId={chatId}
+          initialContent={backMemory.content}
+          autoSummarize={backMemory.autoSummarize}
+          onSave={handleSaveBackMemory}
+        />
+      )}
+      {isDetailedMemoryModalOpen && chatId && (
+        <DetailedMemoryModal
+          isOpen={isDetailedMemoryModalOpen}
+          onClose={() => setIsDetailedMemoryModalOpen(false)}
+          chatId={chatId}
+          memories={detailedMemories}
+          onSave={handleSaveDetailedMemory}
+          onUpdate={handleUpdateDetailedMemory}
+          onDelete={handleDeleteDetailedMemory}
+          onAutoSummarize={handleAutoSummarizeDetailedMemory}
+        />
+      )}
     </div>
   );
 }
