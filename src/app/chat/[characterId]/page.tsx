@@ -124,6 +124,7 @@ export default function ChatPage() {
   const [editingModelContent, setEditingModelContent] = useState("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mainScrollRef = useRef<HTMLDivElement>(null);
   const hasReceivedResponseRef = useRef(false);
   const tempUserMessageIdRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -213,10 +214,12 @@ export default function ChatPage() {
                 timestamp: new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
             }));
             setRawMessages(formattedMessages);
-            // メッセージ読み込み後にスクロール（少し遅延を入れて確実に）
-            setTimeout(() => {
-              messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
-            }, 200);
+            // メッセージ読み込み後にスクロール（確実に最下部へ）
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                scrollToBottom();
+              }, 100);
+            });
         } catch (e) {
             console.error("チャット読込エラー:", e);
             const errorMessage = e instanceof Error ? e.message : "チャット読込失敗";
@@ -234,26 +237,42 @@ export default function ChatPage() {
   }, [characterId, searchParams, router]);
 
 
-  // チャットルームに入った時とメッセージが追加された時に自動スクロール
-  useEffect(() => {
-    // 少し遅延を入れて確実にスクロール
-    const timer = setTimeout(() => {
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
-      }
-    }, 50);
-    return () => clearTimeout(timer);
-  }, [rawMessages]);
+  // 最下部へスクロールする関数
+  const scrollToBottom = useCallback(() => {
+    // 複数の方法で確実にスクロール
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        // 方法1: messagesEndRefを使用
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+        }
+        // 方法2: main要素のscrollTopを直接設定
+        if (mainScrollRef.current) {
+          mainScrollRef.current.scrollTop = mainScrollRef.current.scrollHeight;
+        }
+      }, 50);
+      
+      // 追加で確実にスクロール（2回試行）
+      setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+        }
+        if (mainScrollRef.current) {
+          mainScrollRef.current.scrollTop = mainScrollRef.current.scrollHeight;
+        }
+      }, 200);
+    });
+  }, []);
 
-  // 初回ロード時にも自動スクロール
+  // チャットルームに入った時、メッセージ追加時、新規ロード時に確実に最下部へスクロール
   useEffect(() => {
-    if (!isInitialLoading && rawMessages.length > 0 && messagesEndRef.current) {
-      const timer = setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isInitialLoading, rawMessages.length]);
+    if (rawMessages.length === 0) return;
+    
+    const timer = setTimeout(() => {
+      scrollToBottom();
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [rawMessages.length, isInitialLoading, scrollToBottom]);
 
   // ▼▼▼【タイムアウト対策】タイムアウト時の復旧処理：DBからメッセージを再読み込み ▼▼▼
   const handleTimeoutRecovery = async () => {
@@ -672,7 +691,7 @@ export default function ChatPage() {
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
-      <main className="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
+      <main ref={mainScrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
         <ChatMessageList
           characterInfo={characterInfo}
           rawMessages={rawMessages} // ▼▼▼【Stale State修正】 `rawMessages`のみを渡します。

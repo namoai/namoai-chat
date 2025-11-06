@@ -199,7 +199,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                         />
                         {/* ▼▼▼【効率的な画像出力】キーワードマッチした画像を表示 ▼▼▼ */}
                         {activeModelMessage.imageUrls && activeModelMessage.imageUrls.length > 0 && showChatImage && (
-                          <div className="mt-3 space-y-2">
+                          <div className="mt-3 space-y-2 flex flex-col items-start">
                             {activeModelMessage.imageUrls.map((imageUrl, imgIndex) => (
                               <div key={`matched-img-${imgIndex}`} className="relative w-full max-w-xs rounded-lg overflow-hidden shadow-lg cursor-zoom-in" onClick={() => setLightboxImage(imageUrl)}>
                                 <Image
