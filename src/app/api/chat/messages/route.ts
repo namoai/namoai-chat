@@ -91,27 +91,38 @@ export async function POST(request: NextRequest) {
             console.timeEnd("⏱️ ペルソナ取得");
         }
         const char = chatRoom.characters;
-        let boostInstruction = "";
-        if (boostMultiplier > 1.0) {
-            boostInstruction = `\n# 追加指示\n- 今回の応答に限り、通常よりも意図的に長く、約${boostMultiplier}倍の詳細な内容で返答してください。`;
-        }
         
-        // ▼▼▼【画像リスト】AIが使用できる画像のリスト ▼▼▼
-        const availableImages = chatRoom.characters.characterImages || [];
-        const imageList = availableImages
-            .filter(img => !img.isMain)
-            .map((img, index) => `${index + 1}. "${img.keyword}" - Use: {img:${index + 1}}`)
-            .join('\n');
-        
-        const imageInstruction = imageList 
-            ? `# Available Images\nYou can display images by including tags in your response:\n${imageList}\n\nUsage: Insert {img:N} at appropriate moments.`
-            : "";
-        
-        const lengthInstruction = `# Response Length\n- Aim for 800-1100 characters (including spaces) per response.\n- Provide rich, detailed descriptions and dialogue.`;
+        // ▼▼▼【プレースホルダー置換】{{char}}、{{user}}を置換 ▼▼▼
+        const userNickname = userPersonaInfo ? userPersonaInfo.match(/ニックネーム: (.+)/)?.[1] || "ユーザー" : "ユーザー";
+        const worldName = char.name || "キャラクター";
+        const replacePlaceholders = (text: string | null | undefined): string => {
+          if (!text) return "";
+          return text.replace(/{{char}}/g, worldName).replace(/{{user}}/g, userNickname);
+        };
         // ▲▲▲
         
-        const systemInstructionText = [char.systemTemplate, imageInstruction, lengthInstruction, userPersonaInfo, boostInstruction].filter(Boolean).join('\n\n');
-
+        // ▼▼▼【初期コンテキスト】firstSituationとfirstMessageを追加 ▼▼▼
+        const initialContext = [];
+        if (char.firstSituation) {
+          initialContext.push(`# Initial Situation\n${replacePlaceholders(char.firstSituation)}`);
+        }
+        if (char.firstMessage) {
+          initialContext.push(`# Opening Message\n${replacePlaceholders(char.firstMessage)}`);
+        }
+        const initialContextText = initialContext.join("\n\n");
+        // ▲▲▲
+        
+        // ▼▼▼【バックメモリ】会話の要約を追加 ▼▼▼
+        let backMemoryInfo = "";
+        const backMemoryData = await prisma.chat.findUnique({
+          where: { id: chatId },
+          select: { backMemory: true },
+        });
+        if (backMemoryData?.backMemory && backMemoryData.backMemory.trim().length > 0) {
+          backMemoryInfo = `# メモリブック (会話の要約)\n${backMemoryData.backMemory}`;
+        }
+        // ▲▲▲
+        
         console.time("⏱️ 履歴取得");
         const historyMessages = await prisma.chat_message.findMany({
             where: {
@@ -122,6 +133,122 @@ export async function POST(request: NextRequest) {
             orderBy: { createdAt: 'asc' },
         });
         console.timeEnd("⏱️ 履歴取得");
+        
+        // ▼▼▼【詳細記憶】関連する詳細記憶を追加 ▼▼▼
+        let detailedMemoryInfo = "";
+        const detailedMemories = await prisma.detailed_memories.findMany({
+          where: { chatId: chatId },
+          orderBy: { createdAt: "desc" },
+        });
+        
+        if (detailedMemories && detailedMemories.length > 0) {
+          // キーワードマッチング（ベクトル検索は省略して高速化）
+          const triggeredMemories: string[] = [];
+          const lowerMessage = userMessageForTurn.content.toLowerCase();
+          const lowerHistory = historyMessages.map(msg => msg.content.toLowerCase()).join(' ');
+          const combinedText = `${lowerMessage} ${lowerHistory}`;
+          
+          for (const memory of detailedMemories) {
+            if (triggeredMemories.length >= 3) break;
+            if (memory.keywords && Array.isArray(memory.keywords) && memory.keywords.length > 0) {
+              const hasMatch = memory.keywords.some((keyword) => {
+                return keyword && combinedText.includes(keyword.toLowerCase());
+              });
+              if (hasMatch) {
+                triggeredMemories.push(memory.content);
+              }
+            }
+          }
+          
+          if (triggeredMemories.length > 0) {
+            detailedMemoryInfo = `# 詳細記憶\n- 以下の記憶は会話の内容に基づき有効化された。\n${triggeredMemories.map((mem, idx) => `- 記憶${idx + 1}: ${mem}`).join('\n')}`;
+          }
+        }
+        // ▲▲▲
+        
+        // ▼▼▼【ロアブック】キーワードに基づいてロアブックを追加 ▼▼▼
+        let lorebookInfo = "";
+        if (char.lorebooks && char.lorebooks.length > 0) {
+          const triggeredLorebooks: string[] = [];
+          const lowerMessage = userMessageForTurn.content.toLowerCase();
+          for (const lore of char.lorebooks) {
+            if (triggeredLorebooks.length >= 5) break;
+            if (lore.keywords && Array.isArray(lore.keywords) && lore.keywords.length > 0) {
+              const hasMatch = lore.keywords.some((keyword) => {
+                return keyword && lowerMessage.includes(keyword.toLowerCase());
+              });
+              if (hasMatch) {
+                triggeredLorebooks.push(replacePlaceholders(lore.content));
+              }
+            }
+          }
+          if (triggeredLorebooks.length > 0) {
+            lorebookInfo = `# 関連情報 (ロアブック)\n- 以下の設定は会話のキーワードに基づき有効化された。優先度順。\n- ${triggeredLorebooks.join("\n- ")}`;
+          }
+        }
+        // ▲▲▲
+        
+        let boostInstruction = "";
+        if (boostMultiplier > 1.0) {
+            boostInstruction = `\n# 追加指示\n- 今回の応答に限り、通常よりも意図的に長く、約${boostMultiplier}倍の詳細な内容で返答してください。`;
+        }
+        
+        // ▼▼▼【画像リスト】AIが使用できる画像のリスト ▼▼▼
+        const availableImages = char.characterImages || [];
+        const imageList = availableImages
+            .filter(img => !img.isMain)
+            .map((img, index) => `${index + 1}. "${img.keyword}" - Use: {img:${index + 1}}`)
+            .join('\n');
+        
+        const imageInstruction = imageList 
+            ? `# Available Images\nYou can display images by including tags in your response:\n${imageList}\n\nUsage: Insert {img:N} at appropriate moments in your narration. Example: \`Alice smiled warmly. {img:1}\``
+            : "";
+        // ▲▲▲
+        
+        // ▼▼▼【言語・長さ・フォーマット指示】一般チャットAPIと同じ ▼▼▼
+        const userLanguageRequest = userMessageForTurn.content.match(/한국어|韓国語|korean|Korean|ko|KO|すべて.*韓国語|全て.*韓国語/i);
+        const languageInstruction = userLanguageRequest 
+          ? `- **Output Language**: Respond in Korean (한국어). All narration, dialogue, and descriptions should be in Korean.`
+          : `- **Output Language**: Respond in Japanese (日本語). All narration, dialogue, and descriptions should be in Japanese.`;
+        
+        const lengthInstruction = `- **Response Length**: Aim for 800-1100 characters (including spaces) per response. Provide rich, detailed descriptions and dialogue.`;
+        
+        const formattingInstruction = `# Response Format (Required)
+- You are the narrator and game master of this world. Describe the actions and dialogue of characters from a third-person perspective.
+- **CRITICAL**: NEVER generate, speak as, or create dialogue for the user. You can ONLY describe characters' actions and dialogue. The user will speak for themselves through their own messages. Only respond as the character(s) and narrator.
+${languageInstruction}
+- Narration: Write in third person naturally. All narration text will be displayed in gray color automatically.
+- Dialogue: Enclose in quotation marks appropriate for the output language (「」 for Japanese, "" for Korean). Dialogue will be displayed in white color. Example: 「Hello」 or "안녕하세요"
+- **Dialogue Detection**: Even if the user doesn't use special markers like ** or 「」, you should understand their intent. If the user's message is clearly dialogue, treat it as dialogue. If it's descriptive, treat it as narration instruction.
+- Status Window: For character status, location info, or game system information, wrap them in code blocks using triple backticks (\`\`\`). Example:
+\`\`\`
+📅91日目 | 🏫 教室 | 🌤️ 晴れ
+キャラクター: 太郎、花子
+💖関係: 友人 → 恋人候補
+\`\`\`
+- For multiple characters, describe each character's actions and speech naturally.
+- Separate narration and dialogue with line breaks for readability.
+- Continue from the initial situation and opening message provided above.
+${lengthInstruction}
+- **IMPORTANT**: Always include a status window at the end of your response using code blocks (\`\`\`) to show current situation, characters present, relationships, etc.`;
+        // ▲▲▲
+        
+        const systemTemplate = replacePlaceholders(char.systemTemplate);
+        const systemInstructionText = [systemTemplate, initialContextText, backMemoryInfo, detailedMemoryInfo, imageInstruction, formattingInstruction, userPersonaInfo, lorebookInfo, boostInstruction].filter(Boolean).join("\n\n");
+        
+        // ▼▼▼【デバッグ】システムプロンプトの内容をログ出力 ▼▼▼
+        console.log("=== 再生成API システムプロンプト構築完了 ===");
+        console.log(`systemTemplate length: ${systemTemplate?.length || 0}`);
+        console.log(`initialContextText length: ${initialContextText?.length || 0}`);
+        console.log(`backMemoryInfo length: ${backMemoryInfo?.length || 0}`);
+        console.log(`detailedMemoryInfo length: ${detailedMemoryInfo?.length || 0}`);
+        console.log(`imageInstruction length: ${imageInstruction?.length || 0}`);
+        console.log(`formattingInstruction length: ${formattingInstruction?.length || 0}`);
+        console.log(`systemInstructionText total length: ${systemInstructionText?.length || 0}`);
+        if (!systemTemplate || systemTemplate.trim().length === 0) {
+          console.error("⚠️ WARNING: systemTemplate is empty or missing!");
+        }
+        // ▲▲▲
 
         const chatHistory: Content[] = historyMessages.map(msg => ({
             role: msg.role as "user" | "model",
