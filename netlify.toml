@@ -16,7 +16,7 @@
   max_duration = 30
 
 [functions."app/api/chat/messages/route"]
-  max_duration = 30
+  max_duration = 60
 
 [functions."app/api/chat/*/detailed-memories/route"]
   max_duration = 60
