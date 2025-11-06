@@ -725,19 +725,42 @@ ${conversationText}`;
                   if (messages.length >= 2) {
                     // 要約範囲を決定: 1-1, 1-2, 1-3... 1-10, その後は 11-15, 16-20...
                     let messagesToSummarize: typeof messages = [];
+                    let summaryRange = '';
                     
                     if (messageCount <= 10) {
-                      // 1-10個: 1-1, 1-2, 1-3... 1-10 の順で要約
+                      // 1-10個: 1-1, 1-2, 1-3... 1-10 の順で要約（各メッセージごとに）
+                      // 例: 2個目なら 1-2, 3個目なら 1-3...
                       messagesToSummarize = messages.slice(0, messageCount);
+                      summaryRange = `1-${messageCount}`;
                     } else {
                       // 10個超過: 5個単位で要約（11-15, 16-20...）
                       const startIndex = Math.floor((messageCount - 1) / 5) * 5; // 5の倍数に調整
                       messagesToSummarize = messages.slice(startIndex, messageCount);
+                      summaryRange = `${startIndex + 1}-${messageCount}`;
                     }
                     
                     if (messagesToSummarize.length === 0) {
                       console.log('要約するメッセージがありません');
                       return;
+                    }
+                    
+                    // 重複防止: 既に同じ範囲の要約があるか確認（最後のメッセージIDで判定）
+                    const lastMessageId = messagesToSummarize[messagesToSummarize.length - 1]?.id;
+                    if (lastMessageId) {
+                      const existingMemory = await prisma.detailed_memories.findFirst({
+                        where: {
+                          chatId,
+                          // キーワードに範囲情報を含むか確認（簡易的な重複チェック）
+                          keywords: {
+                            has: summaryRange,
+                          },
+                        },
+                      });
+                      
+                      if (existingMemory) {
+                        console.log(`詳細記憶自動要約: 範囲 ${summaryRange} は既に要約済みのためスキップ`);
+                        return;
+                      }
                     }
                     
                     // 会話をテキストに変換
