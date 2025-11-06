@@ -1,6 +1,5 @@
 // src/components/chat/ChatMessageList.tsx
 import React, { useEffect, useRef } from 'react';
-import Image from 'next/image';
 import { Edit3, Trash2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import ChatMessageParser from '@/components/ChatMessageParser';
 // ▼▼▼【バグ修正】 `Turn`型を再度インポートします。▼▼▼
