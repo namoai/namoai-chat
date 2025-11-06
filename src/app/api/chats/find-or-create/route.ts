@@ -55,8 +55,19 @@ export async function POST(req: Request) {
       }
       const exact = await prisma.chat.findFirst({
         where: { id: chatId, userId },
-        include: { 
-          chat_message: { 
+        select: {
+          id: true,
+          userId: true,
+          characterId: true,
+          createdAt: true,
+          updatedAt: true,
+          userNote: true,
+          backMemory: true,
+          autoSummarize: true,
+          chat_message: {
+            where: {
+              isActive: true, // アクティブなメッセージのみを取得（選択中のバージョン）
+            },
             orderBy: { createdAt: "asc" },
             select: {
               id: true,
@@ -67,7 +78,7 @@ export async function POST(req: Request) {
               version: true,
               isActive: true,
             }
-          } 
+          }
         },
       });
       console.timeEnd("⏱️ find-or-create: chatId指定");
@@ -99,8 +110,19 @@ export async function POST(req: Request) {
           createdAt: now,
           updatedAt: now,
         },
-        include: {
-          chat_message: { 
+        select: {
+          id: true,
+          userId: true,
+          characterId: true,
+          createdAt: true,
+          updatedAt: true,
+          userNote: true,
+          backMemory: true,
+          autoSummarize: true,
+          chat_message: {
+            where: {
+              isActive: true, // アクティブなメッセージのみを取得（選択中のバージョン）
+            },
             orderBy: { createdAt: "asc" },
             select: {
               id: true,
@@ -111,7 +133,7 @@ export async function POST(req: Request) {
               version: true,
               isActive: true,
             }
-          },
+          }
         },
       });
       console.timeEnd("⏱️ find-or-create: 強制新規作成");
@@ -120,24 +142,35 @@ export async function POST(req: Request) {
 
     // 3) 既存があれば最新を返す（無ければ作る）
     console.time("⏱️ find-or-create: 既存検索");
-    const latest = await prisma.chat.findFirst({
-      where: { userId, characterId },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      include: { 
-        chat_message: { 
-          orderBy: { createdAt: "asc" },
-          select: {
-            id: true,
-            role: true,
-            content: true,
-            createdAt: true,
-            turnId: true,
-            version: true,
-            isActive: true,
+      const latest = await prisma.chat.findFirst({
+        where: { userId, characterId },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: {
+          id: true,
+          userId: true,
+          characterId: true,
+          createdAt: true,
+          updatedAt: true,
+          userNote: true,
+          backMemory: true,
+          autoSummarize: true,
+          chat_message: {
+            where: {
+              isActive: true, // アクティブなメッセージのみを取得（選択中のバージョン）
+            },
+            orderBy: { createdAt: "asc" },
+            select: {
+              id: true,
+              role: true,
+              content: true,
+              createdAt: true,
+              turnId: true,
+              version: true,
+              isActive: true,
+            }
           }
-        } 
-      },
-    });
+        },
+      });
     console.timeEnd("⏱️ find-or-create: 既存検索");
 
     if (latest) {
@@ -152,8 +185,19 @@ export async function POST(req: Request) {
         createdAt: now,
         updatedAt: now,
       },
-      include: { 
-        chat_message: { 
+      select: {
+        id: true,
+        userId: true,
+        characterId: true,
+        createdAt: true,
+        updatedAt: true,
+        userNote: true,
+        backMemory: true,
+        autoSummarize: true,
+        chat_message: {
+          where: {
+            isActive: true, // アクティブなメッセージのみを取得（選択中のバージョン）
+          },
           orderBy: { createdAt: "asc" },
           select: {
             id: true,
@@ -164,7 +208,7 @@ export async function POST(req: Request) {
             version: true,
             isActive: true,
           }
-        } 
+        }
       },
     });
     console.timeEnd("⏱️ find-or-create: 新規作成");

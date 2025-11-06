@@ -270,6 +270,31 @@ export default function ChatPage() {
               };
             });
             setRawMessages(formattedMessages);
+            
+            // ▼▼▼【新規追加】새로고침 시 자동 요약 트리거 (autoSummarize가 true인 경우) ▼▼▼
+            if (data.autoSummarize !== false && formattedMessages.length >= 2) {
+              // 비동기로 요약 실행 (블로킹하지 않음)
+              (async () => {
+                try {
+                  // 백메모리 자동 요약
+                  await fetch(`/api/chat/${data.id}/back-memory`, {
+                    method: 'POST',
+                  }).catch(err => console.error('백메모리 자동 요약 에러:', err));
+                  
+                  // 상세기억 자동 요약 (재요약)
+                  await fetch(`/api/chat/${data.id}/detailed-memories`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ autoSummarize: true }),
+                  }).catch(err => console.error('상세기억 자동 요약 에러:', err));
+                  
+                  console.log('새로고침 시 자동 요약 트리거 완료');
+                } catch (error) {
+                  console.error('자동 요약 트리거 에러:', error);
+                }
+              })();
+            }
+            // ▲▲▲
         } catch (e) {
             console.error("チャット読込エラー:", e);
             const errorMessage = e instanceof Error ? e.message : "チャット読込失敗";
