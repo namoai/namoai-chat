@@ -12,7 +12,7 @@ import {
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
 import { getEmbedding } from "@/lib/embeddings";
-import { searchSimilarMessages, searchSimilarDetailedMemories } from "@/lib/vector-search";
+import { searchSimilarMessages } from "@/lib/vector-search";
 
 // VertexAIクライアントの初期化
 const vertex_ai = new VertexAI({
