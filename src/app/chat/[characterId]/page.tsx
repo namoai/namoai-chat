@@ -291,7 +291,7 @@ export default function ChatPage() {
             // ▼▼▼【ストリーミング効果】新規고침 시 메시지를 스트리밍 효과로 표시 ▼▼▼
             // 메시지를 하나씩 추가하여 스트리밍 효과 시뮬레이션
             setRawMessages([]);
-            formattedMessages.forEach((msg, index) => {
+            formattedMessages.forEach((msg: Message, index: number) => {
               setTimeout(() => {
                 setRawMessages(prev => {
                   // 이미 추가된 메시지인지 확인
