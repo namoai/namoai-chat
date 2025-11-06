@@ -192,8 +192,18 @@ export default function ChatPage() {
                     chatId: chatIdFromUrl ? Number(chatIdFromUrl) : null,
                 }),
             });
-            if (!res.ok) throw new Error("チャットセッション取得失敗");
+            
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
+                throw new Error(errorData.error || `HTTP ${res.status}: チャットセッション取得失敗`);
+            }
+            
             const data = await res.json();
+            
+            if (!data || typeof data.id !== 'number') {
+                throw new Error("無効なレスポンスデータ");
+            }
+            
             setChatId(data.id);
             setUserNote(data.userNote || "");
             const formattedMessages = (data.chat_message || []).map((msg: DbMessage) => ({
@@ -202,8 +212,14 @@ export default function ChatPage() {
             }));
             setRawMessages(formattedMessages);
         } catch (e) {
-            console.error(e);
-            setModalState({ isOpen: true, title: "エラー", message: "チャット読込失敗", onConfirm: () => router.back() });
+            console.error("チャット読込エラー:", e);
+            const errorMessage = e instanceof Error ? e.message : "チャット読込失敗";
+            setModalState({ 
+                isOpen: true, 
+                title: "エラー", 
+                message: errorMessage, 
+                onConfirm: () => router.back() 
+            });
         } finally {
             setIsInitialLoading(false);
         }
