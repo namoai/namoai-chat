@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
-import { VertexAI } from '@google-cloud/aiplatform';
-import { HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { VertexAI, HarmCategory, HarmBlockThreshold } from '@google-cloud/vertexai';
 import { getEmbedding, embeddingToVectorString } from '@/lib/embeddings';
 
 const safetySettings = [
@@ -183,8 +182,8 @@ export async function POST(
 
     // Vertex AIで要約
     const vertex_ai = new VertexAI({
-      project: process.env.GOOGLE_CLOUD_PROJECT_ID || '',
-      location: 'us-central1',
+      project: process.env.GOOGLE_PROJECT_ID || '',
+      location: 'asia-northeast1',
     });
 
     const generativeModel = vertex_ai.getGenerativeModel({
