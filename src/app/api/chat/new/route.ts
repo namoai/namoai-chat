@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId,
         characterId,
+        autoSummarize: true, // デフォルト値
       },
     });
 
