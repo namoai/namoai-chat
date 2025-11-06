@@ -714,11 +714,14 @@ export default function ChatPage() {
     });
   };
 
-  // ▼▼▼【修正】新しい再生成ロジック：全てのバージョンを保持 ▼▼▼
+  // ▼▼▼【修正】新しい再生成ロジック：ストリーミング対応 ▼▼▼
   const handleRegenerate = async (turnId: number) => {
      if (isLoading || !chatId) return;
     setIsLoading(true);
     setRegeneratingTurnId(turnId); // ローディング表示のために再生成中のターンIDを設定
+    
+    let tempModelMessageId: number | null = null;
+    
     try {
         const res = await fetch('/api/chat/messages', {
             method: 'POST',
@@ -729,22 +732,91 @@ export default function ChatPage() {
           const errorData = await safeParseJSON<{ error?: string; message?: string }>(res);
           throw new Error(errorData?.error || errorData?.message || `HTTP ${res.status}: 再生成に失敗しました`);
         }
-        const data = await res.json();
-        const newMessage = {
-            ...data.newMessage,
-            timestamp: new Date(data.newMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-            imageUrls: data.imageUrls || [], // ▼▼▼【効率的な画像出力】再生成時の画像URLを追加 ▼▼▼
-        };
-        // 新しいバージョンを追加（isActive状態は変更しない - 全てのバージョンを保持）
-        setRawMessages(prev => [...prev, newMessage]);
-        
-        // 最新バージョンを自動的に表示するためにisActiveを設定
-        setRawMessages(prev => prev.map(m => {
-            if (m.turnId === turnId && m.role === 'model') {
-                return { ...m, isActive: m.id === newMessage.id };
+
+        if (!res.body) {
+            throw new Error("レスポンスボディがありません。");
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+                if (!line.startsWith("data: ")) continue;
+                
+                const dataStr = line.substring(6);
+                if (!dataStr.trim()) continue;
+
+                try {
+                    const eventData = JSON.parse(dataStr);
+                    
+                    if (eventData.responseChunk) {
+                        // ▼▼▼【画像タグパース】{img:N}をimageUrlsに変換 ▼▼▼
+                        const characterImages = characterInfo?.characterImages || [];
+                        const { cleanText, imageUrls: newImageUrls } = parseImageTags(eventData.responseChunk, characterImages);
+                        // ▲▲▲
+                        
+                        if (!tempModelMessageId) {
+                            tempModelMessageId = Date.now() + 1;
+                            const newModelMessage: Message = {
+                                id: tempModelMessageId,
+                                role: 'model',
+                                content: cleanText,
+                                createdAt: new Date().toISOString(),
+                                turnId: turnId,
+                                version: 1,
+                                isActive: true,
+                                timestamp: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+                                imageUrls: newImageUrls,
+                            };
+                            setRawMessages(prev => {
+                                // 既存のモデルメッセージを非アクティブ化
+                                const updated = prev.map(m => {
+                                    if (m.turnId === turnId && m.role === 'model') {
+                                        return { ...m, isActive: false };
+                                    }
+                                    return m;
+                                });
+                                return [...updated, newModelMessage];
+                            });
+                        } else {
+                            setRawMessages(prev => prev.map(msg =>
+                                msg.id === tempModelMessageId
+                                    ? { 
+                                        ...msg, 
+                                        content: msg.content + cleanText,
+                                        imageUrls: [...(msg.imageUrls || []), ...newImageUrls]
+                                      }
+                                    : msg
+                            ));
+                        }
+                    } else if (eventData.modelMessage) {
+                        // 最終メッセージで更新
+                        const finalMessage = {
+                            ...eventData.modelMessage,
+                            timestamp: new Date(eventData.modelMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+                        };
+                        setRawMessages(prev => prev.map(m => 
+                            m.id === tempModelMessageId
+                                ? finalMessage
+                                : m
+                        ));
+                    } else if (eventData.error) {
+                        throw new Error(eventData.error);
+                    }
+                } catch (e) {
+                    console.error("JSON解析エラー:", dataStr, e);
+                }
             }
-            return m;
-        }));
+        }
     } catch (error) {
         setModalState({ isOpen: true, title: "エラー", message: (error as Error).message, isAlert: true });
     } finally {

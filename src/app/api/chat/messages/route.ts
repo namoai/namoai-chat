@@ -269,81 +269,127 @@ ${lengthInstruction}
             systemInstruction: systemInstructionText 
         });
         
-        // タイムアウト処理付きでVertex AIを呼び出し（25秒でタイムアウト、Netlify関数制限より余裕を持たせる）
-        const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error("Vertex AI応答がタイムアウトしました（25秒）。再試行してください。")), 25000);
-        });
-        
-        const result = await Promise.race([
-            chat.sendMessage(userMessageForTurn.content),
-            timeoutPromise
-        ]) as Awaited<ReturnType<typeof chat.sendMessage>>;
-        console.timeEnd("⏱️ Vertex AI応答生成");
+        // ▼▼▼【ストリーミング対応】SSEストリームで応答を返す ▼▼▼
+        const stream = new ReadableStream({
+            async start(controller) {
+                const encoder = new TextEncoder();
+                const sendEvent = (event: string, data: object) => {
+                    controller.enqueue(encoder.encode(`event: ${event}\n`));
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+                };
 
-        let aiReply = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!aiReply) throw new Error("モデルから有効な応答がありませんでした。");
-        
-        // ▼▼▼【画像タグパース】{img:N}と![](URL)をimageUrlsに変換 ▼▼▼
-        const matchedImageUrls: string[] = [];
-        // availableImages は既に上で宣言済み (86行目)
-        const nonMainImages = availableImages.filter(img => !img.isMain);
-        
-        // 1. {img:N} 形式
-        const imgTagRegex = /\{img:(\d+)\}/g;
-        aiReply = aiReply.replace(imgTagRegex, (match, indexStr) => {
-            const index = parseInt(indexStr, 10) - 1;
-            if (index >= 0 && index < nonMainImages.length) {
-                matchedImageUrls.push(nonMainImages[index].imageUrl);
-                console.log(`📸 画像タグ検出 (再生成): {img:${indexStr}} -> ${nonMainImages[index].imageUrl}`);
-            } else {
-                console.warn(`⚠️ 無効な画像インデックス (再生成): {img:${indexStr}}`);
+                try {
+                    // タイムアウト処理付きでVertex AIを呼び出し（25秒でタイムアウト）
+                    const timeoutPromise = new Promise<never>((_, reject) => {
+                        setTimeout(() => reject(new Error("Vertex AI応答がタイムアウトしました（25秒）。再試行してください。")), 25000);
+                    });
+                    
+                    const result = await Promise.race([
+                        chat.sendMessageStream(userMessageForTurn.content),
+                        timeoutPromise
+                    ]);
+                    
+                    let fullResponse = "";
+                    const matchedImageUrls: string[] = [];
+                    const nonMainImages = availableImages.filter(img => !img.isMain);
+                    
+                    // ストリームからチャンクを読み取り
+                    for await (const chunk of result.stream) {
+                        const chunkText = chunk.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                        if (chunkText) {
+                            fullResponse += chunkText;
+                            // チャンクごとにクライアントに送信
+                            sendEvent("message", { responseChunk: chunkText });
+                        }
+                    }
+                    
+                    console.timeEnd("⏱️ Vertex AI応答生成");
+                    
+                    // ▼▼▼【画像タグパース】{img:N}と![](URL)をimageUrlsに変換 ▼▼▼
+                    let cleanResponse = fullResponse;
+                    
+                    // 1. {img:N} 形式
+                    const imgTagRegex = /\{img:(\d+)\}/g;
+                    cleanResponse = cleanResponse.replace(imgTagRegex, (match, indexStr) => {
+                        const index = parseInt(indexStr, 10) - 1;
+                        if (index >= 0 && index < nonMainImages.length) {
+                            matchedImageUrls.push(nonMainImages[index].imageUrl);
+                            console.log(`📸 画像タグ検出 (再生成): {img:${indexStr}} -> ${nonMainImages[index].imageUrl}`);
+                        } else {
+                            console.warn(`⚠️ 無効な画像インデックス (再生成): {img:${indexStr}}`);
+                        }
+                        return ''; // タグを削除
+                    });
+                    
+                    // 2. ![](URL) 形式（Markdown）
+                    const markdownImgRegex = /!\[\]\((https?:\/\/[^\s)]+)\)/g;
+                    cleanResponse = cleanResponse.replace(markdownImgRegex, (match, url) => {
+                        matchedImageUrls.push(url);
+                        console.log(`📸 Markdown画像検出 (再生成): ![](${url})`);
+                        return '';
+                    });
+                    
+                    // 3. ![alt](URL) 形式
+                    const markdownImgWithAltRegex = /!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g;
+                    cleanResponse = cleanResponse.replace(markdownImgWithAltRegex, (match, alt, url) => {
+                        matchedImageUrls.push(url);
+                        console.log(`📸 Markdown画像検出 (再生成): ![${alt}](${url})`);
+                        return '';
+                    });
+                    
+                    console.log(`📸 再生成時の画像マッチング: ${matchedImageUrls.length}件`);
+                    // ▲▲▲
+                    
+                    console.time("⏱️ メッセージ保存");
+                    const latestVersion = await prisma.chat_message.findFirst({
+                        where: { turnId: turnId, role: 'model' },
+                        orderBy: { version: 'desc' }
+                    });
+                    await prisma.chat_message.updateMany({
+                        where: { turnId: turnId, role: 'model' },
+                        data: { isActive: false }
+                    });
+
+                    const newMessage = await prisma.chat_message.create({
+                        data: {
+                            chatId: chatId,
+                            role: 'model',
+                            content: cleanResponse,
+                            turnId: turnId,
+                            version: (latestVersion?.version || 0) + 1,
+                            isActive: true,
+                        }
+                    });
+                    console.timeEnd("⏱️ メッセージ保存");
+                    
+                    // 最終メッセージを送信
+                    sendEvent("message", { 
+                        modelMessage: {
+                            ...newMessage,
+                            imageUrls: matchedImageUrls
+                        }
+                    });
+                    
+                    console.timeEnd("⏱️ 再生成API処理時間");
+                    controller.close();
+                } catch (error) {
+                    console.error("再生成ストリームエラー:", error);
+                    sendEvent("error", { 
+                        error: error instanceof Error ? error.message : "内部サーバーエラーが発生しました。" 
+                    });
+                    controller.close();
+                }
             }
-            return ''; // タグを削除
         });
         
-        // 2. ![](URL) 形式（Markdown）
-        const markdownImgRegex = /!\[\]\((https?:\/\/[^\s)]+)\)/g;
-        aiReply = aiReply.replace(markdownImgRegex, (match, url) => {
-            matchedImageUrls.push(url);
-            console.log(`📸 Markdown画像検出 (再生成): ![](${url})`);
-            return '';
+        return new Response(stream, {
+            headers: {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+            },
         });
-        
-        // 3. ![alt](URL) 形式
-        const markdownImgWithAltRegex = /!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g;
-        aiReply = aiReply.replace(markdownImgWithAltRegex, (match, alt, url) => {
-            matchedImageUrls.push(url);
-            console.log(`📸 Markdown画像検出 (再生成): ![${alt}](${url})`);
-            return '';
-        });
-        
-        console.log(`📸 再生成時の画像マッチング: ${matchedImageUrls.length}件`);
         // ▲▲▲
-        
-        console.time("⏱️ メッセージ保存");
-        const latestVersion = await prisma.chat_message.findFirst({
-            where: { turnId: turnId, role: 'model' },
-            orderBy: { version: 'desc' }
-        });
-        await prisma.chat_message.updateMany({
-            where: { turnId: turnId, role: 'model' },
-            data: { isActive: false }
-        });
-
-        const newMessage = await prisma.chat_message.create({
-            data: {
-                chatId: chatId,
-                role: 'model',
-                content: aiReply,
-                turnId: turnId,
-                version: (latestVersion?.version || 0) + 1,
-                isActive: true,
-            }
-        });
-        console.timeEnd("⏱️ メッセージ保存");
-        
-        console.timeEnd("⏱️ 再生成API処理時間");
-        return NextResponse.json({ newMessage, imageUrls: matchedImageUrls });
 
     } catch (error) {
         console.error("再生成APIエラー:", error);
