@@ -6,7 +6,6 @@ import { VertexAI, HarmCategory, HarmBlockThreshold, Content } from "@google-clo
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth"; 
 
-// VertexAIクライアントの初期化
 // VertexAIクライアントの初期化（asia-northeast1に変更して高速化）
 const vertex_ai = new VertexAI({
   project: process.env.GOOGLE_PROJECT_ID,
