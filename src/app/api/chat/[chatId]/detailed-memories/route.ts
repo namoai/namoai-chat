@@ -116,42 +116,40 @@ export async function POST(
       // 自動要約の場合（保存個数制限なし、ただし適用時は最大3個まで）
       console.log('自動要約モード開始, chatId:', chatIdNum);
 
-      // 再要約の場合: 既存の詳細記憶を全て削除して全体を再要約
-      const existingMemories = await prisma.detailed_memories.findMany({
-        where: { chatId: chatIdNum },
-      });
-      
-      if (existingMemories.length > 0) {
-        console.log(`既存の詳細記憶 ${existingMemories.length}件を削除して再要約を開始`);
-        await prisma.detailed_memories.deleteMany({
-          where: { chatId: chatIdNum },
-        });
-      }
-
-      // 全メッセージを取得（再要約なので全体を処理）
-      const messagesToSummarize = await prisma.chat_message.findMany({
-        where: {
-          chatId: chatIdNum,
-          isActive: true,
-        },
-        orderBy: { createdAt: 'asc' },
-      });
-
-      console.log(`再要約: 全メッセージ数: ${messagesToSummarize.length}`);
-
-      if (messagesToSummarize.length === 0) {
-        return NextResponse.json({ 
-          message: '要約するメッセージがありません。'
-        });
-      }
-
-      // 再要約ロジック: スライディングウィンドウ方式（5個ずつ）で要約
-      // 完全に非同期で処理し、即座に応答を返す
+      // 再要約ロジック: 完全に非同期で処理し、即座に応答を返す
       const windowSize = 5;
       
       // 即座に応答を返す（バックグラウンドで処理）
       (async () => {
         try {
+          // 再要約の場合: 既存の詳細記憶を全て削除
+          const existingMemories = await prisma.detailed_memories.findMany({
+            where: { chatId: chatIdNum },
+          });
+          
+          if (existingMemories.length > 0) {
+            console.log(`既存の詳細記憶 ${existingMemories.length}件を削除して再要約を開始`);
+            await prisma.detailed_memories.deleteMany({
+              where: { chatId: chatIdNum },
+            });
+          }
+
+          // 全メッセージを取得（再要約なので全体を処理）
+          const messagesToSummarize = await prisma.chat_message.findMany({
+            where: {
+              chatId: chatIdNum,
+              isActive: true,
+            },
+            orderBy: { createdAt: 'asc' },
+          });
+
+          console.log(`再要約: 全メッセージ数: ${messagesToSummarize.length}`);
+
+          if (messagesToSummarize.length === 0) {
+            console.log('再要約: 要約するメッセージがありません');
+            return;
+          }
+
           // スライディングウィンドウ方式で要約（1-5, 6-10, 11-15...）
           for (let start = 0; start < messagesToSummarize.length; start += windowSize) {
             const end = Math.min(start + windowSize, messagesToSummarize.length);
