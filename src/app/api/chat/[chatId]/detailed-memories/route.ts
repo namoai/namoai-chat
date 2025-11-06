@@ -366,7 +366,7 @@ ${conversationText}`;
 // PUT: 詳細記憶の更新
 export async function PUT(
   request: Request,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{ chatId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -375,7 +375,8 @@ export async function PUT(
     }
 
     const { id, content, keywords } = await request.json();
-    const chatIdNum = parseInt(params.chatId);
+    const resolvedParams = await params;
+    const chatIdNum = parseInt(resolvedParams.chatId);
 
     if (!content) {
       return NextResponse.json({ error: '内容を入力してください。' }, { status: 400 });
