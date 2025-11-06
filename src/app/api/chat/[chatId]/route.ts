@@ -207,27 +207,35 @@ export async function POST(request: Request, context: any) {
         // ▼▼▼【ベクトル検索】最新10件に加えて、関連メッセージをベクトル検索で追加（非同期、オプション）▼▼▼
         // ベクトル検索は時間がかかるため、メイン処理をブロックしないように非同期で実行
         // エラーが発生してもチャットは続行可能
-        const vectorSearchPromise = (async () => {
-          try {
-            const messageEmbedding = await getEmbedding(message);
-            const excludeTurnIds = orderedHistory.map(msg => msg.turnId || 0).filter(id => id > 0);
-            const matched = await searchSimilarMessages(messageEmbedding, chatId, excludeTurnIds, 5);
-            return matched;
-          } catch (error) {
-            console.error('ベクトル検索エラー（メッセージ）:', error);
-            return [];
-          }
-        })();
-        // ベクトル検索結果は後で使用（非同期で待機）
+        // 最初のメッセージ（履歴が1件以下）の場合はスキップして高速化
         let vectorMatchedMessages: Array<{ id: number; content: string; role: string; createdAt: Date }> = [];
-        try {
-          const matched = await vectorSearchPromise;
-          // 既存履歴に含まれていないメッセージのみ追加
-          const existingIds = new Set(orderedHistory.map(h => h.id));
-          vectorMatchedMessages = matched.filter(m => !existingIds.has(m.id));
-        } catch (error) {
-          // ベクトル検索が失敗しても続行
-          console.error('ベクトル検索結果取得エラー:', error);
+        if (orderedHistory.length > 1) {
+          // 2件以上のメッセージがある場合のみベクトル検索を実行
+          const vectorSearchPromise = (async () => {
+            try {
+              const messageEmbedding = await getEmbedding(message);
+              const excludeTurnIds = orderedHistory.map(msg => msg.turnId || 0).filter(id => id > 0);
+              const matched = await searchSimilarMessages(messageEmbedding, chatId, excludeTurnIds, 5);
+              return matched;
+            } catch (error) {
+              console.error('ベクトル検索エラー（メッセージ）:', error);
+              return [];
+            }
+          })();
+          
+          // ベクトル検索結果は後で使用（非同期で待機、タイムアウト付き）
+          try {
+            const matched = await Promise.race([
+              vectorSearchPromise,
+              new Promise<[]>(resolve => setTimeout(() => resolve([]), 2000)) // 2秒タイムアウト
+            ]);
+            // 既存履歴に含まれていないメッセージのみ追加
+            const existingIds = new Set(orderedHistory.map(h => h.id));
+            vectorMatchedMessages = matched.filter(m => !existingIds.has(m.id));
+          } catch (error) {
+            // ベクトル検索が失敗しても続行
+            console.error('ベクトル検索結果取得エラー:', error);
+          }
         }
         // ▲▲▲
         console.log("ステップ2.5: ペルソナと履歴の取得完了");
@@ -313,30 +321,46 @@ export async function POST(request: Request, context: any) {
     const triggeredMemoryIds = new Set<number>();
     
     if (detailedMemories && detailedMemories.length > 0) {
-      // 1. ベクトル検索（embeddingがある場合）
+      // 1. ベクトル検索（embeddingがある場合、非同期で実行）
+      const vectorSearchPromise = (async () => {
+        try {
+          const messageEmbedding = await getEmbedding(message);
+          const vectorMatched = await searchSimilarDetailedMemories(messageEmbedding, chatId, 3);
+          return vectorMatched;
+        } catch (error) {
+          console.error('ベクトル検索エラー:', error);
+          return [];
+        }
+      })();
+      
+      // ベクトル検索結果を待機（タイムアウト付き）
       try {
-        const messageEmbedding = await getEmbedding(message);
-        const vectorMatched = await searchSimilarDetailedMemories(messageEmbedding, chatId, 3);
+        const vectorMatched = await Promise.race([
+          vectorSearchPromise,
+          new Promise<[]>(resolve => setTimeout(() => resolve([]), 1500)) // 1.5秒タイムアウト
+        ]);
         
         for (const mem of vectorMatched) {
           if (triggeredMemories.length >= 3 || triggeredMemoryIds.has(mem.id)) continue;
           triggeredMemories.push(mem.content);
           triggeredMemoryIds.add(mem.id);
-          // 最後に適用された時刻を更新
-          await prisma.detailed_memories.update({
+          // 最後に適用された時刻を更新（非同期、エラー無視）
+          prisma.detailed_memories.update({
             where: { id: mem.id },
             data: { lastApplied: new Date() },
-          });
+          }).catch(() => {});
         }
       } catch (error) {
-        console.error('ベクトル検索エラー:', error);
+        // エラーは無視して続行
       }
       
       // 2. キーワードマッチング（ベクトル検索で見つからなかった場合の補完）
       if (triggeredMemories.length < 3) {
         const lowerMessage = message.toLowerCase();
-        const lowerHistory = orderedHistory.map(msg => msg.content.toLowerCase()).join(' ');
-        const combinedText = `${lowerMessage} ${lowerHistory}`;
+        const lowerHistory = orderedHistory.length > 0 
+          ? orderedHistory.map(msg => msg.content.toLowerCase()).join(' ')
+          : '';
+        const combinedText = lowerHistory ? `${lowerMessage} ${lowerHistory}` : lowerMessage;
         
         for (const memory of detailedMemories) {
           if (triggeredMemories.length >= 3 || triggeredMemoryIds.has(memory.id)) break;
@@ -349,10 +373,11 @@ export async function POST(request: Request, context: any) {
             if (hasMatch) {
               triggeredMemories.push(memory.content);
               triggeredMemoryIds.add(memory.id);
-              await prisma.detailed_memories.update({
+              // 非同期で更新（エラー無視）
+              prisma.detailed_memories.update({
                 where: { id: memory.id },
                 data: { lastApplied: new Date() },
-              });
+              }).catch(() => {});
             }
           }
         }
@@ -531,11 +556,11 @@ export async function POST(request: Request, context: any) {
                 });
                 
                 // 要約を実行する条件:
-                // - 10個以下: 毎回実行
+                // - 10個以下: 毎回実行（ただし2個以上）
                 // - 10個超過: 5個単位で実行（10, 15, 20, 25...）
                 let shouldSummarize = false;
                 if (messageCount <= 10) {
-                  shouldSummarize = messageCount >= 1; // 1個以上なら毎回
+                  shouldSummarize = messageCount >= 2; // 2個以上なら毎回（最初の1個はスキップ）
                 } else {
                   shouldSummarize = messageCount % 5 === 0; // 5個単位
                 }
