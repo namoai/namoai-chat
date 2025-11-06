@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { X, ChevronRight, Image as ImageIcon, Film, MessageSquare, BookUser, FileText, Trash2, Palette, Type } from 'lucide-react'; // ▼▼▼【修正】Cpu, Zap 아이콘 제거
+import { X, ChevronRight, Image as ImageIcon, Film, MessageSquare, BookUser, FileText, Trash2, Palette, Type, BookOpen, Brain } from 'lucide-react';
+import BackMemoryModal from '@/components/chat/BackMemoryModal';
+import DetailedMemoryModal from '@/components/chat/DetailedMemoryModal';
 
 /**
  * AIによる応答生成に関する設定の型定義。
@@ -180,11 +182,140 @@ export default function ChatSettings({
   
   const [isNoteModalOpen, setNoteModalOpen] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-  // ▼▼▼【修正】isAiSettingsModalOpen を削除 ▼▼▼
   const [isStyleModalOpen, setIsStyleModalOpen] = useState(false);
+  const [isBackMemoryModalOpen, setIsBackMemoryModalOpen] = useState(false);
+  const [isDetailedMemoryModalOpen, setIsDetailedMemoryModalOpen] = useState(false);
+  const [backMemory, setBackMemory] = useState({ content: '', autoSummarize: true });
+  const [detailedMemories, setDetailedMemories] = useState<any[]>([]);
 
-  // ▼▼▼【修正】isAiSettingsModalOpen を削除 ▼▼▼
-  useEffect(() => { if (!isOpen) { setTimeout(() => { setNoteModalOpen(false); setIsSaveModalOpen(false); setIsStyleModalOpen(false); }, 300); } }, [isOpen]);
+  // バックメモリと詳細記憶を読み込む
+  useEffect(() => {
+    if (isOpen && chatId) {
+      fetchBackMemory();
+      fetchDetailedMemories();
+    }
+  }, [isOpen, chatId]);
+
+  const fetchBackMemory = async () => {
+    if (!chatId) return;
+    try {
+      const res = await fetch(`/api/chat/${chatId}/back-memory`);
+      if (res.ok) {
+        const data = await res.json();
+        setBackMemory({ content: data.backMemory || '', autoSummarize: data.autoSummarize ?? true });
+      }
+    } catch (error) {
+      console.error('バックメモリ取得エラー:', error);
+    }
+  };
+
+  const fetchDetailedMemories = async () => {
+    if (!chatId) return;
+    try {
+      const res = await fetch(`/api/chat/${chatId}/detailed-memories`);
+      if (res.ok) {
+        const data = await res.json();
+        setDetailedMemories(data.memories || []);
+      }
+    } catch (error) {
+      console.error('詳細記憶取得エラー:', error);
+    }
+  };
+
+  const handleSaveBackMemory = async (content: string, autoSummarize: boolean) => {
+    if (!chatId) return;
+    try {
+      const res = await fetch(`/api/chat/${chatId}/back-memory`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, autoSummarize }),
+      });
+      if (res.ok) {
+        setBackMemory({ content, autoSummarize });
+      }
+    } catch (error) {
+      console.error('バックメモリ保存エラー:', error);
+      throw error;
+    }
+  };
+
+  const handleSaveDetailedMemory = async (memory: any) => {
+    if (!chatId) return;
+    try {
+      const res = await fetch(`/api/chat/${chatId}/detailed-memories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: memory.content, keywords: memory.keywords || [], autoSummarize: false }),
+      });
+      if (res.ok) {
+        await fetchDetailedMemories();
+      }
+    } catch (error) {
+      console.error('詳細記憶保存エラー:', error);
+      throw error;
+    }
+  };
+
+  const handleUpdateDetailedMemory = async (id: number, content: string) => {
+    if (!chatId) return;
+    try {
+      const res = await fetch(`/api/chat/${chatId}/detailed-memories`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memoryId: id, content }),
+      });
+      if (res.ok) {
+        await fetchDetailedMemories();
+      }
+    } catch (error) {
+      console.error('詳細記憶更新エラー:', error);
+      throw error;
+    }
+  };
+
+  const handleDeleteDetailedMemory = async (id: number) => {
+    if (!chatId) return;
+    try {
+      const res = await fetch(`/api/chat/${chatId}/detailed-memories?memoryId=${id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        await fetchDetailedMemories();
+      }
+    } catch (error) {
+      console.error('詳細記憶削除エラー:', error);
+      throw error;
+    }
+  };
+
+  const handleAutoSummarizeDetailedMemory = async (index: number) => {
+    if (!chatId) return;
+    try {
+      const res = await fetch(`/api/chat/${chatId}/detailed-memories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ autoSummarize: true }),
+      });
+      if (res.ok) {
+        await fetchDetailedMemories();
+      }
+    } catch (error) {
+      console.error('自動要約エラー:', error);
+      throw error;
+    }
+  };
+
+  useEffect(() => { 
+    if (!isOpen) { 
+      setTimeout(() => { 
+        setNoteModalOpen(false); 
+        setIsSaveModalOpen(false); 
+        setIsStyleModalOpen(false);
+        setIsBackMemoryModalOpen(false);
+        setIsDetailedMemoryModalOpen(false);
+      }, 300); 
+    } 
+  }, [isOpen]);
   if (!isOpen) return null;
 
   const personaHref = characterId && chatId ? `/persona/list?fromChat=true&characterId=${characterId}&chatId=${chatId}` : '/persona/list';
@@ -201,11 +332,12 @@ export default function ChatSettings({
             <div className="p-2 space-y-1">
                 <SettingItem icon={<ImageIcon size={20} />} label="チャットイメージ" hasSwitch={true} switchState={showChatImage} onSwitchChange={() => onShowChatImageChange(!showChatImage)} />
                 <SettingItem icon={<Film size={20} />} label="マルチイメージ" hasSwitch={true} switchState={isMultiImage} onSwitchChange={() => onIsMultiImageChange(!isMultiImage)} />
-                {/* ▼▼▼【修正】AI応答設定ボタンを削除 ▼▼▼ */}
                 <SettingItem icon={<Palette size={20} />} label="チャット表示設定" onClick={() => setIsStyleModalOpen(true)} />
                 <SettingItem icon={<MessageSquare size={20} />} label="会話内容を保存" onClick={() => setIsSaveModalOpen(true)} />
                 <SettingItem icon={<BookUser size={20} />} label="ユーザーノート" onClick={() => setNoteModalOpen(true)} />
                 <SettingItem icon={<FileText size={20} />} label="ペルソナ" href={personaHref} />
+                <SettingItem icon={<BookOpen size={20} />} label="メモリブック" onClick={() => setIsBackMemoryModalOpen(true)} />
+                <SettingItem icon={<Brain size={20} />} label="詳細記憶" onClick={() => setIsDetailedMemoryModalOpen(true)} />
             </div>
             <div className="p-2 mt-auto border-t border-gray-700">
                 <button onClick={onNewChat} className="flex items-center w-full p-3 text-left text-red-400 hover:bg-gray-700 rounded-md"><Trash2 size={20} /><span className="ml-3">新しいチャット</span></button>
@@ -213,8 +345,29 @@ export default function ChatSettings({
         </>
         {isNoteModalOpen && <NoteModal note={userNote} onSave={onSaveNote} onClose={() => setNoteModalOpen(false)} />}
         {isSaveModalOpen && <SaveConversationModal onSaveAsTxt={onSaveConversationAsTxt} onClose={() => setIsSaveModalOpen(false)} />}
-        {/* ▼▼▼【修正】ResponseBoostModal を削除 ▼▼▼ */}
         {isStyleModalOpen && <StyleSettingsModal settings={chatStyleSettings} onSave={handleSaveStyleSettings} onClose={() => setIsStyleModalOpen(false)} />}
+        {isBackMemoryModalOpen && chatId && (
+          <BackMemoryModal
+            isOpen={isBackMemoryModalOpen}
+            onClose={() => setIsBackMemoryModalOpen(false)}
+            chatId={chatId}
+            initialContent={backMemory.content}
+            autoSummarize={backMemory.autoSummarize}
+            onSave={handleSaveBackMemory}
+          />
+        )}
+        {isDetailedMemoryModalOpen && chatId && (
+          <DetailedMemoryModal
+            isOpen={isDetailedMemoryModalOpen}
+            onClose={() => setIsDetailedMemoryModalOpen(false)}
+            chatId={chatId}
+            memories={detailedMemories}
+            onSave={handleSaveDetailedMemory}
+            onUpdate={handleUpdateDetailedMemory}
+            onDelete={handleDeleteDetailedMemory}
+            onAutoSummarize={handleAutoSummarizeDetailedMemory}
+          />
+        )}
       </div>
     </div>
   );

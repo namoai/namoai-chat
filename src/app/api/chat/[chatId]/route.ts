@@ -165,12 +165,20 @@ export async function POST(request: Request, context: any) {
         }
         // ▲▲▲【修正完了】▲▲▲
 
-        const [persona, history] = await Promise.all([
+        const [persona, history, backMemory, detailedMemories] = await Promise.all([
             chatRoom.users.defaultPersonaId ? prisma.personas.findUnique({ where: { id: chatRoom.users.defaultPersonaId } }) : Promise.resolve(null),
             prisma.chat_message.findMany({
                 where: historyWhereClause,
                 orderBy: { createdAt: "desc" },
                 take: 10, // 履歴は最新10件を取得
+            }),
+            prisma.chat.findUnique({
+                where: { id: chatId },
+                select: { backMemory: true, autoSummarize: true },
+            }),
+            prisma.detailed_memories.findMany({
+                where: { chatId: chatId },
+                orderBy: { createdAt: "desc" },
             }),
         ]);
         console.timeEnd("⏱️ DB History+Persona Query");
@@ -179,7 +187,7 @@ export async function POST(request: Request, context: any) {
         console.log("ステップ2.5: ペルソナと履歴の取得完了");
         console.log(`使用されたバージョン: ${activeVersions ? JSON.stringify(activeVersions) : 'デフォルト(isActive)'}`);
         console.timeEnd("⏱️ Context Fetch Total (DB Only)");
-        return { chatRoom, persona, orderedHistory };
+        return { chatRoom, persona, orderedHistory, backMemory, detailedMemories };
     })();
 
     // 2つの並列処理が完了するのを待ちます。
@@ -187,8 +195,8 @@ export async function POST(request: Request, context: any) {
     const [dbWriteResult, contextResult] = await Promise.all([dbWritePromise, contextPromise]);
     console.timeEnd("⏱️ Promise.all(DBWrite, Context)");
 
-    const { userMessageForHistory, turnIdForModel } = dbWriteResult;
-    const { chatRoom, persona, orderedHistory } = contextResult;
+    const { userMessageForHistory, turnIdForModel } = dbWriteResult;
+    const { chatRoom, persona, orderedHistory, backMemory, detailedMemories } = contextResult;
 
     const worldSetting = chatRoom.characters; // 'char' から 'worldSetting' に変数名を変更 (意味を明確化)
     const user = chatRoom.users;
@@ -234,9 +242,62 @@ export async function POST(request: Request, context: any) {
       }
     }
     console.timeEnd("⏱️ Simple Text Lorebook Search");
-    if (triggeredLorebooks.length > 0) {
-      lorebookInfo = `# 関連情報 (ロアブック)\n- 以下の設定は会話のキーワードに基づき有効化された。優先度順。\n- ${triggeredLorebooks.join("\n- ")}`;
-    }
+    if (triggeredLorebooks.length > 0) {
+      lorebookInfo = `# 関連情報 (ロアブック)\n- 以下の設定は会話のキーワードに基づき有効化された。優先度順。\n- ${triggeredLorebooks.join("\n- ")}`;
+    }
+
+    // ▼▼▼ 詳細記憶のキーワードマッチング ▼▼▼
+    console.time("⏱️ Detailed Memory Search");
+    let detailedMemoryInfo = "";
+    const triggeredMemories: string[] = [];
+    if (detailedMemories && detailedMemories.length > 0) {
+      const lowerMessage = message.toLowerCase();
+      const lowerHistory = orderedHistory.map(msg => msg.content.toLowerCase()).join(' ');
+      const combinedText = `${lowerMessage} ${lowerHistory}`;
+      
+      for (const memory of detailedMemories) {
+        if (triggeredMemories.length >= 3) break; // 最大3個まで
+        
+        if (memory.keywords && Array.isArray(memory.keywords) && memory.keywords.length > 0) {
+          const hasMatch = memory.keywords.some((keyword) => {
+            return keyword && combinedText.includes(keyword.toLowerCase());
+          });
+          
+          if (hasMatch) {
+            triggeredMemories.push(memory.content);
+            // 最後に適用された時刻を更新
+            await prisma.detailed_memories.update({
+              where: { id: memory.id },
+              data: { lastApplied: new Date() },
+            });
+          }
+        } else {
+          // キーワードがない場合は内容から検索
+          const contentWords = memory.content.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+          const hasMatch = contentWords.some((word) => combinedText.includes(word));
+          
+          if (hasMatch) {
+            triggeredMemories.push(memory.content);
+            await prisma.detailed_memories.update({
+              where: { id: memory.id },
+              data: { lastApplied: new Date() },
+            });
+          }
+        }
+      }
+    }
+    console.timeEnd("⏱️ Detailed Memory Search");
+    if (triggeredMemories.length > 0) {
+      detailedMemoryInfo = `# 詳細記憶\n- 以下の記憶は会話のキーワードに基づき有効化された。\n${triggeredMemories.map((mem, idx) => `- 記憶${idx + 1}: ${mem}`).join('\n')}`;
+    }
+    // ▲▲▲
+
+    // ▼▼▼ バックメモリの追加 ▼▼▼
+    let backMemoryInfo = "";
+    if (backMemory && backMemory.backMemory && backMemory.backMemory.trim().length > 0) {
+      backMemoryInfo = `# メモリブック (会話の要約)\n${backMemory.backMemory}`;
+    }
+    // ▲▲▲
 
     // ▼▼▼ Build system prompt components ▼▼▼
     const userPersonaInfo = persona 
@@ -284,7 +345,7 @@ export async function POST(request: Request, context: any) {
     const systemTemplate = replacePlaceholders(worldSetting.systemTemplate);
 
     // Assemble final system prompt
-    const systemInstructionText = [systemTemplate, initialContextText, imageInstruction, formattingInstruction, userPersonaInfo, lorebookInfo].filter(Boolean).join("\n\n");
+    const systemInstructionText = [systemTemplate, initialContextText, backMemoryInfo, detailedMemoryInfo, imageInstruction, formattingInstruction, userPersonaInfo, lorebookInfo].filter(Boolean).join("\n\n");
     console.log("ステップ4: システムプロンプト構築完了");
     console.timeEnd("⏱️ Prompt Construction");
 
