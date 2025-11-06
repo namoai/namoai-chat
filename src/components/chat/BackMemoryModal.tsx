@@ -100,7 +100,7 @@ export default function BackMemoryModal({
         <div className="p-6 border-b border-gray-700 flex items-center justify-between bg-gray-750">
           <div className="flex-1">
             <p className="text-sm font-medium text-gray-300">会話内容を自動的に要約します</p>
-            <p className="text-xs text-gray-500 mt-1">メッセージが20件、40件、60件...になるたびに自動要約されます</p>
+            <p className="text-xs text-gray-500 mt-1">メッセージが追加されるたびに自動要約されます</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
