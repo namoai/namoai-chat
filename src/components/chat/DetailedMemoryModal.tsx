@@ -112,40 +112,47 @@ export default function DetailedMemoryModal({
 
         <div className="flex-1 overflow-y-auto p-6">
           {/* 現在適用中の記憶（最大3つ） */}
-          {currentlyApplied.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <span className="bg-green-600 text-white px-2 py-1 rounded text-xs">適用中</span>
-                現在適用中の記憶（最大3つ）
-              </h3>
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <span className="bg-green-600 text-white px-2 py-1 rounded text-xs">適用中</span>
+              現在適用中の記憶（最大3つ）
+            </h3>
+            {currentlyApplied.length > 0 ? (
               <div className="space-y-3">
                 {currentlyApplied.map((memory, idx) => (
-                  <div key={memory.id} className="bg-green-900/30 border border-green-700 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
+                  <div key={memory.id} className="bg-green-900/30 border-2 border-green-600 rounded-lg p-4 shadow-lg">
+                    <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <span className="bg-green-600 text-white px-2 py-0.5 rounded text-xs font-semibold">
-                          {idx + 1}
+                        <span className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+                          #{idx + 1}
                         </span>
-                        <span className="text-green-400 text-xs">
-                          {memory.lastApplied ? new Date(memory.lastApplied).toLocaleString('ja-JP') : ''}
+                        <span className="text-green-300 text-xs">
+                          最終適用: {memory.lastApplied ? new Date(memory.lastApplied).toLocaleString('ja-JP') : '不明'}
                         </span>
                       </div>
                       {memory.keywords && memory.keywords.length > 0 && (
                         <div className="flex gap-1 flex-wrap">
-                          {memory.keywords.slice(0, 3).map((keyword, kIdx) => (
-                            <span key={kIdx} className="bg-gray-700 text-gray-300 px-2 py-0.5 rounded text-xs">
+                          {memory.keywords.slice(0, 5).map((keyword, kIdx) => (
+                            <span key={kIdx} className="bg-green-800/50 text-green-200 px-2 py-0.5 rounded text-xs border border-green-600">
                               {keyword}
                             </span>
                           ))}
+                          {memory.keywords.length > 5 && (
+                            <span className="text-green-400 text-xs">+{memory.keywords.length - 5}</span>
+                          )}
                         </div>
                       )}
                     </div>
-                    <p className="text-gray-200 whitespace-pre-wrap">{memory.content}</p>
+                    <p className="text-gray-100 whitespace-pre-wrap leading-relaxed">{memory.content}</p>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 text-center">
+                <p className="text-gray-400 text-sm">現在適用中の記憶はありません。会話中に関連キーワードが検出されると自動的に適用されます。</p>
+              </div>
+            )}
+          </div>
 
           {/* 全体記憶 */}
           <div className="mb-4">

@@ -187,40 +187,37 @@ export default function ChatPage() {
       // 方法1: main要素のscrollTopを直接設定（最優先）
       if (mainScrollRef.current) {
         const scrollContainer = mainScrollRef.current;
+        // scrollHeight가 변경될 수 있으므로 최신 값으로 계산
         const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight;
         scrollContainer.scrollTop = maxScroll;
+        // 추가로 scrollTop을 직접 설정
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }
       
       // 方法2: messagesEndRefを使用
       if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
-      }
-      
-      // 方法3: window.scrollToも試行（フォールバック）
-      if (typeof window !== 'undefined') {
-        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'auto' });
+        messagesEndRef.current.scrollIntoView({ behavior: 'instant', block: 'end', inline: 'nearest' });
       }
     };
     
-    // 即座に試行
+    // 즉시 시도
     attemptScroll();
     
-    // requestAnimationFrameで試行
+    // 여러 번 시도 (DOM 렌더링 완료 대기)
     requestAnimationFrame(() => {
       attemptScroll();
-      
-      // さらに遅延して試行
       setTimeout(() => {
         attemptScroll();
-        
-        // 追加の遅延で再度試行
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           attemptScroll();
-          // 最後の 확실한 시도
           setTimeout(() => {
             attemptScroll();
-          }, 200);
-        }, 300);
+            // 최종 시도
+            setTimeout(() => {
+              attemptScroll();
+            }, 500);
+          }, 300);
+        });
       }, 100);
     });
   }, []);
@@ -273,20 +270,6 @@ export default function ChatPage() {
               };
             });
             setRawMessages(formattedMessages);
-            // メッセージ読み込み後にスクロール（確実に最下部へ）
-            // DOM更新後に複数回試行して確実にスクロール
-            requestAnimationFrame(() => {
-              setTimeout(() => {
-                scrollToBottom();
-                // 追加の遅延で再度試行
-                setTimeout(() => {
-                  scrollToBottom();
-                  setTimeout(() => {
-                    scrollToBottom();
-                  }, 200);
-                }, 300);
-              }, 100);
-            });
         } catch (e) {
             console.error("チャット読込エラー:", e);
             const errorMessage = e instanceof Error ? e.message : "チャット読込失敗";
@@ -301,6 +284,7 @@ export default function ChatPage() {
         }
     };
     loadChatSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [characterId, searchParams, router, scrollToBottom]);
 
   // チャットルームに入った時、メッセージ追加時、新規ロード時に確実に最下部へスクロール
@@ -313,32 +297,37 @@ export default function ChatPage() {
       return;
     }
     
-    // メッセージが表示された後に確実に最下部へスクロール
-    requestAnimationFrame(() => {
-      setTimeout(() => {
+    // DOM이 완전히 렌더링된 후 스크롤
+    const scrollAfterRender = () => {
+      // 여러 단계로 스크롤 시도
+      requestAnimationFrame(() => {
         scrollToBottom();
-        // 追加の遅延で再度試行（DOM更新を待つ）
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           scrollToBottom();
           setTimeout(() => {
             scrollToBottom();
-          }, 200);
-        }, 300);
-      }, 100);
-    });
+            setTimeout(() => {
+              scrollToBottom();
+            }, 200);
+          }, 100);
+        });
+      });
+    };
     
-    const timer = setTimeout(() => {
-      scrollToBottom();
-    }, 200);
+    // 즉시 시도
+    scrollAfterRender();
     
-    // 추가로 DOM 업데이트 후 스크롤
-    const timer2 = setTimeout(() => {
-      scrollToBottom();
-    }, 500);
+    // 추가 지연으로 재시도
+    const timer1 = setTimeout(scrollAfterRender, 100);
+    const timer2 = setTimeout(scrollAfterRender, 300);
+    const timer3 = setTimeout(scrollAfterRender, 500);
+    const timer4 = setTimeout(scrollAfterRender, 1000);
     
     return () => {
-      clearTimeout(timer);
+      clearTimeout(timer1);
       clearTimeout(timer2);
+      clearTimeout(timer3);
+      clearTimeout(timer4);
     };
   }, [rawMessages.length, isInitialLoading, scrollToBottom]);
 
@@ -759,7 +748,11 @@ export default function ChatPage() {
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
-      <main ref={mainScrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
+      <main 
+        ref={mainScrollRef} 
+        className="flex-1 overflow-y-auto p-4 space-y-6 pb-24"
+        style={{ scrollBehavior: 'auto' }}
+      >
         <ChatMessageList
           characterInfo={characterInfo}
           rawMessages={rawMessages} // ▼▼▼【Stale State修正】 `rawMessages`のみを渡します。
@@ -783,7 +776,7 @@ export default function ChatPage() {
           isMultiImage={isMultiImage}
           setLightboxImage={setLightboxImage}
         />
-        <div ref={messagesEndRef} />
+        <div ref={messagesEndRef} style={{ height: '1px', width: '100%' }} />
       </main>
 
       <ChatFooter
