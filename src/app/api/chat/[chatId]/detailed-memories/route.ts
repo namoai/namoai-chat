@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
 import { VertexAI, HarmCategory, HarmBlockThreshold } from '@google-cloud/vertexai';
-import { getEmbedding, embeddingToVectorString } from '@/lib/embeddings';
+import { getEmbedding } from '@/lib/embeddings';
 
 const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
