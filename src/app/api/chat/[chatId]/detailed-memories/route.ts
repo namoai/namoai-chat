@@ -375,38 +375,86 @@ ${conversationText}`;
         message: '要約処理を開始しました。バックグラウンドで順次処理されます。'
       });
     } else {
-      // 手動作成の場合（保存個数制限なし）
+      // 手動作成の場合（保存個数制限なし、2000文字を超える場合は自動分割）
 
-      if (!content || content.length > MAX_MEMORY_LENGTH) {
-        return NextResponse.json({ error: `内容は${MAX_MEMORY_LENGTH}文字以内で入力してください。` }, { status: 400 });
+      if (!content) {
+        return NextResponse.json({ error: '内容を入力してください。' }, { status: 400 });
       }
 
-      const memoryContent = content.substring(0, MAX_MEMORY_LENGTH);
-      const newMemory = await prisma.detailed_memories.create({
-        data: {
-          chatId: chatIdNum,
-          content: memoryContent,
-          keywords: keywords || [],
-        },
-      });
-
-      // ▼▼▼【ベクトル検索】詳細記憶のembeddingを生成▼▼▼
-      (async () => {
-        try {
-          const embedding = await getEmbedding(memoryContent);
-          const embeddingString = embeddingToVectorString(embedding);
-          await prisma.$executeRaw`
-            UPDATE "detailed_memories" 
-            SET "embedding" = ${embeddingString}::vector 
-            WHERE "id" = ${newMemory.id}
-          `;
-        } catch (error) {
-          console.error('詳細記憶embedding生成エラー:', error);
+      // 2000文字を超える場合は複数のメモリに自動分割
+      const createdMemories = [];
+      let remainingContent = content;
+      
+      while (remainingContent.length > 0) {
+        const memoryContent = remainingContent.substring(0, MAX_MEMORY_LENGTH);
+        remainingContent = remainingContent.substring(MAX_MEMORY_LENGTH);
+        
+        const newMemory = await prisma.detailed_memories.create({
+          data: {
+            chatId: chatIdNum,
+            content: memoryContent,
+            keywords: keywords || [],
+          },
+        });
+        
+        createdMemories.push(newMemory);
+        
+        // embedding生成（非同期）
+        (async () => {
+          try {
+            const embedding = await getEmbedding(memoryContent);
+            const embeddingString = `[${embedding.join(',')}]`;
+            await prisma.$executeRawUnsafe(
+              `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+              embeddingString,
+              newMemory.id
+            );
+          } catch (error) {
+            console.error('詳細記憶embedding生成エラー:', error);
+          }
+        })();
+        
+        // 残りが2000文字以下なら終了
+        if (remainingContent.length <= MAX_MEMORY_LENGTH) {
+          if (remainingContent.length > 0) {
+            const finalMemory = await prisma.detailed_memories.create({
+              data: {
+                chatId: chatIdNum,
+                content: remainingContent,
+                keywords: keywords || [],
+              },
+            });
+            
+            createdMemories.push(finalMemory);
+            
+            (async () => {
+              try {
+                const embedding = await getEmbedding(finalMemory.content);
+                const embeddingString = `[${embedding.join(',')}]`;
+                await prisma.$executeRawUnsafe(
+                  `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+                  embeddingString,
+                  finalMemory.id
+                );
+              } catch (error) {
+                console.error('詳細記憶embedding生成エラー:', error);
+              }
+            })();
+          }
+          break;
         }
-      })();
-      // ▲▲▲
+      }
 
-      return NextResponse.json({ memory: { ...newMemory, index: existingCount + 1 } });
+      // 最初に作成されたメモリを返す（既存のコードとの互換性のため）
+      const firstMemory = createdMemories[0];
+      if (!firstMemory) {
+        return NextResponse.json({ error: 'メモリの作成に失敗しました。' }, { status: 500 });
+      }
+
+      return NextResponse.json({ 
+        memory: { ...firstMemory, index: existingCount + 1 },
+        createdCount: createdMemories.length 
+      });
     }
   } catch (error) {
     console.error('詳細記憶作成エラー:', error);
