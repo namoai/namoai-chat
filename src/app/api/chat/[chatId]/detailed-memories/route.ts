@@ -483,14 +483,6 @@ function extractKeywords(text: string): string[] {
     .slice(0, 10)
     .map(([word]) => word);
 }
-      // 手動作成の場合（保存個数制限なし、2000文字を超える場合は自動分割）
-
-      if (!content) {
-        return NextResponse.json({ error: '内容を入力してください。' }, { status: 400 });
-      }
-
-      // 2000文字を超える場合は複数のメモリに自動分割
-      const createdMemories = [];
       let remainingContent = content;
       
       while (remainingContent.length > 0) {
