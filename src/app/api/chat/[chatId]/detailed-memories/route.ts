@@ -145,32 +145,344 @@ export async function POST(
         });
       }
 
-      // 再要約ロジック: 最初の10個まで自動要約、その後5個単位で要約
-      const initialCount = Math.min(10, messagesToSummarize.length);
-      const batchSize = 5;
+      // 再要約ロジック: スライディングウィンドウ方式（5個ずつ）で要約
+      // 完全に非同期で処理し、即座に応答を返す
+      const windowSize = 5;
       
-      // 最初のバッチ（1個）を同期的に処理して、最初のメモリを作成
-      let firstBatchCompleted = false;
-      let firstMemoryCreated = false;
-      
-      // 最初の1個のバッチを同期処理
-      if (messagesToSummarize.length > 0) {
-        const firstBatch = messagesToSummarize.slice(0, 1);
-        const conversationText = firstBatch
-          .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
-          .join('\n\n');
-
+      // 即座に応答を返す（バックグラウンドで処理）
+      (async () => {
         try {
-          console.log(`最初のバッチ（1個）要約開始`);
-          const vertex_ai = new VertexAI({
-            project: process.env.GOOGLE_PROJECT_ID || '',
-            location: 'asia-northeast1',
-          });
+          // スライディングウィンドウ方式で要約（1-5, 6-10, 11-15...）
+          for (let start = 0; start < messagesToSummarize.length; start += windowSize) {
+            const end = Math.min(start + windowSize, messagesToSummarize.length);
+            const batchMessages = messagesToSummarize.slice(start, end);
+            
+            if (batchMessages.length === 0) continue;
+            
+            const conversationText = batchMessages
+              .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
+              .join('\n\n');
+            
+            try {
+              console.log(`再要約: バッチ ${start + 1}-${end} 要約開始 (${batchMessages.length}件)`);
+              const vertex_ai = new VertexAI({
+                project: process.env.GOOGLE_PROJECT_ID || '',
+                location: 'asia-northeast1',
+              });
 
-          const generativeModel = vertex_ai.getGenerativeModel({
-            model: 'gemini-2.5-flash',
-            safetySettings,
-          });
+              const generativeModel = vertex_ai.getGenerativeModel({
+                model: 'gemini-2.5-flash',
+                safetySettings,
+              });
+
+              const prompt = `以下の会話履歴を、AIが理解しやすいように簡潔に要約してください。
+
+【重要】
+- 会話の進行内容と実際の出来事のみを要約してください
+- 背景設定、キャラクター説明、初期状況などの固定情報は含めないでください
+- ユーザーとAIの実際の対話と行動のみを要約してください
+- 会話の重要なポイント、イベント、感情の変化などを簡潔に含めてください
+- 冗長な描写や詳細な状況説明は省略し、核心的な内容のみを記述してください
+- 要約は簡潔に記述してください（2000文字以内、可能な限り簡潔に）
+
+会話履歴：
+${conversationText}`;
+
+              const result = await generativeModel.generateContent(prompt);
+              const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+              if (!summary) {
+                console.error(`再要約: バッチ ${start + 1}-${end} 要約が空です`);
+                continue;
+              }
+
+              const extractedKeywords = extractKeywords(conversationText);
+              
+              // 要約が2000文字を超える場合のみ分割、それ以外は1つのメモリとして保存
+              if (summary.length > MAX_MEMORY_LENGTH) {
+                // 2000文字を超える場合: 分割
+                let remainingSummary = summary;
+                
+                while (remainingSummary.length > 0) {
+                  const memoryContent = remainingSummary.substring(0, MAX_MEMORY_LENGTH);
+                  remainingSummary = remainingSummary.substring(MAX_MEMORY_LENGTH);
+                  
+                  const newMemory = await prisma.detailed_memories.create({
+                    data: {
+                      chatId: chatIdNum,
+                      content: memoryContent,
+                      keywords: extractedKeywords,
+                    },
+                  });
+                  
+                  // embedding生成（非同期）
+                  (async () => {
+                    try {
+                      const embedding = await getEmbedding(memoryContent);
+                      const embeddingString = `[${embedding.join(',')}]`;
+                      await prisma.$executeRawUnsafe(
+                        `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+                        embeddingString,
+                        newMemory.id
+                      );
+                    } catch (error) {
+                      console.error('詳細記憶embedding生成エラー:', error);
+                    }
+                  })();
+                  
+                  // 残りが2000文字以下なら終了
+                  if (remainingSummary.length <= MAX_MEMORY_LENGTH) {
+                    if (remainingSummary.length > 0) {
+                      const finalMemory = await prisma.detailed_memories.create({
+                        data: {
+                          chatId: chatIdNum,
+                          content: remainingSummary,
+                          keywords: extractedKeywords,
+                        },
+                      });
+                      
+                      (async () => {
+                        try {
+                          const embedding = await getEmbedding(finalMemory.content);
+                          const embeddingString = `[${embedding.join(',')}]`;
+                          await prisma.$executeRawUnsafe(
+                            `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+                            embeddingString,
+                            finalMemory.id
+                          );
+                        } catch (error) {
+                          console.error('詳細記憶embedding生成エラー:', error);
+                        }
+                      })();
+                    }
+                    break;
+                  }
+                }
+              } else {
+                // 2000文字以下の場合: 1つのメモリとして保存
+                const newMemory = await prisma.detailed_memories.create({
+                  data: {
+                    chatId: chatIdNum,
+                    content: summary,
+                    keywords: extractedKeywords,
+                  },
+                });
+                
+                // embedding生成（非同期）
+                (async () => {
+                  try {
+                    const embedding = await getEmbedding(summary);
+                    const embeddingString = `[${embedding.join(',')}]`;
+                    await prisma.$executeRawUnsafe(
+                      `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+                      embeddingString,
+                      newMemory.id
+                    );
+                  } catch (error) {
+                    console.error('詳細記憶embedding生成エラー:', error);
+                  }
+                })();
+              }
+              
+              console.log(`再要約: バッチ ${start + 1}-${end} 要約完了`);
+              
+              // バッチ間に少し待機（サーバー負荷軽減）
+              if (start + windowSize < messagesToSummarize.length) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+              }
+            } catch (error) {
+              console.error(`再要約: バッチ ${start + 1}-${end} 要約エラー:`, error);
+            }
+          }
+          
+          console.log('再要約: 全バッチ処理完了');
+        } catch (error) {
+          console.error('再要約: 全体エラー:', error);
+        }
+      })();
+      
+      // 即座に応答を返す（バックグラウンドで処理中）
+      return NextResponse.json({ 
+        message: '再要約を開始しました。バックグラウンドで処理されます。',
+        totalMessages: messagesToSummarize.length
+      });
+    } else {
+      // 手動作成の場合（保存個数制限なし、2000文字を超える場合は自動分割）
+
+      if (!content) {
+        return NextResponse.json({ error: '内容を入力してください。' }, { status: 400 });
+      }
+
+      // 2000文字を超える場合は複数のメモリに自動分割
+      const createdMemories = [];
+      let remainingContent = content;
+      
+      while (remainingContent.length > 0) {
+        const memoryContent = remainingContent.substring(0, MAX_MEMORY_LENGTH);
+        remainingContent = remainingContent.substring(MAX_MEMORY_LENGTH);
+        
+        const newMemory = await prisma.detailed_memories.create({
+          data: {
+            chatId: chatIdNum,
+            content: memoryContent,
+            keywords: keywords || [],
+          },
+        });
+        
+        createdMemories.push(newMemory);
+        
+        // embedding生成（非同期）
+        (async () => {
+          try {
+            const embedding = await getEmbedding(memoryContent);
+            const embeddingString = `[${embedding.join(',')}]`;
+            await prisma.$executeRawUnsafe(
+              `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+              embeddingString,
+              newMemory.id
+            );
+          } catch (error) {
+            console.error('詳細記憶embedding生成エラー:', error);
+          }
+        })();
+      }
+
+      const firstMemory = createdMemories[0];
+      if (!firstMemory) {
+        return NextResponse.json({ error: 'メモリの作成に失敗しました。' }, { status: 500 });
+      }
+
+      return NextResponse.json({ 
+        memory: { ...firstMemory, index: existingCount + 1 },
+        message: '詳細記憶を作成しました。'
+      });
+    }
+  } catch (error) {
+    console.error('詳細記憶作成エラー:', error);
+    return NextResponse.json({ error: 'メモリの作成に失敗しました。' }, { status: 500 });
+  }
+}
+
+// PUT: 詳細記憶の更新
+export async function PUT(
+  request: Request,
+  { params }: { params: { chatId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
+    }
+
+    const { id, content, keywords } = await request.json();
+    const chatIdNum = parseInt(params.chatId);
+
+    if (!content) {
+      return NextResponse.json({ error: '内容を入力してください。' }, { status: 400 });
+    }
+
+    // 既存のメモリを取得
+    const existingMemory = await prisma.detailed_memories.findUnique({
+      where: { id },
+    });
+
+    if (!existingMemory || existingMemory.chatId !== chatIdNum) {
+      return NextResponse.json({ error: 'メモリが見つかりません。' }, { status: 404 });
+    }
+
+    // 2000文字を超える場合は複数のメモリに自動分割
+    const updatedMemories = [];
+    let remainingContent = content;
+    
+    // 既存のメモリを削除
+    await prisma.detailed_memories.delete({
+      where: { id },
+    });
+    
+    while (remainingContent.length > 0) {
+      const memoryContent = remainingContent.substring(0, MAX_MEMORY_LENGTH);
+      remainingContent = remainingContent.substring(MAX_MEMORY_LENGTH);
+      
+      const newMemory = await prisma.detailed_memories.create({
+        data: {
+          chatId: chatIdNum,
+          content: memoryContent,
+          keywords: keywords || [],
+        },
+      });
+      
+      updatedMemories.push(newMemory);
+      
+      // embedding生成（非同期）
+      (async () => {
+        try {
+          const embedding = await getEmbedding(memoryContent);
+          const embeddingString = `[${embedding.join(',')}]`;
+          await prisma.$executeRawUnsafe(
+            `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+            embeddingString,
+            newMemory.id
+          );
+        } catch (error) {
+          console.error('詳細記憶embedding生成エラー:', error);
+        }
+      })();
+    }
+
+    return NextResponse.json({ 
+      memory: { ...updatedMemories[0], index: 1 },
+      message: '詳細記憶を更新しました。'
+    });
+  } catch (error) {
+    console.error('詳細記憶更新エラー:', error);
+    return NextResponse.json({ error: 'メモリの更新に失敗しました。' }, { status: 500 });
+  }
+}
+
+// DELETE: 詳細記憶の削除
+export async function DELETE(
+  request: Request,
+  { params }: { params: { chatId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = parseInt(searchParams.get('id') || '0');
+
+    if (!id) {
+      return NextResponse.json({ error: 'IDが必要です。' }, { status: 400 });
+    }
+
+    await prisma.detailed_memories.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ message: '詳細記憶を削除しました。' });
+  } catch (error) {
+    console.error('詳細記憶削除エラー:', error);
+    return NextResponse.json({ error: 'メモリの削除に失敗しました。' }, { status: 500 });
+  }
+}
+
+// キーワード抽出関数
+function extractKeywords(text: string): string[] {
+  // 簡単なキーワード抽出（実際の実装ではより高度な処理が必要）
+  const words = text.toLowerCase().match(/\b\w{3,}\b/g) || [];
+  const wordCount: { [key: string]: number } = {};
+  
+  words.forEach(word => {
+    wordCount[word] = (wordCount[word] || 0) + 1;
+  });
+  
+  return Object.entries(wordCount)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 10)
+    .map(([word]) => word);
+}
 
           const prompt = `以下の会話履歴を、AIが理解しやすいように要約してください。
 
