@@ -65,10 +65,8 @@ export async function POST(req: Request) {
           backMemory: true,
           autoSummarize: true,
           chat_message: {
-            where: {
-              isActive: true, // アクティブなメッセージのみを取得（選択中のバージョン）
-            },
-            orderBy: { createdAt: "asc" },
+            // 全てのバージョンを取得（バージョン切り替え機能のため）
+            orderBy: [{ createdAt: "asc" }, { version: "asc" }],
             select: {
               id: true,
               role: true,
@@ -120,10 +118,8 @@ export async function POST(req: Request) {
           backMemory: true,
           autoSummarize: true,
           chat_message: {
-            where: {
-              isActive: true, // アクティブなメッセージのみを取得（選択中のバージョン）
-            },
-            orderBy: { createdAt: "asc" },
+            // 全てのバージョンを取得（バージョン切り替え機能のため）
+            orderBy: [{ createdAt: "asc" }, { version: "asc" }],
             select: {
               id: true,
               role: true,
@@ -155,10 +151,8 @@ export async function POST(req: Request) {
           backMemory: true,
           autoSummarize: true,
           chat_message: {
-            where: {
-              isActive: true, // アクティブなメッセージのみを取得（選択中のバージョン）
-            },
-            orderBy: { createdAt: "asc" },
+            // 全てのバージョンを取得（バージョン切り替え機能のため）
+            orderBy: [{ createdAt: "asc" }, { version: "asc" }],
             select: {
               id: true,
               role: true,

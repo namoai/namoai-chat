@@ -400,11 +400,12 @@ ${lengthInstruction}
                         data: { isActive: false }
                     });
 
+                    // 画像タグを含む元のテキストを保存（ChatMessageParserがパースできるように）
                     const newMessage = await prisma.chat_message.create({
                         data: {
                             chatId: chatId,
                             role: 'model',
-                            content: cleanResponse,
+                            content: fullResponse, // 画像タグを含む元のテキストを保存
                             turnId: turnId,
                             version: (latestVersion?.version || 0) + 1,
                             isActive: true,
