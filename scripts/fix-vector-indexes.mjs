@@ -15,23 +15,44 @@ async function fixVectorIndexes() {
     console.log('ivfflatインデックスを作成中...');
     
     // Create proper ivfflat indexes
-    await prisma.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS "chat_message_embedding_idx" 
-      ON "chat_message" USING ivfflat ("embedding" vector_cosine_ops)
-      WITH (lists = 100)
-    `);
+    // Note: ivfflat indexes can only be created on columns with data
+    // We'll create indexes only if there are non-null vectors
     
-    await prisma.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS "chat_backMemoryEmbedding_idx" 
-      ON "chat" USING ivfflat ("backMemoryEmbedding" vector_cosine_ops)
-      WITH (lists = 10)
-    `);
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE INDEX IF NOT EXISTS "chat_message_embedding_idx" 
+        ON "chat_message" USING ivfflat ("embedding" vector_cosine_ops)
+        WITH (lists = 100)
+        WHERE "embedding" IS NOT NULL
+      `);
+      console.log('✅ chat_message_embedding_idx 作成完了');
+    } catch (error) {
+      console.warn('⚠️ chat_message_embedding_idx 作成スキップ:', error.message);
+    }
     
-    await prisma.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS "detailed_memories_embedding_idx" 
-      ON "detailed_memories" USING ivfflat ("embedding" vector_cosine_ops)
-      WITH (lists = 10)
-    `);
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE INDEX IF NOT EXISTS "chat_backMemoryEmbedding_idx" 
+        ON "chat" USING ivfflat ("backMemoryEmbedding" vector_cosine_ops)
+        WITH (lists = 10)
+        WHERE "backMemoryEmbedding" IS NOT NULL
+      `);
+      console.log('✅ chat_backMemoryEmbedding_idx 作成完了');
+    } catch (error) {
+      console.warn('⚠️ chat_backMemoryEmbedding_idx 作成スキップ:', error.message);
+    }
+    
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE INDEX IF NOT EXISTS "detailed_memories_embedding_idx" 
+        ON "detailed_memories" USING ivfflat ("embedding" vector_cosine_ops)
+        WITH (lists = 10)
+        WHERE "embedding" IS NOT NULL
+      `);
+      console.log('✅ detailed_memories_embedding_idx 作成完了');
+    } catch (error) {
+      console.warn('⚠️ detailed_memories_embedding_idx 作成スキップ:', error.message);
+    }
     
     console.log('✅ ベクトルインデックスの修正が完了しました');
   } catch (error) {
