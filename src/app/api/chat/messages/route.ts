@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
     const userId = parseInt(session.user.id);
 
-    const { chatId, turnId, settings } = await request.json();
+    const { chatId, turnId, settings, activeVersions } = await request.json();
 
     if (!chatId || !turnId) {
         return NextResponse.json({ error: "チャットIDとターンIDは必須です。" }, { status: 400 });
@@ -127,12 +127,46 @@ export async function POST(request: NextRequest) {
         // ▲▲▲
         
         console.time("⏱️ 履歴取得");
+        // ▼▼▼【修正】一般チャットAPIと同じようにactiveVersionsを処理 ▼▼▼
+        let historyWhereClause: {
+            chatId: number;
+            createdAt: { lt: Date };
+            isActive?: boolean;
+            OR?: Array<{ role: string } | { id: { in: number[] } }>;
+        } = { 
+            chatId: chatId, 
+            createdAt: { lt: userMessageForTurn.createdAt } 
+        };
+        
+        // activeVersionsが指定されている場合、該当バージョンのみを取得
+        if (activeVersions && Object.keys(activeVersions).length > 0) {
+            const MAX_INT4 = 2147483647; // INT4の最大値
+            const versionIds = Object.values(activeVersions)
+                .map(id => Number(id))
+                .filter(id => id > 0 && id <= MAX_INT4); // 有効なINT4範囲内のIDのみ
+            
+            // 有効なIDがある場合のみ特別なクエリを使用
+            if (versionIds.length > 0) {
+                historyWhereClause = {
+                    chatId: chatId,
+                    createdAt: { lt: userMessageForTurn.createdAt },
+                    OR: [
+                        { role: 'user' },  // ユーザーメッセージは全て含める
+                        { id: { in: versionIds } }  // 指定されたバージョンのモデルメッセージ
+                    ]
+                };
+            } else {
+                // 有効なIDがない場合は通常のisActive=trueのみ
+                historyWhereClause.isActive = true;
+            }
+        } else {
+            // 通常はisActive=trueのメッセージのみ
+            historyWhereClause.isActive = true;
+        }
+        // ▲▲▲
+        
         const historyMessages = await prisma.chat_message.findMany({
-            where: {
-                chatId: chatId,
-                isActive: true,
-                createdAt: { lt: userMessageForTurn.createdAt }, 
-            },
+            where: historyWhereClause,
             orderBy: { createdAt: 'asc' },
         });
         console.timeEnd("⏱️ 履歴取得");
@@ -298,8 +332,8 @@ ${lengthInstruction}
                         const chunkText = chunk.candidates?.[0]?.content?.parts?.[0]?.text || "";
                         if (chunkText) {
                             fullResponse += chunkText;
-                            // チャンクごとにクライアントに送信
-                            sendEvent("message", { responseChunk: chunkText });
+                            // チャンクごとにクライアントに送信（一般チャットと同じ形式）
+                            sendEvent("ai-update", { responseChunk: chunkText });
                         }
                     }
                     

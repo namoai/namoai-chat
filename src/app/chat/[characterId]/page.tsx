@@ -390,7 +390,7 @@ export default function ChatPage() {
       clearTimeout(timer6);
       clearTimeout(timer7);
     };
-  }, [rawMessages.length, isInitialLoading, scrollToBottom]);
+  }, [rawMessages.length, isInitialLoading, scrollToBottom, regeneratingTurnId]);
 
   // ▼▼▼【タイムアウト対策】タイムアウト時の復旧処理：DBからメッセージを再読み込み ▼▼▼
   const handleTimeoutRecovery = async () => {
@@ -723,10 +723,22 @@ export default function ChatPage() {
     let tempModelMessageId: number | null = null;
     
     try {
+        // ▼▼▼【修正】現在閲覧中のバージョン情報を収集（一般チャットと同じ） ▼▼▼
+        const activeVersions: { [turnId: number]: number } = {};
+        turns.forEach(turn => {
+            if (turn.modelMessages.length > 0) {
+                const activeMsg = turn.modelMessages[turn.activeModelIndex];
+                if (activeMsg) {
+                    activeVersions[turn.turnId] = activeMsg.id;
+                }
+            }
+        });
+        // ▲▲▲
+        
         const res = await fetch('/api/chat/messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chatId, turnId: turnId, settings: generationSettings }),
+            body: JSON.stringify({ chatId, turnId: turnId, settings: generationSettings, activeVersions }),
         });
         if (!res.ok) {
           const errorData = await safeParseJSON<{ error?: string; message?: string }>(res);
@@ -750,6 +762,13 @@ export default function ChatPage() {
             buffer = lines.pop() || "";
 
             for (const line of lines) {
+                // イベントタイプを確認（一般チャットと同じ形式）
+                if (line.startsWith("event: ")) {
+                    const eventType = line.substring(7).trim();
+                    // ai-updateイベントは次のdata行で処理
+                    continue;
+                }
+                
                 if (!line.startsWith("data: ")) continue;
                 
                 const dataStr = line.substring(6);
@@ -793,16 +812,17 @@ export default function ChatPage() {
                                     ? { 
                                         ...msg, 
                                         content: msg.content + cleanText,
-                                        imageUrls: [...(msg.imageUrls || []), ...newImageUrls]
+                                        imageUrls: [...new Set([...(msg.imageUrls || []), ...newImageUrls])] // 重複を除去
                                       }
                                     : msg
                             ));
                         }
                     } else if (eventData.modelMessage) {
-                        // 最終メッセージで更新
+                        // 最終メッセージで更新（画像URLも含める）
                         const finalMessage = {
                             ...eventData.modelMessage,
                             timestamp: new Date(eventData.modelMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+                            imageUrls: eventData.modelMessage.imageUrls || [],
                         };
                         setRawMessages(prev => prev.map(m => 
                             m.id === tempModelMessageId
