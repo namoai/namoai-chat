@@ -987,11 +987,11 @@ ${conversationText}`;
                       if (lastMessageId) {
                       // 最後のメッセージID 이후에 생성された要約があるか確認
                       const lastMessage = await prisma.chat_message.findUnique({
-                        where: { id: lastMessageId },
-                        select: { createdAt: true },
-                      });
-                      
-                      if (lastMessage) {
+                          where: { id: lastMessageId },
+                          select: { createdAt: true },
+                        });
+                        
+                        if (lastMessage) {
                         // このメッセージ 이후에 생성된要約があるか確認
                         const existingMemory = await prisma.detailed_memories.findFirst({
                           where: {
