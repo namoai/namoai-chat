@@ -429,11 +429,22 @@ export async function DELETE(
 }
 
 // 再要約処理関数（バックグラウンドで実行）
+type SafetySetting = Array<{
+  category: typeof HarmCategory[keyof typeof HarmCategory];
+  threshold: typeof HarmBlockThreshold[keyof typeof HarmBlockThreshold];
+}>;
+
+type ChatMessage = {
+  role: string;
+  content: string;
+  createdAt: Date;
+};
+
 async function performReSummarization(
   chatIdNum: number,
-  messagesToSummarize: any[],
+  messagesToSummarize: ChatMessage[],
   windowSize: number,
-  safetySettings: any
+  safetySettings: SafetySetting
 ) {
   console.log(`再要約: バックグラウンド処理開始 (${messagesToSummarize.length}件のメッセージ)`);
   
