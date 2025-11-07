@@ -523,14 +523,25 @@ export async function DELETE(
 
 // キーワード抽出関数
 function extractKeywords(text: string): string[] {
-  // キーワード抽出（範囲情報を除外）
-  const words = text.toLowerCase().match(/\b\w{3,}\b/g) || [];
+  // キーワード抽出（範囲情報を除外、多言語対応）
+  // 日本語（ひらがな、カタカナ、漢字）、韓国語（한글）、英語を抽出
+  const japanesePattern = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+/g; // ひらがな、カタカナ、漢字
+  const koreanPattern = /[\uAC00-\uD7AF]+/g; // 한글
+  const englishPattern = /\b[A-Za-z]{3,}\b/g; // 英語（3文字以上）
+  
+  const japaneseWords = text.match(japanesePattern) || [];
+  const koreanWords = text.match(koreanPattern) || [];
+  const englishWords = text.toLowerCase().match(englishPattern) || [];
+  
+  const allWords = [...japaneseWords, ...koreanWords, ...englishWords];
   const wordCount: { [key: string]: number } = {};
   
-  words.forEach(word => {
+  allWords.forEach(word => {
     // 範囲情報パターンを除外（例: "1-5", "6-10", "11-15"など）
     if (!/^\d+-\d+$/.test(word)) {
-      wordCount[word] = (wordCount[word] || 0) + 1;
+      // 英語のみ小文字に変換、日本語・韓国語はそのまま
+      const normalizedWord = /^[A-Za-z]/.test(word) ? word.toLowerCase() : word;
+      wordCount[normalizedWord] = (wordCount[normalizedWord] || 0) + 1;
     }
   });
   

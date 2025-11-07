@@ -333,10 +333,15 @@ export async function POST(request: NextRequest) {
               // キーワードマッチングまたはベクトル検索でマッチした場合
               let hasMatch = false;
               
-              // キーワードマッチング
+              // キーワードマッチング（多言語対応：英語のみ小文字変換、日本語・韓国語はそのまま）
               if (memory.keywords && Array.isArray(memory.keywords) && memory.keywords.length > 0) {
                 hasMatch = memory.keywords.some((keyword) => {
-                  return keyword && combinedText.includes(keyword.toLowerCase());
+                  if (!keyword) return false;
+                  // 英語キーワードのみ小文字に変換、日本語・韓国語はそのまま
+                  const normalizedKeyword = /^[A-Za-z]/.test(keyword) ? keyword.toLowerCase() : keyword;
+                  // 英語キーワードの場合は小文字変換されたテキストと比較、それ以外は元のテキストと比較
+                  const searchText = /^[A-Za-z]/.test(keyword) ? combinedText : (userMessageForTurn.content + ' ' + historyMessages.map(msg => msg.content).join(' '));
+                  return searchText.includes(normalizedKeyword);
                 });
               }
               
@@ -396,8 +401,13 @@ export async function POST(request: NextRequest) {
           for (const lore of char.lorebooks) {
             if (triggeredLorebooks.length >= 5) break;
             if (lore.keywords && Array.isArray(lore.keywords) && lore.keywords.length > 0) {
+              // キーワード検索（多言語対応：英語のみ小文字変換、日本語・韓国語はそのまま）
               const hasMatch = lore.keywords.some((keyword) => {
-                return keyword && lowerMessage.includes(keyword.toLowerCase());
+                if (!keyword) return false;
+                // 英語キーワードのみ小文字に変換、日本語・韓国語はそのまま
+                const normalizedKeyword = /^[A-Za-z]/.test(keyword) ? keyword.toLowerCase() : keyword;
+                const searchText = /^[A-Za-z]/.test(keyword) ? lowerMessage : userMessageForTurn.content;
+                return searchText.includes(normalizedKeyword);
               });
               if (hasMatch) {
                 triggeredLorebooks.push(replacePlaceholders(lore.content));

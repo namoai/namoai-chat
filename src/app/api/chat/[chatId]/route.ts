@@ -424,9 +424,13 @@ export async function POST(request: Request, context: any) {
         if (triggeredLorebooks.length >= 5) break; // 早期終了（先頭に移動）
         
         if (lore.keywords && Array.isArray(lore.keywords) && lore.keywords.length > 0) {
-            // キーワード検索を最適化
+            // キーワード検索を最適化（多言語対応：英語のみ小文字変換、日本語・韓国語はそのまま）
             const hasMatch = lore.keywords.some((keyword) => {
-              return keyword && lowerMessage.includes(keyword.toLowerCase());
+              if (!keyword) return false;
+              // 英語キーワードのみ小文字に変換、日本語・韓国語はそのまま
+              const normalizedKeyword = /^[A-Za-z]/.test(keyword) ? keyword.toLowerCase() : keyword;
+              const searchText = /^[A-Za-z]/.test(keyword) ? lowerMessage : message;
+              return searchText.includes(normalizedKeyword);
             });
             
             if (hasMatch) {
@@ -494,10 +498,15 @@ export async function POST(request: Request, context: any) {
           // キーワードマッチングまたはベクトル検索でマッチした場合
           let hasMatch = false;
           
-          // キーワードマッチング
+          // キーワードマッチング（多言語対応：英語のみ小文字変換、日本語・韓国語はそのまま）
           if (memory.keywords && Array.isArray(memory.keywords) && memory.keywords.length > 0) {
             hasMatch = memory.keywords.some((keyword) => {
-              return keyword && combinedText.includes(keyword.toLowerCase());
+              if (!keyword) return false;
+              // 英語キーワードのみ小文字に変換、日本語・韓国語はそのまま
+              const normalizedKeyword = /^[A-Za-z]/.test(keyword) ? keyword.toLowerCase() : keyword;
+              // 英語キーワードの場合は小文字変換されたテキストと比較、それ以外は元のテキストと比較
+              const searchText = /^[A-Za-z]/.test(keyword) ? combinedText : (message + ' ' + (orderedHistory.length > 0 ? orderedHistory.map(msg => msg.content).join(' ') : ''));
+              return searchText.includes(normalizedKeyword);
             });
           }
           
@@ -1056,6 +1065,7 @@ ${conversationText}`;
 キーワードは会話の核心を表す名詞や重要な概念のみを抽出してください。
 不要な単語（助詞、動詞の原形、一般的すぎる単語）は除外してください。
 キーワードはカンマ区切りで返してください。
+キーワードは元の言語（日本語、英語、韓国語など）でそのまま返してください。
 
 会話要約：
 ${summary}`;
@@ -1064,23 +1074,40 @@ ${summary}`;
                         const keywordText = keywordResult.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
                         
                         if (keywordText) {
-                          // カンマ区切りで分割し、空白を削除
+                          // カンマ区切りで分割し、空白を削除（多言語対応のためtoLowerCaseは使用しない）
                           extractedKeywords = keywordText
                             .split(',')
-                            .map(k => k.trim().toLowerCase())
-                            .filter(k => k.length >= 2 && k.length <= 30) // 2-30文字のキーワードのみ
+                            .map(k => k.trim())
+                            .filter(k => {
+                              // 2-30文字のキーワードのみ（日本語、韓国語、英語など多言語対応）
+                              const length = k.length;
+                              return length >= 2 && length <= 30;
+                            })
                             .slice(0, 10);
                         }
                       } catch (error) {
                         console.error('AIキーワード抽出エラー:', error);
-                        // AI抽出失敗時は既存方式でフォールバック
-                        const words = conversationText.toLowerCase().match(/\b\w{3,}\b/g) || [];
+                        // AI抽出失敗時は多言語対応フォールバック
+                        // 日本語（ひらがな、カタカナ、漢字）、韓国語（한글）、英語を抽出
+                        const japanesePattern = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+/g; // ひらがな、カタカナ、漢字
+                        const koreanPattern = /[\uAC00-\uD7AF]+/g; // 한글
+                        const englishPattern = /\b[A-Za-z]{3,}\b/g; // 英語（3文字以上）
+                        
+                        const japaneseWords = conversationText.match(japanesePattern) || [];
+                        const koreanWords = conversationText.match(koreanPattern) || [];
+                        const englishWords = conversationText.toLowerCase().match(englishPattern) || [];
+                        
+                        const allWords = [...japaneseWords, ...koreanWords, ...englishWords];
                         const wordCount: { [key: string]: number } = {};
-                        words.forEach(word => {
+                        
+                        allWords.forEach(word => {
+                          // 範囲情報パターンを除外（例: "1-5"など）
                           if (!/^\d+-\d+$/.test(word)) {
-                            wordCount[word] = (wordCount[word] || 0) + 1;
+                            const normalizedWord = /^[A-Za-z]/.test(word) ? word.toLowerCase() : word;
+                            wordCount[normalizedWord] = (wordCount[normalizedWord] || 0) + 1;
                           }
                         });
+                        
                         extractedKeywords = Object.entries(wordCount)
                           .sort((a, b) => b[1] - a[1])
                           .slice(0, 10)
