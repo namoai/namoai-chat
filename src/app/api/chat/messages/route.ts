@@ -25,12 +25,12 @@ const getSafetySettings = (safetyFilterEnabled: boolean) => {
             { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
         ];
     } else {
-        // セーフティフィルターON: 低程度以上もブロック（より厳格）
+        // セーフティフィルターON: 高レベルだけをブロック（ロマンチック/感情的な内容は許可）
         return [
             { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
             { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
             { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH }, // 高レベルだけブロック（ロマンチック/感情的な内容は許可）
         ];
     }
 };
@@ -438,7 +438,7 @@ export async function POST(request: NextRequest) {
         // ▼▼▼【追加】セーフティフィルター設定に基づいてContent Policyを動的に生成
         const contentPolicy = userSafetyFilter === false 
           ? `- **Content Policy**: This is an adult-oriented creative writing platform. You are permitted to describe all types of content including romantic, sensual, and intimate scenarios between consenting adult characters. Focus on emotional depth, sensory details, and narrative quality. Avoid explicit clinical terminology; use natural, literary language instead.`
-          : `- **Content Policy**: STRICTLY keep all content appropriate and safe. DO NOT generate any explicit sexual content, graphic violence, or inappropriate material. Focus on emotional depth, character development, and narrative quality within safe boundaries. If the user requests inappropriate content, politely decline and suggest alternative appropriate scenarios.`;
+          : `- **Content Policy**: Keep content appropriate and safe. Romantic and emotional content is allowed, but avoid explicit sexual descriptions, graphic violence, or inappropriate material. Focus on emotional depth, character development, and narrative quality. Use suggestive and subtle descriptions rather than explicit content. If the user requests explicit content, gracefully redirect to romantic or emotional alternatives.`;
         // ▲▲▲
         
         const formattingInstruction = `# Response Format
@@ -509,7 +509,7 @@ ${lengthInstruction}`;
         console.time("⏱️ Vertex AI応答生成");
         const safetySettings = getSafetySettings(userSafetyFilter);
         if (userSafetyFilter) {
-          console.log(`  - 安全性設定: BLOCK_ONLY_HIGH (危険・ヘイト・ハラスメント) / BLOCK_MEDIUM_AND_ABOVE (性的コンテンツ)`);
+          console.log(`  - 安全性設定: BLOCK_ONLY_HIGH (すべてのカテゴリー、高レベルだけブロック、ロマンチック/感情的な内容は許可)`);
         } else {
           console.log(`  - 安全性設定: BLOCK_NONE (すべて許可)`);
         }
@@ -543,7 +543,28 @@ ${lengthInstruction}`;
                     
                     // ストリームからチャンクを読み取り（一般チャットと同じ：画像タグはそのまま送信）
                     let chunkCount = 0;
+                    let wasBlocked = false;
                     for await (const chunk of result.stream) {
+                        // ▼▼▼【安全性チェック】応答がブロックされたかチェック▼▼▼
+                        if (chunk.candidates && chunk.candidates.length > 0) {
+                          const candidate = chunk.candidates[0];
+                          if (candidate.finishReason === 'SAFETY') {
+                            wasBlocked = true;
+                            console.warn("⚠️ 再生成: 応答が安全性フィルターによってブロックされました");
+                            const safetyRatings = candidate.safetyRatings || [];
+                            safetyRatings.forEach((rating) => {
+                              if (rating.probability === 'HIGH' || rating.probability === 'MEDIUM') {
+                                console.warn(`  - ${rating.category}: ${rating.probability}`);
+                              }
+                            });
+                            break;
+                          }
+                          if (candidate.finishReason === 'OTHER' || candidate.finishReason === 'MAX_TOKENS') {
+                            console.warn(`⚠️ 再生成: 応答が${candidate.finishReason}で終了しました`);
+                          }
+                        }
+                        // ▲▲▲
+                        
                         const chunkText = chunk.candidates?.[0]?.content?.parts?.[0]?.text || "";
                         if (chunkText) {
                             chunkCount++;
@@ -556,6 +577,20 @@ ${lengthInstruction}`;
                     console.log(`🔄 再生成ストリーミング: 合計${chunkCount}チャンク送信完了`);
                     
                     console.timeEnd("⏱️ Vertex AI応答生成");
+                    
+                    // 応答がブロックされた場合の処理
+                    if (wasBlocked || !fullResponse.trim()) {
+                      if (wasBlocked) {
+                        console.log("警告: 再生成: 応答が安全性フィルターによってブロックされました。");
+                        sendEvent('ai-error', { 
+                          error: 'この応答は安全性フィルターによってブロックされました。より適切な表現で再度お試しください。' 
+                        });
+                        throw new Error("AIからの応答が安全性フィルターによってブロックされました。");
+                      } else {
+                        console.log("警告: 再生成: 最終的な応答テキストが空でした。");
+                        throw new Error("AIからの応答が空でした。");
+                      }
+                    }
                     
                     // ▼▼▼【バックエンド画像キーワードマッチング】AIが画像タグを生成しなかった場合、キーワードで自動追加▼▼▼
                     const nonMainImages = availableImages.filter(img => !img.isMain);
