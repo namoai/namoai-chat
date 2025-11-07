@@ -610,9 +610,9 @@ export async function POST(request: Request, context: any) {
       : `- **Content Policy**: Keep content appropriate and safe. Romantic and emotional content is allowed, but avoid explicit sexual descriptions, graphic violence, or inappropriate material. Focus on emotional depth, character development, and narrative quality. Use suggestive and subtle descriptions rather than explicit content. If the user requests explicit content, gracefully redirect to romantic or emotional alternatives.`;
     // ▲▲▲
     
-    // Content Policy는 systemTemplate의 지시사항과 충돌할 수 있으므로,
-    // systemTemplate에 성적 콘텐츠 제한 해제 등이 명시되어 있으면 그것을 우선시
-    // Content Policy는 기본 가이드라인으로만 사용
+    // Content PolicyはsystemTemplateの指示事項と衝突する可能性があるため、
+    // systemTemplateに性的コンテンツ制限解除などが明記されている場合はそれを優先
+    // Content Policyは基本的なガイドラインとしてのみ使用
     const formattingInstruction = `# Response Format
 - Narrator role: Describe character actions/dialogue in third person. User speaks for themselves.
 - Context: Read all chat history. Maintain consistency with previous messages.
