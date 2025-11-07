@@ -1013,7 +1013,6 @@ ${conversationText}`;
                     }
                     // ▲▲▲
                     
-                      const lastMessageId = messagesToSummarize[messagesToSummarize.length - 1]?.id;
                       if (lastMessageId) {
                       // 最後のメッセージID 이후에 생성された要約があるか確認
                       const lastMessage = await prisma.chat_message.findUnique({
