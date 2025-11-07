@@ -108,7 +108,7 @@ export async function POST(req: Request) {
       // ▲▲▲
       
       // characters を除外して返す（既存のレスポンス形式に合わせる）
-      const { characters, ...chatData } = exact;
+      const { characters: _characters, ...chatData } = exact;
       return NextResponse.json(chatData);
     }
 
