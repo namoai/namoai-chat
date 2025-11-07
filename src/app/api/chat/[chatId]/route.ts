@@ -257,10 +257,10 @@ export async function POST(request: Request, context: any) {
       return { chatRoom, persona, orderedHistory, backMemory, detailedMemories, vectorMatchedMessages };
     })();
 
-    // 2つの並列処理が完了するのを待ちます。
-    console.time("⏱️ Promise.all(DBWrite, Context)");
-    const [dbWriteResult, contextResult] = await Promise.all([dbWritePromise, contextPromise]);
-    console.timeEnd("⏱️ Promise.all(DBWrite, Context)");
+    // 2つの並列処理が完了するのを待ちます。
+    console.time("⏱️ Promise.all(DBWrite, Context)");
+    const [dbWriteResult, contextResult] = await Promise.all([dbWritePromise, contextPromise]);
+    console.timeEnd("⏱️ Promise.all(DBWrite, Context)");
 
     const { userMessageForHistory, turnIdForModel } = dbWriteResult;
     const { chatRoom, persona, orderedHistory, backMemory, detailedMemories, vectorMatchedMessages } = contextResult;
@@ -269,8 +269,8 @@ export async function POST(request: Request, context: any) {
     if (userSafetyFilter && chatRoom.characters.safetyFilter === false) {
       console.log(`[POST /api/chat/${chatId}] セーフティフィルター: ユーザーのフィルターがON、キャラクターのフィルターがOFFのためアクセス拒否`);
       console.timeEnd("⏱️ 全体API処理時間");
-      return NextResponse.json({ 
-        message: 'このキャラクターはセーフティフィルターがオフのため、セーフティフィルターがONの状態ではチャットできません。' 
+      return NextResponse.json({
+        message: 'このキャラクターはセーフティフィルターがオフのため、セーフティフィルターがONの状態ではチャットできません。'
       }, { status: 403 });
     }
     // ▲▲▲
@@ -331,47 +331,108 @@ export async function POST(request: Request, context: any) {
 
   // ロアブック検索ロジック (最適化版: 早期終了 & 小文字変換一回のみ)
   console.time("⏱️ Simple Text Lorebook Search");
-    let lorebookInfo = "";
-    const triggeredLorebooks = [];
-    if (worldSetting.lorebooks && worldSetting.lorebooks.length > 0) {
-      const lowerMessage = message.toLowerCase(); // 一度だけ小文字変換
-      for (const lore of worldSetting.lorebooks) {
-        if (triggeredLorebooks.length >= 5) break; // 早期終了（先頭に移動）
-        
-        if (lore.keywords && Array.isArray(lore.keywords) && lore.keywords.length > 0) {
-            // キーワード検索を最適化（多言語対応：英語のみ小文字変換、日本語・韓国語はそのまま）
-            const hasMatch = lore.keywords.some((keyword) => {
-              if (!keyword) return false;
-              // 英語キーワードのみ小文字に変換、日本語・韓国語はそのまま
-              const normalizedKeyword = /^[A-Za-z]/.test(keyword) ? keyword.toLowerCase() : keyword;
-              const searchText = /^[A-Za-z]/.test(keyword) ? lowerMessage : message;
-              return searchText.includes(normalizedKeyword);
-            });
-            
-            if (hasMatch) {
-              triggeredLorebooks.push(replacePlaceholders(lore.content));
-            }
+  let lorebookInfo = "";
+  const triggeredLorebooks = [];
+  if (worldSetting.lorebooks && worldSetting.lorebooks.length > 0) {
+    const lowerMessage = message.toLowerCase(); // 一度だけ小文字変換
+    for (const lore of worldSetting.lorebooks) {
+      if (triggeredLorebooks.length >= 5) break; // 早期終了（先頭に移動）
+
+      if (lore.keywords && Array.isArray(lore.keywords) && lore.keywords.length > 0) {
+        // キーワード検索を最適化（多言語対応：英語のみ小文字変換、日本語・韓国語はそのまま）
+        const hasMatch = lore.keywords.some((keyword) => {
+          if (!keyword) return false;
+          // 英語キーワードのみ小文字に変換、日本語・韓国語はそのまま
+          const normalizedKeyword = /^[A-Za-z]/.test(keyword) ? keyword.toLowerCase() : keyword;
+          const searchText = /^[A-Za-z]/.test(keyword) ? lowerMessage : message;
+          return searchText.includes(normalizedKeyword);
+        });
+
+        if (hasMatch) {
+          triggeredLorebooks.push(replacePlaceholders(lore.content));
         }
       }
     }
-    console.timeEnd("⏱️ Simple Text Lorebook Search");
-    if (triggeredLorebooks.length > 0) {
-      lorebookInfo = `# 関連情報 (ロアブック)\n- 以下の設定は会話のキーワードに基づき有効化された。優先度順。\n- ${triggeredLorebooks.join("\n- ")}`;
-    }
+  }
+  console.timeEnd("⏱️ Simple Text Lorebook Search");
+  if (triggeredLorebooks.length > 0) {
+    lorebookInfo = `# 関連情報 (ロアブック)\n- 以下の設定は会話のキーワードに基づき有効化された。優先度順。\n- ${triggeredLorebooks.join("\n- ")}`;
+  }
 
-    // ▼▼▼ 詳細記憶のベクトル検索 + キーワードマッチング（ハイブリッド）▼▼▼
-    console.time("⏱️ Detailed Memory Search");
-    let detailedMemoryInfo = "";
-    const triggeredMemories: string[] = [];
-    const triggeredMemoryIds = new Set<number>();
-    
-    if (detailedMemories && detailedMemories.length > 0) {
-      // 1-3個の場合は必ず全て適用、4個以上の場合はキーワードマッチング + ベクトル検索で最大3個選択
-      const memoryCount = detailedMemories.length;
-      
-      if (memoryCount <= 3) {
-        // 1-3個の場合は順番通りに全て適用（createdAt順）
-        for (const memory of detailedMemories) {
+  // ▼▼▼ 詳細記憶のベクトル検索 + キーワードマッチング（ハイブリッド）▼▼▼
+  console.time("⏱️ Detailed Memory Search");
+  let detailedMemoryInfo = "";
+  const triggeredMemories: string[] = [];
+  const triggeredMemoryIds = new Set<number>();
+
+  if (detailedMemories && detailedMemories.length > 0) {
+    // 1-3個の場合は必ず全て適用、4個以上の場合はキーワードマッチング + ベクトル検索で最大3個選択
+    const memoryCount = detailedMemories.length;
+
+    if (memoryCount <= 3) {
+      // 1-3個の場合は順番通りに全て適用（createdAt順）
+      for (const memory of detailedMemories) {
+        triggeredMemories.push(memory.content);
+        triggeredMemoryIds.add(memory.id);
+        // 非同期で更新（エラー無視）
+        prisma.detailed_memories.update({
+          where: { id: memory.id },
+          data: { lastApplied: new Date() },
+        }).catch(() => {});
+      }
+      console.log(`詳細記憶: ${memoryCount}個全て適用（1-3個のため全適用）`);
+    } else {
+      // 4個以上の場合はキーワードマッチング + ベクトル検索で最大3個選択
+      const lowerMessage = message.toLowerCase();
+      const lowerHistory = orderedHistory.length > 0
+        ? orderedHistory.map(msg => msg.content.toLowerCase()).join(' ')
+        : '';
+      const combinedText = lowerHistory ? `${lowerMessage} ${lowerHistory}` : lowerMessage;
+
+      // ベクトル検索で関連メモリを取得（非同期、タイムアウト付き）
+      let vectorMatchedMemories: Array<{ id: number; content: string; keywords: string[]; similarity: number }> = [];
+      try {
+        const messageEmbedding = await getEmbedding(combinedText);
+        const vectorSearchPromise = searchSimilarDetailedMemories(messageEmbedding, chatId, 5);
+        vectorMatchedMemories = await Promise.race([
+          vectorSearchPromise,
+          new Promise<typeof vectorMatchedMemories>((resolve) =>
+            setTimeout(() => resolve([]), 1500) // 1.5秒タイムアウト
+          ),
+        ]);
+      } catch (error) {
+        console.error('詳細記憶ベクトル検索エラー:', error);
+      }
+
+      const vectorMatchedIds = new Set(vectorMatchedMemories.map(m => m.id));
+
+      // キーワードマッチング + ベクトル検索で順番通りに選択（createdAt順）
+      for (const memory of detailedMemories) {
+        if (triggeredMemories.length >= 3) break;
+
+        // キーワードマッチングまたはベクトル検索でマッチした場合
+        let hasMatch = false;
+
+        // キーワードマッチング（多言語対応：英語のみ小文字変換、日本語・韓国語はそのまま）
+        if (memory.keywords && Array.isArray(memory.keywords) && memory.keywords.length > 0) {
+          // メタデータ（__META:start:X:end:Y__）を除外
+          const cleanKeywords = memory.keywords.filter(k => !k.match(/^__META:/));
+          hasMatch = cleanKeywords.some((keyword) => {
+            if (!keyword) return false;
+            // 英語キーワードのみ小文字に変換、日本語・韓国語はそのまま
+            const normalizedKeyword = /^[A-Za-z]/.test(keyword) ? keyword.toLowerCase() : keyword;
+            // 英語キーワードの場合は小文字変換されたテキストと比較、それ以外は元のテキストと比較
+            const searchText = /^[A-Za-z]/.test(keyword) ? combinedText : (message + ' ' + (orderedHistory.length > 0 ? orderedHistory.map(msg => msg.content).join(' ') : ''));
+            return searchText.includes(normalizedKeyword);
+          });
+        }
+
+        // ベクトル検索でマッチした場合も追加
+        if (!hasMatch && vectorMatchedIds.has(memory.id)) {
+          hasMatch = true;
+        }
+
+        if (hasMatch) {
           triggeredMemories.push(memory.content);
           triggeredMemoryIds.add(memory.id);
           // 非同期で更新（エラー無視）
@@ -380,87 +441,26 @@ export async function POST(request: Request, context: any) {
             data: { lastApplied: new Date() },
           }).catch(() => {});
         }
-        console.log(`詳細記憶: ${memoryCount}個全て適用（1-3個のため全適用）`);
-      } else {
-        // 4個以上の場合はキーワードマッチング + ベクトル検索で最大3個選択
-        const lowerMessage = message.toLowerCase();
-        const lowerHistory = orderedHistory.length > 0 
-          ? orderedHistory.map(msg => msg.content.toLowerCase()).join(' ')
-          : '';
-        const combinedText = lowerHistory ? `${lowerMessage} ${lowerHistory}` : lowerMessage;
-        
-        // ベクトル検索で関連メモリを取得（非同期、タイムアウト付き）
-        let vectorMatchedMemories: Array<{ id: number; content: string; keywords: string[]; similarity: number }> = [];
-        try {
-          const messageEmbedding = await getEmbedding(combinedText);
-          const vectorSearchPromise = searchSimilarDetailedMemories(messageEmbedding, chatId, 5);
-          vectorMatchedMemories = await Promise.race([
-            vectorSearchPromise,
-            new Promise<typeof vectorMatchedMemories>((resolve) => 
-              setTimeout(() => resolve([]), 1500) // 1.5秒タイムアウト
-            ),
-          ]);
-        } catch (error) {
-          console.error('詳細記憶ベクトル検索エラー:', error);
-        }
-        
-        const vectorMatchedIds = new Set(vectorMatchedMemories.map(m => m.id));
-        
-        // キーワードマッチング + ベクトル検索で順番通りに選択（createdAt順）
+      }
+
+      // キーワードマッチング + ベクトル検索で3個に満たない場合は、順番通りに追加（キーワードなしでも）
+      if (triggeredMemories.length < 3) {
         for (const memory of detailedMemories) {
           if (triggeredMemories.length >= 3) break;
-          
-          // キーワードマッチングまたはベクトル検索でマッチした場合
-          let hasMatch = false;
-          
-          // キーワードマッチング（多言語対応：英語のみ小文字変換、日本語・韓国語はそのまま）
-          if (memory.keywords && Array.isArray(memory.keywords) && memory.keywords.length > 0) {
-            // メタデータ（__META:start:X:end:Y__）を除外
-            const cleanKeywords = memory.keywords.filter(k => !k.match(/^__META:/));
-            hasMatch = cleanKeywords.some((keyword) => {
-              if (!keyword) return false;
-              // 英語キーワードのみ小文字に変換、日本語・韓国語はそのまま
-              const normalizedKeyword = /^[A-Za-z]/.test(keyword) ? keyword.toLowerCase() : keyword;
-              // 英語キーワードの場合は小文字変換されたテキストと比較、それ以外は元のテキストと比較
-              const searchText = /^[A-Za-z]/.test(keyword) ? combinedText : (message + ' ' + (orderedHistory.length > 0 ? orderedHistory.map(msg => msg.content).join(' ') : ''));
-              return searchText.includes(normalizedKeyword);
-            });
-          }
-          
-          // ベクトル検索でマッチした場合も追加
-          if (!hasMatch && vectorMatchedIds.has(memory.id)) {
-            hasMatch = true;
-          }
-          
-          if (hasMatch) {
-            triggeredMemories.push(memory.content);
-            triggeredMemoryIds.add(memory.id);
-            // 非同期で更新（エラー無視）
-            prisma.detailed_memories.update({
-              where: { id: memory.id },
-              data: { lastApplied: new Date() },
-            }).catch(() => {});
-          }
+          if (triggeredMemoryIds.has(memory.id)) continue;
+
+          triggeredMemories.push(memory.content);
+          triggeredMemoryIds.add(memory.id);
+          // 非同期で更新（エラー無視）
+          prisma.detailed_memories.update({
+            where: { id: memory.id },
+            data: { lastApplied: new Date() },
+          }).catch(() => {});
         }
-        
-        // キーワードマッチング + ベクトル検索で3個に満たない場合は、順番通りに追加（キーワードなしでも）
-        if (triggeredMemories.length < 3) {
-          for (const memory of detailedMemories) {
-            if (triggeredMemories.length >= 3) break;
-            if (triggeredMemoryIds.has(memory.id)) continue;
-            
-            triggeredMemories.push(memory.content);
-            triggeredMemoryIds.add(memory.id);
-            // 非同期で更新（エラー無視）
-            prisma.detailed_memories.update({
-              where: { id: memory.id },
-              data: { lastApplied: new Date() },
-            }).catch(() => {});
-          }
-        }
-        console.log(`詳細記憶: キーワードマッチング + ベクトル検索で${triggeredMemories.length}個適用（ベクトル検索: ${vectorMatchedMemories.length}件）`);
       }
+      console.log(`詳細記憶: キーワードマッチング + ベクトル検索で${triggeredMemories.length}個適用（ベクトル検索: ${vectorMatchedMemories.length}件）`);
     }
+  }
     console.timeEnd("⏱️ Detailed Memory Search");
     if (triggeredMemories.length > 0) {
       detailedMemoryInfo = `# 詳細記憶\n- 以下の記憶は会話の内容に基づき有効化された。\n${triggeredMemories.map((mem, idx) => `- 記憶${idx + 1}: ${mem}`).join('\n')}`;
@@ -489,10 +489,10 @@ export async function POST(request: Request, context: any) {
     // ▲▲▲
 
     // ▼▼▼ Build system prompt components ▼▼▼
-    const userPersonaInfo = persona 
-      ? `# User Settings\n- ${persona.nickname}, ${persona.age || "Age unset"}, ${persona.gender || "Gender unset"}\n- Details: ${replacePlaceholders(persona.description)}` 
+    const userPersonaInfo = persona
+      ? `# User Settings\n- ${persona.nickname}, ${persona.age || "Age unset"}, ${persona.gender || "Gender unset"}\n- Details: ${replacePlaceholders(persona.description)}`
       : "";
-    
+
     // Initial situation and message
     const initialContext = [];
     if (worldSetting.firstSituation) {
@@ -502,30 +502,30 @@ export async function POST(request: Request, context: any) {
       initialContext.push(`# Opening Message\n${replacePlaceholders(worldSetting.firstMessage)}`);
     }
     const initialContextText = initialContext.join("\n\n");
-    
+
     // ▼▼▼【画像リスト】AIが使用できる画像のリスト ▼▼▼
     const availableImages = worldSetting.characterImages || [];
     const imageList = availableImages
       .filter(img => !img.isMain)
       .map((img, index) => `${index + 1}. "${img.keyword}" - Use: {img:${index + 1}}`)
       .join('\n');
-    
-    const imageInstruction = imageList 
+
+    const imageInstruction = imageList
       ? `# Available Images\nYou can display images by including tags in your response:\n${imageList}\n\nUsage: Insert {img:N} at appropriate moments in your narration. Example: \`Alice smiled warmly. {img:1}\``
       : "";
     // ▲▲▲
-    
+
     // ユーザーの最新メッセージから言語要求を抽出（長さ要求は無視して常に800-1100文字）
     const userLanguageRequest = message.match(/한국어|韓国語|korean|Korean|ko|KO|すべて.*韓国語|全て.*韓国語/i);
-    
+
     // 言語要求に基づいてフォーマット指示を生成
-    const languageInstruction = userLanguageRequest 
+    const languageInstruction = userLanguageRequest
       ? `- **Output Language**: Respond in Korean (한국어). All narration, dialogue, and descriptions should be in Korean.`
       : `- **Output Language**: Respond in Japanese (日本語). All narration, dialogue, and descriptions should be in Japanese.`;
-    
+
     // 応答長さは常に800-1100文字に固定
     const lengthInstruction = `- **Response Length**: Aim for 800-1100 characters (including spaces) per response. Provide rich, detailed descriptions and dialogue.`;
-    
+
     // ▼▼▼【追加】セーフティフィルター設定に基づいてContent Policyを動的に生成
     // キャラクターのセーフティフィルターがONの場合、より厳格な制限を適用
     const characterSafetyFilter = chatRoom.characters.safetyFilter ?? true;
@@ -535,7 +535,7 @@ export async function POST(request: Request, context: any) {
       ? `- **Content Policy**: This character has the safety filter enabled. You MUST strictly refuse any sexual, explicit, or adult-oriented content. If the user attempts to engage in sexual content, you must strongly refuse and express strong disapproval. Respond with phrases like "そんなこと絶対にできない！", "そういう話はやめて！", "私はそんなことはしたくない！" and redirect to safe, appropriate topics. Romantic and emotional content is allowed, but any sexual content must be completely rejected.`
       : `- **Content Policy**: Keep content appropriate and safe. Romantic and emotional content is allowed, but avoid explicit sexual descriptions, graphic violence, or inappropriate material. Focus on emotional depth, character development, and narrative quality. Use suggestive and subtle descriptions rather than explicit content. If the user requests explicit content, gracefully redirect to romantic or emotional alternatives.`;
     // ▲▲▲
-    
+
     // Content PolicyはsystemTemplateの指示事項と衝突する可能性があるため、
     // systemTemplateに性的コンテンツ制限解除などが明記されている場合はそれを優先
     // Content Policyは基本的なガイドラインとしてのみ使用
@@ -553,7 +553,7 @@ ${lengthInstruction}
     // Assemble final system prompt
     // Note: systemTemplate is placed first to give it priority over other instructions
     const systemInstructionText = [systemTemplate, initialContextText, backMemoryInfo, detailedMemoryInfo, imageInstruction, formattingInstruction, userPersonaInfo, lorebookInfo].filter(Boolean).join("\n\n");
-    
+
     // ▼▼▼【デバッグ】システムプロンプトの内容をログ出力 ▼▼▼
     console.log("=== システムプロンプト構築完了 ===");
     console.log(`systemTemplate length: ${systemTemplate?.length || 0}`);
@@ -568,7 +568,7 @@ ${lengthInstruction}
     console.log(`userPersonaInfo length: ${userPersonaInfo?.length || 0}`);
     console.log(`lorebookInfo length: ${lorebookInfo?.length || 0}`);
     console.log(`systemInstructionText total length: ${systemInstructionText?.length || 0}`);
-    
+
     // ▼▼▼【重要】AIに送信されるシステムプロンプトの主要部分を確認
     if (backMemoryInfo) {
       console.log("✅ メモリブックがシステムプロンプトに含まれています");
@@ -580,7 +580,7 @@ ${lengthInstruction}
       console.warn("⚠️ メモリブックと詳細記憶の両方が空です。AIは記憶情報なしで応答します。");
     }
     // ▲▲▲
-    
+
     if (!systemTemplate || systemTemplate.trim().length === 0) {
       console.error(`⚠️ WARNING: systemTemplate is empty or missing! (Character ID: ${worldSetting?.id}, Name: ${worldSetting?.name || 'Unknown'})`);
       console.error(`⚠️ This may affect AI response quality. Please check the character's systemTemplate in the database.`);
@@ -623,7 +623,7 @@ ${lengthInstruction}
           console.time("⏱️ AI sendMessageStream Total"); // AI応答完了までの総時間
           const modelToUse = settings?.model || "gemini-2.5-flash"; // デフォルトモデル
           console.log(`使用モデル: ${modelToUse}`);
-          
+
           // ▼▼▼【デバッグ】AIに送信されるシステムプロンプトの確認
           console.log("📤 Vertex AIに送信されるシステムプロンプト:");
           console.log(`  - セーフティフィルター: ${userSafetyFilter ? 'ON (制限あり)' : 'OFF (制限なし)'}`);
@@ -637,7 +637,7 @@ ${lengthInstruction}
           // システムプロンプトの最初の500文字を表示（デバッグ用）
           console.log(`  - システムプロンプト先頭: ${systemInstructionText.substring(0, 500)}${systemInstructionText.length > 500 ? '...' : ''}`);
           // ▲▲▲
-          
+
           const safetySettings = getSafetySettings(userSafetyFilter);
           if (userSafetyFilter) {
             console.log(`  - 安全性設定: BLOCK_ONLY_HIGH (すべてのカテゴリー、高レベルだけブロック、ロマンチック/感情的な内容は許可)`);
@@ -645,13 +645,13 @@ ${lengthInstruction}
             console.log(`  - 安全性設定: BLOCK_NONE (すべて許可)`);
           }
           const generativeModel = vertex_ai.getGenerativeModel({ model: modelToUse, safetySettings });
-          
+
           // チャットセッションを開始（履歴とシステム指示を渡す）
-          const chatSession = generativeModel.startChat({ 
-            history: chatHistory, 
-            systemInstruction: systemInstructionText 
+          const chatSession = generativeModel.startChat({
+            history: chatHistory,
+            systemInstruction: systemInstructionText
           });
-          
+
           // ストリーミングでメッセージを送信
           // ▼▼▼【デバッグ】現在のユーザーメッセージをログ出力
           console.log(`📤 現在のユーザーメッセージ: ${message.substring(0, 100)}${message.length > 100 ? '...' : ''}`);
@@ -683,14 +683,14 @@ ${lengthInstruction}
               }
             }
             // ▲▲▲
-            
+
             if (!firstChunkReceived) {
                 console.timeEnd("⏱️ AI TTFB"); // 最初のチャンク受信
                 firstChunkReceived = true;
             }
             const chunk = item.candidates?.[0]?.content?.parts?.[0]?.text;
             if (!chunk) continue;
-            
+
             sendEvent('ai-update', { responseChunk: chunk }); // チャンクをクライアントに送信
             finalResponseText += chunk;
           }
@@ -718,14 +718,14 @@ ${lengthInstruction}
           }
           // ▲▲▲
 
-          console.time("⏱️ DB Write (AI Msg)");
-          console.log("ステップ6: AIの応答をデータベースに保存");
-          const newModelMessage = await prisma.$transaction(async (tx) => {
-            // 同じターンの古いモデルメッセージを非アクティブ化
-            await tx.chat_message.updateMany({ where: { turnId: turnIdForModel, role: 'model' }, data: { isActive: false } });
-            // 新しいバージョン番号を計算
-            const lastVersion = await tx.chat_message.findFirst({ where: { turnId: turnIdForModel, role: 'model' }, orderBy: { version: 'desc' } });
-            const newVersionNumber = (lastVersion?.version || 0) + 1;
+          console.time("⏱️ DB Write (AI Msg)");
+          console.log("ステップ6: AIの応答をデータベースに保存");
+          const newModelMessage = await prisma.$transaction(async (tx) => {
+          // 同じターンの古いモデルメッセージを非アクティブ化
+          await tx.chat_message.updateMany({ where: { turnId: turnIdForModel, role: 'model' }, data: { isActive: false } });
+          // 新しいバージョン番号を計算
+          const lastVersion = await tx.chat_message.findFirst({ where: { turnId: turnIdForModel, role: 'model' }, orderBy: { version: 'desc' } });
+          const newVersionNumber = (lastVersion?.version || 0) + 1;
             // 新しいモデルメッセージを作成
             return await tx.chat_message.create({
               data: { chatId, role: "model", content: finalResponseText, turnId: turnIdForModel, version: newVersionNumber, isActive: true },
@@ -733,7 +733,7 @@ ${lengthInstruction}
           });
           console.log("ステップ6: AI応答の保存完了");
           console.timeEnd("⏱️ DB Write (AI Msg)");
-          
+
           // ▼▼▼【ベクトル検索】AIメッセージのembeddingを非同期で生成▼▼▼
           (async () => {
             try {
@@ -749,7 +749,7 @@ ${lengthInstruction}
             }
           })();
           // ▲▲▲
-          
+
           // ▼▼▼【自動要約】autoSummarizeがONの場合、メッセージが追加されたら自動要約▼▼▼
           if (backMemory && backMemory.autoSummarize) {
             (async () => {
@@ -758,7 +758,7 @@ ${lengthInstruction}
                 const messageCount = await prisma.chat_message.count({
                   where: { chatId, isActive: true },
                 });
-                
+
                 // 要約を実行する条件:
                 // - 10個以下: 毎回実行（ただし2個以上）
                 // - 10個超過: 5個単位で実行（10, 15, 20, 25...）
@@ -768,10 +768,10 @@ ${lengthInstruction}
                 } else {
                   shouldSummarize = messageCount % 5 === 0; // 5個単位
                 }
-                
+
                 if (shouldSummarize) {
                   console.log(`自動要約を開始 (メッセージ数: ${messageCount})`);
-                  
+
                   // 会話履歴を取得（最新50件）
                   const messages = await prisma.chat_message.findMany({
                     where: {
@@ -840,7 +840,7 @@ ${conversationText}`;
                           console.error('バックメモリembedding生成エラー:', error);
                         }
                       })();
-                      
+
                       console.log('自動要約が完了しました');
                     }
                   }
@@ -851,7 +851,7 @@ ${conversationText}`;
             })();
           }
           // ▲▲▲
-          
+
           // ▼▼▼【詳細記憶自動要約】autoSummarizeがONの場合、メッセージが追加されたら自動要約▼▼▼
           if (backMemory && backMemory.autoSummarize) {
             (async () => {
@@ -860,7 +860,7 @@ ${conversationText}`;
                 const messageCount = await prisma.chat_message.count({
                   where: { chatId, isActive: true },
                 });
-                
+
                 // 要約を実行する条件:
                 // - 10個以下: 毎回実行（ただし2個以上）
                 // - 10個超過: 5個単位で実行（10, 15, 20, 25...）
@@ -870,10 +870,10 @@ ${conversationText}`;
                 } else {
                   shouldSummarize = messageCount % 5 === 0; // 5個単位
                 }
-                
+
                 if (shouldSummarize) {
                   console.log(`詳細記憶自動要約を開始 (メッセージ数: ${messageCount})`);
-                  
+
                   // 会話履歴を取得
                   const messages = await prisma.chat_message.findMany({
                     where: {
@@ -890,36 +890,36 @@ ${conversationText}`;
                     const windowSize = 5;
                     let startIndex = 0;
                     let endIndex = messageCount;
-                    
+
                     // 最後のウィンドウの開始位置を計算
                     if (messageCount > windowSize) {
                       // 5個単位で区切る（1-5, 6-10, 11-15...）
                       startIndex = Math.floor((messageCount - 1) / windowSize) * windowSize;
                       endIndex = messageCount;
                     }
-                    
+
                     const messagesToSummarize = messages.slice(startIndex, endIndex);
-                    
+
                     if (messagesToSummarize.length === 0) {
                       console.log('要約するメッセージがありません');
                       return;
                     }
-                    
+
                     // メッセージ範囲を計算（1-indexed）
                     const messageStartIndex = startIndex + 1;
                     const messageEndIndex = endIndex;
-                    
+
                     // ▼▼▼【改善】ベクトル類似度ベースの重複チェック（キーワード重複とは無関係に動作）
                     // 会話内容のベクトルを生成して、類似した要約があるか確認
                     // 類似度が0.85以上の要約があればスキップ、なければ生成
                     const conversationTextForCheck = messagesToSummarize
                       .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
                       .join('\n\n');
-                    
+
                     try {
                       const conversationEmbedding = await getEmbedding(conversationTextForCheck);
                       const vectorString = `[${conversationEmbedding.join(',')}]`;
-                      
+
                       // 既存の要約の中で類似したものがあるか確認（類似度0.85以上）
                       const similarMemories = await prisma.$queryRawUnsafe<Array<{ id: number; similarity: number }>>(
                         `SELECT id, 1 - (embedding <=> $1::vector) as similarity
@@ -932,7 +932,7 @@ ${conversationText}`;
                         vectorString,
                         chatId
                       );
-                      
+
                       if (similarMemories && similarMemories.length > 0) {
                         console.log(`詳細記憶自動要約: 類似度 ${similarMemories[0].similarity.toFixed(3)} の既存要約があるためスキップ (ID: ${similarMemories[0].id})`);
                         return;
@@ -942,10 +942,10 @@ ${conversationText}`;
                       // エラーが発生しても要約は続行（重複チェック失敗は要約生成より重要度が低い）
                     }
                     // ▲▲▲
-                    
+
                     // 10個以下の場合は重複防止ロジックを適用しない（毎回要約）
                     // ▲▲▲
-                    
+
                     // 会話をテキストに変換
                     const conversationText = messagesToSummarize
                       .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
@@ -982,7 +982,7 @@ ${conversationText}`;
                       // ▼▼▼【改善】タイムアウト対策: まずルールベースのキーワードでメモリを作成し、AIキーワード抽出は非同期で実行
                       // 1. まずルールベースのキーワードを抽出（高速、即座に実行）
                       const extractedKeywords = extractKeywords(conversationText);
-                      
+
                       // 2. メモリを作成（ルールベースキーワードで、分割処理も含む）
                       const createdMemoryIds = await createDetailedMemories(
                         chatId,
@@ -991,14 +991,14 @@ ${conversationText}`;
                         messageStartIndex,
                         messageEndIndex
                       );
-                      
+
                       // 3. バックグラウンドでAIキーワード抽出し、記憶を更新
                       if (createdMemoryIds.length > 0) {
                         updateMemoriesWithAIKeywords(summaryModel, summary, createdMemoryIds, safetySettings).catch((error: unknown) => {
                           console.error('Background AI keyword extraction error:', error);
                         });
                       }
-                      
+
                       console.log('詳細記憶自動要約が完了しました');
                     }
                   }
@@ -1009,7 +1009,7 @@ ${conversationText}`;
             })();
           }
           // ▲▲▲
-          
+
           // AIメッセージの保存完了をクライアントに通知
           sendEvent('ai-message-saved', { modelMessage: newModelMessage });
 
@@ -1058,14 +1058,14 @@ function extractKeywords(text: string): string[] {
   const japanesePattern = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+/g; // ひらがな、カタカナ、漢字
   const koreanPattern = /[\uAC00-\uD7AF]+/g; // 한글
   const englishPattern = /\b[A-Za-z]{3,}\b/g; // 英語（3文字以上）
-  
+
   const japaneseWords = text.match(japanesePattern) || [];
   const koreanWords = text.match(koreanPattern) || [];
   const englishWords = text.toLowerCase().match(englishPattern) || [];
-  
+
   const allWords = [...japaneseWords, ...koreanWords, ...englishWords];
   const wordCount: { [key: string]: number } = {};
-  
+
   // 除外する単語リスト
   const japaneseExclude = [
     // 代名詞・指示語
@@ -1092,25 +1092,25 @@ function extractKeywords(text: string): string[] {
     '크다', '작다', '많다', '적다', '좋다', '나쁘다', '새롭다', '오래되다'
   ];
   const englishExclude = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them', 'img', 'and', 'or', 'but', 'if', 'when', 'where', 'what', 'who', 'why', 'how', 'user', 'users'];
-  
+
   allWords.forEach(word => {
     // 範囲情報パターンを除外（例: "1-5", "6-10", "11-15"など）
     if (!/^\d+-\d+$/.test(word)) {
       // 英語のみ小文字に変換、日本語・韓国語はそのまま
       const normalizedWord = /^[A-Za-z]/.test(word) ? word.toLowerCase() : word;
-      
+
       // 除外リストチェック（完全一致）
       if (japaneseExclude.includes(normalizedWord)) return;
       if (koreanExclude.includes(normalizedWord)) return;
       if (englishExclude.includes(normalizedWord)) return;
-      
+
       // 韓国語: 助詞が付いた形を除外（~의, ~이, ~가, ~을, ~를, ~은, ~는, ~에, ~에서など）
       if (/^[가-힣]+(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|까지|도|만|조차)$/.test(normalizedWord)) {
         // 助詞を除いた部分も除外リストに含まれているか確認
         const baseWord = normalizedWord.replace(/(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|まで|도|만|조차)$/, '');
         if (koreanExclude.includes(baseWord)) return;
       }
-      
+
       // 一般的な動詞・形容詞の過去形・現在形を除外（~다, ~았다, ~었다, ~한다, ~했다など）
       if (/^[가-힣]+(다|았다|었다|한다|했다)$/.test(normalizedWord)) {
         const baseWord = normalizedWord.replace(/(다|았다|었다|한다|했다)$/, '');
@@ -1120,7 +1120,7 @@ function extractKeywords(text: string): string[] {
         const commonVerbs = ['있', '없', '하', '되', '보', '말', '생각', '좋', '나쁘', '크', '작', '많', '적', '새롭', '오래되'];
         if (commonVerbs.includes(baseWord)) return;
       }
-      
+
       // 日本語: 一般的な動詞・形容詞の活用形を除外（~する, ~した, ~ある, ~あった, ~いる, ~いたなど）
       if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+(する|した|ある|あった|いる|いた|なる|なった|見る|見た|言う|言った|思う|思った)$/.test(normalizedWord)) {
         const baseWord = normalizedWord.replace(/(する|した|ある|あった|いる|いた|なる|なった|見る|見た|言う|言った|思う|思った)$/, '');
@@ -1128,28 +1128,28 @@ function extractKeywords(text: string): string[] {
         const commonJapaneseVerbs = ['する', 'ある', 'いる', 'なる', '見', '言', '思', '知', '行', '来', 'や', '始', '終'];
         if (commonJapaneseVerbs.includes(baseWord)) return;
       }
-      
+
       // 日本語: 一般的な形容詞を除外（~いい, ~良い, ~悪い, ~大きい, ~小さいなど）
       if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+(いい|良い|よい|悪い|大きい|小さい|多い|少ない|新しい|古い|高い|低い|同じ|違う|似ている|近い|遠い)$/.test(normalizedWord)) {
         return; // 形容詞はそのまま除外
       }
-      
+
       // 技術的なタグを除外
       if (normalizedWord.match(/^(img|Img|IMG|\{img|\{Img)$/i)) return;
-      
+
       // HTMLタグのようなものを除外
       if (normalizedWord.match(/^[<{}>]/)) return;
-      
+
       // 数値のみを除外
       if (/^\d+$/.test(normalizedWord)) return;
-      
+
       // メタデータパターンを除外
       if (normalizedWord.match(/^__META:/)) return;
-      
+
       wordCount[normalizedWord] = (wordCount[normalizedWord] || 0) + 1;
     }
   });
-  
+
   return Object.entries(wordCount)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
