@@ -328,8 +328,12 @@ export async function POST(request: Request, context: any) {
     console.log(`  - orderedHistory: ${orderedHistory.length}件`);
     console.log(`  - vectorMatchedMessages: ${vectorMatchedMessages.length}件`);
     if (chatHistory.length > 0) {
-      console.log(`  - 最初のメッセージ: ${chatHistory[0].role} - ${chatHistory[0].parts[0].text.substring(0, 50)}...`);
-      console.log(`  - 最後のメッセージ: ${chatHistory[chatHistory.length - 1].role} - ${chatHistory[chatHistory.length - 1].parts[0].text.substring(0, 50)}...`);
+      const firstMsg = chatHistory[0];
+      const lastMsg = chatHistory[chatHistory.length - 1];
+      const firstText = firstMsg.parts?.[0]?.text || '';
+      const lastText = lastMsg.parts?.[0]?.text || '';
+      console.log(`  - 最初のメッセージ: ${firstMsg.role} - ${firstText.substring(0, 50)}${firstText.length > 50 ? '...' : ''}`);
+      console.log(`  - 最後のメッセージ: ${lastMsg.role} - ${lastText.substring(0, 50)}${lastText.length > 50 ? '...' : ''}`);
     }
     // ▲▲▲
 
