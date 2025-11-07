@@ -667,7 +667,7 @@ function extractKeywords(text: string): string[] {
     // 範囲情報パターンを除外（例: "1-5", "6-10", "11-15"など）
     if (!/^\d+-\d+$/.test(word)) {
       // 日本語のみを処理
-      const normalizedWord = word;
+      let normalizedWord = word;
 
       // ▼▼▼【改善】最小長さチェック（日本語は2文字以上）
       if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(normalizedWord) && normalizedWord.length < 2) return; // 日本語は2文字未満を除外
@@ -676,21 +676,14 @@ function extractKeywords(text: string): string[] {
       // 除外リストチェック（完全一致）
       if (japaneseExclude.includes(normalizedWord)) return;
       
-      // 韓国語: 助詞が付いた形を除外（~의, ~이, ~가, ~을, ~를, ~은, ~는, ~에, ~에서など）
-      if (/^[가-힣]+(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|까지|도|만|조차)$/.test(normalizedWord)) {
-        // 助詞を除いた部分も除外リストに含まれているか確認
-        const baseWord = normalizedWord.replace(/(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|까지|도|만|조차)$/, '');
-        if (koreanExclude.includes(baseWord)) return;
-      }
-      
-      // 一般的な動詞・形容詞の過去形・現在形を除外（~다, ~았다, ~었다, ~한다, ~했다など）
-      if (/^[가-힣]+(다|았다|었다|한다|했다|한다|한다|한다|한다)$/.test(normalizedWord)) {
-        const baseWord = normalizedWord.replace(/(다|았다|었다|한다|했다|한다|한다|한다|한다)$/, '');
-        // 短すぎる単語（2文字以下）は除外
-        if (baseWord.length <= 2) return;
-        // 一般的な動詞・形容詞の語幹を除外
-        const commonVerbs = ['있', '없', '하', '되', '보', '말', '생각', '좋', '나쁘', '크', '작', '많', '적', '새롭', '오래되'];
-        if (commonVerbs.includes(baseWord)) return;
+      // 日本語: 助詞が付いた形を除外（~は, ~が, ~を, ~に, ~の, ~で, ~へ, ~と, ~から, ~までなど）
+      if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+[はがをにのでへとからまでよりもだけしかばかり]$/.test(normalizedWord)) {
+        const baseWord = normalizedWord.replace(/[はがをにのでへとからまでよりもだけしかばかり]$/, '');
+        // 助詞を除いた部分が2文字未満の場合は除外
+        if (baseWord.length < 2) return;
+        if (japaneseExclude.includes(baseWord)) return;
+        // 助詞を除いた部分も除外リストに含まれていない場合、ベースワードを使用
+        normalizedWord = baseWord;
       }
       
       // 日本語: 一般的な動詞・形容詞の活用形を除外（~する, ~した, ~ある, ~あった, ~いる, ~いたなど）
