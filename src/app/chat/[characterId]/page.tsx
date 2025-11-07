@@ -170,11 +170,32 @@ export default function ChatPage() {
     const loadCharacterInfo = async () => {
       try {
         const res = await fetch(`/api/characters/${characterId}`);
-        if (!res.ok) throw new Error("キャラクター情報取得失敗");
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
+          // セーフティフィルターエラーの場合、特別な処理
+          if (res.status === 403 && errorData.error?.includes('セーフティフィルター')) {
+            setModalState({ 
+              isOpen: true, 
+              title: "セーフティフィルター", 
+              message: errorData.error || "このキャラクターはセーフティフィルターがオフのため、セーフティフィルターがONの状態ではチャットできません。",
+              isAlert: true,
+              onConfirm: () => router.back()
+            });
+            return;
+          }
+          throw new Error(errorData.error || "キャラクター情報取得失敗");
+        }
         setCharacterInfo(await res.json());
       } catch (e) {
         console.error(e);
-        setModalState({ isOpen: true, title: "エラー", message: "キャラクター情報読込失敗", onConfirm: () => router.back() });
+        const errorMessage = e instanceof Error ? e.message : "キャラクター情報読込失敗";
+        setModalState({ 
+          isOpen: true, 
+          title: "エラー", 
+          message: errorMessage, 
+          isAlert: true,
+          onConfirm: () => router.back() 
+        });
       }
     };
     loadCharacterInfo();
@@ -256,6 +277,18 @@ export default function ChatPage() {
             
             if (!res.ok) {
                 const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
+                // セーフティフィルターエラーの場合、特別な処理
+                if (res.status === 403 && errorData.error?.includes('セーフティフィルター')) {
+                  setModalState({ 
+                    isOpen: true, 
+                    title: "セーフティフィルター", 
+                    message: errorData.error || "このキャラクターはセーフティフィルターがオフのため、セーフティフィルターがONの状態ではチャットできません。",
+                    isAlert: true,
+                    onConfirm: () => router.back()
+                  });
+                  setIsInitialLoading(false);
+                  return;
+                }
                 throw new Error(errorData.error || `HTTP ${res.status}: チャットセッション取得失敗`);
             }
             

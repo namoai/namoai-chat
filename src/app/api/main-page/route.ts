@@ -1,4 +1,5 @@
 export const runtime = 'nodejs';
+export const dynamic = "force-dynamic"; // ▼▼▼【重要】キャッシュを無効化して常に最新データを取得 ▼▼▼
 
 import { NextResponse } from 'next/server';
 // ▼▼▼【修正】Prismaクライアントと型定義のインポート元を分離します ▼▼▼
@@ -52,17 +53,18 @@ export async function GET() {
     const session = await getServerSession(authOptions);
     const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
 
+    // ▼▼▼【修正】セーフティフィルター: nullの場合はtrue（フィルターON）として処理
     let userSafetyFilter = true;
     if (currentUserId) {
         const user = await prisma.users.findUnique({
             where: { id: currentUserId },
             select: { safetyFilter: true }
         });
-        if (user && user.safetyFilter !== null) {
-            userSafetyFilter = user.safetyFilter;
-        }
+        // nullの場合はtrue（フィルターON）として処理（デフォルト動作）
+        userSafetyFilter = user?.safetyFilter ?? true;
     }
-    const safetyWhereClause = userSafetyFilter ? { safetyFilter: true } : {};
+    const safetyWhereClause = userSafetyFilter ? { safetyFilter: { not: false } } : {}; // nullも許可（未設定）
+    // ▲▲▲
 
     let blockedAuthorIds: number[] = [];
     if (currentUserId) {

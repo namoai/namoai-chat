@@ -96,7 +96,7 @@ export default function HomePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch("/api/main-page");
+        const response = await fetch("/api/main-page", { cache: 'no-store' }); // キャッシュを無効化
         if (!response.ok) throw new Error("Failed to fetch data");
         const data = await response.json();
         setPageData(data);

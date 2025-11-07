@@ -1,4 +1,5 @@
 export const runtime = 'nodejs';
+export const dynamic = "force-dynamic"; // ▼▼▼【重要】キャッシュを無効化して常に最新データを取得 ▼▼▼
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -22,7 +23,9 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: 'ユーザーが見つかりません。' }, { status: 404 });
     }
-    return NextResponse.json({ safetyFilter: user.safetyFilter });
+    // nullの場合はtrue（フィルターON）を返す（デフォルト動作）
+    const safetyFilter = user.safetyFilter ?? true;
+    return NextResponse.json({ safetyFilter });
   } catch (error) {
     // ▼▼▼ 変更点: console.errorを追加してエラー内容をログに出力 ▼▼▼
     console.error('フィルター取得エラー:', error);

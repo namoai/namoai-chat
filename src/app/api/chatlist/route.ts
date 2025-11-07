@@ -13,7 +13,13 @@ export async function GET() {
   const userId = parseInt(session.user.id, 10);
 
   try {
-    // ▼▼▼【追加】ブロック機能のロジック ▼▼▼
+    // ▼▼▼【追加】セーフティフィルターとブロック機能のロジック ▼▼▼
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      select: { safetyFilter: true },
+    });
+    const userSafetyFilter = user?.safetyFilter ?? true; // デフォルトはtrue（フィルターON）
+
     let blockedAuthorIds: number[] = [];
     const blocks = await prisma.block.findMany({
         where: { blockerId: userId },
@@ -27,9 +33,17 @@ export async function GET() {
         userId,
         // ▼▼▼【追加】チャット相手のキャラクターがブロックした作者のものでないことを確認 ▼▼▼
         characters: {
-          author_id: {
-            notIn: blockedAuthorIds
-          }
+          AND: [
+            {
+              author_id: {
+                notIn: blockedAuthorIds
+              }
+            },
+            // ユーザーのセーフティフィルターがONの場合、キャラクターのセーフティフィルターがOFF（false）のものを除外
+            userSafetyFilter ? {
+              safetyFilter: { not: false } // nullも許可（未設定）
+            } : {}
+          ]
         }
       },
       orderBy: { updatedAt: 'desc' },

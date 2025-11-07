@@ -141,9 +141,9 @@ export async function POST(request: Request, context: any) {
     return NextResponse.json({ message: "メッセージは必須です。" }, { status: 400 });
   }
 
-  try {
-    // DB書き込みPromise (ポイント消費, メッセージ保存)
-    const dbWritePromise = (async () => {
+  try {
+    // DB書き込みPromise (ポイント消費, メッセージ保存)
+    const dbWritePromise = (async () => {
       console.time("⏱️ DB Write (Points+Msg)");
       console.log(`ステップ1: ポイント消費とメッセージ保存処理開始 (ユーザーID: ${userId})`);
       const totalPointsToConsume = 1;
@@ -350,10 +350,20 @@ export async function POST(request: Request, context: any) {
     const { userMessageForHistory, turnIdForModel } = dbWriteResult;
     const { chatRoom, persona, orderedHistory, backMemory, detailedMemories, vectorMatchedMessages } = contextResult;
 
-    const worldSetting = chatRoom.characters; // 'char' から 'worldSetting' に変数名を変更 (意味を明確化)
-    const user = chatRoom.users;
-    const worldName = worldSetting.name; // {{char}} に置換される名前 (世界観の名前)
-    const userNickname = persona?.nickname || user.nickname || "ユーザー"; // {{user}} に置換される名前
+    // ▼▼▼【追加】セーフティフィルター: ユーザーのセーフティフィルターがONで、キャラクターのセーフティフィルターがOFFの場合はアクセス拒否
+    if (userSafetyFilter && chatRoom.characters.safetyFilter === false) {
+      console.log(`[POST /api/chat/${chatId}] セーフティフィルター: ユーザーのフィルターがON、キャラクターのフィルターがOFFのためアクセス拒否`);
+      console.timeEnd("⏱️ 全体API処理時間");
+      return NextResponse.json({ 
+        message: 'このキャラクターはセーフティフィルターがオフのため、セーフティフィルターがONの状態ではチャットできません。' 
+      }, { status: 403 });
+    }
+    // ▲▲▲
+
+    const worldSetting = chatRoom.characters; // 'char' から 'worldSetting' に変数名を変更 (意味を明確化)
+    const user = chatRoom.users;
+    const worldName = worldSetting.name; // {{char}} に置換される名前 (世界観の名前)
+    const userNickname = persona?.nickname || user.nickname || "ユーザー"; // {{user}} に置換される名前
 
     // プレースホルダー（{{char}}、{{user}}）を置換するヘルパー関数
     const replacePlaceholders = (text: string | null | undefined): string => {
@@ -596,22 +606,30 @@ export async function POST(request: Request, context: any) {
       : `- **Content Policy**: Keep content appropriate and safe. Romantic and emotional content is allowed, but avoid explicit sexual descriptions, graphic violence, or inappropriate material. Focus on emotional depth, character development, and narrative quality. Use suggestive and subtle descriptions rather than explicit content. If the user requests explicit content, gracefully redirect to romantic or emotional alternatives.`;
     // ▲▲▲
     
+    // Content Policy는 systemTemplate의 지시사항과 충돌할 수 있으므로,
+    // systemTemplate에 성적 콘텐츠 제한 해제 등이 명시되어 있으면 그것을 우선시
+    // Content Policy는 기본 가이드라인으로만 사용
     const formattingInstruction = `# Response Format
 - Narrator role: Describe character actions/dialogue in third person. User speaks for themselves.
 - Context: Read all chat history. Maintain consistency with previous messages.
 ${contentPolicy}
 ${languageInstruction}
 - Format: Narration (gray), Dialogue in quotes (「」/""), Status in \`\`\`code blocks\`\`\` at end.
-${lengthInstruction}`;
+${lengthInstruction}
+- **Important**: The character's systemTemplate (above) takes precedence over general content policies. Follow the character's specific instructions in systemTemplate first.`;
 
     const systemTemplate = replacePlaceholders(worldSetting.systemTemplate);
 
     // Assemble final system prompt
+    // Note: systemTemplate is placed first to give it priority over other instructions
     const systemInstructionText = [systemTemplate, initialContextText, backMemoryInfo, detailedMemoryInfo, imageInstruction, formattingInstruction, userPersonaInfo, lorebookInfo].filter(Boolean).join("\n\n");
     
     // ▼▼▼【デバッグ】システムプロンプトの内容をログ出力 ▼▼▼
     console.log("=== システムプロンプト構築完了 ===");
     console.log(`systemTemplate length: ${systemTemplate?.length || 0}`);
+    if (systemTemplate && systemTemplate.length > 0) {
+      console.log(`systemTemplate 内容 (最初の500文字): ${systemTemplate.substring(0, 500)}${systemTemplate.length > 500 ? '...' : ''}`);
+    }
     console.log(`initialContextText length: ${initialContextText?.length || 0}`);
     console.log(`backMemoryInfo length: ${backMemoryInfo?.length || 0}`);
     console.log(`detailedMemoryInfo length: ${detailedMemoryInfo?.length || 0}`);

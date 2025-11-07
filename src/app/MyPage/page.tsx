@@ -97,10 +97,11 @@ const LoggedInView = ({ session }: { session: Session }) => {
           setPoints({ total: 0, loading: false });
         }
 
-        const filterRes = await fetch('/api/users/safety-filter');
+        const filterRes = await fetch('/api/users/safety-filter', { cache: 'no-store' }); // キャッシュを無効化
         if (filterRes.ok) {
           const filterData = await filterRes.json();
-          setIsSafetyFilterOn(filterData.safetyFilter);
+          // nullの場合はtrue（フィルターON）として処理
+          setIsSafetyFilterOn(filterData.safetyFilter ?? true);
         }
       } catch (error) {
         console.error(error);
@@ -118,17 +119,24 @@ const LoggedInView = ({ session }: { session: Session }) => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ safetyFilter: newStatus }),
+        cache: 'no-store', // キャッシュを無効化
       });
       if (!response.ok) throw new Error('設定の変更に失敗しました。');
 
       const data = await response.json();
-      setIsSafetyFilterOn(data.safetyFilter);
+      // nullの場合はtrue（フィルターON）として処理
+      setIsSafetyFilterOn(data.safetyFilter ?? true);
       setModalState({
         isOpen: true,
         title: '成功',
-        message: `セーフティフィルターを${newStatus ? 'ON' : 'OFF'}にしました。`,
-        onConfirm: closeModal,
-        isAlert: true,
+        message: `セーフティフィルターを${newStatus ? 'ON' : 'OFF'}にしました。ページを再読み込みして反映させますか？`,
+        confirmText: '再読み込み',
+        cancelText: 'キャンセル',
+        onConfirm: () => {
+          closeModal();
+          // ページを再読み込みしてキャッシュをクリア
+          window.location.reload();
+        },
       });
     } catch (error) {
       console.error(error);

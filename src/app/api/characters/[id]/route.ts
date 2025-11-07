@@ -225,6 +225,32 @@ export async function GET(
     console.log(`[GET /api/characters/${characterId}] データベースからキャラクターを検索しました。`);
     console.log(`[GET /api/characters/${characterId}] 関連付けられた画像の数: ${character.characterImages?.length || 0}枚`);
 
+    // ▼▼▼【追加】セーフティフィルター: ユーザーのセーフティフィルターがONで、キャラクターのセーフティフィルターがOFFの場合はアクセス拒否
+    if (currentUserId) {
+      const user = await prisma.users.findUnique({
+        where: { id: currentUserId },
+        select: { safetyFilter: true }
+      });
+      const userSafetyFilter = user?.safetyFilter ?? true; // デフォルトはtrue（フィルターON）
+      
+      // ユーザーのセーフティフィルターがONで、キャラクターのセーフティフィルターがOFF（falseまたはnull）の場合
+      if (userSafetyFilter && character.safetyFilter === false) {
+        console.log(`[GET /api/characters/${characterId}] セーフティフィルター: ユーザーのフィルターがON、キャラクターのフィルターがOFFのためアクセス拒否`);
+        return NextResponse.json({ 
+          error: 'このキャラクターはセーフティフィルターがオフのため、セーフティフィルターがONの状態では表示できません。' 
+        }, { status: 403 });
+      }
+    } else {
+      // 未ログインユーザーの場合、セーフティフィルターがOFFのキャラクターは表示しない
+      if (character.safetyFilter === false) {
+        console.log(`[GET /api/characters/${characterId}] セーフティフィルター: 未ログイン、キャラクターのフィルターがOFFのためアクセス拒否`);
+        return NextResponse.json({ 
+          error: 'このキャラクターはセーフティフィルターがオフのため、表示できません。' 
+        }, { status: 403 });
+      }
+    }
+    // ▲▲▲
+
     if (currentUserId && character.author_id) {
       const isBlocked = await prisma.block.findUnique({
         where: {

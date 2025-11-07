@@ -400,13 +400,19 @@ export default function CharacterDetailPage({
   
   if (error) {
     const isBlockedError = error.includes('ブロックされている');
+    const isSafetyFilterError = error.includes('セーフティフィルター');
     return (
         <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center p-4 text-center">
-            {isBlockedError && <ShieldBan size={48} className="text-red-500 mb-4" />}
+            {(isBlockedError || isSafetyFilterError) && <ShieldBan size={48} className="text-red-500 mb-4" />}
             <h2 className="text-xl font-bold mb-2">
-                {isBlockedError ? 'アクセスできません' : 'エラー'}
+                {isBlockedError ? 'アクセスできません' : isSafetyFilterError ? 'セーフティフィルター' : 'エラー'}
             </h2>
             <p className="text-gray-400 mb-6">{error}</p>
+            {isSafetyFilterError && (
+              <p className="text-gray-500 text-sm mb-4">
+                このキャラクターを表示するには、設定でセーフティフィルターをOFFにする必要があります。
+              </p>
+            )}
             <button onClick={() => router.back()} className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">
                 戻る
             </button>

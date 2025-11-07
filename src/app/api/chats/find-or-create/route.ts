@@ -38,6 +38,14 @@ export async function POST(req: Request) {
     }
     const userId = Number(session.user.id);
 
+    // ▼▼▼【追加】セーフティフィルター: ユーザーのセーフティフィルター設定を取得
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      select: { safetyFilter: true },
+    });
+    const userSafetyFilter = user?.safetyFilter ?? true; // デフォルトはtrue（フィルターON）
+    // ▲▲▲
+
     // --- 入力 ---
     // ▼▼▼【修正】any型を上で定義したRequestBody型に変更します ▼▼▼
     const body: RequestBody = await req.json().catch(() => ({}));
@@ -64,6 +72,12 @@ export async function POST(req: Request) {
           userNote: true,
           backMemory: true,
           autoSummarize: true,
+          characters: {
+            select: {
+              id: true,
+              safetyFilter: true,
+            },
+          },
           chat_message: {
             // 全てのバージョンを取得（バージョン切り替え機能のため）
             orderBy: [{ createdAt: "asc" }, { version: "asc" }],
@@ -83,7 +97,19 @@ export async function POST(req: Request) {
       if (!exact) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
-      return NextResponse.json(exact);
+      
+      // ▼▼▼【追加】セーフティフィルター: ユーザーのセーフティフィルターがONで、キャラクターのセーフティフィルターがOFFの場合はアクセス拒否
+      if (userSafetyFilter && exact.characters?.safetyFilter === false) {
+        console.log(`[POST /api/chats/find-or-create] セーフティフィルター: ユーザーのフィルターがON、キャラクターのフィルターがOFFのためアクセス拒否`);
+        return NextResponse.json({ 
+          error: 'このキャラクターはセーフティフィルターがオフのため、セーフティフィルターがONの状態ではチャットできません。' 
+        }, { status: 403 });
+      }
+      // ▲▲▲
+      
+      // characters を除外して返す（既存のレスポンス形式に合わせる）
+      const { characters, ...chatData } = exact;
+      return NextResponse.json(chatData);
     }
 
     // chatId が無い場合は characterId が必要
@@ -94,6 +120,25 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
+    // ▼▼▼【追加】セーフティフィルター: キャラクターのセーフティフィルターをチェック
+    const character = await prisma.characters.findUnique({
+      where: { id: characterId },
+      select: { safetyFilter: true },
+    });
+
+    if (!character) {
+      return NextResponse.json({ error: "キャラクターが見つかりません。" }, { status: 404 });
+    }
+
+    // ユーザーのセーフティフィルターがONで、キャラクターのセーフティフィルターがOFFの場合
+    if (userSafetyFilter && character.safetyFilter === false) {
+      console.log(`[POST /api/chats/find-or-create] セーフティフィルター: ユーザーのフィルターがON、キャラクターのフィルターがOFFのためアクセス拒否`);
+      return NextResponse.json({ 
+        error: 'このキャラクターはセーフティフィルターがオフのため、セーフティフィルターがONの状態ではチャットを開始できません。' 
+      }, { status: 403 });
+    }
+    // ▲▲▲
 
     // ★ タイムスタンプ（スキーマで default/updatedAt が無い場合の保険）
     const now = new Date();

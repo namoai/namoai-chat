@@ -47,7 +47,7 @@ export default function CharListPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`/api/charlist?tag=${activeTag}&sort=${activeSort.key}`);
+        const response = await fetch(`/api/charlist?tag=${activeTag}&sort=${activeSort.key}`, { cache: 'no-store' }); // キャッシュを無効化
         if (!response.ok) throw new Error('データ取得失敗');
         const data = await response.json();
         setCharacters(data.characters || []);

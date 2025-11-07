@@ -230,17 +230,36 @@ export async function GET(request: Request) {
             blockedAuthorIds = blocks.map(b => b.blockingId);
         }
 
+        // ▼▼▼【追加】セーフティフィルター: ユーザーのセーフティフィルターがONの場合は、キャラクターのセーフティフィルターがOFFのものを除外
+        // nullの場合はtrue（フィルターON）として処理（デフォルト動作）
+        let userSafetyFilter = true;
+        if (currentUserId) {
+            const user = await prisma.users.findUnique({
+                where: { id: currentUserId },
+                select: { safetyFilter: true }
+            });
+            userSafetyFilter = user?.safetyFilter ?? true;
+        }
+        // ▲▲▲
+
         // 自分のキャラクターのみ or 公開＋自分のキャラクター
         if (mode === 'my' && currentUserId) {
             whereClause.author_id = currentUserId;
+            // 自分のキャラクターの場合はセーフティフィルター条件を適用しない
         } else {
-            const publicCondition = { visibility: 'public' as const };
+            const publicCondition: Prisma.charactersWhereInput = { visibility: 'public' as const };
+            // ユーザーのセーフティフィルターがONの場合、公開キャラクターのセーフティフィルターがOFF（false）のものを除外
+            if (userSafetyFilter) {
+                publicCondition.safetyFilter = { not: false }; // nullも許可（未設定）
+            }
+            
             if (currentUserId) {
                 whereClause.OR = [
                     publicCondition,
-                    { author_id: currentUserId }
+                    { author_id: currentUserId } // 自分のキャラクターはセーフティフィルター条件を適用しない
                 ];
             } else {
+                // 未ログインユーザーの場合
                 whereClause = publicCondition;
             }
         }

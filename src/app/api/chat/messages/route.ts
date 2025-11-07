@@ -441,21 +441,29 @@ export async function POST(request: NextRequest) {
           : `- **Content Policy**: Keep content appropriate and safe. Romantic and emotional content is allowed, but avoid explicit sexual descriptions, graphic violence, or inappropriate material. Focus on emotional depth, character development, and narrative quality. Use suggestive and subtle descriptions rather than explicit content. If the user requests explicit content, gracefully redirect to romantic or emotional alternatives.`;
         // ▲▲▲
         
+        // Content PolicyはsystemTemplateの指示と衝突する可能性があるため、
+        // systemTemplateに性的コンテンツ制限解除などが明記されている場合はそれを優先
+        // Content Policyは基本的なガイドラインとしてのみ使用
         const formattingInstruction = `# Response Format
 - Narrator role: Describe character actions/dialogue in third person. User speaks for themselves.
 - Context: Read all chat history. Maintain consistency with previous messages.
 ${contentPolicy}
 ${languageInstruction}
 - Format: Narration (gray), Dialogue in quotes (「」/""), Status in \`\`\`code blocks\`\`\` at end.
-${lengthInstruction}`;
+${lengthInstruction}
+- **Important**: The character's systemTemplate (above) takes precedence over general content policies. Follow the character's specific instructions in systemTemplate first.`;
         // ▲▲▲
         
         const systemTemplate = replacePlaceholders(char.systemTemplate);
+        // Note: systemTemplate is placed first to give it priority over other instructions
         const systemInstructionText = [systemTemplate, initialContextText, backMemoryInfo, detailedMemoryInfo, imageInstruction, formattingInstruction, userPersonaInfo, lorebookInfo, boostInstruction].filter(Boolean).join("\n\n");
         
         // ▼▼▼【デバッグ】システムプロンプトの内容をログ出力 ▼▼▼
         console.log("=== 再生成API システムプロンプト構築完了 ===");
         console.log(`systemTemplate length: ${systemTemplate?.length || 0}`);
+        if (systemTemplate && systemTemplate.length > 0) {
+          console.log(`systemTemplate 内容 (最初の500文字): ${systemTemplate.substring(0, 500)}${systemTemplate.length > 500 ? '...' : ''}`);
+        }
         console.log(`initialContextText length: ${initialContextText?.length || 0}`);
         console.log(`backMemoryInfo length: ${backMemoryInfo?.length || 0}`);
         console.log(`detailedMemoryInfo length: ${detailedMemoryInfo?.length || 0}`);
