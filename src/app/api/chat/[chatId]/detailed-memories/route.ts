@@ -140,42 +140,43 @@ export async function POST(
       // 自動要約の場合（保存個数制限なし、ただし適用時は最大3個まで）
       console.log('自動要約モード開始, chatId:', chatIdNum);
 
-      // 再要約ロジック: 完全に非同期で処理し、即座に応答を返す
+      // ▼▼▼【修正】再要約ロジック: 同期処理に変更して完了を待つ
       const windowSize = 5;
       
-      // 即座に応答を返す（バックグラウンドで処理）
-      (async () => {
-        try {
-          // 再要約の場合: 既存の詳細記憶を全て削除
-          const existingMemories = await prisma.detailed_memories.findMany({
+      try {
+        // 再要約の場合: 既存の詳細記憶を全て削除
+        const existingMemories = await prisma.detailed_memories.findMany({
+          where: { chatId: chatIdNum },
+        });
+        
+        if (existingMemories.length > 0) {
+          console.log(`既存の詳細記憶 ${existingMemories.length}件を削除して再要約を開始`);
+          await prisma.detailed_memories.deleteMany({
             where: { chatId: chatIdNum },
           });
-          
-          if (existingMemories.length > 0) {
-            console.log(`既存の詳細記憶 ${existingMemories.length}件を削除して再要約を開始`);
-            await prisma.detailed_memories.deleteMany({
-              where: { chatId: chatIdNum },
-            });
-          }
+        }
 
-          // 全メッセージを取得（再要約なので全体を処理）
-          const messagesToSummarize = await prisma.chat_message.findMany({
-            where: {
-              chatId: chatIdNum,
-              isActive: true,
-            },
-            orderBy: { createdAt: 'asc' },
+        // 全メッセージを取得（再要約なので全体を処理）
+        const messagesToSummarize = await prisma.chat_message.findMany({
+          where: {
+            chatId: chatIdNum,
+            isActive: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        });
+
+        console.log(`再要約: 全メッセージ数: ${messagesToSummarize.length}`);
+
+        if (messagesToSummarize.length === 0) {
+          console.log('再要約: 要約するメッセージがありません');
+          return NextResponse.json({ 
+            message: '要約するメッセージがありません。',
+            success: false
           });
+        }
 
-          console.log(`再要約: 全メッセージ数: ${messagesToSummarize.length}`);
-
-          if (messagesToSummarize.length === 0) {
-            console.log('再要約: 要約するメッセージがありません');
-            return;
-          }
-
-          // スライディングウィンドウ方式で要約（1-5, 6-10, 11-15...）
-          for (let start = 0; start < messagesToSummarize.length; start += windowSize) {
+        // スライディングウィンドウ方式で要約（1-5, 6-10, 11-15...）
+        for (let start = 0; start < messagesToSummarize.length; start += windowSize) {
             const end = Math.min(start + windowSize, messagesToSummarize.length);
             const batchMessages = messagesToSummarize.slice(start, end);
             
@@ -315,18 +316,22 @@ ${conversationText}`;
             } catch (error) {
               console.error(`再要約: バッチ ${start + 1}-${end} 要約エラー:`, error);
             }
-          }
-          
-          console.log('再要約: 全バッチ処理完了');
+        }
+        
+        console.log('再要約: 全バッチ処理完了');
+        
+        // ▼▼▼【修正】処理完了後に成功レスポンスを返す
+        return NextResponse.json({ 
+          message: '再要約が完了しました。',
+          success: true
+        });
         } catch (error) {
           console.error('再要約: 全体エラー:', error);
+          return NextResponse.json({ 
+            error: error instanceof Error ? error.message : '再要約に失敗しました。',
+            success: false
+          }, { status: 500 });
         }
-      })();
-      
-      // 即座に応答を返す（バックグラウンドで処理中）
-      return NextResponse.json({ 
-        message: '再要約を開始しました。バックグラウンドで処理されます。'
-      });
     } else {
       // 手動作成の場合（保存個数制限なし、2000文字を超える場合は自動分割）
 
