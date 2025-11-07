@@ -982,7 +982,42 @@ ${conversationText}`;
                     // ▼▼▼【修正】重複防止: 10개 이하에서는 중복 방지 로직을 완화
                     // 10개 이하: 매번 요약 (2, 3, 4, 5, 6, 7, 8, 9, 10번째)
                     // 10개 초과: 5개 단위로 요약하므로 중복 방지 적용
-                    if (messageCount > 10) {
+                    // ▼▼▼【개선】벡터 유사도 기반 중복 체크 (키워드 중복과 무관하게 작동)
+                    // 대화 내용의 벡터를 생성하여 유사한 요약이 있는지 확인
+                    // 너무 유사한 요약(유사도 0.85 이상)이 있으면 스킵, 아니면 생성
+                    const conversationTextForCheck = messagesToSummarize
+                      .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
+                      .join('\n\n');
+                    
+                    try {
+                      const conversationEmbedding = await getEmbedding(conversationTextForCheck);
+                      const vectorString = `[${conversationEmbedding.join(',')}]`;
+                      
+                      // 기존 요약 중 유사한 것이 있는지 확인 (유사도 0.85 이상)
+                      const similarMemories = await prisma.$queryRawUnsafe<Array<{ id: number; similarity: number }>>(
+                        `SELECT id, 1 - (embedding <=> $1::vector) as similarity
+                         FROM "detailed_memories"
+                         WHERE "chatId" = $2
+                           AND embedding IS NOT NULL
+                           AND (1 - (embedding <=> $1::vector)) >= 0.85
+                         ORDER BY embedding <=> $1::vector
+                         LIMIT 1`,
+                        vectorString,
+                        chatId
+                      );
+                      
+                      if (similarMemories && similarMemories.length > 0) {
+                        console.log(`詳細記憶自動要約: 類似度 ${similarMemories[0].similarity.toFixed(3)} の既存要約があるためスキップ (ID: ${similarMemories[0].id})`);
+                        return;
+                      }
+                    } catch (error) {
+                      console.error('ベクトル類似度チェックエラー:', error);
+                      // 에러가 발생해도 요약은 계속 진행 (중복 체크 실패는 요약 생성보다 덜 중요)
+                    }
+                    // ▲▲▲
+                    
+                    // 기존 시간 기반 중복 체크는 제거됨 (벡터 유사도 기반으로 대체)
+                    if (false && messageCount > 10) {
                       const lastMessageId = messagesToSummarize[messagesToSummarize.length - 1]?.id;
                       if (lastMessageId) {
                       // 最後のメッセージID 이후에 생성された要約があるか確認
