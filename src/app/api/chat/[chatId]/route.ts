@@ -20,13 +20,26 @@ const vertex_ai = new VertexAI({
   location: "asia-northeast1",
 });
 
-// 安全性設定
-const safetySettings = [
-  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-];
+// 安全性設定（デフォルト、ユーザー設定に基づいて動的に変更される）
+const getSafetySettings = (safetyFilterEnabled: boolean) => {
+  if (safetyFilterEnabled === false) {
+    // セーフティフィルターOFF: すべてのコンテンツを許可
+    return [
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    ];
+  } else {
+    // セーフティフィルターON: 中程度以上のコンテンツをブロック
+    return [
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    ];
+  }
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function POST(request: Request, context: any) {
@@ -49,6 +62,14 @@ export async function POST(request: Request, context: any) {
     return NextResponse.json({ message: "無効なチャットIDです。" }, { status: 400 });
   }
   const userId = parseInt(String(session.user.id), 10);
+
+  // ▼▼▼【追加】ユーザーのセーフティフィルター設定を取得
+  const user = await prisma.users.findUnique({
+    where: { id: userId },
+    select: { safetyFilter: true },
+  });
+  const userSafetyFilter = user?.safetyFilter ?? true; // デフォルトはtrue（フィルターON）
+  // ▲▲▲
 
   const { message, settings, isRegeneration, turnId, activeVersions } = await request.json();
   if (!message) {
@@ -485,10 +506,16 @@ export async function POST(request: Request, context: any) {
     // 応答長さは常に800-1100文字に固定
     const lengthInstruction = `- **Response Length**: Aim for 800-1100 characters (including spaces) per response. Provide rich, detailed descriptions and dialogue.`;
     
+    // ▼▼▼【追加】セーフティフィルター設定に基づいてContent Policyを動的に生成
+    const contentPolicy = userSafetyFilter === false 
+      ? `- **Content Policy**: This is an adult-oriented creative writing platform. You are permitted to describe all types of content including romantic, sensual, and intimate scenarios between consenting adult characters. Focus on emotional depth, sensory details, and narrative quality. Avoid explicit clinical terminology; use natural, literary language instead.`
+      : `- **Content Policy**: Keep all content appropriate and safe. Avoid explicit sexual content, graphic violence, or other inappropriate material. Focus on emotional depth, character development, and narrative quality within safe boundaries.`;
+    // ▲▲▲
+    
     const formattingInstruction = `# Response Format (Required)
 - You are the narrator and game master of this world. Describe the actions and dialogue of characters from a third-person perspective.
 - **CRITICAL**: NEVER generate, speak as, or create dialogue for the user. You can ONLY describe characters' actions and dialogue. The user will speak for themselves through their own messages. Only respond as the character(s) and narrator.
-- **Content Policy**: This is an adult-oriented creative writing platform. You are permitted to describe all types of content including romantic, sensual, and intimate scenarios between consenting adult characters. Focus on emotional depth, sensory details, and narrative quality. Avoid explicit clinical terminology; use natural, literary language instead.
+${contentPolicy}
 ${languageInstruction}
 - Narration: Write in third person naturally. All narration text will be displayed in gray color automatically.
 - Dialogue: Enclose in quotation marks appropriate for the output language (「」 for Japanese, "" for Korean). Dialogue will be displayed in white color. Example: 「Hello」 or "안녕하세요"
@@ -579,6 +606,7 @@ ${lengthInstruction}
           
           // ▼▼▼【デバッグ】AIに送信されるシステムプロンプトの確認
           console.log("📤 Vertex AIに送信されるシステムプロンプト:");
+          console.log(`  - セーフティフィルター: ${userSafetyFilter ? 'ON (制限あり)' : 'OFF (制限なし)'}`);
           console.log(`  - システムプロンプト長: ${systemInstructionText.length}文字`);
           if (backMemoryInfo) {
             console.log(`  - ✅ メモリブック含む: ${backMemoryInfo.length}文字`);
@@ -590,6 +618,8 @@ ${lengthInstruction}
           console.log(`  - システムプロンプト先頭: ${systemInstructionText.substring(0, 500)}${systemInstructionText.length > 500 ? '...' : ''}`);
           // ▲▲▲
           
+          const safetySettings = getSafetySettings(userSafetyFilter);
+          console.log(`  - 安全性設定: ${userSafetyFilter ? 'BLOCK_MEDIUM_AND_ABOVE (中程度以上ブロック)' : 'BLOCK_NONE (すべて許可)'}`);
           const generativeModel = vertex_ai.getGenerativeModel({ model: modelToUse, safetySettings });
           
           // チャットセッションを開始（履歴とシステム指示を渡す）
