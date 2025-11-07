@@ -630,22 +630,25 @@ ${conversationText}`;
   }
 }
 
-// キーワード抽出関数（フォールバック用）
+// キーワード抽出関数（フォールバック用）- 日本語のみ
+// 注意：この関数は日本語テキストからのみキーワードを抽出します
+// 韓国語・英語などのテキストでは空配列を返します
 function extractKeywords(text: string): string[] {
-  // キーワード抽出（範囲情報を除外、多言語対応）
-  // 日本語（ひらがな、カタカナ、漢字）、韓国語（한글）、英語を抽出
+  // キーワード抽出（範囲情報を除外、日本語のみ）
+  // 日本語（ひらがな、カタカナ、漢字）のみを抽出
   const japanesePattern = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+/g; // ひらがな、カタカナ、漢字
-  const koreanPattern = /[\uAC00-\uD7AF]+/g; // 한글
-  const englishPattern = /\b[A-Za-z]{3,}\b/g; // 英語（3文字以上）
-  
+
   const japaneseWords = text.match(japanesePattern) || [];
-  const koreanWords = text.match(koreanPattern) || [];
-  const englishWords = text.toLowerCase().match(englishPattern) || [];
   
-  const allWords = [...japaneseWords, ...koreanWords, ...englishWords];
+  // 日本語がほとんど含まれていない場合（韓国語・英語のみなど）、空配列を返す
+  if (japaneseWords.length === 0) {
+    return [];
+  }
+  
+  const allWords = [...japaneseWords];
   const wordCount: { [key: string]: number } = {};
   
-  // 除外する単語リスト
+  // 除外する単語リスト（日本語のみ）
   const japaneseExclude = [
     // 代名詞・指示語
     'これ', 'それ', 'あれ', 'どれ', 'この', 'その', 'あの', 'その', '彼', '彼女', '彼は', '彼女は', 'もの', 'こと', 'ユーザー', 'ユーザ',
@@ -659,19 +662,6 @@ function extractKeywords(text: string): string[] {
     'いい', '良い', 'よい', '悪い', '大きい', '小さい', '多い', '少ない', '新しい', '古い', '高い', '低い',
     '同じ', '違う', '似ている', '近い', '遠い'
   ];
-  const koreanExclude = [
-    // 代名詞・指示語
-    '그', '그녀', '그는', '그녀는', '그녀의', '이것', '그것', '것', '당신', '당신의',
-    // 助詞
-    '이', '가', '을', '를', '은', '는', '의', '에', '에서', '으로', '로', '와', '과', '부터', '까지', '도', '만', '도', '조차',
-    // 一般的な動詞
-    '있다', '있었다', '없다', '없었다', '하다', '했다', '한다', '되다', '되었다', '된다', '보다', '봤다', '본다', '보았다',
-    '듯하다', '듯했다', '듯한다', '같다', '같았다', '같다', '좋다', '좋았다', '나쁘다', '나빴다',
-    '되다', '되었다', '된다', '말하다', '말했다', '말한다', '생각하다', '생각했다', '생각한다',
-    // 一般的な形容詞
-    '크다', '작다', '많다', '적다', '좋다', '나쁘다', '새롭다', '오래되다'
-  ];
-  const englishExclude = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them', 'img', 'and', 'or', 'but', 'if', 'when', 'where', 'what', 'who', 'why', 'how', 'user', 'users'];
   
   allWords.forEach(word => {
     // 範囲情報パターンを除外（例: "1-5", "6-10", "11-15"など）
