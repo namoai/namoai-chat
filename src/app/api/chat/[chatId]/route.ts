@@ -1124,10 +1124,30 @@ ${conversationText}`;
                       let extractedKeywords: string[] = [];
                       try {
                         const keywordPrompt = `以下の会話要約から、重要なキーワードを10個まで抽出してください。
-キーワードは会話の核心を表す名詞や重要な概念のみを抽出してください。
-不要な単語（助詞、動詞の原形、一般的すぎる単語）は除外してください。
-キーワードはカンマ区切りで返してください。
-キーワードは元の言語（日本語、英語、韓国語など）でそのまま返してください。
+
+【抽出するキーワードの種類】
+- 出来事・イベント（例：オーディション、コンサート、パーティー、試合）
+- 行動・活動（例：歌、踊り、演奏、演説、対戦）
+- 対象・テーマ（例：音楽、スポーツ、芸術、勉強、仕事）
+- 人物・関係（例：プロデューサー、審査員、観客、友達、恋人）
+- 感情・状態（例：緊張、興奮、喜び、悲しみ、自信）
+- 場所・環境（例：ステージ、ホール、学校、家）
+- 物・道具（例：マイク、ギター、楽器、衣装）
+
+【絶対に除外する単語】
+- 代名詞（例：그、그녀、그는、그녀는、彼、彼女、彼は、彼女は）
+- 助詞・助動詞（例：は、が、を、に、は、이、가、을、를）
+- 一般的すぎる動詞（例：する、ある、いる、하다、있다）
+- 技術的なタグ（例：Img、img、{img}、HTMLタグ）
+- 数値や記号のみ（例：1、2、3、-、/）
+- 指示語（例：これ、それ、あれ、이것、그것）
+
+【重要なルール】
+- 名詞中心で、会話の核心を表す重要な概念のみを抽出
+- 抽象的すぎる単語（例：もの、こと、것、事）は除外
+- キーワードはカンマ区切りで返してください
+- キーワードは元の言語（日本語、英語、韓国語など）でそのまま返してください
+- 10個に満たない場合は、無理に10個にしなくても構いません
 
 会話要約：
 ${summary}`;
@@ -1141,15 +1161,39 @@ ${summary}`;
                             .split(',')
                             .map(k => k.trim())
                             .filter(k => {
-                              // 2-30文字のキーワードのみ（日本語、韓国語、英語など多言語対応）
-                              const length = k.length;
-                              return length >= 2 && length <= 30;
+                              if (!k || k.length < 2 || k.length > 30) return false;
+                              
+                              // メタデータパターンを除外
+                              if (k.match(/^__META:/)) return false;
+                              
+                              // 数値のみを除外
+                              if (/^\d+$/.test(k)) return false;
+                              
+                              // 一般的な代名詞・指示語を除外（日本語）
+                              const japaneseExclude = ['これ', 'それ', 'あれ', 'どれ', 'この', 'その', 'あの', 'その', '彼', '彼女', '彼は', '彼女は', 'もの', 'こと', 'は', 'が', 'を', 'に'];
+                              if (japaneseExclude.includes(k)) return false;
+                              
+                              // 一般的な代名詞・指示語を除外（韓国語）
+                              const koreanExclude = ['그', '그녀', '그는', '그녀는', '이것', '그것', '것', '이', '가', '을', '를', '은', '는', '의', '에', '에서'];
+                              if (koreanExclude.includes(k)) return false;
+                              
+                              // 技術的なタグを除外
+                              if (k.match(/^(img|Img|IMG|\{img|\{Img)$/i)) return false;
+                              
+                              // HTMLタグのようなものを除外
+                              if (k.match(/^[<{}>]/)) return false;
+                              
+                              // 一般的すぎる単語を除外（英語）
+                              const englishExclude = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them', 'img'];
+                              if (englishExclude.includes(k.toLowerCase())) return false;
+                              
+                              return true;
                             })
                             .slice(0, 10);
                         }
                       } catch (error) {
                         console.error('AIキーワード抽出エラー:', error);
-                        // AI抽出失敗時は多言語対応フォールバック
+                        // AI抽出失敗時は多言語対応フォールバック（改善されたフィルタリング）
                         // 日本語（ひらがな、カタカナ、漢字）、韓国語（한글）、英語を抽出
                         const japanesePattern = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+/g; // ひらがな、カタカナ、漢字
                         const koreanPattern = /[\uAC00-\uD7AF]+/g; // 한글
@@ -1162,10 +1206,33 @@ ${summary}`;
                         const allWords = [...japaneseWords, ...koreanWords, ...englishWords];
                         const wordCount: { [key: string]: number } = {};
                         
+                        // 除外する単語リスト
+                        const japaneseExclude = ['これ', 'それ', 'あれ', 'どれ', 'この', 'その', 'あの', 'その', '彼', '彼女', '彼は', '彼女は', 'もの', 'こと', 'は', 'が', 'を', 'に', 'の', 'で', 'へ', 'と', 'から', 'まで', 'より'];
+                        const koreanExclude = ['그', '그녀', '그는', '그녀는', '이것', '그것', '것', '이', '가', '을', '를', '은', '는', '의', '에', '에서', '으로', '로', '와', '과', '부터', '까지'];
+                        const englishExclude = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them', 'img', 'and', 'or', 'but', 'if', 'when', 'where', 'what', 'who', 'why', 'how'];
+                        
                         allWords.forEach(word => {
                           // 範囲情報パターンを除外（例: "1-5"など）
                           if (!/^\d+-\d+$/.test(word)) {
                             const normalizedWord = /^[A-Za-z]/.test(word) ? word.toLowerCase() : word;
+                            
+                            // 除外リストチェック
+                            if (japaneseExclude.includes(normalizedWord)) return;
+                            if (koreanExclude.includes(normalizedWord)) return;
+                            if (englishExclude.includes(normalizedWord)) return;
+                            
+                            // 技術的なタグを除外
+                            if (normalizedWord.match(/^(img|Img|IMG|\{img|\{Img)$/i)) return;
+                            
+                            // HTMLタグのようなものを除外
+                            if (normalizedWord.match(/^[<{}>]/)) return;
+                            
+                            // 数値のみを除外
+                            if (/^\d+$/.test(normalizedWord)) return;
+                            
+                            // メタデータパターンを除外
+                            if (normalizedWord.match(/^__META:/)) return;
+                            
                             wordCount[normalizedWord] = (wordCount[normalizedWord] || 0) + 1;
                           }
                         });
