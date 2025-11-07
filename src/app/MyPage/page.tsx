@@ -41,7 +41,7 @@ const CustomModal = ({ isOpen, onClose, onConfirm, title, message, confirmText, 
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
       <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-sm mx-4">
         <h2 className="text-lg font-bold mb-4 text-white">{title}</h2>
-        <p className="text-sm text-gray-200 mb-6">{message}</p>
+        <p className="text-sm text-gray-200 mb-6 whitespace-pre-line">{message}</p>
         <div className={`flex ${isAlert ? 'justify-end' : 'justify-end gap-4'}`}>
           {!isAlert && (
             <button onClick={onClose} className="border border-gray-600 text-white hover:bg-gray-700 py-2 px-4 rounded-lg">{cancelText || 'キャンセル'}</button>
@@ -64,7 +64,7 @@ type MenuItem = {
 // ログインしているユーザー向けのビュー
 const LoggedInView = ({ session }: { session: Session }) => {
   const [points, setPoints] = useState<{ total: number; loading: boolean }>({ total: 0, loading: true });
-  const [isSafetyFilterOn, setIsSafetyFilterOn] = useState(true);
+  const [isSafetyFilterOn, setIsSafetyFilterOn] = useState<boolean | null>(null); // null = 로딩 중
   const [modalState, setModalState] = useState<Omit<ModalProps, 'onClose'>>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   const userRole = session?.user?.role;
@@ -100,12 +100,17 @@ const LoggedInView = ({ session }: { session: Session }) => {
         const filterRes = await fetch('/api/users/safety-filter', { cache: 'no-store' }); // キャッシュを無効化
         if (filterRes.ok) {
           const filterData = await filterRes.json();
-          // nullの場合はtrue（フィルターON）として処理
+          // nullの場合はtrue（フィルターON）として処理、즉시 반영
           setIsSafetyFilterOn(filterData.safetyFilter ?? true);
+        } else {
+          // API 호출 실패 시 기본값으로 설정
+          setIsSafetyFilterOn(true);
         }
       } catch (error) {
         console.error(error);
         setPoints({ total: 0, loading: false });
+        // 에러 발생 시 기본값으로 설정
+        setIsSafetyFilterOn(true);
       }
     };
     fetchData();
@@ -124,19 +129,20 @@ const LoggedInView = ({ session }: { session: Session }) => {
       if (!response.ok) throw new Error('設定の変更に失敗しました。');
 
       const data = await response.json();
-      // nullの場合はtrue（フィルターON）として処理
+      // nullの場合はtrue（フィルターON）として処理、즉시 반영
       setIsSafetyFilterOn(data.safetyFilter ?? true);
+      
+      // 성공 메시지 표시 후 페이지 리로드
       setModalState({
         isOpen: true,
         title: '成功',
-        message: `セーフティフィルターを${newStatus ? 'ON' : 'OFF'}にしました。ページを再読み込みして反映させますか？`,
-        confirmText: '再読み込み',
-        cancelText: 'キャンセル',
+        message: `セーフティフィルターを${newStatus ? 'ON' : 'OFF'}にしました。設定を反映するためにページを再読み込みします。`,
         onConfirm: () => {
           closeModal();
           // ページを再読み込みしてキャッシュをクリア
           window.location.reload();
         },
+        isAlert: true,
       });
     } catch (error) {
       console.error(error);
@@ -151,20 +157,35 @@ const LoggedInView = ({ session }: { session: Session }) => {
   };
 
   const handleSafetyFilterToggle = () => {
+    // 로딩 중이면 클릭 무시
+    if (isSafetyFilterOn === null) return;
+    
     if (isSafetyFilterOn) {
+      // ON → OFF: 年齢確認 + 法律上の確認
       setModalState({
         isOpen: true,
-        title: "年齢確認",
-        message: "あなたは成人ですか？ 「はい」を選択すると、成人向けコンテンツが表示される可能性があります。",
-        confirmText: "はい",
+        title: "年齢確認および法律上の確認",
+        message: "あなたは成人ですか？\n\n「はい」を選択すると、成人向けコンテンツが表示される可能性があります。\n\n日本の法律に従い、18歳以上の成人であることを確認してください。この設定を変更することにより、成人向けコンテンツへのアクセスが可能になります。",
+        confirmText: "はい（18歳以上です）",
         cancelText: "いいえ",
         onConfirm: () => {
-          updateSafetyFilter(false);
           closeModal();
+          updateSafetyFilter(false);
         },
       });
     } else {
-      updateSafetyFilter(true);
+      // OFF → ON: フィルターをONにする確認
+      setModalState({
+        isOpen: true,
+        title: "セーフティフィルターをONにしますか？",
+        message: "セーフティフィルターをONにすると、成人向けキャラクターは表示・チャットできなくなります。\n\nセーフティフィルターをONにしますか？",
+        confirmText: "はい（ONにする）",
+        cancelText: "キャンセル",
+        onConfirm: () => {
+          closeModal();
+          updateSafetyFilter(true);
+        },
+      });
     }
   };
 
@@ -185,7 +206,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
     {
       icon: <ShieldCheck size={20} className="text-gray-400" />,
       text: "セーフティフィルター",
-      badge: isSafetyFilterOn ? "ON" : "OFF",
+      badge: isSafetyFilterOn === null ? "..." : (isSafetyFilterOn ? "ON" : "OFF"),
       action: handleSafetyFilterToggle
     },
     { icon: <BrainCircuit size={20} className="text-gray-400" />, text: "ペルソナ設定", action: "/persona/list" },
@@ -204,7 +225,11 @@ const LoggedInView = ({ session }: { session: Session }) => {
         <span className="ml-4 text-base">{item.text}</span>
         {'badge' in item && item.badge && (
           <span
-            className={`ml-auto text-sm px-2 py-1 rounded ${isSafetyFilterOn ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}
+            className={`ml-auto text-sm px-2 py-1 rounded ${
+              isSafetyFilterOn === null 
+                ? 'bg-gray-600 text-white' 
+                : (isSafetyFilterOn ? 'bg-green-600 text-white' : 'bg-red-600 text-white')
+            }`}
           >
             {item.badge}
           </span>
