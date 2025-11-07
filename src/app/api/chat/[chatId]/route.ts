@@ -50,7 +50,8 @@ type CharacterImageInfo = {
 
 const selectImageByKeyword = (
   aiResponse: string,
-  availableImages: CharacterImageInfo[]
+  availableImages: CharacterImageInfo[],
+  characterName?: string
 ): string | null => {
   if (!aiResponse || !availableImages || availableImages.length === 0) {
     return null;
@@ -59,16 +60,70 @@ const selectImageByKeyword = (
   const lowerResponse = aiResponse.toLowerCase();
   const nonMainImages = availableImages.filter(img => !img.isMain && img.keyword);
   
-  // 優先度順にマッチング（最初にマッチしたものを返す）
+  // キーワードマッチングスコアを計算
+  const imageScores: Array<{ image: CharacterImageInfo; score: number }> = [];
+  
   for (const img of nonMainImages) {
-    if (img.keyword) {
-      const keyword = img.keyword.toLowerCase().trim();
-      // キーワードが完全に含まれているかチェック（部分マッチ）
-      if (keyword && lowerResponse.includes(keyword)) {
-        console.log(`📸 バックエンド画像キーワードマッチ: "${keyword}" -> ${img.imageUrl}`);
-        return img.imageUrl;
+    if (!img.keyword) continue;
+    
+    const keyword = img.keyword.trim();
+    if (!keyword) continue;
+    
+    // 多言語対応: 英語のみ小文字変換、日本語・韓国語はそのまま
+    const normalizedKeyword = /^[A-Za-z]/.test(keyword) ? keyword.toLowerCase() : keyword;
+    const searchText = /^[A-Za-z]/.test(keyword) ? lowerResponse : aiResponse;
+    
+    let score = 0;
+    
+    // 1. キーワードが完全一致または単語境界でマッチ（英語の場合）
+    if (/^[A-Za-z]/.test(keyword)) {
+      // 英語: 単語境界を考慮
+      const wordBoundaryRegex = new RegExp(`\\b${normalizedKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      if (wordBoundaryRegex.test(lowerResponse)) {
+        score += 10; // 完全一致（単語境界）は高スコア
+      } else if (lowerResponse.includes(normalizedKeyword)) {
+        score += 5; // 部分一致は低スコア
+      }
+    } else {
+      // 日本語・韓国語: 部分一致（単語境界がないため）
+      if (searchText.includes(normalizedKeyword)) {
+        // キーワードが長いほど具体的で高スコア
+        score += Math.min(5 + normalizedKeyword.length, 15);
       }
     }
+    
+    // 2. キャラクター名が応答に含まれている場合、そのキャラクターのキーワードにボーナス
+    if (characterName) {
+      const normalizedCharName = /^[A-Za-z]/.test(characterName) ? characterName.toLowerCase() : characterName;
+      const charNameInResponse = /^[A-Za-z]/.test(characterName) 
+        ? lowerResponse.includes(normalizedCharName)
+        : aiResponse.includes(characterName);
+      
+      if (charNameInResponse) {
+        // キャラクター名が応答に含まれている場合、キーワードマッチがあればボーナス
+        if (score > 0) {
+          score += 3;
+        }
+      }
+    }
+    
+    // 3. キーワードの長さボーナス（より具体的なキーワードを優先）
+    if (score > 0) {
+      score += Math.min(normalizedKeyword.length / 2, 5);
+    }
+    
+    if (score > 0) {
+      imageScores.push({ image: img, score });
+    }
+  }
+  
+  // スコアが高い順にソート
+  imageScores.sort((a, b) => b.score - a.score);
+  
+  if (imageScores.length > 0) {
+    const bestMatch = imageScores[0];
+    console.log(`📸 バックエンド画像キーワードマッチ: "${bestMatch.image.keyword}" (スコア: ${bestMatch.score.toFixed(1)}) -> ${bestMatch.image.imageUrl}`);
+    return bestMatch.image.imageUrl;
   }
   
   return null;
@@ -76,7 +131,8 @@ const selectImageByKeyword = (
 
 const addImageTagIfKeywordMatched = (
   responseText: string,
-  availableImages: CharacterImageInfo[]
+  availableImages: CharacterImageInfo[],
+  characterName?: string
 ): string => {
   // 既に {img:N} タグがあるかチェック
   const hasImgTag = /\{img:\d+\}/.test(responseText);
@@ -84,8 +140,8 @@ const addImageTagIfKeywordMatched = (
     return responseText; // 既にタグがあれば何もしない
   }
 
-  // キーワードマッチングで画像を選択
-  const matchedImageUrl = selectImageByKeyword(responseText, availableImages);
+  // キーワードマッチングで画像を選択（キャラクター名を考慮）
+  const matchedImageUrl = selectImageByKeyword(responseText, availableImages, characterName);
   if (!matchedImageUrl) {
     return responseText; // マッチしなければそのまま
   }
@@ -797,7 +853,7 @@ ${lengthInstruction}
           const nonMainImages = availableImages.filter(img => !img.isMain);
           const hasImgTag = /\{img:\d+\}/.test(finalResponseText);
           if (!hasImgTag && nonMainImages.length > 0) {
-            finalResponseText = addImageTagIfKeywordMatched(finalResponseText, availableImages);
+            finalResponseText = addImageTagIfKeywordMatched(finalResponseText, availableImages, worldSetting.name);
           }
           // ▲▲▲
 

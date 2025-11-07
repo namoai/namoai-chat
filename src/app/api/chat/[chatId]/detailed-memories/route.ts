@@ -144,17 +144,19 @@ export async function POST(
       const windowSize = 5;
       
       try {
-        // 再要約の場合: 既存の詳細記憶を全て削除
+        // ▼▼▼【注意】再要約: ユーザーが明示的に再要約を要求した場合のみ全削除
+        // 通常の自動要約とは異なり、既存の要約を全て削除して最初から再生成します
         const existingMemories = await prisma.detailed_memories.findMany({
           where: { chatId: chatIdNum },
         });
         
         if (existingMemories.length > 0) {
-          console.log(`既存の詳細記憶 ${existingMemories.length}件を削除して再要約を開始`);
+          console.log(`再要約: 既存の詳細記憶 ${existingMemories.length}件を削除して再要約を開始`);
           await prisma.detailed_memories.deleteMany({
             where: { chatId: chatIdNum },
           });
         }
+        // ▲▲▲
 
         // 全メッセージを取得（再要約なので全体を処理）
         const messagesToSummarize = await prisma.chat_message.findMany({
@@ -176,6 +178,9 @@ export async function POST(
         }
 
         // スライディングウィンドウ方式で要約（1-5, 6-10, 11-15...）
+        let createdCount = 0;
+        let skippedCount = 0;
+        
         for (let start = 0; start < messagesToSummarize.length; start += windowSize) {
             const end = Math.min(start + windowSize, messagesToSummarize.length);
             const batchMessages = messagesToSummarize.slice(start, end);
@@ -188,6 +193,43 @@ export async function POST(
             
             try {
               console.log(`再要約: バッチ ${start + 1}-${end} 要約開始 (${batchMessages.length}件)`);
+              
+              // ▼▼▼【改善】再要約でも各バッチに対してベクトル類似度チェックを実行（重複防止）
+              // 注: 既存メモリは全て削除済みなので、このチェックは実際には機能しないが
+              // 将来的な改善（部分再要約）のために残しておく
+              let shouldSkip = false;
+              try {
+                const conversationEmbedding = await getEmbedding(conversationText);
+                const vectorString = `[${conversationEmbedding.join(',')}]`;
+                
+                // 既存の要約の中で類似したものがあるか確認（類似度0.85以上）
+                const similarMemories = await prisma.$queryRawUnsafe<Array<{ id: number; similarity: number }>>(
+                  `SELECT id, 1 - (embedding <=> $1::vector) as similarity
+                   FROM "detailed_memories"
+                   WHERE "chatId" = $2
+                     AND embedding IS NOT NULL
+                     AND (1 - (embedding <=> $1::vector)) >= 0.85
+                   ORDER BY embedding <=> $1::vector
+                   LIMIT 1`,
+                  vectorString,
+                  chatIdNum
+                );
+                
+                if (similarMemories && similarMemories.length > 0) {
+                  console.log(`再要約: バッチ ${start + 1}-${end} 類似度 ${similarMemories[0].similarity.toFixed(3)} の既存要約があるためスキップ`);
+                  shouldSkip = true;
+                  skippedCount++;
+                }
+              } catch (error) {
+                console.error('再要約: ベクトル類似度チェックエラー:', error);
+                // エラーが発生しても要約は続行
+              }
+              
+              if (shouldSkip) {
+                continue;
+              }
+              // ▲▲▲
+              
               const vertex_ai = new VertexAI({
                 project: process.env.GOOGLE_PROJECT_ID || '',
                 location: 'asia-northeast1',
@@ -444,14 +486,53 @@ export async function PUT(
       return NextResponse.json({ error: 'メモリが見つかりません。' }, { status: 404 });
     }
 
-    // 2000文字を超える場合は複数のメモリに自動分割
-    const updatedMemories = [];
-    let remainingContent = content;
+    // ▼▼▼【改善】内容が変更されていない場合は更新をスキップ▼▼▼
+    const normalizedNewContent = content.trim();
+    const normalizedExistingContent = existingMemory.content.trim();
+    const normalizedNewKeywords = (keywords || []).sort().join(',');
+    const normalizedExistingKeywords = (existingMemory.keywords || []).sort().join(',');
     
-    // 既存のメモリを削除
-    await prisma.detailed_memories.delete({
-      where: { id },
+    // 内容とキーワードが同じ場合は更新不要
+    if (normalizedNewContent === normalizedExistingContent && 
+        normalizedNewKeywords === normalizedExistingKeywords) {
+      console.log(`詳細記憶 ${id}: 内容が変更されていないため更新をスキップ`);
+      return NextResponse.json({ 
+        memory: { ...existingMemory, index: 1 },
+        message: '内容が変更されていません。',
+        updated: false
+      });
+    }
+    // ▲▲▲
+
+    // 2000文字を超える場合は複数のメモリに自動分割
+    // 既存の分割メモリがある場合は、同じID範囲のメモリを取得して更新
+    const existingMemoriesForUpdate = await prisma.detailed_memories.findMany({
+      where: {
+        chatId: chatIdNum,
+        createdAt: {
+          gte: new Date(existingMemory.createdAt.getTime() - 1000), // 1秒以内に作成されたもの
+          lte: new Date(existingMemory.createdAt.getTime() + 1000),
+        },
+      },
+      orderBy: { id: 'asc' },
     });
+
+    // 既存の分割メモリを削除（2000文字を超える場合の分割に対応）
+    if (existingMemoriesForUpdate.length > 0) {
+      await prisma.detailed_memories.deleteMany({
+        where: {
+          id: { in: existingMemoriesForUpdate.map(m => m.id) },
+        },
+      });
+    } else {
+      // 単一メモリの場合は既存のものを削除
+      await prisma.detailed_memories.delete({
+        where: { id },
+      });
+    }
+
+    const updatedMemories = [];
+    let remainingContent = normalizedNewContent;
     
     while (remainingContent.length > 0) {
       const memoryContent = remainingContent.substring(0, MAX_MEMORY_LENGTH);
@@ -485,7 +566,8 @@ export async function PUT(
 
     return NextResponse.json({ 
       memory: { ...updatedMemories[0], index: 1 },
-      message: '詳細記憶を更新しました。'
+      message: '詳細記憶を更新しました。',
+      updated: true
     });
   } catch (error) {
     console.error('詳細記憶更新エラー:', error);
