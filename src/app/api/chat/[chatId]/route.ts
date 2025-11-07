@@ -979,22 +979,19 @@ ${conversationText}`;
                       return;
                     }
                     
-                    // ▼▼▼【修正】重複防止: 10개 이하에서는 중복 방지 로직을 완화
-                    // 10개 이하: 매번 요약 (2, 3, 4, 5, 6, 7, 8, 9, 10번째)
-                    // 10개 초과: 5개 단위로 요약하므로 중복 방지 적용
-                    // ▼▼▼【개선】벡터 유사도 기반 중복 체크 (키워드 중복과 무관하게 작동)
-                    // 대화 내용의 벡터를 생성하여 유사한 요약이 있는지 확인
-                    // 너무 유사한 요약(유사도 0.85 이상)이 있으면 스킵, 아니면 생성
-                    const conversationTextForCheck = messagesToSummarize
+                    // ▼▼▼【改善】ベクトル類似度ベースの重複チェック（キーワード重複とは無関係に動作）
+                    // 会話内容のベクトルを生成して、類似した要約があるか確認
+                    // 類似度が0.85以上の要約があればスキップ、なければ生成
+                    const 会話テキスト = messagesToSummarize
                       .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
                       .join('\n\n');
                     
                     try {
-                      const conversationEmbedding = await getEmbedding(conversationTextForCheck);
-                      const vectorString = `[${conversationEmbedding.join(',')}]`;
+                      const 会話ベクトル = await getEmbedding(会話テキスト);
+                      const ベクトル文字列 = `[${会話ベクトル.join(',')}]`;
                       
-                      // 기존 요약 중 유사한 것이 있는지 확인 (유사도 0.85 이상)
-                      const similarMemories = await prisma.$queryRawUnsafe<Array<{ id: number; similarity: number }>>(
+                      // 既存の要約の中で類似したものがあるか確認（類似度0.85以上）
+                      const 類似メモリ = await prisma.$queryRawUnsafe<Array<{ id: number; similarity: number }>>(
                         `SELECT id, 1 - (embedding <=> $1::vector) as similarity
                          FROM "detailed_memories"
                          WHERE "chatId" = $2
@@ -1002,17 +999,17 @@ ${conversationText}`;
                            AND (1 - (embedding <=> $1::vector)) >= 0.85
                          ORDER BY embedding <=> $1::vector
                          LIMIT 1`,
-                        vectorString,
+                        ベクトル文字列,
                         chatId
                       );
                       
-                      if (similarMemories && similarMemories.length > 0) {
-                        console.log(`詳細記憶自動要約: 類似度 ${similarMemories[0].similarity.toFixed(3)} の既存要約があるためスキップ (ID: ${similarMemories[0].id})`);
+                      if (類似メモリ && 類似メモリ.length > 0) {
+                        console.log(`詳細記憶自動要約: 類似度 ${類似メモリ[0].similarity.toFixed(3)} の既存要約があるためスキップ (ID: ${類似メモリ[0].id})`);
                         return;
                       }
                     } catch (error) {
                       console.error('ベクトル類似度チェックエラー:', error);
-                      // 에러가 발생해도 요약은 계속 진행 (중복 체크 실패는 요약 생성보다 덜 중요)
+                      // エラーが発生しても要約は続行（重複チェック失敗は要約生成より重要度が低い）
                     }
                     // ▲▲▲
                     
@@ -1080,10 +1077,10 @@ ${conversationText}`;
                     const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
                     if (summary) {
-                      // ▼▼▼【개선】AI 기반 키워드 추출 (더 정확한 키워드 추출)
-                      let extractedKeywords: string[] = [];
+                      // ▼▼▼【改善】AIベースのキーワード抽出（より正確なキーワード抽出）
+                      let 抽出キーワード: string[] = [];
                       try {
-                        const keywordPrompt = `以下の会話要約から、重要なキーワードを10個まで抽出してください。
+                        const キーワードプロンプト = `以下の会話要約から、重要なキーワードを10個まで抽出してください。
 キーワードは会話の核心を表す名詞や重要な概念のみを抽出してください。
 不要な単語（助詞、動詞の原形、一般的すぎる単語）は除外してください。
 キーワードはカンマ区切りで返してください。
@@ -1091,12 +1088,12 @@ ${conversationText}`;
 会話要約：
 ${summary}`;
 
-                        const keywordResult = await summaryModel.generateContent(keywordPrompt);
-                        const keywordText = keywordResult.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                        const キーワード結果 = await summaryModel.generateContent(キーワードプロンプト);
+                        const キーワードテキスト = キーワード結果.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
                         
-                        if (keywordText) {
+                        if (キーワードテキスト) {
                           // カンマ区切りで分割し、空白を削除
-                          extractedKeywords = keywordText
+                          抽出キーワード = キーワードテキスト
                             .split(',')
                             .map(k => k.trim().toLowerCase())
                             .filter(k => k.length >= 2 && k.length <= 30) // 2-30文字のキーワードのみ
@@ -1104,18 +1101,18 @@ ${summary}`;
                         }
                       } catch (error) {
                         console.error('AIキーワード抽出エラー:', error);
-                        // AI 추출 실패 시 기존 방식으로 폴백
-                        const words = conversationText.toLowerCase().match(/\b\w{3,}\b/g) || [];
-                        const wordCount: { [key: string]: number } = {};
-                        words.forEach(word => {
-                          if (!/^\d+-\d+$/.test(word)) {
-                            wordCount[word] = (wordCount[word] || 0) + 1;
+                        // AI抽出失敗時は既存方式でフォールバック
+                        const 単語 = conversationText.toLowerCase().match(/\b\w{3,}\b/g) || [];
+                        const 単語カウント: { [key: string]: number } = {};
+                        単語.forEach(単語 => {
+                          if (!/^\d+-\d+$/.test(単語)) {
+                            単語カウント[単語] = (単語カウント[単語] || 0) + 1;
                           }
                         });
-                        extractedKeywords = Object.entries(wordCount)
+                        抽出キーワード = Object.entries(単語カウント)
                           .sort((a, b) => b[1] - a[1])
                           .slice(0, 10)
-                          .map(([word]) => word);
+                          .map(([単語]) => 単語);
                       }
                       // ▲▲▲
                       
@@ -1133,7 +1130,7 @@ ${summary}`;
                             data: {
                               chatId,
                               content: memoryContent,
-                              keywords: extractedKeywords,
+                              keywords: 抽出キーワード,
                             },
                           });
                           
@@ -1159,7 +1156,7 @@ ${summary}`;
                                 data: {
                                   chatId,
                                   content: remainingSummary,
-                                  keywords: extractedKeywords,
+                                  keywords: 抽出キーワード,
                                 },
                               });
                             }
