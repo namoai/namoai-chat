@@ -108,7 +108,8 @@ export async function POST(req: Request) {
       // ▲▲▲
       
       // characters を除外して返す（既存のレスポンス形式に合わせる）
-      const { characters: _characters, ...chatData } = exact;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { characters, ...chatData } = exact;
       return NextResponse.json(chatData);
     }
 
