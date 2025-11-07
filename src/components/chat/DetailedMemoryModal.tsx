@@ -8,6 +8,7 @@ type DetailedMemory = {
   createdAt: string;
   lastApplied?: string;
   index: number; // 1-3のインデックス
+  messageRange?: { start: number; end: number } | null; // メッセージ範囲情報
 };
 
 type DetailedMemoryModalProps = {
@@ -104,15 +105,63 @@ export default function DetailedMemoryModal({
           <div>
             <h2 className="text-2xl font-bold">詳細記憶</h2>
             <p className="text-sm text-gray-400 mt-1">無制限に保存できます。関連キーワードで自動的に適用され、適用時は最大3つまでです。</p>
-            {/* ▼▼▼【追加】상세 기억 작동 방식 설명 */}
-            <div className="mt-3 p-3 bg-gray-800/50 border border-gray-700 rounded-lg">
-              <p className="text-xs text-gray-300 mb-2 font-semibold">📝 自動要約の仕組み:</p>
-              <ul className="text-xs text-gray-400 space-y-1 list-disc list-inside">
-                <li>2-10個のメッセージ: 毎回自動要約（2, 3, 4, 5, 6, 7, 8, 9, 10番目）</li>
-                <li>11個以上: 5個単位で自動要約（15, 20, 25, 30...番目）</li>
-                <li>キーワードで自動適用: 会話内容と一致するキーワードがある記憶が自動適用</li>
-                <li>1-3個: 全て自動適用 / 4個以上: キーワード+ベクトル検索で最大3個選択</li>
-              </ul>
+            {/* ▼▼▼【追加】상세 기억 작동 방식 상세 설명 */}
+            <div className="mt-3 p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
+              <details className="cursor-pointer">
+                <summary className="text-sm text-gray-300 mb-2 font-semibold hover:text-white">
+                  📝 詳細記憶の機能と規則について（クリックで展開）
+                </summary>
+                <div className="mt-3 space-y-3 text-xs text-gray-400">
+                  <div>
+                    <p className="font-semibold text-gray-300 mb-1">📊 自動要約の規則:</p>
+                    <ul className="space-y-1 list-disc list-inside ml-2">
+                      <li><strong>メッセージ2-10個:</strong> メッセージが追加されるたびに自動要約が実行されます（2, 3, 4, 5, 6, 7, 8, 9, 10番目のメッセージ時）</li>
+                      <li><strong>メッセージ11個以上:</strong> 5個単位で自動要約が実行されます（15, 20, 25, 30...番目のメッセージ時）</li>
+                      <li><strong>要約範囲:</strong> メッセージは5個ずつグループ化されます（1-5, 6-10, 11-15, 16-20...）</li>
+                      <li><strong>重複防止:</strong> ベクトル類似度0.85以上の既存要約がある場合はスキップされます</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <p className="font-semibold text-gray-300 mb-1">🎯 自動適用の規則:</p>
+                    <ul className="space-y-1 list-disc list-inside ml-2">
+                      <li><strong>記憶数1-3個:</strong> 全ての記憶が自動的に適用されます</li>
+                      <li><strong>記憶数4個以上:</strong> キーワードマッチング + ベクトル検索で最大3個が選択されます</li>
+                      <li><strong>キーワードマッチング:</strong> 会話内容と一致するキーワードがある記憶が優先されます</li>
+                      <li><strong>ベクトル検索:</strong> 会話内容と意味的に類似した記憶も検出されます</li>
+                      <li><strong>適用順:</strong> 最後に適用された時刻（lastApplied）が最新の3個が表示されます</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <p className="font-semibold text-gray-300 mb-1">💡 メッセージ範囲の表示:</p>
+                    <ul className="space-y-1 list-disc list-inside ml-2">
+                      <li>各記憶には「X-Y」の形式でメッセージ範囲が表示されます</li>
+                      <li>例: 「1-5」はメッセージ1番から5番までの範囲を要約したことを示します</li>
+                      <li>「6-10」はメッセージ6番から10番までの範囲を要約したことを示します</li>
+                      <li>範囲がない場合は「-」が表示されます（手動作成の場合など）</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <p className="font-semibold text-gray-300 mb-1">🔄 再要約機能:</p>
+                    <ul className="space-y-1 list-disc list-inside ml-2">
+                      <li>「再要約」ボタンをクリックすると、全ての記憶が削除され、最初から再生成されます</li>
+                      <li>全メッセージを5個ずつグループ化して要約します</li>
+                      <li>既存の記憶は全て削除されるため、注意してください</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <p className="font-semibold text-gray-300 mb-1">📝 手動作成・編集:</p>
+                    <ul className="space-y-1 list-disc list-inside ml-2">
+                      <li>手動で記憶を作成・編集できます（最大2000文字）</li>
+                      <li>内容が変更されていない場合は、更新をスキップして効率化されます</li>
+                      <li>キーワードは自動抽出されるか、手動で設定できます</li>
+                    </ul>
+                  </div>
+                </div>
+              </details>
             </div>
             {/* ▲▲▲ */}
           </div>
@@ -251,8 +300,17 @@ export default function DetailedMemoryModal({
                     <>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-purple-400 font-semibold">{memory.index}-10</span>
-                          <span className="text-white">{memory.index}</span>
+                          {memory.messageRange ? (
+                            <span className="text-purple-400 font-semibold">
+                              {memory.messageRange.start}-{memory.messageRange.end}
+                            </span>
+                          ) : (
+                            <span className="text-gray-500 font-semibold">-</span>
+                          )}
+                          <span className="text-gray-400 text-sm">#{memory.index}</span>
+                          <span className="text-gray-500 text-xs">
+                            {new Date(memory.createdAt).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })}
+                          </span>
                         </div>
                         <div className="relative">
                           <button

@@ -71,11 +71,35 @@ export async function GET(
       },
     });
 
-    // インデックスを追加（1-3）
-    const memoriesWithIndex = memories.map((mem, idx) => ({
-      ...mem,
-      index: idx + 1,
-    }));
+    // メッセージ範囲情報を抽出してインデックスを追加
+    const memoriesWithIndex = memories.map((mem, idx) => {
+      // メタデータからメッセージ範囲を抽出
+      let messageRange: { start: number; end: number } | null = null;
+      const cleanKeywords: string[] = [];
+      
+      if (mem.keywords && Array.isArray(mem.keywords)) {
+        for (const keyword of mem.keywords) {
+          // メタデータ形式: __META:start:1:end:5__
+          const metaMatch = keyword.match(/^__META:start:(\d+):end:(\d+)__$/);
+          if (metaMatch) {
+            messageRange = {
+              start: parseInt(metaMatch[1], 10),
+              end: parseInt(metaMatch[2], 10),
+            };
+          } else {
+            // 通常のキーワードのみ追加
+            cleanKeywords.push(keyword);
+          }
+        }
+      }
+      
+      return {
+        ...mem,
+        index: idx + 1,
+        messageRange, // メッセージ範囲情報を追加
+        keywords: cleanKeywords, // メタデータを除いたキーワードのみ
+      };
+    });
 
     return NextResponse.json({ memories: memoriesWithIndex });
   } catch (error) {
@@ -187,12 +211,16 @@ export async function POST(
             
             if (batchMessages.length === 0) continue;
             
+            // メッセージ範囲を計算（1-indexed）
+            const messageStartIndex = start + 1;
+            const messageEndIndex = end;
+            
             const conversationText = batchMessages
               .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
               .join('\n\n');
             
             try {
-              console.log(`再要約: バッチ ${start + 1}-${end} 要約開始 (${batchMessages.length}件)`);
+              console.log(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} 要約開始 (${batchMessages.length}件)`);
               
               // ▼▼▼【改善】再要約でも各バッチに対してベクトル類似度チェックを実行（重複防止）
               // 注: 既存メモリは全て削除済みなので、このチェックは実際には機能しないが
@@ -272,11 +300,14 @@ ${conversationText}`;
                   const memoryContent = remainingSummary.substring(0, MAX_MEMORY_LENGTH);
                   remainingSummary = remainingSummary.substring(MAX_MEMORY_LENGTH);
                   
+                  // メッセージ範囲情報をメタデータとしてkeywordsに追加
+                  const metaKeywords = [`__META:start:${messageStartIndex}:end:${messageEndIndex}__`, ...extractedKeywords];
+                  
                   const newMemory = await prisma.detailed_memories.create({
                     data: {
                       chatId: chatIdNum,
                       content: memoryContent,
-                      keywords: extractedKeywords,
+                      keywords: metaKeywords,
                     },
                   });
                   
@@ -298,11 +329,12 @@ ${conversationText}`;
                   // 残りが2000文字以下なら終了
                   if (remainingSummary.length <= MAX_MEMORY_LENGTH) {
                     if (remainingSummary.length > 0) {
+                      const metaKeywords = [`__META:start:${messageStartIndex}:end:${messageEndIndex}__`, ...extractedKeywords];
                       const finalMemory = await prisma.detailed_memories.create({
                         data: {
                           chatId: chatIdNum,
                           content: remainingSummary,
-                          keywords: extractedKeywords,
+                          keywords: metaKeywords,
                         },
                       });
                       
@@ -325,11 +357,14 @@ ${conversationText}`;
                 }
               } else {
                 // 2000文字以下の場合: 1つのメモリとして保存
+                // メッセージ範囲情報をメタデータとしてkeywordsに追加
+                const metaKeywords = [`__META:start:${messageStartIndex}:end:${messageEndIndex}__`, ...extractedKeywords];
+                
                 const newMemory = await prisma.detailed_memories.create({
                   data: {
                     chatId: chatIdNum,
                     content: summary,
-                    keywords: extractedKeywords,
+                    keywords: metaKeywords,
                   },
                 });
                 

@@ -556,7 +556,9 @@ export async function POST(request: Request, context: any) {
           
           // キーワードマッチング（多言語対応：英語のみ小文字変換、日本語・韓国語はそのまま）
           if (memory.keywords && Array.isArray(memory.keywords) && memory.keywords.length > 0) {
-            hasMatch = memory.keywords.some((keyword) => {
+            // メタデータ（__META:start:X:end:Y__）を除外
+            const cleanKeywords = memory.keywords.filter(k => !k.match(/^__META:/));
+            hasMatch = cleanKeywords.some((keyword) => {
               if (!keyword) return false;
               // 英語キーワードのみ小文字に変換、日本語・韓国語はそのまま
               const normalizedKeyword = /^[A-Za-z]/.test(keyword) ? keyword.toLowerCase() : keyword;
@@ -1044,6 +1046,10 @@ ${conversationText}`;
                       return;
                     }
                     
+                    // メッセージ範囲を計算（1-indexed）
+                    const messageStartIndex = startIndex + 1;
+                    const messageEndIndex = endIndex;
+                    
                     // ▼▼▼【改善】ベクトル類似度ベースの重複チェック（キーワード重複とは無関係に動作）
                     // 会話内容のベクトルを生成して、類似した要約があるか確認
                     // 類似度が0.85以上の要約があればスキップ、なければ生成
@@ -1181,11 +1187,14 @@ ${summary}`;
                           const memoryContent = remainingSummary.substring(0, MAX_MEMORY_LENGTH);
                           remainingSummary = remainingSummary.substring(MAX_MEMORY_LENGTH);
                           
+                          // メッセージ範囲情報をメタデータとしてkeywordsに追加（特殊形式: __META:start:1:end:5__）
+                          const metaKeywords = [`__META:start:${messageStartIndex}:end:${messageEndIndex}__`, ...extractedKeywords];
+                          
                           const newMemory = await prisma.detailed_memories.create({
                             data: {
                               chatId,
                               content: memoryContent,
-                              keywords: extractedKeywords,
+                              keywords: metaKeywords,
                             },
                           });
                           
@@ -1207,11 +1216,12 @@ ${summary}`;
                           // 残りが2000文字以下なら終了
                           if (remainingSummary.length <= MAX_MEMORY_LENGTH) {
                             if (remainingSummary.length > 0) {
+                              const metaKeywords = [`__META:start:${messageStartIndex}:end:${messageEndIndex}__`, ...extractedKeywords];
                               await prisma.detailed_memories.create({
                                 data: {
                                   chatId,
                                   content: remainingSummary,
-                                  keywords: extractedKeywords,
+                                  keywords: metaKeywords,
                                 },
                               });
                             }
@@ -1220,11 +1230,14 @@ ${summary}`;
                         }
                       } else {
                         // 2000文字以下の場合: 1つのメモリとして保存
+                        // メッセージ範囲情報をメタデータとしてkeywordsに追加
+                        const metaKeywords = [`__META:start:${messageStartIndex}:end:${messageEndIndex}__`, ...extractedKeywords];
+                        
                         const newMemory = await prisma.detailed_memories.create({
                           data: {
                             chatId,
                             content: summary,
-                            keywords: extractedKeywords,
+                            keywords: metaKeywords,
                           },
                         });
                         

@@ -335,7 +335,9 @@ export async function POST(request: NextRequest) {
               
               // キーワードマッチング（多言語対応：英語のみ小文字変換、日本語・韓国語はそのまま）
               if (memory.keywords && Array.isArray(memory.keywords) && memory.keywords.length > 0) {
-                hasMatch = memory.keywords.some((keyword) => {
+                // メタデータ（__META:start:X:end:Y__）を除外
+                const cleanKeywords = memory.keywords.filter(k => !k.match(/^__META:/));
+                hasMatch = cleanKeywords.some((keyword) => {
                   if (!keyword) return false;
                   // 英語キーワードのみ小文字に変換、日本語・韓国語はそのまま
                   const normalizedKeyword = /^[A-Za-z]/.test(keyword) ? keyword.toLowerCase() : keyword;
