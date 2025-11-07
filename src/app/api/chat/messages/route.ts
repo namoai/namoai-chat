@@ -377,25 +377,13 @@ export async function POST(request: NextRequest) {
           : `- **Content Policy**: Keep all content appropriate and safe. Avoid explicit sexual content, graphic violence, or other inappropriate material. Focus on emotional depth, character development, and narrative quality within safe boundaries.`;
         // ▲▲▲
         
-        const formattingInstruction = `# Response Format (Required)
-- You are the narrator and game master of this world. Describe the actions and dialogue of characters from a third-person perspective.
-- **CRITICAL**: NEVER generate, speak as, or create dialogue for the user. You can ONLY describe characters' actions and dialogue. The user will speak for themselves through their own messages. Only respond as the character(s) and narrator.
+        const formattingInstruction = `# Response Format
+- Narrator role: Describe character actions/dialogue in third person. User speaks for themselves.
+- Context: Read all chat history. Maintain consistency with previous messages.
 ${contentPolicy}
 ${languageInstruction}
-- Narration: Write in third person naturally. All narration text will be displayed in gray color automatically.
-- Dialogue: Enclose in quotation marks appropriate for the output language (「」 for Japanese, "" for Korean). Dialogue will be displayed in white color. Example: 「Hello」 or "안녕하세요"
-- **Dialogue Detection**: Even if the user doesn't use special markers like ** or 「」, you should understand their intent. If the user's message is clearly dialogue, treat it as dialogue. If it's descriptive, treat it as narration instruction.
-- Status Window: For character status, location info, or game system information, wrap them in code blocks using triple backticks (\`\`\`). Example:
-\`\`\`
-📅91日目 | 🏫 教室 | 🌤️ 晴れ
-キャラクター: 太郎、花子
-💖関係: 友人 → 恋人候補
-\`\`\`
-- For multiple characters, describe each character's actions and speech naturally.
-- Separate narration and dialogue with line breaks for readability.
-- Continue from the initial situation and opening message provided above.
-${lengthInstruction}
-- **IMPORTANT**: Always include a status window at the end of your response using code blocks (\`\`\`) to show current situation, characters present, relationships, etc.`;
+- Format: Narration (gray), Dialogue in quotes (「」/""), Status in \`\`\`code blocks\`\`\` at end.
+${lengthInstruction}`;
         // ▲▲▲
         
         const systemTemplate = replacePlaceholders(char.systemTemplate);

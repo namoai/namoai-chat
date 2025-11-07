@@ -176,14 +176,16 @@ export async function POST(request: Request, context: any) {
 
         console.time("⏱️ DB History+Persona Query");
         // ▼▼▼【修正】ユーザーが閲覧しているバージョンを考慮した履歴取得 ▼▼▼
+        // 現在のメッセージ(userMessageForHistory)より前のメッセージのみを取得
+        // 注意: userMessageForHistoryはまだ取得されていないため、createdAtで制限
         let historyWhereClause: {
             chatId: number;
-            createdAt: { lt: Date };
+            createdAt?: { lt: Date };
             isActive?: boolean;
             OR?: Array<{ role: string } | { id: { in: number[] } }>;
         } = { 
-            chatId: chatId, 
-            createdAt: { lt: new Date() } 
+            chatId: chatId
+            // createdAt制限を削除: 並列処理のため、現在のメッセージはまだ保存されていない
         };
         
         // activeVersionsが指定されている場合、該当バージョンのみを取得
@@ -220,7 +222,7 @@ export async function POST(request: Request, context: any) {
             prisma.chat_message.findMany({
                 where: historyWhereClause,
                 orderBy: { createdAt: "desc" },
-                take: 20, // 履歴は最新20件を取得（10件から増加）
+                take: 10, // 履歴は最新10件を取得（確実に全ての内容を読み取る）
             }),
             prisma.chat.findUnique({
                 where: { id: chatId },
@@ -299,23 +301,37 @@ export async function POST(request: Request, context: any) {
 
     // AIモデルに渡すチャット履歴を作成（プレースホルダーを置換）
     // 最新10件 + ベクトル検索で見つかった関連メッセージを統合
+    // 現在のメッセージ(userMessageForHistory)を除外
+    const currentMessageId = userMessageForHistory?.id;
     const allHistoryMessages = [
-      ...orderedHistory,
-      ...vectorMatchedMessages.map(m => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-        createdAt: m.createdAt,
-        turnId: null,
-        version: 1,
-        isActive: true,
-      }))
+      ...orderedHistory.filter(msg => msg.id !== currentMessageId), // 現在のメッセージを除外
+      ...vectorMatchedMessages
+        .filter(m => m.id !== currentMessageId) // 現在のメッセージを除外
+        .map(m => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          createdAt: m.createdAt,
+          turnId: null,
+          version: 1,
+          isActive: true,
+        }))
     ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     
     const chatHistory: Content[] = allHistoryMessages.map(msg => ({
       role: msg.role as "user" | "model",
       parts: [{ text: replacePlaceholders(msg.content) }],
     }));
+    
+    // ▼▼▼【デバッグ】チャット履歴の内容をログ出力
+    console.log(`📜 チャット履歴: ${chatHistory.length}件のメッセージをAIに送信`);
+    console.log(`  - orderedHistory: ${orderedHistory.length}件`);
+    console.log(`  - vectorMatchedMessages: ${vectorMatchedMessages.length}件`);
+    if (chatHistory.length > 0) {
+      console.log(`  - 最初のメッセージ: ${chatHistory[0].role} - ${chatHistory[0].parts[0].text.substring(0, 50)}...`);
+      console.log(`  - 最後のメッセージ: ${chatHistory[chatHistory.length - 1].role} - ${chatHistory[chatHistory.length - 1].parts[0].text.substring(0, 50)}...`);
+    }
+    // ▲▲▲
 
     console.time("⏱️ Prompt Construction");
     console.log("ステップ4: 完全なシステムプロンプトの構築開始");
@@ -512,25 +528,13 @@ export async function POST(request: Request, context: any) {
       : `- **Content Policy**: Keep all content appropriate and safe. Avoid explicit sexual content, graphic violence, or other inappropriate material. Focus on emotional depth, character development, and narrative quality within safe boundaries.`;
     // ▲▲▲
     
-    const formattingInstruction = `# Response Format (Required)
-- You are the narrator and game master of this world. Describe the actions and dialogue of characters from a third-person perspective.
-- **CRITICAL**: NEVER generate, speak as, or create dialogue for the user. You can ONLY describe characters' actions and dialogue. The user will speak for themselves through their own messages. Only respond as the character(s) and narrator.
+    const formattingInstruction = `# Response Format
+- Narrator role: Describe character actions/dialogue in third person. User speaks for themselves.
+- Context: Read all chat history. Maintain consistency with previous messages.
 ${contentPolicy}
 ${languageInstruction}
-- Narration: Write in third person naturally. All narration text will be displayed in gray color automatically.
-- Dialogue: Enclose in quotation marks appropriate for the output language (「」 for Japanese, "" for Korean). Dialogue will be displayed in white color. Example: 「Hello」 or "안녕하세요"
-- **Dialogue Detection**: Even if the user doesn't use special markers like ** or 「」, you should understand their intent. If the user's message is clearly dialogue, treat it as dialogue. If it's descriptive, treat it as narration instruction.
-- Status Window: For character status, location info, or game system information, wrap them in code blocks using triple backticks (\`\`\`). Example:
-\`\`\`
-📅91日目 | 🏫 教室 | 🌤️ 晴れ
-キャラクター: 太郎、花子
-💖関係: 友人 → 恋人候補
-\`\`\`
-- For multiple characters, describe each character's actions and speech naturally.
-- Separate narration and dialogue with line breaks for readability.
-- Continue from the initial situation and opening message provided above.
-${lengthInstruction}
-- **IMPORTANT**: Always include a status window at the end of your response using code blocks (\`\`\`) to show current situation, characters present, relationships, etc.`;
+- Format: Narration (gray), Dialogue in quotes (「」/""), Status in \`\`\`code blocks\`\`\` at end.
+${lengthInstruction}`;
 
     const systemTemplate = replacePlaceholders(worldSetting.systemTemplate);
 
@@ -629,6 +633,10 @@ ${lengthInstruction}
           });
           
           // ストリーミングでメッセージを送信
+          // ▼▼▼【デバッグ】現在のユーザーメッセージをログ出力
+          console.log(`📤 現在のユーザーメッセージ: ${message.substring(0, 100)}${message.length > 100 ? '...' : ''}`);
+          console.log(`📤 チャット履歴 + 現在のメッセージでAIに送信 (履歴: ${chatHistory.length}件)`);
+          // ▲▲▲
           const result = await chatSession.sendMessageStream(message);
 
           let finalResponseText = ""; // 最終的なAIの応答テキスト
