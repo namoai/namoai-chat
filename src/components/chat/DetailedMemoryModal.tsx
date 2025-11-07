@@ -225,6 +225,7 @@ export default function DetailedMemoryModal({
                   setIsSummarizing(true);
                   try {
                     console.log('再要約開始 - onAutoSummarize呼び出し');
+                    // onAutoSummarizeはメモリが追加されるまで待機する
                     await onAutoSummarize(1);
                     console.log('再要約完了');
                   } catch (error) {

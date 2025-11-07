@@ -312,18 +312,16 @@ export default function ChatSettings({
       console.log('API成功, 結果:', result);
       
       // ▼▼▼【修正】再要約はバックグラウンドで実行されるため、完了までポーリング
-      // 再要約完了を待つため、最大60秒間ポーリング（2秒ごと）
-      const maxWaitTime = 60000; // 60秒に延長
+      // 再要約完了を待つため、最大120秒間ポーリング（2秒ごと）
+      const maxWaitTime = 120000; // 120秒に延長
       const pollInterval = 2000; // 2秒ごと
       const startTime = Date.now();
-      let previousCount = detailedMemories.length;
+      const initialCount = detailedMemories.length;
+      let previousCount = initialCount;
       let stableCount = 0; // 連続して同じ数が続いた回数
-      const requiredStableCount = 2; // 2回連続で同じ数が続いたら完了とみなす
+      const requiredStableCount = 3; // 3回連続で同じ数が続いたら完了とみなす
       
-      // 初回は即座に取得を試みる
-      await fetchDetailedMemories();
-      
-      // ポーリングを開始（非同期で実行、ブロックしない）
+      // ポーリングを開始（メモリが追加されるまで続ける）
       const pollForMemories = async () => {
         while (Date.now() - startTime < maxWaitTime) {
           await new Promise(resolve => setTimeout(resolve, pollInterval));
@@ -336,21 +334,38 @@ export default function ChatSettings({
               const currentMemories = data.memories || [];
               const currentCount = currentMemories.length;
               
-              // メモリ数が増えた場合、または前回と異なる場合
-              if (currentCount !== previousCount) {
+              // メモリ数が増えた場合（再要約でメモリが作成された場合）
+              if (currentCount > initialCount) {
                 previousCount = currentCount;
                 stableCount = 0;
                 // メモリを更新
                 await fetchDetailedMemories();
-              } else if (currentCount > 0) {
+                
+                // メモリが追加された後、安定しているかチェック
+                await new Promise(resolve => setTimeout(resolve, pollInterval));
+                const res2 = await fetch(`/api/chat/${chatId}/detailed-memories`);
+                if (res2.ok) {
+                  const data2 = await res2.json();
+                  const finalCount = (data2.memories || []).length;
+                  if (finalCount === currentCount) {
+                    // メモリ数が安定している場合、完了
+                    console.log('再要約: メモリが追加され、安定したため、完了とみなします');
+                    await fetchDetailedMemories();
+                    return; // 完了
+                  }
+                }
+              } else if (currentCount > 0 && currentCount === previousCount) {
                 // メモリ数が同じ場合は、安定しているかチェック
                 stableCount++;
                 if (stableCount >= requiredStableCount) {
                   // 安定している場合、最終的にメモリを更新して終了
                   console.log('再要約: メモリ数が安定したため、完了とみなします');
                   await fetchDetailedMemories();
-                  break;
+                  return; // 完了
                 }
+              } else if (currentCount !== previousCount) {
+                previousCount = currentCount;
+                stableCount = 0;
               }
             }
           } catch (error) {
@@ -360,10 +375,11 @@ export default function ChatSettings({
         
         // タイムアウト後も最終的にメモリを更新
         await fetchDetailedMemories();
-        console.log('再要約: ポーリング完了');
+        console.log('再要約: ポーリング完了（タイムアウト）');
       };
       
-      pollForMemories().catch(err => console.error('再要約ポーリングエラー:', err));
+      // ポーリングを実行し、完了を待つ
+      await pollForMemories();
       // ▲▲▲
     } catch (error) {
       console.error('自動要約エラー:', error);

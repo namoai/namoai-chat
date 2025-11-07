@@ -1051,22 +1051,17 @@ ${conversationText}`;
   }
 }
 
-// キーワード抽出関数（フォールバック用）
+// キーワード抽出関数（フォールバック用）- 日本語のみ
 function extractKeywords(text: string): string[] {
-  // キーワード抽出（範囲情報を除外、多言語対応）
-  // 日本語（ひらがな、カタカナ、漢字）、韓国語（한글）、英語を抽出
+  // キーワード抽出（範囲情報を除外、日本語のみ）
+  // 日本語（ひらがな、カタカナ、漢字）のみを抽出
   const japanesePattern = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+/g; // ひらがな、カタカナ、漢字
-  const koreanPattern = /[\uAC00-\uD7AF]+/g; // 한글
-  const englishPattern = /\b[A-Za-z]{3,}\b/g; // 英語（3文字以上）
 
   const japaneseWords = text.match(japanesePattern) || [];
-  const koreanWords = text.match(koreanPattern) || [];
-  const englishWords = text.toLowerCase().match(englishPattern) || [];
-
-  const allWords = [...japaneseWords, ...koreanWords, ...englishWords];
+  const allWords = [...japaneseWords];
   const wordCount: { [key: string]: number } = {};
 
-  // 除外する単語リスト
+  // 除外する単語リスト（日本語のみ）
   const japaneseExclude = [
     // 代名詞・指示語
     'これ', 'それ', 'あれ', 'どれ', 'この', 'その', 'あの', 'その', '彼', '彼女', '彼は', '彼女は', 'もの', 'こと', 'ユーザー', 'ユーザ',
@@ -1079,50 +1074,19 @@ function extractKeywords(text: string): string[] {
     'いい', '良い', 'よい', '悪い', '大きい', '小さい', '多い', '少ない', '新しい', '古い', '高い', '低い',
     '同じ', '違う', '似ている', '近い', '遠い'
   ];
-  const koreanExclude = [
-    // 代名詞・指示語
-    '그', '그녀', '그는', '그녀는', '그녀의', '이것', '그것', '것', '당신', '당신의',
-    // 助詞
-    '이', '가', '을', '를', '은', '는', '의', '에', '에서', '으로', '로', '와', '과', '부터', '까지', '도', '만', '조차',
-    // 一般的な動詞
-    '있다', '있었다', '없다', '없었다', '하다', '했다', '한다', '되다', '되었다', '된다', '보다', '봤다', '본다', '보았다',
-    '듯하다', '듯했다', '듯한다', '같다', '같았다', '좋다', '좋았다', '나쁘다', '나빴다',
-    '되다', '되었다', '된다', '말하다', '말했다', '말한다', '생각하다', '생각했다', '생각한다',
-    // 一般的な形容詞
-    '크다', '작다', '많다', '적다', '좋다', '나쁘다', '새롭다', '오래되다',
-    // 単独で意味が薄い短い単語
-    '채', '잘', '좋', '나쁘', '크', '작', '많', '적', '안', '네', '응', '아', '어', '오', '이', '그', '저'
-  ];
-  const englishExclude = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them', 'img', 'and', 'or', 'but', 'if', 'when', 'where', 'what', 'who', 'why', 'how', 'user', 'users'];
 
   allWords.forEach(word => {
     // 範囲情報パターンを除外（例: "1-5", "6-10", "11-15"など）
     if (!/^\d+-\d+$/.test(word)) {
-      // 英語のみ小文字に変換、日本語・韓国語はそのまま
-      let normalizedWord = /^[A-Za-z]/.test(word) ? word.toLowerCase() : word;
+      // 日本語のみを処理
+      let normalizedWord = word;
 
-      // ▼▼▼【改善】最小長さチェック（日本語・韓国語は2文字以上、英語は3文字以上）
-      if (/^[가-힣]/.test(normalizedWord) && normalizedWord.length < 2) return; // 韓国語は2文字未満を除外
+      // ▼▼▼【改善】最小長さチェック（日本語は2文字以上）
       if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(normalizedWord) && normalizedWord.length < 2) return; // 日本語は2文字未満を除外
-      if (/^[A-Za-z]/.test(normalizedWord) && normalizedWord.length < 3) return; // 英語は3文字未満を除外
       // ▲▲▲
 
       // 除外リストチェック（完全一致）
       if (japaneseExclude.includes(normalizedWord)) return;
-      if (koreanExclude.includes(normalizedWord)) return;
-      if (englishExclude.includes(normalizedWord)) return;
-
-      // ▼▼▼【改善】韓国語: 助詞が付いた形を除外（~의, ~이, ~가, ~을, ~를, ~은, ~는, ~에, ~에서など）
-      // より包括的なパターンマッチング（助詞を除去してベースワードを抽出）
-      if (/^[가-힣]+(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|까지|도|만|조차|와서|부터가|까지가)$/.test(normalizedWord)) {
-        const baseWord = normalizedWord.replace(/(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|까지|도|만|조차|와서|부터가|까지가)$/, '');
-        // 助詞を除いた部分が2文字未満の場合は除外
-        if (baseWord.length < 2) return;
-        if (koreanExclude.includes(baseWord)) return;
-        // 助詞を除いた部分も除外リストに含まれていない場合、ベースワードを使用
-        normalizedWord = baseWord;
-      }
-      // ▲▲▲
 
       // ▼▼▼【改善】日本語: 助詞が付いた形を除外（~は, ~が, ~を, ~に, ~の, ~で, ~へ, ~と, ~から, ~までなど）
       if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+[はがをにのでへとからまでよりもだけしかばかり]$/.test(normalizedWord)) {
@@ -1134,16 +1098,6 @@ function extractKeywords(text: string): string[] {
         normalizedWord = baseWord;
       }
       // ▲▲▲
-
-      // 一般的な動詞・形容詞の過去形・現在形を除外（~다, ~았다, ~었다, ~한다, ~했다など）
-      if (/^[가-힣]+(다|았다|었다|한다|했다)$/.test(normalizedWord)) {
-        const baseWord = normalizedWord.replace(/(다|았다|었다|한다|했다)$/, '');
-        // 短すぎる単語（2文字未満）は除外
-        if (baseWord.length < 2) return;
-        // 一般的な動詞・形容詞の語幹を除外
-        const commonVerbs = ['있', '없', '하', '되', '보', '말', '생각', '좋', '나쁘', '크', '작', '많', '적', '새롭', '오래되'];
-        if (commonVerbs.includes(baseWord)) return;
-      }
 
       // 日本語: 一般的な動詞・形容詞の活用形を除外（~する, ~した, ~ある, ~あった, ~いる, ~いたなど）
       if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+(する|した|ある|あった|いる|いた|なる|なった|見る|見た|言う|言った|思う|思った)$/.test(normalizedWord)) {

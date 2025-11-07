@@ -94,8 +94,8 @@ export async function GET(
       }
       
       return {
-        ...mem,
-        index: idx + 1,
+      ...mem,
+      index: idx + 1,
         messageRange, // メッセージ範囲情報を追加
         keywords: cleanKeywords, // メタデータを除いたキーワードのみ
       };
@@ -172,19 +172,19 @@ export async function POST(
       
       // ▼▼▼【タイムアウト対策】再要約を完全に非同期で開始して即座に応答
       // すべての重い処理（メッセージロード、既存メモリ削除、要約）をバックグラウンドで実行
-      (async () => {
-        try {
+                  (async () => {
+                    try {
           await performReSummarization(chatIdNum, windowSize, safetySettings);
-        } catch (error) {
+                    } catch (error) {
           console.error('再要約: バックグラウンド処理エラー:', error);
-        }
-      })();
-      
+                    }
+                  })();
+                  
       // 即座に応答を返す（タイムアウトを防ぐ）
-      return NextResponse.json({ 
+        return NextResponse.json({ 
         message: '再要約を開始しました。バックグラウンドで処理中です。',
-        success: true
-      });
+          success: true
+        });
     } else {
       // 手動作成の場合（保存個数制限なし、2000文字を超える場合は自動分割）
 
@@ -310,9 +310,9 @@ export async function PUT(
       });
     } else {
       // 単一メモリの場合は既存のものを削除
-      await prisma.detailed_memories.delete({
-        where: { id },
-      });
+    await prisma.detailed_memories.delete({
+      where: { id },
+    });
     }
 
     const updatedMemories = [];
