@@ -151,7 +151,7 @@ export async function updateMemoriesWithAIKeywords(
 - 名詞中心で、会話の核心を表す重要な概念のみを抽出
 - 抽象的すぎる単語（例：もの、こと、事）は除外
 - キーワードはカンマ区切りで返してください
-- キーワードは必ず日本語（ひらがな、カタカナ、漢字のみ）で返してください
+- キーワードは会話要約に含まれる言語でそのまま返してください（日本語の場合は日本語、韓国語の場合は韓国語）
 - 10個に満たない場合は、無理に10個にしなくても構いません
 
 会話要約：
@@ -170,13 +170,11 @@ ${summary}`;
           if (k.match(/^__META:/)) return false;
           if (/^\d+$/.test(k)) return false;
           
-          // Only accept Japanese keywords (hiragana, katakana, kanji)
-          const isJapanese = /^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+$/.test(k);
-          if (!isJapanese) return false; // Reject non-Japanese keywords
-          
-          // Exclude common Japanese words only
+          // Accept keywords in any language (no translation required)
+          // Exclude common words (Japanese only for now, can be extended)
           const japaneseExclude = ['これ', 'それ', 'あれ', 'どれ', 'この', 'その', 'あの', '彼', '彼女', 'もの', 'こと', 'ユーザー', 'ユーザ'];
           
+          // Only exclude if it's a Japanese common word
           if (japaneseExclude.includes(k)) return false;
           
           return true;

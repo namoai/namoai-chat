@@ -312,14 +312,12 @@ export default function ChatSettings({
       console.log('API成功, 結果:', result);
       
       // ▼▼▼【修正】再要約はバックグラウンドで実行されるため、完了までポーリング
-      // 再要約完了を待つため、最大180秒間ポーリング（2秒ごと）
-      // 再要約完了時点でメモリが作成され、最新3個が自動適用済みの状態になる
-      const maxWaitTime = 180000; // 180秒に延長
+      // 再要約完了時点でメモリが作成され、最新3個（または作成された個数）が自動適用済みの状態になる
+      // したがって、メモリ数が増加し、かつ適用済みメモリが存在することを確認すれば完了
+      const maxWaitTime = 180000; // 180秒
       const pollInterval = 2000; // 2秒ごと
       const startTime = Date.now();
       const initialCount = detailedMemories.length;
-      let lastMemoryCount = initialCount;
-      let lastAppliedCount = 0; // 適用済みメモリ数
       
       // ポーリングを開始（メモリが追加され、適用されるまで続ける）
       const pollForMemories = async () => {
@@ -338,51 +336,11 @@ export default function ChatSettings({
               const appliedMemories = currentMemories.filter((m: any) => m.lastApplied);
               const currentAppliedCount = appliedMemories.length;
               
-              // メモリ数が増えた場合
-              if (currentCount > initialCount) {
-                lastMemoryCount = currentCount;
-                console.log(`再要約: メモリ数が増加 (${initialCount} → ${currentCount}件, 適用済み: ${currentAppliedCount}件)`);
-                
-                // メモリが追加され、かつ適用済みメモリがある場合（再要約完了の可能性）
-                // 再要約完了時点で最新3個（または作成された個数）が自動適用される
-                if (currentAppliedCount > 0) {
-                  // もう一度チェックして安定しているか確認
-                  await new Promise(resolve => setTimeout(resolve, pollInterval));
-                  const res2 = await fetch(`/api/chat/${chatId}/detailed-memories`);
-                  if (res2.ok) {
-                    const data2 = await res2.json();
-                    const finalMemories = data2.memories || [];
-                    const finalCount = finalMemories.length;
-                    const finalAppliedCount = finalMemories.filter((m: any) => m.lastApplied).length;
-                    
-                    // メモリ数と適用済み数が安定している場合、完了
-                    if (finalCount === currentCount && finalAppliedCount === currentAppliedCount && finalAppliedCount > 0) {
-                      console.log(`再要約: 完了 - メモリ作成・適用済み (${finalCount}件作成, ${finalAppliedCount}件適用)`);
-                      await fetchDetailedMemories();
-                      return; // 完了
-                    }
-                  }
-                }
-              } else if (currentCount === initialCount && currentCount > 0) {
-                // メモリ数が変わらない場合、既に再要約が完了している可能性
-                // 適用済みメモリがあるか確認
-                if (currentAppliedCount > lastAppliedCount) {
-                  console.log(`再要約: 適用済みメモリが増加 (${lastAppliedCount} → ${currentAppliedCount}件)`);
-                  lastAppliedCount = currentAppliedCount;
-                  await fetchDetailedMemories();
-                  // 適用済みメモリが安定しているか確認
-                  await new Promise(resolve => setTimeout(resolve, pollInterval));
-                  const res2 = await fetch(`/api/chat/${chatId}/detailed-memories`);
-                  if (res2.ok) {
-                    const data2 = await res2.json();
-                    const finalAppliedCount = (data2.memories || []).filter((m: any) => m.lastApplied).length;
-                    if (finalAppliedCount === currentAppliedCount && finalAppliedCount > 0) {
-                      console.log('再要約: 完了 - 適用済みメモリが安定');
-                      await fetchDetailedMemories();
-                      return; // 完了
-                    }
-                  }
-                }
+              // メモリ数が増加し、かつ適用済みメモリが存在する場合（再要約完了）
+              if (currentCount > initialCount && currentAppliedCount > 0) {
+                console.log(`再要約: 完了 - メモリ作成・適用済み (${currentCount}件作成, ${currentAppliedCount}件適用)`);
+                await fetchDetailedMemories();
+                return; // 完了
               }
             }
           } catch (error) {
