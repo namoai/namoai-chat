@@ -271,6 +271,20 @@ export default function DetailedMemoryModal({
                           )}
                         </div>
                       </div>
+                      {/* ▼▼▼【追加】キーワード表示 */}
+                      {memory.keywords && memory.keywords.length > 0 && (
+                        <div className="flex gap-1 flex-wrap mb-2">
+                          {memory.keywords.slice(0, 8).map((keyword, kIdx) => (
+                            <span key={kIdx} className="bg-gray-600/50 text-gray-300 px-2 py-0.5 rounded text-xs border border-gray-500">
+                              {keyword}
+                            </span>
+                          ))}
+                          {memory.keywords.length > 8 && (
+                            <span className="text-gray-400 text-xs">+{memory.keywords.length - 8}</span>
+                          )}
+                        </div>
+                      )}
+                      {/* ▲▲▲ */}
                       <p className="text-gray-300 line-clamp-3">{memory.content}</p>
                     </>
                   )}

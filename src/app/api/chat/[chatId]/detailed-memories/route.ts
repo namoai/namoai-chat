@@ -320,6 +320,33 @@ ${conversationText}`;
         
         console.log('再要約: 全バッチ処理完了');
         
+        // ▼▼▼【追加】再要約後、1-3個の場合は自動適用（lastAppliedを設定）
+        const newMemories = await prisma.detailed_memories.findMany({
+          where: { chatId: chatIdNum },
+          orderBy: { createdAt: 'asc' },
+        });
+        
+        if (newMemories.length > 0 && newMemories.length <= 3) {
+          // 1-3個の場合は全て自動適用
+          console.log(`再要約: ${newMemories.length}個のメモリを自動適用`);
+          for (const memory of newMemories) {
+            await prisma.detailed_memories.update({
+              where: { id: memory.id },
+              data: { lastApplied: new Date() },
+            }).catch(err => console.error('自動適用エラー:', err));
+          }
+        } else if (newMemories.length > 3) {
+          // 4個以上の場合は最初の3個を自動適用
+          console.log(`再要約: 最初の3個のメモリを自動適用`);
+          for (let i = 0; i < Math.min(3, newMemories.length); i++) {
+            await prisma.detailed_memories.update({
+              where: { id: newMemories[i].id },
+              data: { lastApplied: new Date() },
+            }).catch(err => console.error('自動適用エラー:', err));
+          }
+        }
+        // ▲▲▲
+        
         // ▼▼▼【修正】処理完了後に成功レスポンスを返す
         return NextResponse.json({ 
           message: '再要約が完了しました。',
