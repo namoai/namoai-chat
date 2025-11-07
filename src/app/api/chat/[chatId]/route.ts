@@ -1024,7 +1024,7 @@ ${conversationText}`;
                           select: { createdAt: true },
                         });
                         
-                        if (lastMessage) {
+                        if (lastMessage && lastMessage.createdAt) {
                         // このメッセージ 이후에 생성된要約があるか確認
                         const existingMemory = await prisma.detailed_memories.findFirst({
                           where: {
