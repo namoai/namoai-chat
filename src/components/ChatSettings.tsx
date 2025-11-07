@@ -311,12 +311,14 @@ export default function ChatSettings({
       const result = await res.json();
       console.log('API成功, 結果:', result);
       
-      // ▼▼▼【追加】再要約はバックグラウンドで実行されるため、完了までポーリング
-      // 再要約完了を待つため、最大30秒間ポーリング（2秒ごと）
-      const maxWaitTime = 30000; // 30秒
+      // ▼▼▼【修正】再要約はバックグラウンドで実行されるため、完了までポーリング
+      // 再要約完了を待つため、最大60秒間ポーリング（2秒ごと）
+      const maxWaitTime = 60000; // 60秒に延長
       const pollInterval = 2000; // 2秒ごと
       const startTime = Date.now();
       let previousCount = detailedMemories.length;
+      let stableCount = 0; // 連続して同じ数が続いた回数
+      const requiredStableCount = 2; // 2回連続で同じ数が続いたら完了とみなす
       
       // 初回は即座に取得を試みる
       await fetchDetailedMemories();
@@ -334,23 +336,31 @@ export default function ChatSettings({
               const currentMemories = data.memories || [];
               const currentCount = currentMemories.length;
               
-              // メモリが作成された場合、状態を更新して終了
-              if (currentCount > previousCount || (currentCount > 0 && previousCount === 0)) {
-                setDetailedMemories(currentMemories);
-                console.log(`再要約: メモリの作成を確認しました (${currentCount}件)`);
-                break;
-              }
-              
-              // メモリが既にある場合も更新
-              if (currentCount > 0) {
-                setDetailedMemories(currentMemories);
+              // メモリ数が増えた場合、または前回と異なる場合
+              if (currentCount !== previousCount) {
                 previousCount = currentCount;
+                stableCount = 0;
+                // メモリを更新
+                await fetchDetailedMemories();
+              } else if (currentCount > 0) {
+                // メモリ数が同じ場合は、安定しているかチェック
+                stableCount++;
+                if (stableCount >= requiredStableCount) {
+                  // 安定している場合、最終的にメモリを更新して終了
+                  console.log('再要約: メモリ数が安定したため、完了とみなします');
+                  await fetchDetailedMemories();
+                  break;
+                }
               }
             }
-          } catch (err) {
-            console.error('再要約ポーリングエラー:', err);
+          } catch (error) {
+            console.error('再要約ポーリングエラー:', error);
           }
         }
+        
+        // タイムアウト後も最終的にメモリを更新
+        await fetchDetailedMemories();
+        console.log('再要約: ポーリング完了');
       };
       
       pollForMemories().catch(err => console.error('再要約ポーリングエラー:', err));

@@ -591,31 +591,36 @@ ${conversationText}`;
   
     console.log(`再要約: 全バッチ処理完了 (作成: ${createdCount}件)`);
     
-    // ▼▼▼【追加】再要約後、1-3個の場合は自動適用（lastAppliedを設定）
+    // ▼▼▼【修正】再要約後、作成されたメモリ数を確認して自動適用
     // 最新のメモリから適用するため、作成日時で降順ソート
     const newMemories = await prisma.detailed_memories.findMany({
       where: { chatId: chatIdNum },
       orderBy: { createdAt: 'desc' }, // 最新のものから（降順）
     });
     
-    if (newMemories.length > 0 && newMemories.length <= 3) {
-      // 1-3個の場合は全て自動適用
-      console.log(`再要約: ${newMemories.length}個のメモリを自動適用`);
-      for (const memory of newMemories) {
-        await prisma.detailed_memories.update({
-          where: { id: memory.id },
-          data: { lastApplied: new Date() },
-        }).catch(err => console.error('自動適用エラー:', err));
-      }
-    } else if (newMemories.length > 3) {
-      // 4個以上の場合は最新の3個を自動適用
-      console.log(`再要約: 最新の3個のメモリを自動適用`);
-      for (let i = 0; i < Math.min(3, newMemories.length); i++) {
-        await prisma.detailed_memories.update({
-          where: { id: newMemories[i].id },
-          data: { lastApplied: new Date() },
-        }).catch(err => console.error('自動適用エラー:', err));
-      }
+    console.log(`再要約: 作成されたメモリ数: ${newMemories.length}件`);
+    
+    // 作成されたメモリ数に応じて自動適用
+    if (newMemories.length > 0) {
+      const memoriesToApply = newMemories.slice(0, Math.min(3, newMemories.length)); // 最大3個まで
+      console.log(`再要約: ${memoriesToApply.length}個のメモリを自動適用（作成: ${newMemories.length}件）`);
+      
+      // すべてのメモリのlastAppliedを一度に更新
+      await Promise.all(
+        memoriesToApply.map(memory =>
+          prisma.detailed_memories.update({
+            where: { id: memory.id },
+            data: { lastApplied: new Date() },
+          }).catch(err => {
+            console.error(`自動適用エラー (ID: ${memory.id}):`, err);
+            return null;
+          })
+        )
+      );
+      
+      console.log(`再要約: 自動適用完了 (${memoriesToApply.length}個)`);
+    } else {
+      console.log('再要約: 作成されたメモリがないため、自動適用をスキップ');
     }
     // ▲▲▲
   } catch (error) {

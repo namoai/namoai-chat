@@ -1089,7 +1089,9 @@ function extractKeywords(text: string): string[] {
     '듯하다', '듯했다', '듯한다', '같다', '같았다', '좋다', '좋았다', '나쁘다', '나빴다',
     '되다', '되었다', '된다', '말하다', '말했다', '말한다', '생각하다', '생각했다', '생각한다',
     // 一般的な形容詞
-    '크다', '작다', '많다', '적다', '좋다', '나쁘다', '새롭다', '오래되다'
+    '크다', '작다', '많다', '적다', '좋다', '나쁘다', '새롭다', '오래되다',
+    // 単独で意味が薄い短い単語
+    '채', '잘', '좋', '나쁘', '크', '작', '많', '적', '안', '네', '응', '아', '어', '오', '이', '그', '저'
   ];
   const englishExclude = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them', 'img', 'and', 'or', 'but', 'if', 'when', 'where', 'what', 'who', 'why', 'how', 'user', 'users'];
 
@@ -1097,25 +1099,47 @@ function extractKeywords(text: string): string[] {
     // 範囲情報パターンを除外（例: "1-5", "6-10", "11-15"など）
     if (!/^\d+-\d+$/.test(word)) {
       // 英語のみ小文字に変換、日本語・韓国語はそのまま
-      const normalizedWord = /^[A-Za-z]/.test(word) ? word.toLowerCase() : word;
+      let normalizedWord = /^[A-Za-z]/.test(word) ? word.toLowerCase() : word;
+
+      // ▼▼▼【改善】最小長さチェック（日本語・韓国語は2文字以上、英語は3文字以上）
+      if (/^[가-힣]/.test(normalizedWord) && normalizedWord.length < 2) return; // 韓国語は2文字未満を除外
+      if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(normalizedWord) && normalizedWord.length < 2) return; // 日本語は2文字未満を除外
+      if (/^[A-Za-z]/.test(normalizedWord) && normalizedWord.length < 3) return; // 英語は3文字未満を除外
+      // ▲▲▲
 
       // 除外リストチェック（完全一致）
       if (japaneseExclude.includes(normalizedWord)) return;
       if (koreanExclude.includes(normalizedWord)) return;
       if (englishExclude.includes(normalizedWord)) return;
 
-      // 韓国語: 助詞が付いた形を除外（~의, ~이, ~가, ~을, ~를, ~은, ~는, ~에, ~에서など）
-      if (/^[가-힣]+(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|까지|도|만|조차)$/.test(normalizedWord)) {
-        // 助詞を除いた部分も除外リストに含まれているか確認
-        const baseWord = normalizedWord.replace(/(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|まで|도|만|조차)$/, '');
+      // ▼▼▼【改善】韓国語: 助詞が付いた形を除外（~의, ~이, ~가, ~을, ~를, ~은, ~는, ~에, ~에서など）
+      // より包括的なパターンマッチング（助詞を除去してベースワードを抽出）
+      if (/^[가-힣]+(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|까지|도|만|조차|와서|부터가|까지가)$/.test(normalizedWord)) {
+        const baseWord = normalizedWord.replace(/(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|까지|도|만|조차|와서|부터가|까지가)$/, '');
+        // 助詞を除いた部分が2文字未満の場合は除外
+        if (baseWord.length < 2) return;
         if (koreanExclude.includes(baseWord)) return;
+        // 助詞を除いた部分も除外リストに含まれていない場合、ベースワードを使用
+        normalizedWord = baseWord;
       }
+      // ▲▲▲
+
+      // ▼▼▼【改善】日本語: 助詞が付いた形を除外（~は, ~が, ~を, ~に, ~の, ~で, ~へ, ~と, ~から, ~までなど）
+      if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+[はがをにのでへとからまでよりもだけしかばかり]$/.test(normalizedWord)) {
+        const baseWord = normalizedWord.replace(/[はがをにのでへとからまでよりもだけしかばかり]$/, '');
+        // 助詞を除いた部分が2文字未満の場合は除外
+        if (baseWord.length < 2) return;
+        if (japaneseExclude.includes(baseWord)) return;
+        // 助詞を除いた部分も除外リストに含まれていない場合、ベースワードを使用
+        normalizedWord = baseWord;
+      }
+      // ▲▲▲
 
       // 一般的な動詞・形容詞の過去形・現在形を除外（~다, ~았다, ~었다, ~한다, ~했다など）
       if (/^[가-힣]+(다|았다|었다|한다|했다)$/.test(normalizedWord)) {
         const baseWord = normalizedWord.replace(/(다|았다|었다|한다|했다)$/, '');
-        // 短すぎる単語（2文字以下）は除外
-        if (baseWord.length <= 2) return;
+        // 短すぎる単語（2文字未満）は除外
+        if (baseWord.length < 2) return;
         // 一般的な動詞・形容詞の語幹を除外
         const commonVerbs = ['있', '없', '하', '되', '보', '말', '생각', '좋', '나쁘', '크', '작', '많', '적', '새롭', '오래되'];
         if (commonVerbs.includes(baseWord)) return;
@@ -1124,7 +1148,7 @@ function extractKeywords(text: string): string[] {
       // 日本語: 一般的な動詞・形容詞の活用形を除外（~する, ~した, ~ある, ~あった, ~いる, ~いたなど）
       if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+(する|した|ある|あった|いる|いた|なる|なった|見る|見た|言う|言った|思う|思った)$/.test(normalizedWord)) {
         const baseWord = normalizedWord.replace(/(する|した|ある|あった|いる|いた|なる|なった|見る|見た|言う|言った|思う|思った)$/, '');
-        if (baseWord.length <= 1) return;
+        if (baseWord.length < 2) return;
         const commonJapaneseVerbs = ['する', 'ある', 'いる', 'なる', '見', '言', '思', '知', '行', '来', 'や', '始', '終'];
         if (commonJapaneseVerbs.includes(baseWord)) return;
       }
