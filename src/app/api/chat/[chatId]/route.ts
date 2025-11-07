@@ -148,7 +148,8 @@ export async function POST(request: Request, context: any) {
         console.log(`chatRoom.characters.systemTemplate length: ${chatRoom.characters?.systemTemplate?.length || 0}`);
         console.log(`chatRoom.characters.characterImages count: ${chatRoom.characters?.characterImages?.length || 0}`);
         if (!chatRoom.characters.systemTemplate || chatRoom.characters.systemTemplate.trim().length === 0) {
-          console.error("⚠️ WARNING: characters.systemTemplate is empty or missing!");
+          console.error(`⚠️ WARNING: characters.systemTemplate is empty or missing! (Character ID: ${chatRoom.characters?.id}, Name: ${chatRoom.characters?.name || 'Unknown'})`);
+          console.error(`⚠️ This may affect AI response quality. Please check the character's systemTemplate in the database.`);
         }
         // ▲▲▲
 
@@ -422,6 +423,14 @@ export async function POST(request: Request, context: any) {
     console.timeEnd("⏱️ Detailed Memory Search");
     if (triggeredMemories.length > 0) {
       detailedMemoryInfo = `# 詳細記憶\n- 以下の記憶は会話の内容に基づき有効化された。\n${triggeredMemories.map((mem, idx) => `- 記憶${idx + 1}: ${mem}`).join('\n')}`;
+      // ▼▼▼【デバッグ】詳細記憶の内容をログ出力
+      console.log(`📝 詳細記憶が${triggeredMemories.length}個適用されました:`);
+      triggeredMemories.forEach((mem, idx) => {
+        console.log(`  記憶${idx + 1} (${mem.length}文字): ${mem.substring(0, 100)}${mem.length > 100 ? '...' : ''}`);
+      });
+      // ▲▲▲
+    } else {
+      console.log("📝 詳細記憶: 適用された記憶はありません");
     }
     // ▲▲▲
 
@@ -429,6 +438,12 @@ export async function POST(request: Request, context: any) {
     let backMemoryInfo = "";
     if (backMemory && backMemory.backMemory && backMemory.backMemory.trim().length > 0) {
       backMemoryInfo = `# メモリブック (会話の要約)\n${backMemory.backMemory}`;
+      // ▼▼▼【デバッグ】メモリブックの内容をログ出力
+      console.log(`📚 メモリブックが適用されました (${backMemory.backMemory.length}文字):`);
+      console.log(`  ${backMemory.backMemory.substring(0, 200)}${backMemory.backMemory.length > 200 ? '...' : ''}`);
+      // ▲▲▲
+    } else {
+      console.log("📚 メモリブック: 適用されたメモリはありません");
     }
     // ▲▲▲
 
@@ -498,11 +513,29 @@ ${lengthInstruction}
     console.log("=== システムプロンプト構築完了 ===");
     console.log(`systemTemplate length: ${systemTemplate?.length || 0}`);
     console.log(`initialContextText length: ${initialContextText?.length || 0}`);
+    console.log(`backMemoryInfo length: ${backMemoryInfo?.length || 0}`);
+    console.log(`detailedMemoryInfo length: ${detailedMemoryInfo?.length || 0}`);
     console.log(`imageInstruction length: ${imageInstruction?.length || 0}`);
     console.log(`formattingInstruction length: ${formattingInstruction?.length || 0}`);
+    console.log(`userPersonaInfo length: ${userPersonaInfo?.length || 0}`);
+    console.log(`lorebookInfo length: ${lorebookInfo?.length || 0}`);
     console.log(`systemInstructionText total length: ${systemInstructionText?.length || 0}`);
+    
+    // ▼▼▼【重要】AIに送信されるシステムプロンプトの主要部分を確認
+    if (backMemoryInfo) {
+      console.log("✅ メモリブックがシステムプロンプトに含まれています");
+    }
+    if (detailedMemoryInfo) {
+      console.log("✅ 詳細記憶がシステムプロンプトに含まれています");
+    }
+    if (!backMemoryInfo && !detailedMemoryInfo) {
+      console.warn("⚠️ メモリブックと詳細記憶の両方が空です。AIは記憶情報なしで応答します。");
+    }
+    // ▲▲▲
+    
     if (!systemTemplate || systemTemplate.trim().length === 0) {
-      console.error("⚠️ WARNING: systemTemplate is empty or missing!");
+      console.error(`⚠️ WARNING: systemTemplate is empty or missing! (Character ID: ${worldSetting?.id}, Name: ${worldSetting?.name || 'Unknown'})`);
+      console.error(`⚠️ This may affect AI response quality. Please check the character's systemTemplate in the database.`);
     }
     // ▲▲▲
     console.timeEnd("⏱️ Prompt Construction");
@@ -542,6 +575,20 @@ ${lengthInstruction}
           console.time("⏱️ AI sendMessageStream Total"); // AI応答完了までの総時間
           const modelToUse = settings?.model || "gemini-2.5-flash"; // デフォルトモデル
           console.log(`使用モデル: ${modelToUse}`);
+          
+          // ▼▼▼【デバッグ】AIに送信されるシステムプロンプトの確認
+          console.log("📤 Vertex AIに送信されるシステムプロンプト:");
+          console.log(`  - システムプロンプト長: ${systemInstructionText.length}文字`);
+          if (backMemoryInfo) {
+            console.log(`  - ✅ メモリブック含む: ${backMemoryInfo.length}文字`);
+          }
+          if (detailedMemoryInfo) {
+            console.log(`  - ✅ 詳細記憶含む: ${detailedMemoryInfo.length}文字`);
+          }
+          // システムプロンプトの最初の500文字を表示（デバッグ用）
+          console.log(`  - システムプロンプト先頭: ${systemInstructionText.substring(0, 500)}${systemInstructionText.length > 500 ? '...' : ''}`);
+          // ▲▲▲
+          
           const generativeModel = vertex_ai.getGenerativeModel({ model: modelToUse, safetySettings });
           
           // チャットセッションを開始（履歴とシステム指示を渡す）

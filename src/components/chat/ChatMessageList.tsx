@@ -227,7 +227,21 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
         );
       })}
 
-      {isLoading && rawMessages.filter(m => m.role === 'model').length < rawMessages.filter(m => m.role === 'user').length && (
+      {isLoading && (() => {
+        // 最後のユーザーメッセージに対応するモデルメッセージが完了しているか確認
+        const userMessages = rawMessages.filter(m => m.role === 'user');
+        const modelMessages = rawMessages.filter(m => m.role === 'model');
+        
+        if (userMessages.length === 0) return false;
+        
+        const lastUserMessage = userMessages[userMessages.length - 1];
+        const hasCorrespondingModelMessage = modelMessages.some(
+          m => m.turnId === lastUserMessage.turnId
+        );
+        
+        // 最後のユーザーメッセージに対応するモデルメッセージがまだない場合、ローディングアイコンを表示
+        return !hasCorrespondingModelMessage;
+      })() && (
         <div className="flex items-start">
           <div className="bg-gray-800 px-4 py-3 rounded-xl">
             <div className="flex items-center space-x-2">

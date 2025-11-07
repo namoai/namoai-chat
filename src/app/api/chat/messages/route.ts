@@ -4,7 +4,9 @@ import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { VertexAI, HarmCategory, HarmBlockThreshold, Content } from "@google-cloud/vertexai";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/nextauth"; 
+import { authOptions } from "@/lib/nextauth";
+import { getEmbedding } from "@/lib/embeddings";
+import { searchSimilarDetailedMemories } from "@/lib/vector-search"; 
 
 // VertexAIクライアントの初期化（asia-northeast1に変更して高速化）
 const vertex_ai = new VertexAI({
@@ -123,6 +125,12 @@ export async function POST(request: NextRequest) {
         });
         if (backMemoryData?.backMemory && backMemoryData.backMemory.trim().length > 0) {
           backMemoryInfo = `# メモリブック (会話の要約)\n${backMemoryData.backMemory}`;
+          // ▼▼▼【デバッグ】メモリブックの内容をログ出力
+          console.log(`📚 再生成: メモリブックが適用されました (${backMemoryData.backMemory.length}文字):`);
+          console.log(`  ${backMemoryData.backMemory.substring(0, 200)}${backMemoryData.backMemory.length > 200 ? '...' : ''}`);
+          // ▲▲▲
+        } else {
+          console.log("📚 再生成: メモリブック: 適用されたメモリはありません");
         }
         // ▲▲▲
         
@@ -210,33 +218,60 @@ export async function POST(request: NextRequest) {
             }
             console.log(`再生成詳細記憶: ${memoryCount}個全て適用（1-3個のため全適用）`);
           } else {
-            // 4個以上の場合はキーワードマッチングで最大3個選択
+            // 4個以上の場合はキーワードマッチング + ベクトル検索で最大3個選択（一般チャットAPIと同じ）
             const lowerMessage = userMessageForTurn.content.toLowerCase();
             const lowerHistory = historyMessages.map(msg => msg.content.toLowerCase()).join(' ');
             const combinedText = `${lowerMessage} ${lowerHistory}`;
             const triggeredMemoryIds = new Set<number>();
             
-            // キーワードマッチングで順番通りに選択
+            // ベクトル検索で関連メモリを取得（非同期、タイムアウト付き）
+            let vectorMatchedMemories: Array<{ id: number; content: string; keywords: string[]; similarity: number }> = [];
+            try {
+              const messageEmbedding = await getEmbedding(combinedText);
+              const vectorSearchPromise = searchSimilarDetailedMemories(messageEmbedding, chatId, 5);
+              vectorMatchedMemories = await Promise.race([
+                vectorSearchPromise,
+                new Promise<typeof vectorMatchedMemories>((resolve) => 
+                  setTimeout(() => resolve([]), 1500) // 1.5秒タイムアウト
+                ),
+              ]);
+            } catch (error) {
+              console.error('再生成: 詳細記憶ベクトル検索エラー:', error);
+            }
+            
+            const vectorMatchedIds = new Set(vectorMatchedMemories.map(m => m.id));
+            
+            // キーワードマッチング + ベクトル検索で順番通りに選択（createdAt順）
             for (const memory of detailedMemories) {
               if (triggeredMemories.length >= 3) break;
               
+              // キーワードマッチングまたはベクトル検索でマッチした場合
+              let hasMatch = false;
+              
+              // キーワードマッチング
               if (memory.keywords && Array.isArray(memory.keywords) && memory.keywords.length > 0) {
-                const hasMatch = memory.keywords.some((keyword) => {
+                hasMatch = memory.keywords.some((keyword) => {
                   return keyword && combinedText.includes(keyword.toLowerCase());
                 });
-                if (hasMatch) {
-                  triggeredMemories.push(memory.content);
-                  triggeredMemoryIds.add(memory.id);
-                  // 非同期で更新（エラー無視）
-                  prisma.detailed_memories.update({
-                    where: { id: memory.id },
-                    data: { lastApplied: new Date() },
-                  }).catch(() => {});
-                }
+              }
+              
+              // ベクトル検索でマッチした場合も追加
+              if (!hasMatch && vectorMatchedIds.has(memory.id)) {
+                hasMatch = true;
+              }
+              
+              if (hasMatch) {
+                triggeredMemories.push(memory.content);
+                triggeredMemoryIds.add(memory.id);
+                // 非同期で更新（エラー無視）
+                prisma.detailed_memories.update({
+                  where: { id: memory.id },
+                  data: { lastApplied: new Date() },
+                }).catch(() => {});
               }
             }
             
-            // キーワードマッチングで3個に満たない場合は、順番通りに追加
+            // キーワードマッチング + ベクトル検索で3個に満たない場合は、順番通りに追加（キーワードなしでも）
             if (triggeredMemories.length < 3) {
               for (const memory of detailedMemories) {
                 if (triggeredMemories.length >= 3) break;
@@ -251,11 +286,19 @@ export async function POST(request: NextRequest) {
                 }).catch(() => {});
               }
             }
-            console.log(`再生成詳細記憶: キーワードマッチングで${triggeredMemories.length}個適用`);
+            console.log(`再生成詳細記憶: キーワードマッチング + ベクトル検索で${triggeredMemories.length}個適用（ベクトル検索: ${vectorMatchedMemories.length}件）`);
           }
           
           if (triggeredMemories.length > 0) {
             detailedMemoryInfo = `# 詳細記憶\n- 以下の記憶は会話の内容に基づき有効化された。\n${triggeredMemories.map((mem, idx) => `- 記憶${idx + 1}: ${mem}`).join('\n')}`;
+            // ▼▼▼【デバッグ】詳細記憶の内容をログ出力
+            console.log(`📝 再生成: 詳細記憶が${triggeredMemories.length}個適用されました:`);
+            triggeredMemories.forEach((mem, idx) => {
+              console.log(`  記憶${idx + 1} (${mem.length}文字): ${mem.substring(0, 100)}${mem.length > 100 ? '...' : ''}`);
+            });
+            // ▲▲▲
+          } else {
+            console.log("📝 再生成: 詳細記憶: 適用された記憶はありません");
           }
         }
         // ▲▲▲
@@ -338,9 +381,25 @@ ${lengthInstruction}
         console.log(`detailedMemoryInfo length: ${detailedMemoryInfo?.length || 0}`);
         console.log(`imageInstruction length: ${imageInstruction?.length || 0}`);
         console.log(`formattingInstruction length: ${formattingInstruction?.length || 0}`);
+        console.log(`userPersonaInfo length: ${userPersonaInfo?.length || 0}`);
+        console.log(`lorebookInfo length: ${lorebookInfo?.length || 0}`);
         console.log(`systemInstructionText total length: ${systemInstructionText?.length || 0}`);
+        
+        // ▼▼▼【重要】AIに送信されるシステムプロンプトの主要部分を確認
+        if (backMemoryInfo) {
+          console.log("✅ 再生成: メモリブックがシステムプロンプトに含まれています");
+        }
+        if (detailedMemoryInfo) {
+          console.log("✅ 再生成: 詳細記憶がシステムプロンプトに含まれています");
+        }
+        if (!backMemoryInfo && !detailedMemoryInfo) {
+          console.warn("⚠️ 再生成: メモリブックと詳細記憶の両方が空です。AIは記憶情報なしで応答します。");
+        }
+        // ▲▲▲
+        
         if (!systemTemplate || systemTemplate.trim().length === 0) {
-          console.error("⚠️ WARNING: systemTemplate is empty or missing!");
+          console.error(`⚠️ WARNING: systemTemplate is empty or missing! (Character ID: ${char.id}, Name: ${char.name || 'Unknown'})`);
+          console.error(`⚠️ This may affect AI response quality. Please check the character's systemTemplate in the database.`);
         }
         // ▲▲▲
 
@@ -352,6 +411,19 @@ ${lengthInstruction}
         // チャット生成APIと同じように、設定からモデルを取得（デフォルト: gemini-2.5-flash）
         const modelToUse = settings?.model || "gemini-2.5-flash";
         console.log(`再生成使用モデル: ${modelToUse}`);
+        
+        // ▼▼▼【デバッグ】AIに送信されるシステムプロンプトの確認
+        console.log("📤 再生成: Vertex AIに送信されるシステムプロンプト:");
+        console.log(`  - システムプロンプト長: ${systemInstructionText.length}文字`);
+        if (backMemoryInfo) {
+          console.log(`  - ✅ メモリブック含む: ${backMemoryInfo.length}文字`);
+        }
+        if (detailedMemoryInfo) {
+          console.log(`  - ✅ 詳細記憶含む: ${detailedMemoryInfo.length}文字`);
+        }
+        // システムプロンプトの最初の500文字を表示（デバッグ用）
+        console.log(`  - システムプロンプト先頭: ${systemInstructionText.substring(0, 500)}${systemInstructionText.length > 500 ? '...' : ''}`);
+        // ▲▲▲
         
         console.time("⏱️ Vertex AI応答生成");
         const generativeModel = vertex_ai.getGenerativeModel({ model: modelToUse, safetySettings });

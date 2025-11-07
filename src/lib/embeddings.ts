@@ -96,10 +96,23 @@ async function getOpenAIClient(): Promise<OpenAI> {
 export async function getEmbedding(text: string): Promise<number[]> {
   if (!text || text.trim().length === 0) return [];
   const sanitizedText = text.replace(/\n/g, ' ').trim();
+  
+  // ▼▼▼【修正】text-embedding-3-smallの最大トークン数(8192)を考慮してテキスト長を制限
+  // 8192トークン ≈ 6000文字程度（安全マージン込み）
+  const MAX_TEXT_LENGTH = 6000;
+  const truncatedText = sanitizedText.length > MAX_TEXT_LENGTH 
+    ? sanitizedText.substring(0, MAX_TEXT_LENGTH) 
+    : sanitizedText;
+  
+  if (sanitizedText.length > MAX_TEXT_LENGTH) {
+    console.warn(`[embeddings] テキストが長すぎるため切り詰めました: ${sanitizedText.length}文字 → ${truncatedText.length}文字`);
+  }
+  // ▲▲▲
+  
   const openai = await getOpenAIClient();
   const response = await openai.embeddings.create({
     model: "text-embedding-3-small",
-    input: sanitizedText,
+    input: truncatedText,
   });
   return response.data[0].embedding;
 }

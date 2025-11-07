@@ -597,6 +597,9 @@ export default function ChatPage() {
                                 ? { ...eventData.modelMessage, timestamp: new Date(eventData.modelMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) }
                                 : msg
                         ));
+                        // ▼▼▼【修正】ai-message-savedイベントを受信したら、ストリーミングが完了したのでisLoadingをfalseに設定
+                        setIsLoading(false);
+                        // ▲▲▲
                     }
                 } catch (e) {
                     console.error("JSON解析エラー:", dataStr, e);
