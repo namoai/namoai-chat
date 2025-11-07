@@ -4,7 +4,7 @@ import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { VertexAI, HarmCategory, HarmBlockThreshold, Content } from "@google-cloud/vertexai";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/nextauth";
+import { authOptions } from "@/lib/nextauth"; 
 import { getEmbedding } from "@/lib/embeddings";
 import { searchSimilarDetailedMemories } from "@/lib/vector-search"; 
 
@@ -19,11 +19,11 @@ const getSafetySettings = (safetyFilterEnabled: boolean) => {
     if (safetyFilterEnabled === false) {
         // セーフティフィルターOFF: すべてのコンテンツを許可
         return [
-            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-        ];
+    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+];
     } else {
         // セーフティフィルターON: 高レベルだけをブロック（ロマンチック/感情的な内容は許可）
         return [
@@ -345,14 +345,14 @@ export async function POST(request: NextRequest) {
                 hasMatch = true;
               }
               
-              if (hasMatch) {
-                triggeredMemories.push(memory.content);
-                triggeredMemoryIds.add(memory.id);
-                // 非同期で更新（エラー無視）
-                prisma.detailed_memories.update({
-                  where: { id: memory.id },
-                  data: { lastApplied: new Date() },
-                }).catch(() => {});
+                if (hasMatch) {
+                  triggeredMemories.push(memory.content);
+                  triggeredMemoryIds.add(memory.id);
+                  // 非同期で更新（エラー無視）
+                  prisma.detailed_memories.update({
+                    where: { id: memory.id },
+                    data: { lastApplied: new Date() },
+                  }).catch(() => {});
               }
             }
             

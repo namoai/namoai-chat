@@ -72,22 +72,24 @@ function parseImageTags(text: string, characterImages: CharacterImageInfo[]): {
 }
 // ▲▲▲
 
-const prioritizeImagesByKeyword = (userText: string, allImages: CharacterImageInfo[]): CharacterImageInfo[] => {
-  const images = allImages.slice(1);
-  if (!userText.trim()) return images;
-  const lowerUserText = userText.toLowerCase();
-  const matched: CharacterImageInfo[] = [];
-  const rest: CharacterImageInfo[] = [];
-  images.forEach(img => {
-    const keyword = (img.keyword || "").toLowerCase().trim();
-    if (keyword && lowerUserText.includes(keyword)) {
-      matched.push(img);
-    } else {
-      rest.push(img);
-    }
-  });
-  return [...matched, ...rest];
-};
+// ▼▼▼【削除】prioritizeImagesByKeyword関数は未使用のため削除（원본 이미지 순서 유지）
+// const prioritizeImagesByKeyword = (userText: string, allImages: CharacterImageInfo[]): CharacterImageInfo[] => {
+//   const images = allImages.slice(1);
+//   if (!userText.trim()) return images;
+//   const lowerUserText = userText.toLowerCase();
+//   const matched: CharacterImageInfo[] = [];
+//   const rest: CharacterImageInfo[] = [];
+//   images.forEach(img => {
+//     const keyword = (img.keyword || "").toLowerCase().trim();
+//     if (keyword && lowerUserText.includes(keyword)) {
+//       matched.push(img);
+//     } else {
+//       rest.push(img);
+//     }
+//   });
+//   return [...matched, ...rest];
+// };
+// ▲▲▲
 
 // --- メインページコンポーネント ---
 

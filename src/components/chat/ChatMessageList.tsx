@@ -3,7 +3,10 @@ import React, { useEffect, useRef } from 'react';
 import { Edit3, Trash2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import ChatMessageParser from '@/components/ChatMessageParser';
 // ▼▼▼【バグ修正】 `Turn`型を再度インポートします。▼▼▼
-import type { Turn, Message, CharacterInfo, CharacterImageInfo } from '@/types/chat';
+import type { Turn, Message, CharacterInfo } from '@/types/chat';
+// ▼▼▼【修正】CharacterImageInfoは未使用のため削除
+// import type { CharacterImageInfo } from '@/types/chat';
+// ▲▲▲
 
 interface ChatMessageListProps {
   characterInfo: CharacterInfo;

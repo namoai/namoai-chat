@@ -25,11 +25,11 @@ const getSafetySettings = (safetyFilterEnabled: boolean) => {
   if (safetyFilterEnabled === false) {
     // セーフティフィルターOFF: すべてのコンテンツを許可
     return [
-      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    ];
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+];
   } else {
     // セーフティフィルターON: 高レベルだけをブロック（ロマンチック/感情的な内容は許可）
     return [
@@ -141,9 +141,9 @@ export async function POST(request: Request, context: any) {
     return NextResponse.json({ message: "メッセージは必須です。" }, { status: 400 });
   }
 
-  try {
-    // DB書き込みPromise (ポイント消費, メッセージ保存)
-    const dbWritePromise = (async () => {
+  try {
+    // DB書き込みPromise (ポイント消費, メッセージ保存)
+    const dbWritePromise = (async () => {
       console.time("⏱️ DB Write (Points+Msg)");
       console.log(`ステップ1: ポイント消費とメッセージ保存処理開始 (ユーザーID: ${userId})`);
       const totalPointsToConsume = 1;
@@ -360,10 +360,10 @@ export async function POST(request: Request, context: any) {
     }
     // ▲▲▲
 
-    const worldSetting = chatRoom.characters; // 'char' から 'worldSetting' に変数名を変更 (意味を明確化)
-    const user = chatRoom.users;
-    const worldName = worldSetting.name; // {{char}} に置換される名前 (世界観の名前)
-    const userNickname = persona?.nickname || user.nickname || "ユーザー"; // {{user}} に置換される名前
+    const worldSetting = chatRoom.characters; // 'char' から 'worldSetting' に変数名を変更 (意味を明確化)
+    const user = chatRoom.users;
+    const worldName = worldSetting.name; // {{char}} に置換される名前 (世界観の名前)
+    const userNickname = persona?.nickname || user.nickname || "ユーザー"; // {{user}} に置換される名前
 
     // プレースホルダー（{{char}}、{{user}}）を置換するヘルパー関数
     const replacePlaceholders = (text: string | null | undefined): string => {
@@ -382,14 +382,14 @@ export async function POST(request: Request, context: any) {
       ...vectorMatchedMessages
         .filter(m => m.id !== currentMessageId) // 現在のメッセージを除外
         .map(m => ({
-          id: m.id,
-          role: m.role,
-          content: m.content,
-          createdAt: m.createdAt,
-          turnId: null,
-          version: 1,
-          isActive: true,
-        }))
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        createdAt: m.createdAt,
+        turnId: null,
+        version: 1,
+        isActive: true,
+      }))
     ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     
     const chatHistory: Content[] = allHistoryMessages.map(msg => ({
@@ -768,7 +768,7 @@ ${lengthInstruction}
             sendEvent('ai-update', { responseChunk: chunk }); // チャンクをクライアントに送信
             finalResponseText += chunk;
           }
-          console.timeEnd("⏱️ AI sendMessageStream Total"); // AI応答完了
+          console.timeEnd("⏱️ AI sendMessageStream Total"); // AI応答完了
 
           // 応答が空でないか確認、またはブロックされた場合
           if (wasBlocked || !finalResponseText.trim()) {
@@ -779,9 +779,9 @@ ${lengthInstruction}
                });
                throw new Error("AIからの応答が安全性フィルターによってブロックされました。");
              } else {
-               console.log("警告: 最終的な応答テキストが空でした。");
-               throw new Error("AIからの応答が空でした。");
-             }
+             console.log("警告: 最終的な応答テキストが空でした。");
+             throw new Error("AIからの応答が空でした。");
+          }
           }
 
           // ▼▼▼【バックエンド画像キーワードマッチング】AIが画像タグを生成しなかった場合、キーワードで自動追加▼▼▼
