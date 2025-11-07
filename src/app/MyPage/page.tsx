@@ -206,7 +206,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
     {
       icon: <ShieldCheck size={20} className="text-gray-400" />,
       text: "セーフティフィルター",
-      badge: isSafetyFilterOn === null ? "..." : (isSafetyFilterOn ? "ON" : "OFF"),
+      badge: isSafetyFilterOn === null ? "" : (isSafetyFilterOn ? "ON" : "OFF"),
       action: handleSafetyFilterToggle
     },
     { icon: <BrainCircuit size={20} className="text-gray-400" />, text: "ペルソナ設定", action: "/persona/list" },
@@ -223,18 +223,19 @@ const LoggedInView = ({ session }: { session: Session }) => {
       <>
         {item.icon}
         <span className="ml-4 text-base">{item.text}</span>
-        {'badge' in item && item.badge && (
+        {'badge' in item && (
           <span
-            className={`ml-auto text-sm px-2 py-1 rounded flex items-center gap-1 ${
+            className={`ml-auto text-sm px-2 py-1 rounded flex items-center justify-center ${
               isSafetyFilterOn === null 
-                ? 'bg-gray-600 text-white' 
+                ? 'bg-gray-600 text-white w-6 h-6' 
                 : (isSafetyFilterOn ? 'bg-green-600 text-white' : 'bg-red-600 text-white')
             }`}
           >
-            {isSafetyFilterOn === null && (
-              <Loader2 size={12} className="animate-spin" />
+            {isSafetyFilterOn === null ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              item.badge
             )}
-            {item.badge}
           </span>
         )}
       </>
