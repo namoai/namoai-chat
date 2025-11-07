@@ -15,6 +15,7 @@ import { getEmbedding } from "@/lib/embeddings";
 import { searchSimilarMessages, searchSimilarDetailedMemories } from "@/lib/vector-search";
 import { getSafetySettings } from "@/lib/chat/safety-settings";
 import { CharacterImageInfo, selectImageByKeyword, addImageTagIfKeywordMatched } from "@/lib/chat/image-selection";
+import { createDetailedMemories } from "@/lib/chat/memory-management";
 
 // VertexAIクライアントの初期化
 const vertex_ai = new VertexAI({
@@ -1208,85 +1209,14 @@ ${summary}`;
                       }
                       // ▲▲▲
                       
-                      // 要約が2000文字を超える場合のみ分割、それ以外は1つのメモリとして保存
-                      const MAX_MEMORY_LENGTH = 2000;
-                      if (summary.length > MAX_MEMORY_LENGTH) {
-                        // 2000文字を超える場合: 分割
-                        let remainingSummary = summary;
-                        
-                        while (remainingSummary.length > 0) {
-                          const memoryContent = remainingSummary.substring(0, MAX_MEMORY_LENGTH);
-                          remainingSummary = remainingSummary.substring(MAX_MEMORY_LENGTH);
-                          
-                          // メッセージ範囲情報をメタデータとしてkeywordsに追加（特殊形式: __META:start:1:end:5__）
-                          const metaKeywords = [`__META:start:${messageStartIndex}:end:${messageEndIndex}__`, ...extractedKeywords];
-                          
-                          const newMemory = await prisma.detailed_memories.create({
-                            data: {
-                              chatId,
-                              content: memoryContent,
-                              keywords: metaKeywords,
-                            },
-                          });
-                          
-                          // embedding生成（非同期）
-                          (async () => {
-                            try {
-                              const embedding = await getEmbedding(memoryContent);
-                              const embeddingString = `[${embedding.join(',')}]`;
-                              await prisma.$executeRawUnsafe(
-                                `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
-                                embeddingString,
-                                newMemory.id
-                              );
-                            } catch (error) {
-                              console.error('詳細記憶embedding生成エラー:', error);
-                            }
-                          })();
-                          
-                          // 残りが2000文字以下なら終了
-                          if (remainingSummary.length <= MAX_MEMORY_LENGTH) {
-                            if (remainingSummary.length > 0) {
-                              const metaKeywords = [`__META:start:${messageStartIndex}:end:${messageEndIndex}__`, ...extractedKeywords];
-                              await prisma.detailed_memories.create({
-                                data: {
-                                  chatId,
-                                  content: remainingSummary,
-                                  keywords: metaKeywords,
-                                },
-                              });
-                            }
-                            break;
-                          }
-                        }
-                      } else {
-                        // 2000文字以下の場合: 1つのメモリとして保存
-                        // メッセージ範囲情報をメタデータとしてkeywordsに追加
-                        const metaKeywords = [`__META:start:${messageStartIndex}:end:${messageEndIndex}__`, ...extractedKeywords];
-                        
-                        const newMemory = await prisma.detailed_memories.create({
-                          data: {
-                            chatId,
-                            content: summary,
-                            keywords: metaKeywords,
-                          },
-                        });
-                        
-                        // embedding生成（非同期）
-                        (async () => {
-                          try {
-                            const embedding = await getEmbedding(summary);
-                            const embeddingString = `[${embedding.join(',')}]`;
-                            await prisma.$executeRawUnsafe(
-                              `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
-                              embeddingString,
-                              newMemory.id
-                            );
-                          } catch (error) {
-                            console.error('詳細記憶embedding生成エラー:', error);
-                          }
-                        })();
-                      }
+                      // Create detailed memories from summary
+                      await createDetailedMemories(
+                        chatId,
+                        summary,
+                        extractedKeywords,
+                        messageStartIndex,
+                        messageEndIndex
+                      );
                       
                       console.log('詳細記憶自動要約が完了しました');
                     }
