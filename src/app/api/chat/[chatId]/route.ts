@@ -1052,12 +1052,21 @@ ${conversationText}`;
 }
 
 // キーワード抽出関数（フォールバック用）- 日本語のみ
+// 注意：この関数は日本語テキストからのみキーワードを抽出します
+// 韓国語・英語などのテキストでは空配列を返します（AIキーワード抽出に依存）
 function extractKeywords(text: string): string[] {
   // キーワード抽出（範囲情報を除外、日本語のみ）
   // 日本語（ひらがな、カタカナ、漢字）のみを抽出
   const japanesePattern = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+/g; // ひらがな、カタカナ、漢字
 
   const japaneseWords = text.match(japanesePattern) || [];
+  
+  // 日本語がほとんど含まれていない場合（韓国語・英語のみなど）、空配列を返す
+  // AIキーワード抽出に依存させるため
+  if (japaneseWords.length === 0) {
+    return [];
+  }
+  
   const allWords = [...japaneseWords];
   const wordCount: { [key: string]: number } = {};
 
