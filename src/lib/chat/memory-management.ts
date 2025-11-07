@@ -151,7 +151,7 @@ export async function updateMemoriesWithAIKeywords(
 - 名詞中心で、会話の核心を表す重要な概念のみを抽出
 - 抽象的すぎる単語（例：もの、こと、것、事）は除外
 - キーワードはカンマ区切りで返してください
-- キーワードは元の言語（日本語、英語、韓国語など）でそのまま返してください
+- キーワードは日本語のみで返してください（他の言語のキーワードは日本語に翻訳してください）
 - 10個に満たない場合は、無理に10個にしなくても構いません
 
 会話要約：
@@ -161,7 +161,7 @@ ${summary}`;
     const keywordText = keywordResult.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
     
     if (keywordText) {
-      // Extract keywords from AI response
+      // Extract keywords from AI response (Japanese only)
       const extractedKeywords = keywordText
         .split(',')
         .map(k => k.trim())
