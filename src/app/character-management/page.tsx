@@ -27,6 +27,7 @@ type CharacterSummary = {
   id: number;
   name: string;
   visibility: string | null;
+  safetyFilter: boolean | null;
   characterImages: { imageUrl: string }[];
   _count: {
     chat: number;

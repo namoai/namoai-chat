@@ -285,7 +285,11 @@ export async function GET(request: Request) {
         const charactersRaw = await prisma.characters.findMany({
             where: whereClause,
             orderBy: { createdAt: 'desc' },
-            include: {
+            select: {
+                id: true,
+                name: true,
+                visibility: true,
+                safetyFilter: true,
                 characterImages: {
                     orderBy: { displayOrder: 'asc' },
                 },
