@@ -23,7 +23,9 @@ interface ChatMessageListProps {
   // ▼▼▼【Stale State修正】`Turn`オブジェクトの代わりに`turnId` (number)を受け取るように修正します。▼▼▼
   handleRegenerate: (turnId: number) => void;
   switchModelMessage: (turnId: number, direction: 'next' | 'prev') => void;
-  prioritizeImagesByKeyword: (userText: string, allImages: CharacterImageInfo[]) => CharacterImageInfo[];
+  // ▼▼▼【修正】prioritizeImagesByKeyword propは削除（원본 이미지 순서 유지）
+  // prioritizeImagesByKeyword: (userText: string, allImages: CharacterImageInfo[]) => CharacterImageInfo[];
+  // ▲▲▲
   showChatImage: boolean;
   isMultiImage: boolean;
   setLightboxImage: (url: string | null) => void;
@@ -69,7 +71,10 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   characterInfo, rawMessages, isLoading, regeneratingTurnId, editingMessageId,
   editingUserContent, editingModelContent, setEditingUserContent, setEditingModelContent,
   handleEditStart, handleEditCancel, handleEditSave, handleDelete, handleRegenerate, switchModelMessage,
-  prioritizeImagesByKeyword, showChatImage, isMultiImage, setLightboxImage,
+  // ▼▼▼【修正】prioritizeImagesByKeyword propは削除
+  // prioritizeImagesByKeyword,
+  // ▲▲▲
+  showChatImage, isMultiImage, setLightboxImage,
   // turns, // ★★★【Stale State修正】`turns` propを受け取りません。
 }) => {
   
@@ -115,7 +120,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
               <div className="bg-gray-800 px-4 py-2 rounded-xl max-w-xs md:max-w-md lg:max-w-2xl">
                 <ChatMessageParser
                   content={characterInfo.firstMessage}
-                  characterImages={prioritizeImagesByKeyword(characterInfo.firstMessage, characterInfo.characterImages)}
+                  characterImages={characterInfo.characterImages}
                   showImage={showChatImage}
                   isMultiImage={isMultiImage}
                   onImageClick={setLightboxImage}
@@ -129,7 +134,9 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
       {processedTurns.map((turn, turnIndex) => {
         const userMsg = turn.userMessage;
         const isEditingUser = editingMessageId === userMsg.id;
-        const prioritizedImages = prioritizeImagesByKeyword(userMsg.content, characterInfo.characterImages);
+        // ▼▼▼【修正】{img:n} 태그 파싱을 위해 원본 순서 유지 (prioritizeImagesByKeyword는 인덱스 해석에 사용하지 않음)
+        // prioritizedImages는 이미지 표시 우선순위 결정용이지만, {img:n} 태그는 원본 순서 기준으로 파싱해야 함
+        // ▲▲▲
 
         return (
           <div key={turn.turnId || turnIndex} className="space-y-4">
@@ -190,7 +197,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                     ) : (
                       <ChatMessageParser
                         content={activeModelMessage.content}
-                        characterImages={prioritizedImages}
+                        characterImages={characterInfo.characterImages}
                         showImage={showChatImage}
                         isMultiImage={isMultiImage}
                         onImageClick={setLightboxImage}

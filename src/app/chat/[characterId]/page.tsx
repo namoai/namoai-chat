@@ -992,7 +992,9 @@ export default function ChatPage() {
           handleDelete={handleDelete}
           handleRegenerate={handleRegenerate} // ▼▼▼【Stale State修正】(turnId: number) シグネチャの関数を渡します ▼▼▼
           switchModelMessage={switchModelMessage}
-          prioritizeImagesByKeyword={prioritizeImagesByKeyword}
+          // ▼▼▼【修正】prioritizeImagesByKeyword propは削除（원본 이미지 순서 유지）
+          // prioritizeImagesByKeyword={prioritizeImagesByKeyword}
+          // ▲▲▲
           showChatImage={showChatImage}
           isMultiImage={isMultiImage}
           setLightboxImage={setLightboxImage}

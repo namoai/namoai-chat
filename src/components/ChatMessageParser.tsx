@@ -5,6 +5,7 @@ import Image from 'next/image';
 type CharacterImage = {
   imageUrl: string;
   keyword?: string | null;
+  isMain?: boolean;
 };
 
 export type ChatMessageParserProps = {
@@ -138,7 +139,11 @@ function parseTextContent(
       }
 
       const n = parseInt(internalImageMatch[1], 10);
-      const image = characterImages[n - 1]; // 1始まりのインデックス
+      // ▼▼▼【修正】parseImageTags와 동일하게 nonMainImages 사용 (isMain=false인 이미지만)
+      const nonMainImages = characterImages.filter(img => !img.isMain);
+      const index = n - 1; // 1-indexed to 0-indexed
+      const image = index >= 0 && index < nonMainImages.length ? nonMainImages[index] : null;
+      // ▲▲▲
 
       if (image) {
         imageRendered = true;
@@ -155,6 +160,10 @@ function parseTextContent(
             />
           </div>
         );
+      } else {
+        // ▼▼▼【デバッグ】画像が見つからない場合の警告
+        console.warn(`⚠️ ChatMessageParser: 無効な画像インデックス {img:${n}} (非メイン画像数: ${nonMainImages.length})`);
+        // ▲▲▲
       }
     }
 
