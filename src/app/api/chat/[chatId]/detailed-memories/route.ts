@@ -244,7 +244,7 @@ export async function POST(
                 );
                 
                 if (similarMemories && similarMemories.length > 0) {
-                  console.log(`再要約: バッチ ${start + 1}-${end} 類似度 ${similarMemories[0].similarity.toFixed(3)} の既存要約があるためスキップ`);
+                  console.log(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} 類似度 ${similarMemories[0].similarity.toFixed(3)} の既存要約があるためスキップ`);
                   shouldSkip = true;
                   skippedCount++;
                 }
@@ -257,6 +257,9 @@ export async function POST(
                 continue;
               }
               // ▲▲▲
+              
+              // メモリが作成される場合のみカウント
+              createdCount++;
               
               const vertex_ai = new VertexAI({
                 project: process.env.GOOGLE_PROJECT_ID || '',
@@ -285,7 +288,7 @@ ${conversationText}`;
               const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
               if (!summary) {
-                console.error(`再要約: バッチ ${start + 1}-${end} 要約が空です`);
+                console.error(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} 要約が空です`);
                 continue;
               }
 
@@ -384,18 +387,18 @@ ${conversationText}`;
                 })();
               }
               
-              console.log(`再要約: バッチ ${start + 1}-${end} 要約完了`);
+              console.log(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} 要約完了`);
               
               // バッチ間に少し待機（サーバー負荷軽減）
               if (start + windowSize < messagesToSummarize.length) {
                 await new Promise(resolve => setTimeout(resolve, 500));
               }
             } catch (error) {
-              console.error(`再要約: バッチ ${start + 1}-${end} 要約エラー:`, error);
+              console.error(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} 要約エラー:`, error);
             }
         }
         
-        console.log('再要約: 全バッチ処理完了');
+        console.log(`再要約: 全バッチ処理完了 (作成: ${createdCount}件, スキップ: ${skippedCount}件)`);
         
         // ▼▼▼【追加】再要約後、1-3個の場合は自動適用（lastAppliedを設定）
         const newMemories = await prisma.detailed_memories.findMany({
