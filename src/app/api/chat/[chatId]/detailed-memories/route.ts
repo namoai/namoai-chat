@@ -600,17 +600,18 @@ ${conversationText}`;
     
     console.log(`再要約: 作成されたメモリ数: ${newMemories.length}件`);
     
-    // 作成されたメモリ数に応じて自動適用
+    // 作成されたメモリ数に応じて自動適用（最大3個まで）
     if (newMemories.length > 0) {
       const memoriesToApply = newMemories.slice(0, Math.min(3, newMemories.length)); // 最大3個まで
       console.log(`再要約: ${memoriesToApply.length}個のメモリを自動適用（作成: ${newMemories.length}件）`);
       
-      // すべてのメモリのlastAppliedを一度に更新
+      // すべてのメモリのlastAppliedを一度に更新（再要約完了時点で適用済みにする）
+      const applyDate = new Date();
       await Promise.all(
         memoriesToApply.map(memory =>
           prisma.detailed_memories.update({
             where: { id: memory.id },
-            data: { lastApplied: new Date() },
+            data: { lastApplied: applyDate },
           }).catch(err => {
             console.error(`自動適用エラー (ID: ${memory.id}):`, err);
             return null;
@@ -618,7 +619,7 @@ ${conversationText}`;
         )
       );
       
-      console.log(`再要約: 自動適用完了 (${memoriesToApply.length}個)`);
+      console.log(`再要約: 自動適用完了 (${memoriesToApply.length}個) - 再要約完了時点で適用済み`);
     } else {
       console.log('再要約: 作成されたメモリがないため、自動適用をスキップ');
     }
