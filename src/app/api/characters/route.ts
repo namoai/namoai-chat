@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
+import { checkFieldsForSexualContent } from '@/lib/content-filter';
 import { createClient } from '@supabase/supabase-js';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { randomUUID } from 'crypto';
@@ -347,6 +348,31 @@ export async function POST(request: Request) {
                     return NextResponse.json({ message: 'キャラクターの名前は必須項目です。' }, { status: 400 });
                 }
                 
+                // ▼▼▼【追加】セーフティフィルターがONの場合、性的コンテンツをチェック
+                const safetyFilter = formFields.safetyFilter !== false;
+                if (safetyFilter) {
+                    const violations = checkFieldsForSexualContent({
+                        systemTemplate: formFields.systemTemplate,
+                        firstSituation: formFields.firstSituation,
+                        firstMessage: formFields.firstMessage,
+                        description: formFields.description,
+                    });
+                    
+                    if (violations.length > 0) {
+                        const fieldNames: Record<string, string> = {
+                            systemTemplate: 'システムテンプレート',
+                            firstSituation: '初期状況',
+                            firstMessage: '最初のメッセージ',
+                            description: '説明',
+                        };
+                        const violationMessages = violations.map(v => fieldNames[v] || v).join('、');
+                        return NextResponse.json({ 
+                            message: `セーフティフィルターがONのキャラクターには性的コンテンツを含めることができません。\n\n以下のフィールドに性的コンテンツが検出されました: ${violationMessages}\n\nセーフティフィルターをOFFにするか、性的コンテンツを削除してください。` 
+                        }, { status: 400 });
+                    }
+                }
+                // ▲▲▲
+                
                 const newCharacter = await prisma.$transaction(async (tx) => {
                     const character = await tx.characters.create({
                         data: {
@@ -502,6 +528,31 @@ export async function POST(request: Request) {
         }
 
         const safetyFilter = safetyFilterString === 'true';
+        
+        // ▼▼▼【追加】セーフティフィルターがONの場合、性的コンテンツをチェック
+        if (safetyFilter) {
+            const violations = checkFieldsForSexualContent({
+                systemTemplate,
+                firstSituation,
+                firstMessage,
+                description,
+            });
+            
+            if (violations.length > 0) {
+                const fieldNames: Record<string, string> = {
+                    systemTemplate: 'システムテンプレート',
+                    firstSituation: '初期状況',
+                    firstMessage: '最初のメッセージ',
+                    description: '説明',
+                };
+                const violationMessages = violations.map(v => fieldNames[v] || v).join('、');
+                return NextResponse.json({ 
+                    message: `セーフティフィルターがONのキャラクターには性的コンテンツを含めることができません。\n\n以下のフィールドに性的コンテンツが検出されました: ${violationMessages}\n\nセーフティフィルターをOFFにするか、性的コンテンツを削除してください。` 
+                }, { status: 400 });
+            }
+        }
+        // ▲▲▲
+        
         let hashtags: string[] = [];
         try {
             hashtags = JSON.parse(hashtagsString);

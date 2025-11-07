@@ -3,7 +3,7 @@
 import type { Session } from "next-auth";
 import {
   Heart, ChevronRight, Megaphone, Users, BookUser,
-  User, ShieldCheck, BrainCircuit, LogOut, Coins, Shield,
+  User, ShieldCheck, BrainCircuit, LogOut, Coins, Shield, Loader2,
 } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
 import { signOut } from "next-auth/react";
@@ -225,12 +225,15 @@ const LoggedInView = ({ session }: { session: Session }) => {
         <span className="ml-4 text-base">{item.text}</span>
         {'badge' in item && item.badge && (
           <span
-            className={`ml-auto text-sm px-2 py-1 rounded ${
+            className={`ml-auto text-sm px-2 py-1 rounded flex items-center gap-1 ${
               isSafetyFilterOn === null 
                 ? 'bg-gray-600 text-white' 
                 : (isSafetyFilterOn ? 'bg-green-600 text-white' : 'bg-red-600 text-white')
             }`}
           >
+            {isSafetyFilterOn === null && (
+              <Loader2 size={12} className="animate-spin" />
+            )}
             {item.badge}
           </span>
         )}

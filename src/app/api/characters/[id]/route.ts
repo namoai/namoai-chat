@@ -11,6 +11,7 @@ import { Role } from '@prisma/client';
 // ▼▼▼【Redis】 lib/redis.ts からインポート
 import { redis } from '@/lib/redis'; 
 import OpenAI from 'openai';
+import { checkFieldsForSexualContent } from '@/lib/content-filter';
 // ▼▼▼【Supabase】追加インポート
 import { createClient } from '@supabase/supabase-js';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
@@ -388,6 +389,31 @@ export async function PUT(
           });
         }
         
+        // ▼▼▼【追加】セーフティフィルターがONの場合、性的コンテンツをチェック
+        const safetyFilter = formFields.safetyFilter !== false;
+        if (safetyFilter) {
+            const violations = checkFieldsForSexualContent({
+                systemTemplate: formFields.systemTemplate,
+                firstSituation: formFields.firstSituation,
+                firstMessage: formFields.firstMessage,
+                description: formFields.description,
+            });
+            
+            if (violations.length > 0) {
+                const fieldNames: Record<string, string> = {
+                    systemTemplate: 'システムテンプレート',
+                    firstSituation: '初期状況',
+                    firstMessage: '最初のメッセージ',
+                    description: '説明',
+                };
+                const violationMessages = violations.map(v => fieldNames[v] || v).join('、');
+                return NextResponse.json({ 
+                    message: `セーフティフィルターがONのキャラクターには性的コンテンツを含めることができません。\n\n以下のフィールドに性的コンテンツが検出されました: ${violationMessages}\n\nセーフティフィルターをOFFにするか、性的コンテンツを削除してください。` 
+                }, { status: 400 });
+            }
+        }
+        // ▲▲▲
+        
         // キャラクター情報更新
         const updated = await tx.characters.update({
           where: { id: characterIdToUpdate },
@@ -398,7 +424,7 @@ export async function PUT(
             firstSituation: formFields.firstSituation ?? null,
             firstMessage: formFields.firstMessage ?? null,
             visibility: formFields.visibility,
-            safetyFilter: formFields.safetyFilter !== false,
+            safetyFilter: safetyFilter,
             category: formFields.category ?? null,
             hashtags: formFields.hashtags ?? [],
             detailSetting: formFields.detailSetting ?? null,

@@ -198,6 +198,7 @@ export default function CharacterManagementPage() {
   const [loading, setLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false); // ▼▼▼【追加】インポート処理中の状態管理 ▼▼▼
   const [activeTab, setActiveTab] = useState("全体");
+  const [userSafetyFilter, setUserSafetyFilter] = useState<boolean | null>(null);
   const [notification, setNotification] = useState<{
     message: string;
     type: "success" | "error";
@@ -248,6 +249,23 @@ export default function CharacterManagementPage() {
   useEffect(() => {
     fetchCharacters();
   }, [fetchCharacters]);
+
+  useEffect(() => {
+    // ユーザーのセーフティフィルター設定を取得
+    const fetchSafetyFilter = async () => {
+      try {
+        const response = await fetch('/api/users/safety-filter', { cache: 'no-store' });
+        if (response.ok) {
+          const data = await response.json();
+          setUserSafetyFilter(data.safetyFilter ?? true);
+        }
+      } catch (error) {
+        console.error('セーフティフィルター取得エラー:', error);
+        setUserSafetyFilter(true); // デフォルトはON
+      }
+    };
+    fetchSafetyFilter();
+  }, []);
 
   const handleMenuAction = async (action: string, char: CharacterSummary) => {
     switch (action) {
@@ -363,15 +381,22 @@ export default function CharacterManagementPage() {
   };
 
   const filteredCharacters = useMemo(() => {
-    if (activeTab === "全体") return characters;
+    let filtered = characters;
+    
+    // セーフティフィルターがONの場合、OFFのキャラクターを除外
+    if (userSafetyFilter === true) {
+      filtered = filtered.filter(char => char.safetyFilter !== false);
+    }
+    
+    if (activeTab === "全体") return filtered;
     const visibilityMap: { [key: string]: string | undefined } = {
       公開: "public",
       非公開: "private",
       リンク限定公開: "link",
     };
     const targetVisibility = visibilityMap[activeTab];
-    return characters.filter((char) => char.visibility === targetVisibility);
-  }, [characters, activeTab]);
+    return filtered.filter((char) => char.visibility === targetVisibility);
+  }, [characters, activeTab, userSafetyFilter]);
 
   if (loading) {
     return (

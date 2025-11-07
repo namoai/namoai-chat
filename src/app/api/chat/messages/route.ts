@@ -436,9 +436,14 @@ export async function POST(request: NextRequest) {
         const lengthInstruction = `- **Response Length**: Aim for 800-1100 characters (including spaces) per response. Provide rich, detailed descriptions and dialogue.`;
         
         // ▼▼▼【追加】セーフティフィルター設定に基づいてContent Policyを動的に生成
-        const contentPolicy = userSafetyFilter === false 
-          ? `- **Content Policy**: This is an adult-oriented creative writing platform. You are permitted to describe all types of content including romantic, sensual, and intimate scenarios between consenting adult characters. Focus on emotional depth, sensory details, and narrative quality. Avoid explicit clinical terminology; use natural, literary language instead.`
-          : `- **Content Policy**: Keep content appropriate and safe. Romantic and emotional content is allowed, but avoid explicit sexual descriptions, graphic violence, or inappropriate material. Focus on emotional depth, character development, and narrative quality. Use suggestive and subtle descriptions rather than explicit content. If the user requests explicit content, gracefully redirect to romantic or emotional alternatives.`;
+        // キャラクターのセーフティフィルターを取得（chatRoomから取得）
+        const characterSafetyFilter = chatRoom.characters?.safetyFilter ?? true;
+        
+        const contentPolicy = userSafetyFilter === false && characterSafetyFilter === false
+        ? `- **Content Policy**: This is an adult-oriented creative writing platform. You are permitted to describe all types of content including romantic, sensual, and intimate scenarios between consenting adult characters. Focus on emotional depth, sensory details, and narrative quality. Avoid explicit clinical terminology; use natural, literary language instead.`
+        : characterSafetyFilter === true
+        ? `- **Content Policy**: This character has the safety filter enabled. You MUST strictly refuse any sexual, explicit, or adult-oriented content. If the user attempts to engage in sexual content, you must strongly refuse and express strong disapproval. Respond with phrases like "そんなこと絶対にできない！", "そういう話はやめて！", "私はそんなことはしたくない！" and redirect to safe, appropriate topics. Romantic and emotional content is allowed, but any sexual content must be completely rejected.`
+        : `- **Content Policy**: Keep content appropriate and safe. Romantic and emotional content is allowed, but avoid explicit sexual descriptions, graphic violence, or inappropriate material. Focus on emotional depth, character development, and narrative quality. Use suggestive and subtle descriptions rather than explicit content. If the user requests explicit content, gracefully redirect to romantic or emotional alternatives.`;
         // ▲▲▲
         
         // Content PolicyはsystemTemplateの指示と衝突する可能性があるため、
