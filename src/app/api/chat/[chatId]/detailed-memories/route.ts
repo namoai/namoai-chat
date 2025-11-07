@@ -393,12 +393,6 @@ type SafetySetting = Array<{
   threshold: typeof HarmBlockThreshold[keyof typeof HarmBlockThreshold];
 }>;
 
-type ChatMessage = {
-  role: string;
-  content: string;
-  createdAt: Date;
-};
-
 async function performReSummarization(
   chatIdNum: number,
   windowSize: number,

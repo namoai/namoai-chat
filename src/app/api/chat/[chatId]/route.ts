@@ -721,11 +721,11 @@ ${lengthInstruction}
           console.time("⏱️ DB Write (AI Msg)");
           console.log("ステップ6: AIの応答をデータベースに保存");
           const newModelMessage = await prisma.$transaction(async (tx) => {
-          // 同じターンの古いモデルメッセージを非アクティブ化
-          await tx.chat_message.updateMany({ where: { turnId: turnIdForModel, role: 'model' }, data: { isActive: false } });
-          // 新しいバージョン番号を計算
-          const lastVersion = await tx.chat_message.findFirst({ where: { turnId: turnIdForModel, role: 'model' }, orderBy: { version: 'desc' } });
-          const newVersionNumber = (lastVersion?.version || 0) + 1;
+            // 同じターンの古いモデルメッセージを非アクティブ化
+            await tx.chat_message.updateMany({ where: { turnId: turnIdForModel, role: 'model' }, data: { isActive: false } });
+            // 新しいバージョン番号を計算
+            const lastVersion = await tx.chat_message.findFirst({ where: { turnId: turnIdForModel, role: 'model' }, orderBy: { version: 'desc' } });
+            const newVersionNumber = (lastVersion?.version || 0) + 1;
             // 新しいモデルメッセージを作成
             return await tx.chat_message.create({
               data: { chatId, role: "model", content: finalResponseText, turnId: turnIdForModel, version: newVersionNumber, isActive: true },
@@ -994,7 +994,7 @@ ${conversationText}`;
 
                       // 3. バックグラウンドでAIキーワード抽出し、記憶を更新
                       if (createdMemoryIds.length > 0) {
-                        updateMemoriesWithAIKeywords(summaryModel, summary, createdMemoryIds, safetySettings).catch((error: unknown) => {
+                        updateMemoriesWithAIKeywords(summaryModel, summary, createdMemoryIds).catch((error: unknown) => {
                           console.error('Background AI keyword extraction error:', error);
                         });
                       }

@@ -119,13 +119,11 @@ export async function createDetailedMemories(
  * @param summaryModel Generative model for keyword extraction
  * @param summary Summary text
  * @param memoryIds Array of memory IDs to update
- * @param safetySettings Safety settings for AI model
  */
 export async function updateMemoriesWithAIKeywords(
   summaryModel: GenerativeModel,
   summary: string,
-  memoryIds: number[],
-  safetySettings: SafetySetting[]
+  memoryIds: number[]
 ): Promise<void> {
   if (memoryIds.length === 0) return;
   
