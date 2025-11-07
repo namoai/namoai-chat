@@ -1045,23 +1045,44 @@ ${conversationText}`;
                     const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
                     if (summary) {
-                      // キーワード抽出（範囲情報を除外）
-                      const extractKeywords = (text: string): string[] => {
-                        const words = text.toLowerCase().match(/\b\w{3,}\b/g) || [];
+                      // ▼▼▼【개선】AI 기반 키워드 추출 (더 정확한 키워드 추출)
+                      let extractedKeywords: string[] = [];
+                      try {
+                        const keywordPrompt = `以下の会話要約から、重要なキーワードを10個まで抽出してください。
+キーワードは会話の核心を表す名詞や重要な概念のみを抽出してください。
+不要な単語（助詞、動詞の原形、一般的すぎる単語）は除外してください。
+キーワードはカンマ区切りで返してください。
+
+会話要約：
+${summary}`;
+
+                        const keywordResult = await summaryModel.generateContent(keywordPrompt);
+                        const keywordText = keywordResult.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                        
+                        if (keywordText) {
+                          // カンマ区切りで分割し、空白を削除
+                          extractedKeywords = keywordText
+                            .split(',')
+                            .map(k => k.trim().toLowerCase())
+                            .filter(k => k.length >= 2 && k.length <= 30) // 2-30文字のキーワードのみ
+                            .slice(0, 10);
+                        }
+                      } catch (error) {
+                        console.error('AIキーワード抽出エラー:', error);
+                        // AI 추출 실패 시 기존 방식으로 폴백
+                        const words = conversationText.toLowerCase().match(/\b\w{3,}\b/g) || [];
                         const wordCount: { [key: string]: number } = {};
                         words.forEach(word => {
-                          // 範囲情報パターンを除外（例: "1-5", "6-10", "11-15"など）
                           if (!/^\d+-\d+$/.test(word)) {
                             wordCount[word] = (wordCount[word] || 0) + 1;
                           }
                         });
-                        return Object.entries(wordCount)
+                        extractedKeywords = Object.entries(wordCount)
                           .sort((a, b) => b[1] - a[1])
                           .slice(0, 10)
                           .map(([word]) => word);
-                      };
-                      
-                      const extractedKeywords = extractKeywords(conversationText);
+                      }
+                      // ▲▲▲
                       
                       // 要約が2000文字を超える場合のみ分割、それ以外は1つのメモリとして保存
                       const MAX_MEMORY_LENGTH = 2000;
@@ -1073,13 +1094,28 @@ ${conversationText}`;
                           const memoryContent = remainingSummary.substring(0, MAX_MEMORY_LENGTH);
                           remainingSummary = remainingSummary.substring(MAX_MEMORY_LENGTH);
                           
-                          await prisma.detailed_memories.create({
+                          const newMemory = await prisma.detailed_memories.create({
                             data: {
                               chatId,
                               content: memoryContent,
                               keywords: extractedKeywords,
                             },
                           });
+                          
+                          // embedding生成（非同期）
+                          (async () => {
+                            try {
+                              const embedding = await getEmbedding(memoryContent);
+                              const embeddingString = `[${embedding.join(',')}]`;
+                              await prisma.$executeRawUnsafe(
+                                `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+                                embeddingString,
+                                newMemory.id
+                              );
+                            } catch (error) {
+                              console.error('詳細記憶embedding生成エラー:', error);
+                            }
+                          })();
                           
                           // 残りが2000文字以下なら終了
                           if (remainingSummary.length <= MAX_MEMORY_LENGTH) {
@@ -1097,13 +1133,28 @@ ${conversationText}`;
                         }
                       } else {
                         // 2000文字以下の場合: 1つのメモリとして保存
-                        await prisma.detailed_memories.create({
+                        const newMemory = await prisma.detailed_memories.create({
                           data: {
                             chatId,
                             content: summary,
                             keywords: extractedKeywords,
                           },
                         });
+                        
+                        // embedding生成（非同期）
+                        (async () => {
+                          try {
+                            const embedding = await getEmbedding(summary);
+                            const embeddingString = `[${embedding.join(',')}]`;
+                            await prisma.$executeRawUnsafe(
+                              `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+                              embeddingString,
+                              newMemory.id
+                            );
+                          } catch (error) {
+                            console.error('詳細記憶embedding生成エラー:', error);
+                          }
+                        })();
                       }
                       
                       console.log('詳細記憶自動要約が完了しました');
