@@ -1013,8 +1013,9 @@ ${conversationText}`;
                     }
                     // ▲▲▲
                     
-                    // 기존 시간 기반 중복 체크는 제거됨 (벡터 유사도 기반으로 대체)
-                    if (false && messageCount > 10) {
+                    // 旧時間ベースの重複チェックは削除済み（ベクトル類似度ベースに置き換え）
+                    // 以下のコードは使用されていないため削除
+                    if (false) {
                       const lastMessageId = messagesToSummarize[messagesToSummarize.length - 1]?.id;
                       if (lastMessageId) {
                       // 最後のメッセージID 이후에 생성された要約があるか確認
