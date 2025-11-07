@@ -170,14 +170,14 @@ ${summary}`;
           if (k.match(/^__META:/)) return false;
           if (/^\d+$/.test(k)) return false;
           
-          // Exclude common words
+          // Only accept Japanese keywords (hiragana, katakana, kanji)
+          const isJapanese = /^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+$/.test(k);
+          if (!isJapanese) return false; // Reject non-Japanese keywords
+          
+          // Exclude common Japanese words only
           const japaneseExclude = ['これ', 'それ', 'あれ', 'どれ', 'この', 'その', 'あの', '彼', '彼女', 'もの', 'こと', 'ユーザー', 'ユーザ'];
-          const koreanExclude = ['그', '그녀', '그는', '그녀는', '그녀의', '이것', '그것', '것', '당신', '당신의'];
-          const englishExclude = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them', 'img', 'user', 'users'];
           
           if (japaneseExclude.includes(k)) return false;
-          if (koreanExclude.includes(k)) return false;
-          if (englishExclude.includes(k.toLowerCase())) return false;
           
           return true;
         })
