@@ -1102,9 +1102,9 @@ ${summary}`;
                       } catch (error) {
                         console.error('AIキーワード抽出エラー:', error);
                         // AI抽出失敗時は既存方式でフォールバック
-                        const 単語 = conversationText.toLowerCase().match(/\b\w{3,}\b/g) || [];
+                        const 単語リスト = conversationText.toLowerCase().match(/\b\w{3,}\b/g) || [];
                         const 単語カウント: { [key: string]: number } = {};
-                        単語.forEach(単語 => {
+                        単語リスト.forEach(単語 => {
                           if (!/^\d+-\d+$/.test(単語)) {
                             単語カウント[単語] = (単語カウント[単語] || 0) + 1;
                           }
