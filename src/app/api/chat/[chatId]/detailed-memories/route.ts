@@ -666,13 +666,15 @@ function extractKeywords(text: string): string[] {
   allWords.forEach(word => {
     // 範囲情報パターンを除外（例: "1-5", "6-10", "11-15"など）
     if (!/^\d+-\d+$/.test(word)) {
-      // 英語のみ小文字に変換、日本語・韓国語はそのまま
-      const normalizedWord = /^[A-Za-z]/.test(word) ? word.toLowerCase() : word;
-      
+      // 日本語のみを処理
+      let normalizedWord = word;
+
+      // ▼▼▼【改善】最小長さチェック（日本語は2文字以上）
+      if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(normalizedWord) && normalizedWord.length < 2) return; // 日本語は2文字未満を除外
+      // ▲▲▲
+
       // 除外リストチェック（完全一致）
       if (japaneseExclude.includes(normalizedWord)) return;
-      if (koreanExclude.includes(normalizedWord)) return;
-      if (englishExclude.includes(normalizedWord)) return;
       
       // 韓国語: 助詞が付いた形を除外（~의, ~이, ~가, ~을, ~를, ~은, ~는, ~에, ~에서など）
       if (/^[가-힣]+(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|까지|도|만|조차)$/.test(normalizedWord)) {
