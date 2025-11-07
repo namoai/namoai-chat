@@ -226,8 +226,6 @@ export async function POST(
           success: false
         }, { status: 500 });
       }
-    }
-
     } else {
       // 手動作成の場合（保存個数制限なし、2000文字を超える場合は自動分割）
 
