@@ -667,7 +667,7 @@ function extractKeywords(text: string): string[] {
     // 範囲情報パターンを除外（例: "1-5", "6-10", "11-15"など）
     if (!/^\d+-\d+$/.test(word)) {
       // 日本語のみを処理
-      let normalizedWord = word;
+      const normalizedWord = word;
 
       // ▼▼▼【改善】最小長さチェック（日本語は2文字以上）
       if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(normalizedWord) && normalizedWord.length < 2) return; // 日本語は2文字未満を除外

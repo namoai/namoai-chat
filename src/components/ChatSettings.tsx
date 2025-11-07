@@ -333,7 +333,7 @@ export default function ChatSettings({
               const currentCount = currentMemories.length;
               
               // 適用済みメモリ数をカウント（lastAppliedがあるもの）
-              const appliedMemories = currentMemories.filter((m: any) => m.lastApplied);
+              const appliedMemories = currentMemories.filter((m: { lastApplied?: Date | null }) => m.lastApplied);
               const currentAppliedCount = appliedMemories.length;
               
               // メモリ数が増加し、かつ適用済みメモリが存在する場合（再要約完了）
