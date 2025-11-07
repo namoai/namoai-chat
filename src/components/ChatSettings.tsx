@@ -310,9 +310,51 @@ export default function ChatSettings({
       }
       const result = await res.json();
       console.log('API成功, 結果:', result);
-      // メモリを再取得
+      
+      // ▼▼▼【追加】再要約はバックグラウンドで実行されるため、完了までポーリング
+      // 再要約完了を待つため、最大30秒間ポーリング（2秒ごと）
+      const maxWaitTime = 30000; // 30秒
+      const pollInterval = 2000; // 2秒ごと
+      const startTime = Date.now();
+      let previousCount = detailedMemories.length;
+      
+      // 初回は即座に取得を試みる
       await fetchDetailedMemories();
-      console.log('メモリ再取得完了');
+      
+      // ポーリングを開始（非同期で実行、ブロックしない）
+      const pollForMemories = async () => {
+        while (Date.now() - startTime < maxWaitTime) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+          
+          // メモリを再取得
+          try {
+            const res = await fetch(`/api/chat/${chatId}/detailed-memories`);
+            if (res.ok) {
+              const data = await res.json();
+              const currentMemories = data.memories || [];
+              const currentCount = currentMemories.length;
+              
+              // メモリが作成された場合、状態を更新して終了
+              if (currentCount > previousCount || (currentCount > 0 && previousCount === 0)) {
+                setDetailedMemories(currentMemories);
+                console.log(`再要約: メモリの作成を確認しました (${currentCount}件)`);
+                break;
+              }
+              
+              // メモリが既にある場合も更新
+              if (currentCount > 0) {
+                setDetailedMemories(currentMemories);
+                previousCount = currentCount;
+              }
+            }
+          } catch (err) {
+            console.error('再要約ポーリングエラー:', err);
+          }
+        }
+      };
+      
+      pollForMemories().catch(err => console.error('再要約ポーリングエラー:', err));
+      // ▲▲▲
     } catch (error) {
       console.error('自動要約エラー:', error);
       alert(error instanceof Error ? error.message : '自動要約に失敗しました');

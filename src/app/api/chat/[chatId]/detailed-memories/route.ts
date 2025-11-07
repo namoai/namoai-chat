@@ -609,9 +609,10 @@ ${conversationText}`;
   console.log(`再要約: 全バッチ処理完了 (作成: ${createdCount}件)`);
   
   // ▼▼▼【追加】再要約後、1-3個の場合は自動適用（lastAppliedを設定）
+  // 最新のメモリから適用するため、作成日時で降順ソート
   const newMemories = await prisma.detailed_memories.findMany({
     where: { chatId: chatIdNum },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' }, // 最新のものから（降順）
   });
   
   if (newMemories.length > 0 && newMemories.length <= 3) {
@@ -624,8 +625,8 @@ ${conversationText}`;
       }).catch(err => console.error('自動適用エラー:', err));
     }
   } else if (newMemories.length > 3) {
-    // 4個以上の場合は最初の3個を自動適用
-    console.log(`再要約: 最初の3個のメモリを自動適用`);
+    // 4個以上の場合は最新の3個を自動適用
+    console.log(`再要約: 最新の3個のメモリを自動適用`);
     for (let i = 0; i < Math.min(3, newMemories.length); i++) {
       await prisma.detailed_memories.update({
         where: { id: newMemories[i].id },
