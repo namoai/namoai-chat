@@ -5,12 +5,26 @@ import { prisma } from '@/lib/prisma';
 import { VertexAI, HarmCategory, HarmBlockThreshold } from '@google-cloud/vertexai';
 import { getEmbedding } from '@/lib/embeddings';
 
-const safetySettings = [
-  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-];
+// 安全性設定（ユーザー設定に基づいて動的に変更される）
+const getSafetySettings = (safetyFilterEnabled: boolean) => {
+  if (safetyFilterEnabled === false) {
+    // セーフティフィルターOFF: すべてのコンテンツを許可
+    return [
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    ];
+  } else {
+    // セーフティフィルターON: より厳格
+    return [
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    ];
+  }
+};
 
 const MAX_MEMORY_LENGTH = 2000;
 // 注意: 保存個数制限は削除されました。適用時の最大個数は3個です（route.tsで制御）。
@@ -106,6 +120,16 @@ export async function POST(
     if (chat.userId !== parseInt(session.user.id)) {
       return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
     }
+
+    // ▼▼▼【追加】ユーザーのセーフティフィルター設定を取得
+    const userId = parseInt(session.user.id);
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      select: { safetyFilter: true },
+    });
+    const userSafetyFilter = user?.safetyFilter ?? true; // デフォルトはtrue（フィルターON）
+    const safetySettings = getSafetySettings(userSafetyFilter);
+    // ▲▲▲
 
     // 既存の記憶数を確認
     const existingCount = await prisma.detailed_memories.count({

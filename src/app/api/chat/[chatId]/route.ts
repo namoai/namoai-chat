@@ -31,15 +31,79 @@ const getSafetySettings = (safetyFilterEnabled: boolean) => {
       { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
     ];
   } else {
-    // セーフティフィルターON: 中程度以上のコンテンツをブロック
+    // セーフティフィルターON: 低程度以上もブロック（より厳格）
     return [
-      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
       { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
     ];
   }
 };
+
+// ▼▼▼【バックエンド画像キーワードマッチング】AI応答からキーワードで画像を自動選択▼▼▼
+type CharacterImageInfo = {
+  keyword?: string | null;
+  imageUrl: string;
+  isMain?: boolean;
+};
+
+const selectImageByKeyword = (
+  aiResponse: string,
+  availableImages: CharacterImageInfo[]
+): string | null => {
+  if (!aiResponse || !availableImages || availableImages.length === 0) {
+    return null;
+  }
+
+  const lowerResponse = aiResponse.toLowerCase();
+  const nonMainImages = availableImages.filter(img => !img.isMain && img.keyword);
+  
+  // 優先度順にマッチング（最初にマッチしたものを返す）
+  for (const img of nonMainImages) {
+    if (img.keyword) {
+      const keyword = img.keyword.toLowerCase().trim();
+      // キーワードが完全に含まれているかチェック（部分マッチ）
+      if (keyword && lowerResponse.includes(keyword)) {
+        console.log(`📸 バックエンド画像キーワードマッチ: "${keyword}" -> ${img.imageUrl}`);
+        return img.imageUrl;
+      }
+    }
+  }
+  
+  return null;
+};
+
+const addImageTagIfKeywordMatched = (
+  responseText: string,
+  availableImages: CharacterImageInfo[]
+): string => {
+  // 既に {img:N} タグがあるかチェック
+  const hasImgTag = /\{img:\d+\}/.test(responseText);
+  if (hasImgTag) {
+    return responseText; // 既にタグがあれば何もしない
+  }
+
+  // キーワードマッチングで画像を選択
+  const matchedImageUrl = selectImageByKeyword(responseText, availableImages);
+  if (!matchedImageUrl) {
+    return responseText; // マッチしなければそのまま
+  }
+
+  // マッチした画像のインデックスを取得
+  const nonMainImages = availableImages.filter(img => !img.isMain);
+  const imageIndex = nonMainImages.findIndex(img => img.imageUrl === matchedImageUrl);
+  
+  if (imageIndex >= 0) {
+    // 応答の最後に画像タグを追加
+    const imgTag = ` {img:${imageIndex + 1}}`;
+    console.log(`📸 バックエンド画像タグ自動追加: ${imgTag}`);
+    return responseText + imgTag;
+  }
+
+  return responseText;
+};
+// ▲▲▲
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function POST(request: Request, context: any) {
@@ -529,7 +593,7 @@ export async function POST(request: Request, context: any) {
     // ▼▼▼【追加】セーフティフィルター設定に基づいてContent Policyを動的に生成
     const contentPolicy = userSafetyFilter === false 
       ? `- **Content Policy**: This is an adult-oriented creative writing platform. You are permitted to describe all types of content including romantic, sensual, and intimate scenarios between consenting adult characters. Focus on emotional depth, sensory details, and narrative quality. Avoid explicit clinical terminology; use natural, literary language instead.`
-      : `- **Content Policy**: Keep all content appropriate and safe. Avoid explicit sexual content, graphic violence, or other inappropriate material. Focus on emotional depth, character development, and narrative quality within safe boundaries.`;
+      : `- **Content Policy**: STRICTLY keep all content appropriate and safe. DO NOT generate any explicit sexual content, graphic violence, or inappropriate material. Focus on emotional depth, character development, and narrative quality within safe boundaries. If the user requests inappropriate content, politely decline and suggest alternative appropriate scenarios.`;
     // ▲▲▲
     
     const formattingInstruction = `# Response Format
@@ -627,7 +691,11 @@ ${lengthInstruction}`;
           // ▲▲▲
           
           const safetySettings = getSafetySettings(userSafetyFilter);
-          console.log(`  - 安全性設定: ${userSafetyFilter ? 'BLOCK_MEDIUM_AND_ABOVE (中程度以上ブロック)' : 'BLOCK_NONE (すべて許可)'}`);
+          if (userSafetyFilter) {
+            console.log(`  - 安全性設定: BLOCK_ONLY_HIGH (危険・ヘイト・ハラスメント) / BLOCK_MEDIUM_AND_ABOVE (性的コンテンツ)`);
+          } else {
+            console.log(`  - 安全性設定: BLOCK_NONE (すべて許可)`);
+          }
           const generativeModel = vertex_ai.getGenerativeModel({ model: modelToUse, safetySettings });
           
           // チャットセッションを開始（履歴とシステム指示を渡す）
@@ -657,13 +725,21 @@ ${lengthInstruction}`;
             sendEvent('ai-update', { responseChunk: chunk }); // チャンクをクライアントに送信
             finalResponseText += chunk;
           }
-          console.timeEnd("⏱️ AI sendMessageStream Total"); // AI応答完了
+          console.timeEnd("⏱️ AI sendMessageStream Total"); // AI応答完了
 
-          // 応答が空でないか確認
-          if (!finalResponseText.trim()) {
-             console.log("警告: 最終的な応答テキストが空でした。");
-             throw new Error("AIからの応答が空でした。");
-          }
+          // 応答が空でないか確認
+          if (!finalResponseText.trim()) {
+             console.log("警告: 最終的な応答テキストが空でした。");
+             throw new Error("AIからの応答が空でした。");
+          }
+
+          // ▼▼▼【バックエンド画像キーワードマッチング】AIが画像タグを生成しなかった場合、キーワードで自動追加▼▼▼
+          const nonMainImages = availableImages.filter(img => !img.isMain);
+          const hasImgTag = /\{img:\d+\}/.test(finalResponseText);
+          if (!hasImgTag && nonMainImages.length > 0) {
+            finalResponseText = addImageTagIfKeywordMatched(finalResponseText, availableImages);
+          }
+          // ▲▲▲
 
           console.time("⏱️ DB Write (AI Msg)");
           console.log("ステップ6: AIの応答をデータベースに保存");
