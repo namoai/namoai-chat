@@ -979,9 +979,12 @@ ${conversationText}`;
                       return;
                     }
                     
-                    // 重複防止: 最後のメッセージIDで既存の要約を確認
-                    const lastMessageId = messagesToSummarize[messagesToSummarize.length - 1]?.id;
-                    if (lastMessageId) {
+                    // ▼▼▼【修正】重複防止: 10개 이하에서는 중복 방지 로직을 완화
+                    // 10개 이하: 매번 요약 (2, 3, 4, 5, 6, 7, 8, 9, 10번째)
+                    // 10개 초과: 5개 단위로 요약하므로 중복 방지 적용
+                    if (messageCount > 10) {
+                      const lastMessageId = messagesToSummarize[messagesToSummarize.length - 1]?.id;
+                      if (lastMessageId) {
                       // 最後のメッセージID 이후에 생성された要約があるか確認
                       const lastMessage = await prisma.chat_message.findUnique({
                         where: { id: lastMessageId },
@@ -1005,6 +1008,9 @@ ${conversationText}`;
                         }
                       }
                     }
+                    }
+                    // 10개 이하인 경우는 중복 방지 로직을 적용하지 않음 (매번 요약)
+                    // ▲▲▲
                     
                     // 会話をテキストに変換
                     const conversationText = messagesToSummarize
