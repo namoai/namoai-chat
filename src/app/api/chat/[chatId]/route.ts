@@ -1013,30 +1013,6 @@ ${conversationText}`;
                     }
                     // ▲▲▲
                     
-                      // 最後のメッセージID 이후에 생성された要約があるか確認
-                      const lastMessage = await prisma.chat_message.findUnique({
-                          where: { id: lastMessageId },
-                          select: { createdAt: true },
-                        });
-                        
-                        if (lastMessage && lastMessage.createdAt) {
-                        // このメッセージ 이후에 생성된要約があるか確認
-                        const existingMemory = await prisma.detailed_memories.findFirst({
-                          where: {
-                            chatId,
-                            createdAt: {
-                              gte: lastMessage.createdAt,
-                            },
-                          },
-                        });
-                        
-                        if (existingMemory) {
-                          console.log(`詳細記憶自動要約: メッセージ ${lastMessageId} 以降は既に要約済みのためスキップ`);
-                          return;
-                        }
-                      }
-                    }
-                    }
                     // 10個以下の場合は重複防止ロジックを適用しない（毎回要約）
                     // ▲▲▲
                     
