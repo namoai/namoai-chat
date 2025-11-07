@@ -15,7 +15,6 @@ import { getEmbedding } from "@/lib/embeddings";
 import { searchSimilarMessages, searchSimilarDetailedMemories } from "@/lib/vector-search";
 import { getSafetySettings } from "@/lib/chat/safety-settings";
 import { CharacterImageInfo, selectImageByKeyword, addImageTagIfKeywordMatched } from "@/lib/chat/image-selection";
-import { extractKeywords } from "@/lib/chat/keyword-extraction";
 
 // VertexAIクライアントの初期化
 const vertex_ai = new VertexAI({
