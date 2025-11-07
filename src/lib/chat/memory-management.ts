@@ -6,7 +6,6 @@
 import { prisma } from "@/lib/prisma";
 import { getEmbedding } from "@/lib/embeddings";
 import { GenerativeModel } from "@google-cloud/vertexai";
-import { SafetySetting } from "@google-cloud/vertexai";
 
 const MAX_MEMORY_LENGTH = 2000;
 
