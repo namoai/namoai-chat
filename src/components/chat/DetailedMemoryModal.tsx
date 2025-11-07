@@ -104,6 +104,17 @@ export default function DetailedMemoryModal({
           <div>
             <h2 className="text-2xl font-bold">詳細記憶</h2>
             <p className="text-sm text-gray-400 mt-1">無制限に保存できます。関連キーワードで自動的に適用され、適用時は最大3つまでです。</p>
+            {/* ▼▼▼【追加】상세 기억 작동 방식 설명 */}
+            <div className="mt-3 p-3 bg-gray-800/50 border border-gray-700 rounded-lg">
+              <p className="text-xs text-gray-300 mb-2 font-semibold">📝 自動要約の仕組み:</p>
+              <ul className="text-xs text-gray-400 space-y-1 list-disc list-inside">
+                <li>2-10個のメッセージ: 毎回自動要約（2, 3, 4, 5, 6, 7, 8, 9, 10番目）</li>
+                <li>11個以上: 5個単位で自動要約（15, 20, 25, 30...番目）</li>
+                <li>キーワードで自動適用: 会話内容と一致するキーワードがある記憶が自動適用</li>
+                <li>1-3個: 全て自動適用 / 4個以上: キーワード+ベクトル検索で最大3個選択</li>
+              </ul>
+            </div>
+            {/* ▲▲▲ */}
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-full transition-colors">
             <X size={24} />
