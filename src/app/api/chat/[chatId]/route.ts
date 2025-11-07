@@ -5,8 +5,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
   VertexAI,
-  HarmCategory,
-  HarmBlockThreshold,
   Content,
 } from "@google-cloud/vertexai";
 import { getServerSession } from "next-auth";
@@ -14,8 +12,8 @@ import { authOptions } from "@/lib/nextauth";
 import { getEmbedding } from "@/lib/embeddings";
 import { searchSimilarMessages, searchSimilarDetailedMemories } from "@/lib/vector-search";
 import { getSafetySettings } from "@/lib/chat/safety-settings";
-import { CharacterImageInfo, selectImageByKeyword, addImageTagIfKeywordMatched } from "@/lib/chat/image-selection";
-import { createDetailedMemories } from "@/lib/chat/memory-management";
+import { addImageTagIfKeywordMatched } from "@/lib/chat/image-selection";
+import { createDetailedMemories, updateMemoriesWithAIKeywords } from "@/lib/chat/memory-management";
 
 // VertexAIクライアントの初期化
 const vertex_ai = new VertexAI({
@@ -25,18 +23,17 @@ const vertex_ai = new VertexAI({
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function POST(request: Request, context: any) {
-  console.log("チャットAPIリクエスト受信");
-  console.time("⏱️ 全体API処理時間"); // 全体時間測定開始
-  const { params } = (context ?? {}) as { params?: Record<string, string | string[]> };
-  const rawChatId = params?.chatId;
-  const chatIdStr = Array.isArray(rawChatId) ? rawChatId[0] : rawChatId;
+  console.log("チャットAPIリクエスト受信");
+  console.time("⏱️ 全体API処理時間"); // 全体時間測定開始
+  const { params } = (context ?? {}) as { params?: Record<string, string | string[]> };
+  const rawChatId = params?.chatId;
+  const chatIdStr = Array.isArray(rawChatId) ? rawChatId[0] : rawChatId;
 
-
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user?.id) {
-    console.timeEnd("⏱️ 全体API処理時間");
-    return NextResponse.json({ message: "認証が必要です。" }, { status: 401 });
-  }
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user?.id) {
+    console.timeEnd("⏱️ 全体API処理時間");
+    return NextResponse.json({ message: "認証が必要です。" }, { status: 401 });
+  }
 
   const chatId = parseInt(String(chatIdStr), 10);
   if (isNaN(chatId)) {
@@ -59,206 +56,206 @@ export async function POST(request: Request, context: any) {
     return NextResponse.json({ message: "メッセージは必須です。" }, { status: 400 });
   }
 
-  try {
-    // DB書き込みPromise (ポイント消費, メッセージ保存)
-    const dbWritePromise = (async () => {
-      console.time("⏱️ DB Write (Points+Msg)");
-      console.log(`ステップ1: ポイント消費とメッセージ保存処理開始 (ユーザーID: ${userId})`);
-      const totalPointsToConsume = 1;
-      let userMessageForHistory;
-      let turnIdForModel;
+  try {
+    // DB書き込みPromise (ポイント消費, メッセージ保存)
+    const dbWritePromise = (async () => {
+      console.time("⏱️ DB Write (Points+Msg)");
+      console.log(`ステップ1: ポイント消費とメッセージ保存処理開始 (ユーザーID: ${userId})`);
+      const totalPointsToConsume = 1;
+      let userMessageForHistory;
+      let turnIdForModel;
 
-      if (isRegeneration && turnId) {
-        console.log(`ステップ3: 再生成のリクエストを処理 (ターンID: ${turnId})`);
-        await prisma.$transaction(async (tx) => {
-            const p = await tx.points.findUnique({ where: { user_id: userId } });
-            const currentPoints = (p?.free_points || 0) + (p?.paid_points || 0);
-            if (currentPoints < totalPointsToConsume) throw new Error("ポイントが不足しています。");
-            let cost = totalPointsToConsume;
-            const freeAfter = Math.max(0, (p?.free_points || 0) - cost);
-            cost = Math.max(0, cost - (p?.free_points || 0));
-            const paidAfter = Math.max(0, (p?.paid_points || 0) - cost);
-            await tx.points.update({ where: { user_id: userId }, data: { free_points: freeAfter, paid_points: paidAfter } });
-        });
-        userMessageForHistory = await prisma.chat_message.findUnique({ where: { id: turnId }});
-        if (!userMessageForHistory || userMessageForHistory.role !== 'user') throw new Error("再生成対象のメッセージが見つかりません。");
-        turnIdForModel = userMessageForHistory.id;
-      } else {
-        console.log("ステップ3: 新規ユーザーメッセージ保存開始");
-        userMessageForHistory = await prisma.$transaction(async (tx) => {
-            const p = await tx.points.findUnique({ where: { user_id: userId } });
-            const currentPoints = (p?.free_points || 0) + (p?.paid_points || 0);
-            if (currentPoints < totalPointsToConsume) throw new Error("ポイントが不足しています。");
-            let cost = totalPointsToConsume;
-            const freeAfter = Math.max(0, (p?.free_points || 0) - cost);
-            cost = Math.max(0, cost - (p?.free_points || 0));
-            const paidAfter = Math.max(0, (p?.paid_points || 0) - cost);
-            await tx.points.update({ where: { user_id: userId }, data: { free_points: freeAfter, paid_points: paidAfter } });
-             const newUserMessage = await tx.chat_message.create({ data: { chatId: chatId, role: "user", content: message, version: 1, isActive: true } });
-             const updatedMessage = await tx.chat_message.update({ where: { id: newUserMessage.id }, data: { turnId: newUserMessage.id } });
-             // ▼▼▼【ベクトル検索】メッセージのembeddingを非同期で生成（応答速度を維持）▼▼▼
-             (async () => {
-               try {
-                 const embedding = await getEmbedding(message);
-                 const embeddingString = `[${embedding.join(',')}]`;
-                 await prisma.$executeRawUnsafe(
-                   `UPDATE "chat_message" SET "embedding" = $1::vector WHERE "id" = $2`,
-                   embeddingString,
-                   newUserMessage.id
-                 );
-               } catch (error) {
-                 console.error('メッセージembedding生成エラー:', error);
-               }
-             })();
-             // ▲▲▲
-             return updatedMessage;
-        });
-        turnIdForModel = userMessageForHistory.id;
-        console.log("ステップ3: ユーザーメッセージ保存完了");
-      }
-      console.timeEnd("⏱️ DB Write (Points+Msg)");
-      return { userMessageForHistory, turnIdForModel };
-    })();
-
-    // コンテキスト取得Promise (DBクエリのみ)
-    const contextPromise = (async () => {
-        console.time("⏱️ Context Fetch Total (DB Only)");
-        console.log(`ステップ2: チャットルームと世界観（characters）情報取得 (チャットID: ${chatId})`);
-        console.time("⏱️ DB ChatRoom+Lorebooks Query");
-        // 'characters' は世界観やシナリオ設定を保持するエンティティとして扱う
-        const chatRoom = await prisma.chat.findUnique({
-            where: { id: chatId },
-            include: {
-                characters: { // 'characters' テーブルには世界観・シナリオ設定が含まれる
-                    include: {
-                        lorebooks: { orderBy: { id: "asc" } },
-                        characterImages: { orderBy: { id: "asc" } }, // idでソート
-                    },
-                },
-                users: { select: { defaultPersonaId: true, nickname: true } },
-            },
-        });
-        console.timeEnd("⏱️ DB ChatRoom+Lorebooks Query");
-
-        if (!chatRoom || !chatRoom.characters) {
-            throw new Error("チャットまたは世界観（characters）設定が見つかりません。");
-        }
-        // ▼▼▼【デバッグ】chatRoom情報をログ出力 ▼▼▼
-        console.log("ステップ2: チャットルーム情報取得完了");
-        console.log(`chatRoom.id: ${chatRoom.id}`);
-        console.log(`chatRoom.characters.id: ${chatRoom.characters?.id}`);
-        console.log(`chatRoom.characters.name: ${chatRoom.characters?.name}`);
-        console.log(`chatRoom.characters.systemTemplate length: ${chatRoom.characters?.systemTemplate?.length || 0}`);
-        console.log(`chatRoom.characters.characterImages count: ${chatRoom.characters?.characterImages?.length || 0}`);
-        if (!chatRoom.characters.systemTemplate || chatRoom.characters.systemTemplate.trim().length === 0) {
-          console.error(`⚠️ WARNING: characters.systemTemplate is empty or missing! (Character ID: ${chatRoom.characters?.id}, Name: ${chatRoom.characters?.name || 'Unknown'})`);
-          console.error(`⚠️ This may affect AI response quality. Please check the character's systemTemplate in the database.`);
-        }
-        // ▲▲▲
-
-        console.time("⏱️ DB History+Persona Query");
-        // ▼▼▼【修正】ユーザーが閲覧しているバージョンを考慮した履歴取得 ▼▼▼
-        // 現在のメッセージ(userMessageForHistory)より前のメッセージのみを取得
-        // 注意: userMessageForHistoryはまだ取得されていないため、createdAtで制限
-        let historyWhereClause: {
-            chatId: number;
-            createdAt?: { lt: Date };
-            isActive?: boolean;
-            OR?: Array<{ role: string } | { id: { in: number[] } }>;
-        } = { 
-            chatId: chatId
-            // createdAt制限を削除: 並列処理のため、現在のメッセージはまだ保存されていない
-        };
-        
-        // activeVersionsが指定されている場合、該当バージョンのみを取得
-        if (activeVersions && Object.keys(activeVersions).length > 0) {
-            // ▼▼▼【修正】INT4範囲を超える値（Date.now()で生成された一時ID）をフィルタリング ▼▼▼
-            const MAX_INT4 = 2147483647; // INT4の最大値
-            const versionIds = Object.values(activeVersions)
-                .map(id => Number(id))
-                .filter(id => id > 0 && id <= MAX_INT4); // 有効なINT4範囲内のIDのみ
-            
-            // 有効なIDがある場合のみ特別なクエリを使用
-            if (versionIds.length > 0) {
-                historyWhereClause = {
-                    chatId: chatId,
-                    createdAt: { lt: new Date() },
-                    OR: [
-                        { role: 'user' },  // ユーザーメッセージは全て含める
-                        { id: { in: versionIds } }  // 指定されたバージョンのモデルメッセージ
-                    ]
-                };
-            } else {
-                // 有効なIDがない場合は通常のisActive=trueのみ
-                historyWhereClause.isActive = true;
-            }
-            // ▲▲▲
-        } else {
-            // 通常はisActive=trueのメッセージのみ
-            historyWhereClause.isActive = true;
-        }
-        // ▲▲▲【修正完了】▲▲▲
-
-        const [persona, history, backMemory, detailedMemories] = await Promise.all([
-            chatRoom.users.defaultPersonaId ? prisma.personas.findUnique({ where: { id: chatRoom.users.defaultPersonaId } }) : Promise.resolve(null),
-            prisma.chat_message.findMany({
-                where: historyWhereClause,
-                orderBy: { createdAt: "desc" },
-                take: 10, // 履歴は最新10件を取得（確実に全ての内容を読み取る）
-            }),
-            prisma.chat.findUnique({
-                where: { id: chatId },
-                select: { backMemory: true, autoSummarize: true },
-            }),
-            prisma.detailed_memories.findMany({
-                where: { chatId: chatId },
-                orderBy: { createdAt: "asc" }, // 順番通りに適用するため昇順
-            }),
-        ]);
-        
-        console.timeEnd("⏱️ DB History+Persona Query");
-
-        const orderedHistory = history.reverse();
-        
-        // ▼▼▼【ベクトル検索】最新10件に加えて、関連メッセージをベクトル検索で追加（非同期、オプション）▼▼▼
-        // ベクトル検索は時間がかかるため、メイン処理をブロックしないように非同期で実行
-        // エラーが発生してもチャットは続行可能
-        // 最初のメッセージ（履歴が1件以下）の場合はスキップして高速化
-        let vectorMatchedMessages: Array<{ id: number; content: string; role: string; createdAt: Date }> = [];
-        if (orderedHistory.length > 1) {
-          // 2件以上のメッセージがある場合のみベクトル検索を実行
-          const vectorSearchPromise = (async () => {
+      if (isRegeneration && turnId) {
+        console.log(`ステップ3: 再生成のリクエストを処理 (ターンID: ${turnId})`);
+        await prisma.$transaction(async (tx) => {
+          const p = await tx.points.findUnique({ where: { user_id: userId } });
+          const currentPoints = (p?.free_points || 0) + (p?.paid_points || 0);
+          if (currentPoints < totalPointsToConsume) throw new Error("ポイントが不足しています。");
+          let cost = totalPointsToConsume;
+          const freeAfter = Math.max(0, (p?.free_points || 0) - cost);
+          cost = Math.max(0, cost - (p?.free_points || 0));
+          const paidAfter = Math.max(0, (p?.paid_points || 0) - cost);
+          await tx.points.update({ where: { user_id: userId }, data: { free_points: freeAfter, paid_points: paidAfter } });
+        });
+        userMessageForHistory = await prisma.chat_message.findUnique({ where: { id: turnId } });
+        if (!userMessageForHistory || userMessageForHistory.role !== 'user') throw new Error("再生成対象のメッセージが見つかりません。");
+        turnIdForModel = userMessageForHistory.id;
+      } else {
+        console.log("ステップ3: 新規ユーザーメッセージ保存開始");
+        userMessageForHistory = await prisma.$transaction(async (tx) => {
+          const p = await tx.points.findUnique({ where: { user_id: userId } });
+          const currentPoints = (p?.free_points || 0) + (p?.paid_points || 0);
+          if (currentPoints < totalPointsToConsume) throw new Error("ポイントが不足しています。");
+          let cost = totalPointsToConsume;
+          const freeAfter = Math.max(0, (p?.free_points || 0) - cost);
+          cost = Math.max(0, cost - (p?.free_points || 0));
+          const paidAfter = Math.max(0, (p?.paid_points || 0) - cost);
+          await tx.points.update({ where: { user_id: userId }, data: { free_points: freeAfter, paid_points: paidAfter } });
+          const newUserMessage = await tx.chat_message.create({ data: { chatId: chatId, role: "user", content: message, version: 1, isActive: true } });
+          const updatedMessage = await tx.chat_message.update({ where: { id: newUserMessage.id }, data: { turnId: newUserMessage.id } });
+          // ▼▼▼【ベクトル検索】メッセージのembeddingを非同期で生成（応答速度を維持）▼▼▼
+          (async () => {
             try {
-              const messageEmbedding = await getEmbedding(message);
-              const excludeTurnIds = orderedHistory.map(msg => msg.turnId || 0).filter(id => id > 0);
-              const matched = await searchSimilarMessages(messageEmbedding, chatId, excludeTurnIds, 10); // 5件から10件に増加
-              return matched;
+              const embedding = await getEmbedding(message);
+              const embeddingString = `[${embedding.join(',')}]`;
+              await prisma.$executeRawUnsafe(
+                `UPDATE "chat_message" SET "embedding" = $1::vector WHERE "id" = $2`,
+                embeddingString,
+                newUserMessage.id
+              );
             } catch (error) {
-              console.error('ベクトル検索エラー（メッセージ）:', error);
-              return [];
+              console.error('メッセージembedding生成エラー:', error);
             }
           })();
-          
-          // ベクトル検索結果は後で使用（非同期で待機、タイムアウト付き）
-          try {
-            const matched = await Promise.race([
-              vectorSearchPromise,
-              new Promise<[]>(resolve => setTimeout(() => resolve([]), 2000)) // 2秒タイムアウト
-            ]);
-            // 既存履歴に含まれていないメッセージのみ追加
-            const existingIds = new Set(orderedHistory.map(h => h.id));
-            vectorMatchedMessages = matched.filter(m => !existingIds.has(m.id));
-          } catch (error) {
-            // ベクトル検索が失敗しても続行
-            console.error('ベクトル検索結果取得エラー:', error);
-          }
+          // ▲▲▲
+          return updatedMessage;
+        });
+        turnIdForModel = userMessageForHistory.id;
+        console.log("ステップ3: ユーザーメッセージ保存完了");
+      }
+      console.timeEnd("⏱️ DB Write (Points+Msg)");
+      return { userMessageForHistory, turnIdForModel };
+    })();
+
+    // コンテキスト取得Promise (DBクエリのみ)
+    const contextPromise = (async () => {
+      console.time("⏱️ Context Fetch Total (DB Only)");
+      console.log(`ステップ2: チャットルームと世界観（characters）情報取得 (チャットID: ${chatId})`);
+      console.time("⏱️ DB ChatRoom+Lorebooks Query");
+      // 'characters' は世界観やシナリオ設定を保持するエンティティとして扱う
+      const chatRoom = await prisma.chat.findUnique({
+        where: { id: chatId },
+        include: {
+          characters: { // 'characters' テーブルには世界観・シナリオ設定が含まれる
+            include: {
+              lorebooks: { orderBy: { id: "asc" } },
+              characterImages: { orderBy: { id: "asc" } }, // idでソート
+            },
+          },
+          users: { select: { defaultPersonaId: true, nickname: true } },
+        },
+      });
+      console.timeEnd("⏱️ DB ChatRoom+Lorebooks Query");
+
+      if (!chatRoom || !chatRoom.characters) {
+        throw new Error("チャットまたは世界観（characters）設定が見つかりません。");
+      }
+      // ▼▼▼【デバッグ】chatRoom情報をログ出力 ▼▼▼
+      console.log("ステップ2: チャットルーム情報取得完了");
+      console.log(`chatRoom.id: ${chatRoom.id}`);
+      console.log(`chatRoom.characters.id: ${chatRoom.characters?.id}`);
+      console.log(`chatRoom.characters.name: ${chatRoom.characters?.name}`);
+      console.log(`chatRoom.characters.systemTemplate length: ${chatRoom.characters?.systemTemplate?.length || 0}`);
+      console.log(`chatRoom.characters.characterImages count: ${chatRoom.characters?.characterImages?.length || 0}`);
+      if (!chatRoom.characters.systemTemplate || chatRoom.characters.systemTemplate.trim().length === 0) {
+        console.error(`⚠️ WARNING: characters.systemTemplate is empty or missing! (Character ID: ${chatRoom.characters?.id}, Name: ${chatRoom.characters?.name || 'Unknown'})`);
+        console.error(`⚠️ This may affect AI response quality. Please check the character's systemTemplate in the database.`);
+      }
+      // ▲▲▲
+
+      console.time("⏱️ DB History+Persona Query");
+      // ▼▼▼【修正】ユーザーが閲覧しているバージョンを考慮した履歴取得 ▼▼▼
+      // 現在のメッセージ(userMessageForHistory)より前のメッセージのみを取得
+      // 注意: userMessageForHistoryはまだ取得されていないため、createdAtで制限
+      let historyWhereClause: {
+        chatId: number;
+        createdAt?: { lt: Date };
+        isActive?: boolean;
+        OR?: Array<{ role: string } | { id: { in: number[] } }>;
+      } = {
+        chatId: chatId
+        // createdAt制限を削除: 並列処理のため、現在のメッセージはまだ保存されていない
+      };
+
+      // activeVersionsが指定されている場合、該当バージョンのみを取得
+      if (activeVersions && Object.keys(activeVersions).length > 0) {
+        // ▼▼▼【修正】INT4範囲を超える値（Date.now()で生成された一時ID）をフィルタリング ▼▼▼
+        const MAX_INT4 = 2147483647; // INT4の最大値
+        const versionIds = Object.values(activeVersions)
+          .map(id => Number(id))
+          .filter(id => id > 0 && id <= MAX_INT4); // 有効なINT4範囲内のIDのみ
+
+        // 有効なIDがある場合のみ特別なクエリを使用
+        if (versionIds.length > 0) {
+          historyWhereClause = {
+            chatId: chatId,
+            createdAt: { lt: new Date() },
+            OR: [
+              { role: 'user' },  // ユーザーメッセージは全て含める
+              { id: { in: versionIds } }  // 指定されたバージョンのモデルメッセージ
+            ]
+          };
+        } else {
+          // 有効なIDがない場合は通常のisActive=trueのみ
+          historyWhereClause.isActive = true;
         }
         // ▲▲▲
-        console.log("ステップ2.5: ペルソナと履歴の取得完了");
-        console.log(`使用されたバージョン: ${activeVersions ? JSON.stringify(activeVersions) : 'デフォルト(isActive)'}`);
-        console.timeEnd("⏱️ Context Fetch Total (DB Only)");
-        return { chatRoom, persona, orderedHistory, backMemory, detailedMemories, vectorMatchedMessages };
-    })();
+      } else {
+        // 通常はisActive=trueのメッセージのみ
+        historyWhereClause.isActive = true;
+      }
+      // ▲▲▲【修正完了】▲▲▲
+
+      const [persona, history, backMemory, detailedMemories] = await Promise.all([
+        chatRoom.users.defaultPersonaId ? prisma.personas.findUnique({ where: { id: chatRoom.users.defaultPersonaId } }) : Promise.resolve(null),
+        prisma.chat_message.findMany({
+          where: historyWhereClause,
+          orderBy: { createdAt: "desc" },
+          take: 10, // 履歴は最新10件を取得（確実に全ての内容を読み取る）
+        }),
+        prisma.chat.findUnique({
+          where: { id: chatId },
+          select: { backMemory: true, autoSummarize: true },
+        }),
+        prisma.detailed_memories.findMany({
+          where: { chatId: chatId },
+          orderBy: { createdAt: "asc" }, // 順番通りに適用するため昇順
+        }),
+      ]);
+
+      console.timeEnd("⏱️ DB History+Persona Query");
+
+      const orderedHistory = history.reverse();
+
+      // ▼▼▼【ベクトル検索】最新10件に加えて、関連メッセージをベクトル検索で追加（非同期、オプション）▼▼▼
+      // ベクトル検索は時間がかかるため、メイン処理をブロックしないように非同期で実行
+      // エラーが発生してもチャットは続行可能
+      // 最初のメッセージ（履歴が1件以下）の場合はスキップして高速化
+      let vectorMatchedMessages: Array<{ id: number; content: string; role: string; createdAt: Date }> = [];
+      if (orderedHistory.length > 1) {
+        // 2件以上のメッセージがある場合のみベクトル検索を実行
+        const vectorSearchPromise = (async () => {
+          try {
+            const messageEmbedding = await getEmbedding(message);
+            const excludeTurnIds = orderedHistory.map(msg => msg.turnId || 0).filter(id => id > 0);
+            const matched = await searchSimilarMessages(messageEmbedding, chatId, excludeTurnIds, 10); // 5件から10件に増加
+            return matched;
+          } catch (error) {
+            console.error('ベクトル検索エラー（メッセージ）:', error);
+            return [];
+          }
+        })();
+
+        // ベクトル検索結果は後で使用（非同期で待機、タイムアウト付き）
+        try {
+          const matched = await Promise.race([
+            vectorSearchPromise,
+            new Promise<[]>(resolve => setTimeout(() => resolve([]), 2000)) // 2秒タイムアウト
+          ]);
+          // 既存履歴に含まれていないメッセージのみ追加
+          const existingIds = new Set(orderedHistory.map(h => h.id));
+          vectorMatchedMessages = matched.filter(m => !existingIds.has(m.id));
+        } catch (error) {
+          // ベクトル検索が失敗しても続行
+          console.error('ベクトル検索結果取得エラー:', error);
+        }
+      }
+      // ▲▲▲
+      console.log("ステップ2.5: ペルソナと履歴の取得完了");
+      console.log(`使用されたバージョン: ${activeVersions ? JSON.stringify(activeVersions) : 'デフォルト(isActive)'}`);
+      console.timeEnd("⏱️ Context Fetch Total (DB Only)");
+      return { chatRoom, persona, orderedHistory, backMemory, detailedMemories, vectorMatchedMessages };
+    })();
 
     // 2つの並列処理が完了するのを待ちます。
     console.time("⏱️ Promise.all(DBWrite, Context)");
@@ -278,28 +275,28 @@ export async function POST(request: Request, context: any) {
     }
     // ▲▲▲
 
-    const worldSetting = chatRoom.characters; // 'char' から 'worldSetting' に変数名を変更 (意味を明確化)
-    const user = chatRoom.users;
-    const worldName = worldSetting.name; // {{char}} に置換される名前 (世界観の名前)
-    const userNickname = persona?.nickname || user.nickname || "ユーザー"; // {{user}} に置換される名前
+  const worldSetting = chatRoom.characters; // 'char' から 'worldSetting' に変数名を変更 (意味を明確化)
+  const user = chatRoom.users;
+  const worldName = worldSetting.name; // {{char}} に置換される名前 (世界観の名前)
+  const userNickname = persona?.nickname || user.nickname || "ユーザー"; // {{user}} に置換される名前
 
-    // プレースホルダー（{{char}}、{{user}}）を置換するヘルパー関数
-    const replacePlaceholders = (text: string | null | undefined): string => {
-      if (!text) return "";
-      // {{char}} を世界観の名前 (characters.name) に置換
-      // {{user}} をユーザーのニックネック (ペルソナ優先) に置換
-      return text.replace(/{{char}}/g, worldName).replace(/{{user}}/g, userNickname);
-    };
+  // プレースホルダー（{{char}}、{{user}}）を置換するヘルパー関数
+  const replacePlaceholders = (text: string | null | undefined): string => {
+    if (!text) return "";
+    // {{char}} を世界観の名前 (characters.name) に置換
+    // {{user}} をユーザーのニックネック (ペルソナ優先) に置換
+    return text.replace(/{{char}}/g, worldName).replace(/{{user}}/g, userNickname);
+  };
 
-    // AIモデルに渡すチャット履歴を作成（プレースホルダーを置換）
-    // 最新10件 + ベクトル検索で見つかった関連メッセージを統合
-    // 現在のメッセージ(userMessageForHistory)を除外
-    const currentMessageId = userMessageForHistory?.id;
-    const allHistoryMessages = [
-      ...orderedHistory.filter(msg => msg.id !== currentMessageId), // 現在のメッセージを除外
-      ...vectorMatchedMessages
-        .filter(m => m.id !== currentMessageId) // 現在のメッセージを除外
-        .map(m => ({
+  // AIモデルに渡すチャット履歴を作成（プレースホルダーを置換）
+  // 最新10件 + ベクトル検索で見つかった関連メッセージを統合
+  // 現在のメッセージ(userMessageForHistory)を除外
+  const currentMessageId = userMessageForHistory?.id;
+  const allHistoryMessages = [
+    ...orderedHistory.filter(msg => msg.id !== currentMessageId), // 現在のメッセージを除外
+    ...vectorMatchedMessages
+      .filter(m => m.id !== currentMessageId) // 現在のメッセージを除外
+      .map(m => ({
         id: m.id,
         role: m.role,
         content: m.content,
@@ -308,32 +305,32 @@ export async function POST(request: Request, context: any) {
         version: 1,
         isActive: true,
       }))
-    ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    
-    const chatHistory: Content[] = allHistoryMessages.map(msg => ({
-      role: msg.role as "user" | "model",
-      parts: [{ text: replacePlaceholders(msg.content) }],
-    }));
-    
-    // ▼▼▼【デバッグ】チャット履歴の内容をログ出力
-    console.log(`📜 チャット履歴: ${chatHistory.length}件のメッセージをAIに送信`);
-    console.log(`  - orderedHistory: ${orderedHistory.length}件`);
-    console.log(`  - vectorMatchedMessages: ${vectorMatchedMessages.length}件`);
-    if (chatHistory.length > 0) {
-      const firstMsg = chatHistory[0];
-      const lastMsg = chatHistory[chatHistory.length - 1];
-      const firstText = firstMsg.parts?.[0]?.text || '';
-      const lastText = lastMsg.parts?.[0]?.text || '';
-      console.log(`  - 最初のメッセージ: ${firstMsg.role} - ${firstText.substring(0, 50)}${firstText.length > 50 ? '...' : ''}`);
-      console.log(`  - 最後のメッセージ: ${lastMsg.role} - ${lastText.substring(0, 50)}${lastText.length > 50 ? '...' : ''}`);
-    }
-    // ▲▲▲
+  ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-    console.time("⏱️ Prompt Construction");
-    console.log("ステップ4: 完全なシステムプロンプトの構築開始");
+  const chatHistory: Content[] = allHistoryMessages.map(msg => ({
+    role: msg.role as "user" | "model",
+    parts: [{ text: replacePlaceholders(msg.content) }],
+  }));
 
-    // ロアブック検索ロジック (最適化版: 早期終了 & 小文字変換一回のみ)
-    console.time("⏱️ Simple Text Lorebook Search");
+  // ▼▼▼【デバッグ】チャット履歴の内容をログ出力
+  console.log(`📜 チャット履歴: ${chatHistory.length}件のメッセージをAIに送信`);
+  console.log(`  - orderedHistory: ${orderedHistory.length}件`);
+  console.log(`  - vectorMatchedMessages: ${vectorMatchedMessages.length}件`);
+  if (chatHistory.length > 0) {
+    const firstMsg = chatHistory[0];
+    const lastMsg = chatHistory[chatHistory.length - 1];
+    const firstText = firstMsg.parts?.[0]?.text || '';
+    const lastText = lastMsg.parts?.[0]?.text || '';
+    console.log(`  - 最初のメッセージ: ${firstMsg.role} - ${firstText.substring(0, 50)}${firstText.length > 50 ? '...' : ''}`);
+    console.log(`  - 最後のメッセージ: ${lastMsg.role} - ${lastText.substring(0, 50)}${lastText.length > 50 ? '...' : ''}`);
+  }
+  // ▲▲▲
+
+  console.time("⏱️ Prompt Construction");
+  console.log("ステップ4: 完全なシステムプロンプトの構築開始");
+
+  // ロアブック検索ロジック (最適化版: 早期終了 & 小文字変換一回のみ)
+  console.time("⏱️ Simple Text Lorebook Search");
     let lorebookInfo = "";
     const triggeredLorebooks = [];
     if (worldSetting.lorebooks && worldSetting.lorebooks.length > 0) {
@@ -591,15 +588,15 @@ ${lengthInstruction}
     // ▲▲▲
     console.timeEnd("⏱️ Prompt Construction");
 
-    // ストリーム応答を開始
-    const stream = new ReadableStream({
-      async start(controller) {
-        const encoder = new TextEncoder();
-        // クライアントにイベントを送信するヘルパー関数
-        const sendEvent = (event: string, data: object) => {
-          controller.enqueue(encoder.encode(`event: ${event}\n`));
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-        };
+  // ストリーム応答を開始
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      // クライアントにイベントを送信するヘルパー関数
+      const sendEvent = (event: string, data: object) => {
+        controller.enqueue(encoder.encode(`event: ${event}\n`));
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      };
 
         let firstChunkReceived = false;
         console.time("⏱️ AI TTFB"); // AIからの最初の応答までの時間
@@ -697,20 +694,20 @@ ${lengthInstruction}
             sendEvent('ai-update', { responseChunk: chunk }); // チャンクをクライアントに送信
             finalResponseText += chunk;
           }
-          console.timeEnd("⏱️ AI sendMessageStream Total"); // AI応答完了
+          console.timeEnd("⏱️ AI sendMessageStream Total"); // AI応答完了
 
           // 応答が空でないか確認、またはブロックされた場合
           if (wasBlocked || !finalResponseText.trim()) {
-             if (wasBlocked) {
-               console.log("警告: 応答が安全性フィルターによってブロックされました。");
-               sendEvent('ai-error', { 
-                 error: 'この応答は安全性フィルターによってブロックされました。より適切な表現で再度お試しください。' 
-               });
-               throw new Error("AIからの応答が安全性フィルターによってブロックされました。");
-             } else {
-             console.log("警告: 最終的な応答テキストが空でした。");
-             throw new Error("AIからの応答が空でした。");
-          }
+            if (wasBlocked) {
+              console.log("警告: 応答が安全性フィルターによってブロックされました。");
+              sendEvent('ai-error', {
+                error: 'この応答は安全性フィルターによってブロックされました。より適切な表現で再度お試しください。'
+              });
+              throw new Error("AIからの応答が安全性フィルターによってブロックされました。");
+            } else {
+              console.log("警告: 最終的な応答テキストが空でした。");
+              throw new Error("AIからの応答が空でした。");
+            }
           }
 
           // ▼▼▼【バックエンド画像キーワードマッチング】AIが画像タグを生成しなかった場合、キーワードで自動追加▼▼▼
@@ -982,241 +979,25 @@ ${conversationText}`;
                     const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
                     if (summary) {
-                      // ▼▼▼【改善】AIベースのキーワード抽出（より正確なキーワード抽出）
-                      let extractedKeywords: string[] = [];
-                      try {
-                        const keywordPrompt = `以下の会話要約から、重要なキーワードを10個まで抽出してください。
-
-【抽出するキーワードの種類】
-- 出来事・イベント（例：オーディション、コンサート、パーティー、試合）
-- 行動・活動（例：歌、踊り、演奏、演説、対戦）
-- 対象・テーマ（例：音楽、スポーツ、芸術、勉強、仕事）
-- 人物・関係（例：プロデューサー、審査員、観客、友達、恋人）
-- 感情・状態（例：緊張、興奮、喜び、悲しみ、自信）
-- 場所・環境（例：ステージ、ホール、学校、家）
-- 物・道具（例：マイク、ギター、楽器、衣装）
-
-【絶対に除外する単語】
-- 代名詞（例：그、그녀、그는、그녀는、彼、彼女、彼は、彼女は、당신、당신의、ユーザー）
-- 助詞・助動詞（例：は、が、を、に、の、で、へ、と、から、まで、より、이、가、을、를、은、는、의、에、에서）
-- 一般的すぎる動詞（例：する、した、ある、あった、いる、いた、なる、なった、見る、見た、言う、言った、思う、思った、하다、했다、있다、있었다、없다、없었다、보다、봤다、듯하다、듯했다）
-- 一般的すぎる形容詞（例：いい、良い、よい、悪い、大きい、小さい、多い、少ない、新しい、古い、좋다、좋았다、나쁘다、나빴다、크다、작다）
-- 技術的なタグ（例：Img、img、{img}、HTMLタグ）
-- 数値や記号のみ（例：1、2、3、-、/）
-- 指示語（例：これ、それ、あれ、이것、그것）
-
-【重要なルール】
-- 名詞中心で、会話の核心を表す重要な概念のみを抽出
-- 抽象的すぎる単語（例：もの、こと、것、事）は除外
-- キーワードはカンマ区切りで返してください
-- キーワードは元の言語（日本語、英語、韓国語など）でそのまま返してください
-- 10個に満たない場合は、無理に10個にしなくても構いません
-
-会話要約：
-${summary}`;
-
-                        const keywordResult = await summaryModel.generateContent(keywordPrompt);
-                        const keywordText = keywordResult.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                        
-                        if (keywordText) {
-                          // カンマ区切りで分割し、空白を削除（多言語対応のためtoLowerCaseは使用しない）
-                          extractedKeywords = keywordText
-                            .split(',')
-                            .map(k => k.trim())
-                            .filter(k => {
-                              if (!k || k.length < 2 || k.length > 30) return false;
-                              
-                              // メタデータパターンを除外
-                              if (k.match(/^__META:/)) return false;
-                              
-                              // 数値のみを除外
-                              if (/^\d+$/.test(k)) return false;
-                              
-                              // 一般的な代名詞・指示語を除外（日本語）
-                              const japaneseExclude = [
-                                // 代名詞・指示語
-                                'これ', 'それ', 'あれ', 'どれ', 'この', 'その', 'あの', 'その', '彼', '彼女', '彼は', '彼女は', 'もの', 'こと', 'ユーザー', 'ユーザ',
-                                // 助詞
-                                'は', 'が', 'を', 'に', 'の', 'で', 'へ', 'と', 'から', 'まで', 'より', 'も', 'だけ', 'しか', 'ばかり',
-                                // 一般的な動詞
-                                'する', 'した', 'ある', 'あった', 'いる', 'いた', 'なる', 'なった', '見る', '見た', '言う', '言った', '思う', '思った',
-                                '知る', '知った', '行く', '行った', '来る', '来た', 'やる', 'やった', 'やめる', 'やめた', '始める', '始めた', '終わる', '終わった',
-                                // 一般的な形容詞
-                                'いい', '良い', 'よい', '悪い', '大きい', '小さい', '多い', '少ない', '新しい', '古い', '高い', '低い',
-                                '同じ', '違う', '似ている', '近い', '遠い'
-                              ];
-                              if (japaneseExclude.includes(k)) return false;
-                              
-                              // 日本語: 一般的な動詞・形容詞の活用形を除外
-                              if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+(する|した|ある|あった|いる|いた|なる|なった|見る|見た|言う|言った|思う|思った)$/.test(k)) {
-                                const baseWord = k.replace(/(する|した|ある|あった|いる|いた|なる|なった|見る|見た|言う|言った|思う|思った)$/, '');
-                                if (baseWord.length <= 1) return false;
-                                const commonJapaneseVerbs = ['する', 'ある', 'いる', 'なる', '見', '言', '思', '知', '行', '来', 'や', '始', '終'];
-                                if (commonJapaneseVerbs.includes(baseWord)) return false;
-                              }
-                              
-                              // 日本語: 一般的な形容詞を除外
-                              if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+(いい|良い|よい|悪い|大きい|小さい|多い|少ない|新しい|古い|高い|低い|同じ|違う|似ている|近い|遠い)$/.test(k)) {
-                                return false;
-                              }
-                              
-                              // 一般的な代名詞・指示語を除外（韓国語）
-                              const koreanExclude = [
-                                // 代名詞・指示語
-                                '그', '그녀', '그는', '그녀는', '그녀의', '이것', '그것', '것', '당신', '당신의',
-                                // 助詞
-                                '이', '가', '을', '를', '은', '는', '의', '에', '에서', '으로', '로', '와', '과', '부터', '까지', '도', '만', '조차',
-                                // 一般的な動詞
-                                '있다', '있었다', '없다', '없었다', '하다', '했다', '한다', '되다', '되었다', '된다', '보다', '봤다', '본다', '보았다',
-                                '듯하다', '듯했다', '듯한다', '같다', '같았다', '좋다', '좋았다', '나쁘다', '나빴다',
-                                '되다', '되었다', '된다', '말하다', '말했다', '말한다', '생각하다', '생각했다', '생각한다',
-                                // 一般的な形容詞
-                                '크다', '작다', '많다', '적다', '좋다', '나쁘다', '새롭다', '오래되다'
-                              ];
-                              if (koreanExclude.includes(k)) return false;
-                              
-                              // 韓国語: 助詞が付いた形を除外
-                              if (/^[가-힣]+(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|까지|도|만|조차)$/.test(k)) {
-                                const baseWord = k.replace(/(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|까지|도|만|조차)$/, '');
-                                if (koreanExclude.includes(baseWord)) return false;
-                              }
-                              
-                            // 一般的な動詞・形容詞の過去形・現在形を除外
-                            if (/^[가-힣]+(다|았다|었다|한다|했다)$/.test(k)) {
-                              const baseWord = k.replace(/(다|았다|었다|한다|했다)$/, '');
-                              if (baseWord.length <= 2) return false;
-                              const commonVerbs = ['있', '없', '하', '되', '보', '말', '생각', '좋', '나쁘', '크', '작', '많', '적', '새롭', '오래되'];
-                              if (commonVerbs.includes(baseWord)) return false;
-                            }
-                            
-                            // 日本語: 一般的な動詞・形容詞の活用形を除外
-                            if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+(する|した|ある|あった|いる|いた|なる|なった|見る|見た|言う|言った|思う|思った)$/.test(k)) {
-                              const baseWord = k.replace(/(する|した|ある|あった|いる|いた|なる|なった|見る|見た|言う|言った|思う|思った)$/, '');
-                              if (baseWord.length <= 1) return false;
-                              const commonJapaneseVerbs = ['する', 'ある', 'いる', 'なる', '見', '言', '思', '知', '行', '来', 'や', '始', '終'];
-                              if (commonJapaneseVerbs.includes(baseWord)) return false;
-                            }
-                            
-                            // 日本語: 一般的な形容詞を除外
-                            if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+(いい|良い|よい|悪い|大きい|小さい|多い|少ない|新しい|古い|高い|低い|同じ|違う|似ている|近い|遠い)$/.test(k)) {
-                              return false;
-                            }
-                              
-                              // 技術的なタグを除外
-                              if (k.match(/^(img|Img|IMG|\{img|\{Img)$/i)) return false;
-                              
-                              // HTMLタグのようなものを除外
-                              if (k.match(/^[<{}>]/)) return false;
-                              
-                              // 一般的すぎる単語を除外（英語）
-                              const englishExclude = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them', 'img', 'user', 'users'];
-                              if (englishExclude.includes(k.toLowerCase())) return false;
-                              
-                              return true;
-                            })
-                            .slice(0, 10);
-                        }
-                      } catch (error) {
-                        console.error('AIキーワード抽出エラー:', error);
-                        // AI抽出失敗時は多言語対応フォールバック（改善されたフィルタリング）
-                        // 日本語（ひらがな、カタカナ、漢字）、韓国語（한글）、英語を抽出
-                        const japanesePattern = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+/g; // ひらがな、カタカナ、漢字
-                        const koreanPattern = /[\uAC00-\uD7AF]+/g; // 한글
-                        const englishPattern = /\b[A-Za-z]{3,}\b/g; // 英語（3文字以上）
-                        
-                        const japaneseWords = conversationText.match(japanesePattern) || [];
-                        const koreanWords = conversationText.match(koreanPattern) || [];
-                        const englishWords = conversationText.toLowerCase().match(englishPattern) || [];
-                        
-                        const allWords = [...japaneseWords, ...koreanWords, ...englishWords];
-                        const wordCount: { [key: string]: number } = {};
-                        
-                        // 除外する単語リスト
-                        const japaneseExclude = [
-                          // 代名詞・指示語
-                          'これ', 'それ', 'あれ', 'どれ', 'この', 'その', 'あの', 'その', '彼', '彼女', '彼は', '彼女は', 'もの', 'こと', 'ユーザー', 'ユーザ',
-                          // 助詞
-                          'は', 'が', 'を', 'に', 'の', 'で', 'へ', 'と', 'から', 'まで', 'より', 'も', 'だけ', 'しか', 'ばかり',
-                          // 一般的な動詞
-                          'する', 'した', 'する', 'ある', 'あった', 'いる', 'いた', 'なる', 'なった', 'なる', '見る', '見た', '見る', '言う', '言った', '言う',
-                          '思う', '思った', '思う', '知る', '知った', '知る', '行く', '行った', '行く', '来る', '来た', '来る',
-                          'やる', 'やった', 'やる', 'やめる', 'やめた', 'やめる', '始める', '始めた', '始める', '終わる', '終わった', '終わる',
-                          // 一般的な形容詞
-                          'いい', '良い', 'よい', '悪い', '大きい', '小さい', '多い', '少ない', '新しい', '古い', '高い', '低い',
-                          '同じ', '違う', '似ている', '近い', '遠い'
-                        ];
-                        const koreanExclude = [
-                          // 代名詞・指示語
-                          '그', '그녀', '그는', '그녀는', '그녀의', '이것', '그것', '것', '당신', '당신의',
-                          // 助詞
-                          '이', '가', '을', '를', '은', '는', '의', '에', '에서', '으로', '로', '와', '과', '부터', '까지', '도', '만', '도', '조차',
-                          // 一般的な動詞
-                          '있다', '있었다', '없다', '없었다', '하다', '했다', '한다', '되다', '되었다', '된다', '보다', '봤다', '본다', '보았다',
-                          '듯하다', '듯했다', '듯한다', '같다', '같았다', '같다', '좋다', '좋았다', '나쁘다', '나빴다',
-                          '되다', '되었다', '된다', '말하다', '말했다', '말한다', '생각하다', '생각했다', '생각한다',
-                          // 一般的な形容詞
-                          '크다', '작다', '많다', '적다', '좋다', '나쁘다', '새롭다', '오래되다'
-                        ];
-                        const englishExclude = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them', 'img', 'and', 'or', 'but', 'if', 'when', 'where', 'what', 'who', 'why', 'how', 'user', 'users'];
-                        
-                        allWords.forEach(word => {
-                          // 範囲情報パターンを除外（例: "1-5"など）
-                          if (!/^\d+-\d+$/.test(word)) {
-                            const normalizedWord = /^[A-Za-z]/.test(word) ? word.toLowerCase() : word;
-                            
-                            // 除外リストチェック（完全一致）
-                            if (japaneseExclude.includes(normalizedWord)) return;
-                            if (koreanExclude.includes(normalizedWord)) return;
-                            if (englishExclude.includes(normalizedWord)) return;
-                            
-                            // 韓国語: 助詞が付いた形を除外（~의, ~이, ~가, ~을, ~를, ~은, ~는, ~에, ~에서など）
-                            if (/^[가-힣]+(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|까지|도|만|조차)$/.test(normalizedWord)) {
-                              // 助詞を除いた部分も除外リストに含まれているか確認
-                              const baseWord = normalizedWord.replace(/(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|까지|도|만|조차)$/, '');
-                              if (koreanExclude.includes(baseWord)) return;
-                            }
-                            
-                            // 一般的な動詞・形容詞の過去形・現在形を除外（~다, ~았다, ~었다, ~한다, ~했다など）
-                            if (/^[가-힣]+(다|았다|었다|한다|했다|한다|한다|한다|한다)$/.test(normalizedWord)) {
-                              const baseWord = normalizedWord.replace(/(다|았다|었다|한다|했다|한다|한다|한다|한다)$/, '');
-                              // 短すぎる単語（2文字以下）は除外
-                              if (baseWord.length <= 2) return;
-                              // 一般的な動詞・形容詞の語幹を除外
-                              const commonVerbs = ['있', '없', '하', '되', '보', '말', '생각', '좋', '나쁘', '크', '작', '많', '적', '새롭', '오래되'];
-                              if (commonVerbs.includes(baseWord)) return;
-                            }
-                            
-                            // 技術的なタグを除外
-                            if (normalizedWord.match(/^(img|Img|IMG|\{img|\{Img)$/i)) return;
-                            
-                            // HTMLタグのようなものを除外
-                            if (normalizedWord.match(/^[<{}>]/)) return;
-                            
-                            // 数値のみを除外
-                            if (/^\d+$/.test(normalizedWord)) return;
-                            
-                            // メタデータパターンを除外
-                            if (normalizedWord.match(/^__META:/)) return;
-                            
-                            wordCount[normalizedWord] = (wordCount[normalizedWord] || 0) + 1;
-                          }
-                        });
-                        
-                        extractedKeywords = Object.entries(wordCount)
-                          .sort((a, b) => b[1] - a[1])
-                          .slice(0, 10)
-                          .map(([word]) => word);
-                      }
-                      // ▲▲▲
+                      // ▼▼▼【改善】タイムアウト対策: まずルールベースのキーワードでメモリを作成し、AIキーワード抽出は非同期で実行
+                      // 1. まずルールベースのキーワードを抽出（高速、即座に実行）
+                      const extractedKeywords = extractKeywords(conversationText);
                       
-                      // Create detailed memories from summary
-                      await createDetailedMemories(
+                      // 2. メモリを作成（ルールベースキーワードで、分割処理も含む）
+                      const createdMemoryIds = await createDetailedMemories(
                         chatId,
                         summary,
                         extractedKeywords,
                         messageStartIndex,
                         messageEndIndex
                       );
+                      
+                      // 3. バックグラウンドでAIキーワード抽出し、記憶を更新
+                      if (createdMemoryIds.length > 0) {
+                        updateMemoriesWithAIKeywords(summaryModel, summary, createdMemoryIds, safetySettings).catch((error: unknown) => {
+                          console.error('Background AI keyword extraction error:', error);
+                        });
+                      }
                       
                       console.log('詳細記憶自動要約が完了しました');
                     }
@@ -1244,28 +1025,133 @@ ${summary}`;
           // ▲▲▲
           sendEvent('stream-end', { message: 'Stream ended' }); // ストリーム終了を通知
           controller.close(); // ストリームコントローラーを閉じる
-          console.timeEnd("⏱️ 全体API処理時間"); // API処理全体の時間記録終了
-        }
-      }
-    });
+          console.timeEnd("⏱️ 全体API処理時間"); // API処理全体の時間記録終了
+        }
+      }
+    });
 
-    // ストリーム応答を返す
-    // Netlify環境でのバッファリングを無効化するヘッダーを追加
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no', // Netlify/Vercel 等のバッファリング無効化
-      },
-    });
+  // ストリーム応答を返す
+  // Netlify環境でのバッファリングを無効化するヘッダーを追加
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no', // Netlify/Vercel 等のバッファリング無効化
+    },
+  });
 
-  } catch (error) {
-    // ストリーム開始前に発生したエラー (例: 認証失敗、ポイント不足など)
-    console.error("チャットAPI (pre-stream) エラー:", error);
-    const errorMessage = error instanceof Error ? error.message : "内部サーバーエラーが発生しました。";
-    const status = error instanceof Error && error.message === "ポイントが不足しています。" ? 402 : 500;
-    console.timeEnd("⏱️ 全体API処理時間");
-    return NextResponse.json({ message: errorMessage }, { status });
-  }
+  } catch (error) {
+    // ストリーム開始前に発生したエラー (例: 認証失敗、ポイント不足など)
+    console.error("チャットAPI (pre-stream) エラー:", error);
+    const errorMessage = error instanceof Error ? error.message : "内部サーバーエラーが発生しました。";
+    const status = error instanceof Error && error.message === "ポイントが不足しています。" ? 402 : 500;
+    console.timeEnd("⏱️ 全体API処理時間");
+    return NextResponse.json({ message: errorMessage }, { status });
+  }
+}
+
+// キーワード抽出関数（フォールバック用）
+function extractKeywords(text: string): string[] {
+  // キーワード抽出（範囲情報を除外、多言語対応）
+  // 日本語（ひらがな、カタカナ、漢字）、韓国語（한글）、英語を抽出
+  const japanesePattern = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+/g; // ひらがな、カタカナ、漢字
+  const koreanPattern = /[\uAC00-\uD7AF]+/g; // 한글
+  const englishPattern = /\b[A-Za-z]{3,}\b/g; // 英語（3文字以上）
+  
+  const japaneseWords = text.match(japanesePattern) || [];
+  const koreanWords = text.match(koreanPattern) || [];
+  const englishWords = text.toLowerCase().match(englishPattern) || [];
+  
+  const allWords = [...japaneseWords, ...koreanWords, ...englishWords];
+  const wordCount: { [key: string]: number } = {};
+  
+  // 除外する単語リスト
+  const japaneseExclude = [
+    // 代名詞・指示語
+    'これ', 'それ', 'あれ', 'どれ', 'この', 'その', 'あの', 'その', '彼', '彼女', '彼は', '彼女は', 'もの', 'こと', 'ユーザー', 'ユーザ',
+    // 助詞
+    'は', 'が', 'を', 'に', 'の', 'で', 'へ', 'と', 'から', 'まで', 'より', 'も', 'だけ', 'しか', 'ばかり',
+    // 一般的な動詞
+    'する', 'した', 'ある', 'あった', 'いる', 'いた', 'なる', 'なった', '見る', '見た', '言う', '言った', '思う', '思った',
+    '知る', '知った', '行く', '行った', '来る', '来た', 'やる', 'やった', 'やめる', 'やめた', '始める', '始めた', '終わる', '終わった',
+    // 一般的な形容詞
+    'いい', '良い', 'よい', '悪い', '大きい', '小さい', '多い', '少ない', '新しい', '古い', '高い', '低い',
+    '同じ', '違う', '似ている', '近い', '遠い'
+  ];
+  const koreanExclude = [
+    // 代名詞・指示語
+    '그', '그녀', '그는', '그녀는', '그녀의', '이것', '그것', '것', '당신', '당신의',
+    // 助詞
+    '이', '가', '을', '를', '은', '는', '의', '에', '에서', '으로', '로', '와', '과', '부터', '까지', '도', '만', '조차',
+    // 一般的な動詞
+    '있다', '있었다', '없다', '없었다', '하다', '했다', '한다', '되다', '되었다', '된다', '보다', '봤다', '본다', '보았다',
+    '듯하다', '듯했다', '듯한다', '같다', '같았다', '좋다', '좋았다', '나쁘다', '나빴다',
+    '되다', '되었다', '된다', '말하다', '말했다', '말한다', '생각하다', '생각했다', '생각한다',
+    // 一般的な形容詞
+    '크다', '작다', '많다', '적다', '좋다', '나쁘다', '새롭다', '오래되다'
+  ];
+  const englishExclude = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them', 'img', 'and', 'or', 'but', 'if', 'when', 'where', 'what', 'who', 'why', 'how', 'user', 'users'];
+  
+  allWords.forEach(word => {
+    // 範囲情報パターンを除外（例: "1-5", "6-10", "11-15"など）
+    if (!/^\d+-\d+$/.test(word)) {
+      // 英語のみ小文字に変換、日本語・韓国語はそのまま
+      const normalizedWord = /^[A-Za-z]/.test(word) ? word.toLowerCase() : word;
+      
+      // 除外リストチェック（完全一致）
+      if (japaneseExclude.includes(normalizedWord)) return;
+      if (koreanExclude.includes(normalizedWord)) return;
+      if (englishExclude.includes(normalizedWord)) return;
+      
+      // 韓国語: 助詞が付いた形を除外（~의, ~이, ~가, ~을, ~를, ~은, ~는, ~에, ~에서など）
+      if (/^[가-힣]+(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|까지|도|만|조차)$/.test(normalizedWord)) {
+        // 助詞を除いた部分も除外リストに含まれているか確認
+        const baseWord = normalizedWord.replace(/(의|이|가|을|를|은|는|에|에서|으로|로|와|과|부터|まで|도|만|조차)$/, '');
+        if (koreanExclude.includes(baseWord)) return;
+      }
+      
+      // 一般的な動詞・形容詞の過去形・現在形を除外（~다, ~았다, ~었다, ~한다, ~했다など）
+      if (/^[가-힣]+(다|았다|었다|한다|했다)$/.test(normalizedWord)) {
+        const baseWord = normalizedWord.replace(/(다|았다|었다|한다|했다)$/, '');
+        // 短すぎる単語（2文字以下）は除外
+        if (baseWord.length <= 2) return;
+        // 一般的な動詞・形容詞の語幹を除外
+        const commonVerbs = ['있', '없', '하', '되', '보', '말', '생각', '좋', '나쁘', '크', '작', '많', '적', '새롭', '오래되'];
+        if (commonVerbs.includes(baseWord)) return;
+      }
+      
+      // 日本語: 一般的な動詞・形容詞の活用形を除外（~する, ~した, ~ある, ~あった, ~いる, ~いたなど）
+      if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+(する|した|ある|あった|いる|いた|なる|なった|見る|見た|言う|言った|思う|思った)$/.test(normalizedWord)) {
+        const baseWord = normalizedWord.replace(/(する|した|ある|あった|いる|いた|なる|なった|見る|見た|言う|言った|思う|思った)$/, '');
+        if (baseWord.length <= 1) return;
+        const commonJapaneseVerbs = ['する', 'ある', 'いる', 'なる', '見', '言', '思', '知', '行', '来', 'や', '始', '終'];
+        if (commonJapaneseVerbs.includes(baseWord)) return;
+      }
+      
+      // 日本語: 一般的な形容詞を除外（~いい, ~良い, ~悪い, ~大きい, ~小さいなど）
+      if (/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+(いい|良い|よい|悪い|大きい|小さい|多い|少ない|新しい|古い|高い|低い|同じ|違う|似ている|近い|遠い)$/.test(normalizedWord)) {
+        return; // 形容詞はそのまま除外
+      }
+      
+      // 技術的なタグを除外
+      if (normalizedWord.match(/^(img|Img|IMG|\{img|\{Img)$/i)) return;
+      
+      // HTMLタグのようなものを除外
+      if (normalizedWord.match(/^[<{}>]/)) return;
+      
+      // 数値のみを除外
+      if (/^\d+$/.test(normalizedWord)) return;
+      
+      // メタデータパターンを除外
+      if (normalizedWord.match(/^__META:/)) return;
+      
+      wordCount[normalizedWord] = (wordCount[normalizedWord] || 0) + 1;
+    }
+  });
+  
+  return Object.entries(wordCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([word]) => word);
 }

@@ -167,65 +167,24 @@ export async function POST(
       // ▼▼▼【修正】再要約ロジック: タイムアウト対策のため最適化
       // 1. キーワード抽出をフォールバック方式に変更（AI呼び出し削減）
       // 2. バッチ間の待機時間を削除
-      // 3. 最初の準備処理のみ同期、実際の要約は非同期で開始して即座に応答
+      // 3. メッセージロードと既存メモリ削除も非同期で実行（完全なタイムアウト対策）
       const windowSize = 5;
       
-      try {
-        // ▼▼▼【注意】再要約: ユーザーが明示的に再要約を要求した場合のみ全削除
-        // 通常の自動要約とは異なり、既存の要約を全て削除して最初から再生成します
-        const existingMemories = await prisma.detailed_memories.findMany({
-          where: { chatId: chatIdNum },
-        });
-        
-        if (existingMemories.length > 0) {
-          console.log(`再要約: 既存の詳細記憶 ${existingMemories.length}件を削除して再要約を開始`);
-          await prisma.detailed_memories.deleteMany({
-            where: { chatId: chatIdNum },
-          });
+      // ▼▼▼【タイムアウト対策】再要約を完全に非同期で開始して即座に応答
+      // すべての重い処理（メッセージロード、既存メモリ削除、要約）をバックグラウンドで実行
+      (async () => {
+        try {
+          await performReSummarization(chatIdNum, windowSize, safetySettings);
+        } catch (error) {
+          console.error('再要約: バックグラウンド処理エラー:', error);
         }
-        // ▲▲▲
-
-        // 全メッセージを取得（再要約なので全体を処理）
-        const messagesToSummarize = await prisma.chat_message.findMany({
-          where: {
-            chatId: chatIdNum,
-            isActive: true,
-          },
-          orderBy: { createdAt: 'asc' },
-        });
-
-        console.log(`再要約: 全メッセージ数: ${messagesToSummarize.length}`);
-
-        if (messagesToSummarize.length === 0) {
-          console.log('再要約: 要約するメッセージがありません');
-          return NextResponse.json({ 
-            message: '要約するメッセージがありません。',
-            success: false
-          });
-        }
-        
-        // ▼▼▼【タイムアウト対策】再要約を非同期で開始して即座に応答
-        // 実際の再要約処理はバックグラウンドで実行される
-        (async () => {
-          try {
-            await performReSummarization(chatIdNum, messagesToSummarize, windowSize, safetySettings);
-          } catch (error) {
-            console.error('再要約: バックグラウンド処理エラー:', error);
-          }
-        })();
-        
-        // 即座に応答を返す（タイムアウトを防ぐ）
-        return NextResponse.json({ 
-          message: '再要約を開始しました。バックグラウンドで処理中です。',
-          success: true
-        });
-      } catch (error) {
-        console.error('再要約: 初期化エラー:', error);
-        return NextResponse.json({ 
-          error: error instanceof Error ? error.message : '再要約の開始に失敗しました。',
-          success: false
-        }, { status: 500 });
-      }
+      })();
+      
+      // 即座に応答を返す（タイムアウトを防ぐ）
+      return NextResponse.json({ 
+        message: '再要約を開始しました。バックグラウンドで処理中です。',
+        success: true
+      });
     } else {
       // 手動作成の場合（保存個数制限なし、2000文字を超える場合は自動分割）
 
@@ -442,13 +401,43 @@ type ChatMessage = {
 
 async function performReSummarization(
   chatIdNum: number,
-  messagesToSummarize: ChatMessage[],
   windowSize: number,
   safetySettings: SafetySetting
 ) {
-  console.log(`再要約: バックグラウンド処理開始 (${messagesToSummarize.length}件のメッセージ)`);
+  console.log('再要約: バックグラウンド処理開始');
   
-  let createdCount = 0;
+  try {
+    // ▼▼▼【注意】再要約: ユーザーが明示的に再要約を要求した場合のみ全削除
+    // 通常の自動要約とは異なり、既存の要約を全て削除して最初から再生成します
+    const existingMemories = await prisma.detailed_memories.findMany({
+      where: { chatId: chatIdNum },
+    });
+    
+    if (existingMemories.length > 0) {
+      console.log(`再要約: 既存の詳細記憶 ${existingMemories.length}件を削除して再要約を開始`);
+      await prisma.detailed_memories.deleteMany({
+        where: { chatId: chatIdNum },
+      });
+    }
+    // ▲▲▲
+
+    // 全メッセージを取得（再要約なので全体を処理）
+    const messagesToSummarize = await prisma.chat_message.findMany({
+      where: {
+        chatId: chatIdNum,
+        isActive: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    console.log(`再要約: 全メッセージ数: ${messagesToSummarize.length}`);
+
+    if (messagesToSummarize.length === 0) {
+      console.log('再要約: 要約するメッセージがありません');
+      return;
+    }
+    
+    let createdCount = 0;
   
   for (let start = 0; start < messagesToSummarize.length; start += windowSize) {
     const end = Math.min(start + windowSize, messagesToSummarize.length);
@@ -606,35 +595,39 @@ ${conversationText}`;
     }
   }
   
-  console.log(`再要約: 全バッチ処理完了 (作成: ${createdCount}件)`);
-  
-  // ▼▼▼【追加】再要約後、1-3個の場合は自動適用（lastAppliedを設定）
-  // 最新のメモリから適用するため、作成日時で降順ソート
-  const newMemories = await prisma.detailed_memories.findMany({
-    where: { chatId: chatIdNum },
-    orderBy: { createdAt: 'desc' }, // 最新のものから（降順）
-  });
-  
-  if (newMemories.length > 0 && newMemories.length <= 3) {
-    // 1-3個の場合は全て自動適用
-    console.log(`再要約: ${newMemories.length}個のメモリを自動適用`);
-    for (const memory of newMemories) {
-      await prisma.detailed_memories.update({
-        where: { id: memory.id },
-        data: { lastApplied: new Date() },
-      }).catch(err => console.error('自動適用エラー:', err));
+    console.log(`再要約: 全バッチ処理完了 (作成: ${createdCount}件)`);
+    
+    // ▼▼▼【追加】再要約後、1-3個の場合は自動適用（lastAppliedを設定）
+    // 最新のメモリから適用するため、作成日時で降順ソート
+    const newMemories = await prisma.detailed_memories.findMany({
+      where: { chatId: chatIdNum },
+      orderBy: { createdAt: 'desc' }, // 最新のものから（降順）
+    });
+    
+    if (newMemories.length > 0 && newMemories.length <= 3) {
+      // 1-3個の場合は全て自動適用
+      console.log(`再要約: ${newMemories.length}個のメモリを自動適用`);
+      for (const memory of newMemories) {
+        await prisma.detailed_memories.update({
+          where: { id: memory.id },
+          data: { lastApplied: new Date() },
+        }).catch(err => console.error('自動適用エラー:', err));
+      }
+    } else if (newMemories.length > 3) {
+      // 4個以上の場合は最新の3個を自動適用
+      console.log(`再要約: 最新の3個のメモリを自動適用`);
+      for (let i = 0; i < Math.min(3, newMemories.length); i++) {
+        await prisma.detailed_memories.update({
+          where: { id: newMemories[i].id },
+          data: { lastApplied: new Date() },
+        }).catch(err => console.error('自動適用エラー:', err));
+      }
     }
-  } else if (newMemories.length > 3) {
-    // 4個以上の場合は最新の3個を自動適用
-    console.log(`再要約: 最新の3個のメモリを自動適用`);
-    for (let i = 0; i < Math.min(3, newMemories.length); i++) {
-      await prisma.detailed_memories.update({
-        where: { id: newMemories[i].id },
-        data: { lastApplied: new Date() },
-      }).catch(err => console.error('自動適用エラー:', err));
-    }
+    // ▲▲▲
+  } catch (error) {
+    console.error('再要約: 処理エラー:', error);
+    throw error;
   }
-  // ▲▲▲
 }
 
 // キーワード抽出関数（フォールバック用）
