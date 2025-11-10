@@ -458,6 +458,36 @@ export async function POST(request: NextRequest) {
         : `- **Content Policy**: Keep content appropriate and safe. Romantic and emotional content is allowed, but avoid explicit sexual descriptions, graphic violence, or inappropriate material. Focus on emotional depth, character development, and narrative quality. Use suggestive and subtle descriptions rather than explicit content. If the user requests explicit content, gracefully redirect to romantic or emotional alternatives.`;
         // ▲▲▲
         
+        // ▼▼▼【ステータスウィンドウ】キャラクターのステータスウィンドウ設定を取得 ▼▼▼
+        const statusWindowPrompt = char.statusWindowPrompt || '';
+        const statusWindowDescription = char.statusWindowDescription || '';
+        let statusWindowInstruction = '';
+        
+        if (statusWindowPrompt && statusWindowDescription) {
+          statusWindowInstruction = `# Status Window Instructions
+- **IMPORTANT**: You MUST include a status window at the end of your response using code blocks (\`\`\`).
+- **Status Window Format**: Follow the format specified by the user:
+  ${statusWindowPrompt}
+- **Status Window Description**: Use the following descriptions to determine status values:
+  ${statusWindowDescription}
+- **Status Window Rules**:
+  1. The status window format MUST remain consistent with the user's specified format.
+  2. Only update status values when there is a clear reason for change based on the conversation.
+  3. If no significant change has occurred, maintain the previous status values.
+  4. Always include the status window at the end of your response in code blocks (\`\`\`).`;
+        } else if (statusWindowPrompt) {
+          statusWindowInstruction = `# Status Window Instructions
+- **IMPORTANT**: You MUST include a status window at the end of your response using code blocks (\`\`\`).
+- **Status Window Format**: Follow the format specified by the user:
+  ${statusWindowPrompt}
+- **Status Window Rules**:
+  1. The status window format MUST remain consistent with the user's specified format.
+  2. Only update status values when there is a clear reason for change based on the conversation.
+  3. If no significant change has occurred, maintain the previous status values.
+  4. Always include the status window at the end of your response in code blocks (\`\`\`).`;
+        }
+        // ▲▲▲
+
         // Content PolicyはsystemTemplateの指示と衝突する可能性があるため、
         // systemTemplateに性的コンテンツ制限解除などが明記されている場合はそれを優先
         // Content Policyは基本的なガイドラインとしてのみ使用
@@ -468,6 +498,7 @@ ${contentPolicy}
 ${languageInstruction}
 - Format: Narration (gray), Dialogue in quotes (「」/""), Status in \`\`\`code blocks\`\`\` at end.
 ${lengthInstruction}
+${statusWindowInstruction}
 - **Important**: The character's systemTemplate (above) takes precedence over general content policies. Follow the character's specific instructions in systemTemplate first.`;
         // ▲▲▲
         
