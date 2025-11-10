@@ -191,19 +191,6 @@ export async function POST(request: NextRequest) {
         };
         // ▲▲▲
         
-        // ▼▼▼【初期コンテキスト】firstSituationとfirstMessageを追加（履歴がない場合のみ） ▼▼▼
-        const initialContext = [];
-        if (historyMessages.length === 0) {
-          if (char.firstSituation) {
-            initialContext.push(`# Initial\n${replacePlaceholders(char.firstSituation)}`);
-          }
-          if (char.firstMessage) {
-            initialContext.push(`# Opening\n${replacePlaceholders(char.firstMessage)}`);
-          }
-        }
-        const initialContextText = initialContext.join("\n\n");
-        // ▲▲▲
-        
         // ▼▼▼【バックメモリ】会話の要約を追加 ▼▼▼
         let backMemoryInfo = "";
         const backMemoryData = await prisma.chat.findUnique({
@@ -280,6 +267,19 @@ export async function POST(request: NextRequest) {
         
         console.log(`再生成履歴: ${historyMessages.length}件のメッセージを取得（再生成対象turnId: ${turnId}を除く）`);
         console.timeEnd("⏱️ 履歴取得");
+        // ▲▲▲
+        
+        // ▼▼▼【初期コンテキスト】firstSituationとfirstMessageを追加（履歴がない場合のみ） ▼▼▼
+        const initialContext = [];
+        if (historyMessages.length === 0) {
+          if (char.firstSituation) {
+            initialContext.push(`# Initial\n${replacePlaceholders(char.firstSituation)}`);
+          }
+          if (char.firstMessage) {
+            initialContext.push(`# Opening\n${replacePlaceholders(char.firstMessage)}`);
+          }
+        }
+        const initialContextText = initialContext.join("\n\n");
         // ▲▲▲
         
         // ▼▼▼【詳細記憶】関連する詳細記憶を追加 ▼▼▼
