@@ -390,6 +390,8 @@ export async function POST(request: Request) {
                             category: formFields.category ?? null,
                             hashtags: formFields.hashtags ?? [],
                             detailSetting: formFields.detailSetting ?? null,
+                            statusWindowPrompt: formFields.statusWindowPrompt ?? null,
+                            statusWindowDescription: formFields.statusWindowDescription ?? null,
                             author: { connect: { id: userIdNum } },
                         }
                     });
@@ -632,6 +634,9 @@ export async function POST(request: Request) {
             });
         }
         
+        const statusWindowPrompt = (formData.get('statusWindowPrompt') as string) || '';
+        const statusWindowDescription = (formData.get('statusWindowDescription') as string) || '';
+        
         const characterData = {
             name,
             description,
@@ -645,6 +650,8 @@ export async function POST(request: Request) {
             detailSetting,
             firstSituationDate: firstSituationDate ? new Date(firstSituationDate) : null,
             firstSituationPlace: firstSituationPlace,
+            statusWindowPrompt: statusWindowPrompt || null,
+            statusWindowDescription: statusWindowDescription || null,
             author: {
                 connect: { id: userId },
             },

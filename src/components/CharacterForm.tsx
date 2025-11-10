@@ -49,6 +49,8 @@ type FormState = {
   hashtags: string[];
   firstSituationDate: string;
   firstSituationPlace: string;
+  statusWindowPrompt: string;
+  statusWindowDescription: string;
 };
 
 type DisplayImage = {
@@ -217,6 +219,8 @@ export default function CharacterForm({ isEditMode, initialData, session, status
     safetyFilter: true, category: "", hashtags: [],
     firstSituationDate: "",
     firstSituationPlace: "",
+    statusWindowPrompt: "",
+    statusWindowDescription: "",
   });
   const [lorebooks, setLorebooks] = useState<Lorebook[]>([]);
   
@@ -251,6 +255,8 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         hashtags: initialData.hashtags || [],
         firstSituationDate: initialData.firstSituationDate ? new Date(initialData.firstSituationDate).toISOString().split('T')[0] : "",
         firstSituationPlace: initialData.firstSituationPlace || "",
+        statusWindowPrompt: initialData.statusWindowPrompt || "",
+        statusWindowDescription: initialData.statusWindowDescription || "",
       });
       
       // 編集モードの場合のみ既存画像をロード（新規作成時は空のまま）
@@ -576,7 +582,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
     return <div className="min-h-screen bg-black text-white flex justify-center items-center"><p>ローディング中...</p></div>;
   }
   
-  const STEPS = ["プロフィール", "キャラクター画像", "詳細情報", "開始状況", "その他設定", "ロアブック", "修正および登録"];
+  const STEPS = ["プロフィール", "キャラクター画像", "詳細情報", "開始状況", "その他設定", "ステータスウィンドウ", "ロアブック", "修正および登録"];
 
   return (
     <>
@@ -713,6 +719,54 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         <div style={{ display: step === 5 ? 'block' : 'none' }}>
             <div className="space-y-4">
                 <div className="p-4 bg-gray-800 rounded-lg">
+                    <h3 className="font-bold text-lg">ステータスウィンドウ設定</h3>
+                    <p className="text-sm text-gray-400 mt-1">
+                        チャット画面で表示されるステータスウィンドウの内容と説明を設定します。<br />
+                        <span className="text-pink-400 font-semibold">ステータスウィンドウの内容は、状況に応じて変動する理由が発生した場合のみ変動し、それ以外は設定した形式を維持します。</span>
+                    </p>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                        ステータスウィンドウ内容 (500字以内)
+                    </label>
+                    <Textarea 
+                        placeholder="例: 呼び出し度: 50/100, 関係性: 友人, 場所: 教室" 
+                        value={form.statusWindowPrompt} 
+                        maxLength={500} 
+                        onChange={(e) => handleChange("statusWindowPrompt", e.target.value)} 
+                        className="h-32 rounded-md"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                        AIがステータスウィンドウに表示する内容の形式を設定します。変動する項目（数値など）を指定してください。
+                    </p>
+                    <p className="text-xs text-right text-gray-500 mt-1">
+                        {form.statusWindowPrompt.length} / 500
+                    </p>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                        ステータスウィンドウ説明 (1000字以内)
+                    </label>
+                    <Textarea 
+                        placeholder="例: 呼び出し度 0-10: 全く関係がない, 10-20: 少し興味がある, 20-30: 友人関係, 30-50: 親しい友人, 50-70: 恋人候補, 70-90: 恋人, 90-100: 最愛の人" 
+                        value={form.statusWindowDescription} 
+                        maxLength={1000} 
+                        onChange={(e) => handleChange("statusWindowDescription", e.target.value)} 
+                        className="h-48 rounded-md"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                        ステータス項目の値の範囲ごとの意味を説明します。例: 呼び出し度 0-10は「全く関係がない」、10-20は「少し興味がある」など。
+                    </p>
+                    <p className="text-xs text-right text-gray-500 mt-1">
+                        {form.statusWindowDescription.length} / 1000
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div style={{ display: step === 6 ? 'block' : 'none' }}>
+            <div className="space-y-4">
+                <div className="p-4 bg-gray-800 rounded-lg">
                     <h3 className="font-bold text-lg">ロアブック</h3>
                     <p className="text-sm text-gray-400 mt-1">
                         世界観、設定、人物情報などをキーワードと紐付けてAIに記憶させます。(最大100件)<br />
@@ -735,7 +789,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
             </div>
         </div>
 
-        <div style={{ display: step === 6 ? 'block' : 'none' }}>
+        <div style={{ display: step === 7 ? 'block' : 'none' }}>
             <div className="space-y-6">
                 <div className="p-4 bg-gray-800 rounded-lg">
                     <h3 className="font-bold text-lg">キャラクター情報</h3>

@@ -24,6 +24,8 @@ model characters {
   updatedAt           DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
   firstSituationDate  DateTime?          @db.Timestamptz(6)
   firstSituationPlace String?
+  statusWindowPrompt  String?            @db.Text
+  statusWindowDescription String?         @db.Text
   characterImages     character_images[]
   author              users?             @relation(fields: [author_id], references: [id])
   chat                chat[]

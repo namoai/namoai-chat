@@ -21,6 +21,8 @@ type CharacterData = {
   category: string | null;
   hashtags: string[];
   detailSetting: string | null;
+  statusWindowPrompt: string | null;
+  statusWindowDescription: string | null;
   author_id: number | null;
   characterImages: { id: number; imageUrl: string; keyword: string | null }[];
   lorebooks: { id: number; content: string; keywords: string[] }[];
@@ -126,6 +128,8 @@ export default function CharacterEditPage() {
       safetyFilter: initialData.safetyFilter ?? undefined,
       category: initialData.category ?? undefined,
       detailSetting: initialData.detailSetting ?? undefined,
+      statusWindowPrompt: initialData.statusWindowPrompt ?? undefined,
+      statusWindowDescription: initialData.statusWindowDescription ?? undefined,
     };
 
     return (

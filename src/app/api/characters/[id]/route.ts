@@ -428,6 +428,8 @@ export async function PUT(
             category: formFields.category ?? null,
             hashtags: formFields.hashtags ?? [],
             detailSetting: formFields.detailSetting ?? null,
+            statusWindowPrompt: formFields.statusWindowPrompt ?? null,
+            statusWindowDescription: formFields.statusWindowDescription ?? null,
           }
         });
         
@@ -596,6 +598,8 @@ export async function PUT(
           detailSetting: formData.get('detailSetting') as string,
           firstSituationDate: firstSituationDate ? new Date(firstSituationDate) : null,
           firstSituationPlace: firstSituationPlace,
+          statusWindowPrompt: formData.get('statusWindowPrompt') as string || null,
+          statusWindowDescription: formData.get('statusWindowDescription') as string || null,
         }
       });
     });
