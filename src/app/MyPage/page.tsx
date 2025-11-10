@@ -3,7 +3,7 @@
 import type { Session } from "next-auth";
 import {
   Heart, ChevronRight, Megaphone, Users, BookUser,
-  User, ShieldCheck, BrainCircuit, LogOut, Coins, Shield, Loader2,
+  User, ShieldCheck, BrainCircuit, LogOut, Coins, Shield, Loader2, MessageSquare,
 } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
 import { signOut } from "next-auth/react";
@@ -210,6 +210,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
       action: handleSafetyFilterToggle
     },
     { icon: <BrainCircuit size={20} className="text-gray-400" />, text: "ペルソナ設定", action: "/persona/list" },
+    { icon: <MessageSquare size={20} className="text-gray-400" />, text: "お問い合わせ履歴", action: "/MyPage/inquiries" },
   ];
   const infoMenuItems: Omit<MenuItem, 'badge'>[] = [
     { icon: <Users size={20} className="text-gray-400" />, text: "ディスコード", action: "/discord" },
