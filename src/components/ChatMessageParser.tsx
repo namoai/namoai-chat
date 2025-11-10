@@ -99,10 +99,7 @@ function parseTextContent(
   const regex = /(「.*?」)|(!\[.*?\]\(.*?\))|(\{img:\d+\})/g;
   const parts = text.split(regex).filter(Boolean);
   
-  // ▼▼▼【修正】isMultiImage가 true일 때는 여러 이미지를 표시할 수 있도록 imageRendered 플래그를 제거
-  // 단일 이미지 모드일 때만 첫 번째 이미지만 표시
   let imageRendered = false;
-  // ▲▲▲
 
   return parts.map((part, index) => {
     const globalIndex = baseIndex + index;
@@ -137,25 +134,19 @@ function parseTextContent(
     // --- {img:n} 内部画像の処理 ---
     const internalImageMatch = part.match(/\{img:(\d+)\}/);
     if (showImage && internalImageMatch) {
-      // ▼▼▼【修正】isMultiImage가 false일 때만 첫 번째 이미지만 표시
       if (!isMultiImage && imageRendered) {
         return null;
       }
-      // ▲▲▲
 
       const n = parseInt(internalImageMatch[1], 10);
       // ▼▼▼【修正】parseImageTags와 동일하게 nonMainImages 사용 (isMain=false인 이미지만)
       const nonMainImages = characterImages.filter(img => !img.isMain);
-      const imageIndex = n - 1; // 1-indexed to 0-indexed
-      const image = imageIndex >= 0 && imageIndex < nonMainImages.length ? nonMainImages[imageIndex] : null;
+      const imgIndex = n - 1; // 1-indexed to 0-indexed
+      const image = imgIndex >= 0 && imgIndex < nonMainImages.length ? nonMainImages[imgIndex] : null;
       // ▲▲▲
 
       if (image) {
-        // ▼▼▼【修正】isMultiImage가 false일 때만 imageRendered 플래그를 설정
-        if (!isMultiImage) {
-          imageRendered = true;
-        }
-        // ▲▲▲
+        imageRendered = true;
         return (
           <div key={`int-img-${globalIndex}`} className="relative my-2 w-full max-w-xs rounded-lg overflow-hidden shadow-lg">
             <Image
@@ -164,7 +155,7 @@ function parseTextContent(
               width={400}
               height={300}
               className="object-contain cursor-zoom-in"
-              priority={imageIndex < 3}
+              priority={imgIndex < 3}
               onClick={() => onImageClick?.(image.imageUrl)}
             />
           </div>
