@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Flag, MessageSquare, FileText, CheckCircle, XCircle, Clock, Search, Filter } from 'lucide-react';
 import type { Session } from 'next-auth';
@@ -52,13 +52,7 @@ export default function InquiriesPage() {
     checkSession();
   }, [router]);
 
-  useEffect(() => {
-    if (status === 'authenticated') {
-      fetchReports();
-    }
-  }, [status, filterType, filterStatus]);
-
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -74,7 +68,13 @@ export default function InquiriesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterType, filterStatus]);
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetchReports();
+    }
+  }, [status, fetchReports]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
