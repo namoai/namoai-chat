@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, FormEvent } from 'react';
+import React, { useState, useEffect, FormEvent, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, MoreVertical, ArrowLeft, Send, Edit, Trash2, ShieldBan } from 'lucide-react';
+import { Heart, MoreVertical, ArrowLeft, Send, Edit, Trash2, ShieldBan, Flag } from 'lucide-react';
 
 // --- 型定義 (変更なし) ---
 type ManualSession = {
@@ -298,6 +298,12 @@ export default function CharacterDetailPage({
   const [sessionStatus, setSessionStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: '', message: ''});
+  const [showMenu, setShowMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportContent, setReportContent] = useState('');
+  const [showReportConfirm, setShowReportConfirm] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -348,6 +354,114 @@ export default function CharacterDetailPage({
     fetchCharacter();
   // ❗️依存性もparams.characterId → characterId に置き換え
   }, [characterId]);
+
+  // ▼▼▼【メニュー外クリックで閉じる】▼▼▼
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
+  // ▲▲▲
+
+  // ▼▼▼【제작자 여부 확인】▼▼▼
+  const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
+  const isAuthor = character?.author?.id === currentUserId;
+  // ▲▲▲
+
+  // ▼▼▼【메뉴 액션 핸들러】▼▼▼
+  const handleEdit = () => {
+    if (!characterId) return;
+    router.push(`/characters/edit/${characterId}`);
+    setShowMenu(false);
+  };
+
+  const handleDelete = () => {
+    setShowMenu(false);
+    setModalState({
+      isOpen: true,
+      title: '削除の確認',
+      message: '本当にこのキャラクターを削除しますか？この操作は取り消せません。',
+      confirmText: '削除',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/characters/${characterId}`, {
+            method: 'DELETE',
+          });
+          if (!res.ok) throw new Error('削除に失敗しました。');
+          router.push('/character-management');
+        } catch (err) {
+          setModalState({
+            isOpen: true,
+            title: 'エラー',
+            message: err instanceof Error ? err.message : '削除中にエラーが発生しました。',
+            isAlert: true,
+          });
+        }
+      },
+    });
+  };
+
+  const handleReport = () => {
+    setShowMenu(false);
+    setShowReportModal(true);
+  };
+
+  const handleReportSubmit = () => {
+    if (!reportReason.trim()) {
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: '通報理由を選択してください。',
+        isAlert: true,
+      });
+      return;
+    }
+    setShowReportConfirm(true);
+  };
+
+  const handleReportConfirm = async () => {
+    setShowReportConfirm(false);
+    if (!characterId || !session?.user?.id) return;
+    
+    try {
+      const res = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'CHARACTER_REPORT',
+          characterId: parseInt(characterId, 10),
+          reason: reportReason,
+          content: reportContent,
+        }),
+      });
+      if (!res.ok) throw new Error('通報受付に失敗しました。');
+      setShowReportModal(false);
+      setReportReason('');
+      setReportContent('');
+      setModalState({
+        isOpen: true,
+        title: '通報受付完了',
+        message: '通報が受付されました。検討後、対応いたします。',
+        isAlert: true,
+      });
+    } catch (err) {
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: err instanceof Error ? err.message : '通報受付中にエラーが発生しました。',
+        isAlert: true,
+      });
+    }
+  };
+  // ▲▲▲
 
   const handleFavorite = async () => {
     if (!character) return;
@@ -425,11 +539,97 @@ export default function CharacterDetailPage({
   return (
     <div className="bg-black text-white min-h-screen font-sans">
       <ConfirmationModal modalState={modalState} setModalState={setModalState} />
+      
+      {/* ▼▼▼【通報確認モーダル】▼▼▼ */}
+      {showReportConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex justify-center items-center">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-sm m-4 text-white">
+            <h2 className="text-xl font-bold mb-4">通報しますか？</h2>
+            <p className="text-gray-200 mb-6">通報内容は管理者に送信されます。</p>
+            <div className="flex justify-between gap-4">
+              <button onClick={() => setShowReportConfirm(false)} className="px-4 py-2 bg-gray-600 text-white hover:bg-gray-500 rounded-lg">
+                キャンセル
+              </button>
+              <button onClick={handleReportConfirm} className="px-4 py-2 bg-red-600 text-white hover:bg-red-500 rounded-lg">
+                通報する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ▲▲▲ */}
+
+      {/* ▼▼▼【通報モーダル】▼▼▼ */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex justify-center items-center">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md m-4 text-white">
+            <h2 className="text-xl font-bold mb-4">通報する</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">通報理由</label>
+                <select
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                >
+                  <option value="">選択してください</option>
+                  <option value="不適切なコンテンツ">不適切なコンテンツ</option>
+                  <option value="性的コンテンツ">性的コンテンツ</option>
+                  <option value="暴力的コンテンツ">暴力的コンテンツ</option>
+                  <option value="著作権侵害">著作権侵害</option>
+                  <option value="スパム">スパム</option>
+                  <option value="なりすまし">なりすまし</option>
+                  <option value="その他">その他</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">詳細内容</label>
+                <textarea
+                  value={reportContent}
+                  onChange={(e) => setReportContent(e.target.value)}
+                  placeholder="通報内容を詳しく入力してください..."
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 h-32 focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"
+                  maxLength={1000}
+                />
+                <p className="text-xs text-gray-400 mt-1 text-right">{reportContent.length} / 1000</p>
+              </div>
+            </div>
+            <div className="flex justify-between gap-4 mt-6">
+              <button onClick={() => { setShowReportModal(false); setReportReason(''); setReportContent(''); }} className="px-4 py-2 bg-gray-600 text-white hover:bg-gray-500 rounded-lg">
+                キャンセル
+              </button>
+              <button onClick={handleReportSubmit} className="px-4 py-2 bg-red-600 text-white hover:bg-red-500 rounded-lg">
+                通報受付
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ▲▲▲ */}
+
       <header className="fixed top-0 left-0 right-0 bg-black bg-opacity-80 backdrop-blur-sm z-20 flex items-center justify-between p-4">
           <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-gray-800"><ArrowLeft size={24} /></button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 relative" ref={menuRef}>
             <button onClick={handleFavorite} className="p-2 rounded-full hover:bg-gray-800"><Heart size={24} className={character.isFavorited ? 'text-pink-500 fill-current' : ''} /></button>
-            <button className="p-2 rounded-full hover:bg-gray-800"><MoreVertical size={24} /></button>
+            <button onClick={() => setShowMenu(!showMenu)} className="p-2 rounded-full hover:bg-gray-800"><MoreVertical size={24} /></button>
+            {showMenu && (
+              <div className="absolute right-0 top-12 bg-gray-800 rounded-md shadow-lg z-30 w-40">
+                {isAuthor ? (
+                  <>
+                    <button onClick={handleEdit} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-700 rounded-t-md">
+                      <Edit size={16} /> 修正
+                    </button>
+                    <button onClick={handleDelete} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-gray-700 rounded-b-md">
+                      <Trash2 size={16} /> 削除
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={handleReport} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-gray-700 rounded-md">
+                    <Flag size={16} /> 通報する
+                  </button>
+                )}
+              </div>
+            )}
           </div>
       </header>
       

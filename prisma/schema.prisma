@@ -34,6 +34,7 @@ model characters {
   favorites           favorites[]
   interactions        interactions[]
   lorebooks           lorebooks[]
+  reports             reports[]
 }
 
 model users {
@@ -65,6 +66,7 @@ model users {
   interactions                  interactions[]
   personas                      personas[]
   points                        points?
+  reports                       reports[]      @relation("Reporter")
   // ▼▼▼【修正】エラーを引き起こす重複した'sessions'フィールドを削除しました。▼▼▼
 }
 
@@ -290,6 +292,29 @@ model detailed_memories {
 }
 
 // ▼▼▼【修正】不要で重複エラーを引き起こす'sessions'モデルを削除しました。▼▼▼
+
+model reports {
+  id            Int       @id @default(autoincrement())
+  type          String    // CHARACTER_REPORT, SUGGESTION, INQUIRY
+  characterId   Int?
+  reporterId    Int
+  reason        String
+  content       String    @db.Text
+  status        String    @default("PENDING") // PENDING, REVIEWED, RESOLVED, REJECTED
+  adminNotes    String?   @db.Text
+  reviewedBy    Int?
+  reviewedAt    DateTime? @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(6)
+  characters    characters? @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  reporter      users     @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([characterId])
+  @@index([reporterId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+}
 
 enum Role {
   USER

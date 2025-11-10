@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Session } from 'next-auth';
-import { Users, FileText, ArrowLeft, BrainCircuit } from 'lucide-react';
+import { Users, FileText, ArrowLeft, BrainCircuit, Flag } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   // ▼▼▼【修正点】useRouterを使用します ▼▼▼
@@ -87,6 +87,14 @@ export default function AdminDashboardPage() {
               <h2 className="text-xl font-bold mb-2">キャラクター管理</h2>
               <p className="text-gray-400 text-sm">すべてのキャラクターを管理します。</p>
             </Link>
+        )}
+
+        {(userRole === 'MODERATOR' || userRole === 'SUPER_ADMIN') && (
+          <Link href="/admin/reports" className="bg-gray-900 p-6 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer flex flex-col items-center text-center">
+            <Flag size={40} className="text-pink-400 mb-4" />
+            <h2 className="text-xl font-bold mb-2">通報・要望・お問い合わせ管理</h2>
+            <p className="text-gray-400 text-sm">通報、要望、お問い合わせを管理します。</p>
+          </Link>
         )}
       </div>
     </div>
