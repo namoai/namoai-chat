@@ -122,9 +122,10 @@ export default function InquiriesPage() {
       setInquiryTitle('');
       setInquiryContent('');
       fetchReports();
-    } catch (error: any) {
+    } catch (error) {
       console.error('お問い合わせ送信エラー:', error);
-      alert(error.message || 'お問い合わせの送信に失敗しました。');
+      const errorMessage = error instanceof Error ? error.message : 'お問い合わせの送信に失敗しました。';
+      alert(errorMessage);
     } finally {
       setSubmitting(false);
     }
