@@ -437,7 +437,7 @@ export async function POST(request: NextRequest) {
             .join('\n');
         
         const imageInstruction = imageList 
-            ? `# Images\nAvailable: ${imageList}\nUsage: {img:N} in narration.`
+            ? `# Images\nAvailable: ${imageList}\nUsage: Insert {img:N} at appropriate moments in narration.`
             : "";
         // ▲▲▲
         
