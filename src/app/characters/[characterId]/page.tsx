@@ -415,6 +415,15 @@ export default function CharacterDetailPage({
   };
 
   const handleReportSubmit = () => {
+    if (!session?.user?.id) {
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: 'ログインが必要です。',
+        isAlert: true,
+      });
+      return;
+    }
     if (!reportReason.trim()) {
       setModalState({
         isOpen: true,
@@ -428,8 +437,17 @@ export default function CharacterDetailPage({
   };
 
   const handleReportConfirm = async () => {
+    if (!characterId || !session?.user?.id) {
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: 'ログインが必要です。',
+        isAlert: true,
+      });
+      setShowReportConfirm(false);
+      return;
+    }
     setShowReportConfirm(false);
-    if (!characterId || !session?.user?.id) return;
     
     try {
       const res = await fetch('/api/reports', {
@@ -623,11 +641,11 @@ export default function CharacterDetailPage({
                       <Trash2 size={16} /> 削除
                     </button>
                   </>
-                ) : (
+                ) : sessionStatus === 'authenticated' ? (
                   <button onClick={handleReport} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-gray-700 rounded-md">
                     <Flag size={16} /> 通報する
                   </button>
-                )}
+                ) : null}
               </div>
             )}
           </div>
