@@ -447,7 +447,6 @@ export default function CharacterDetailPage({
       setShowReportConfirm(false);
       return;
     }
-    setShowReportConfirm(false);
     
     try {
       const res = await fetch('/api/reports', {
@@ -460,7 +459,11 @@ export default function CharacterDetailPage({
           content: reportContent,
         }),
       });
-      if (!res.ok) throw new Error('通報受付に失敗しました。');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || '通報受付に失敗しました。');
+      }
+      setShowReportConfirm(false);
       setShowReportModal(false);
       setReportReason('');
       setReportContent('');
@@ -471,6 +474,7 @@ export default function CharacterDetailPage({
         isAlert: true,
       });
     } catch (err) {
+      setShowReportConfirm(false);
       setModalState({
         isOpen: true,
         title: 'エラー',
@@ -578,7 +582,7 @@ export default function CharacterDetailPage({
       {/* ▲▲▲ */}
 
       {/* ▼▼▼【通報モーダル】▼▼▼ */}
-      {showReportModal && (
+      {showReportModal && !showReportConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex justify-center items-center">
           <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md m-4 text-white">
             <h2 className="text-xl font-bold mb-4">通報する</h2>
