@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 // 通報作成 (POST)
 export async function POST(request: NextRequest) {
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20', 10);
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: Prisma.reportsWhereInput = {};
     if (type) where.type = type;
     if (status) where.status = status;
 

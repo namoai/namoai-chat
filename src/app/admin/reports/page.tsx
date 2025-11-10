@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Flag, MessageSquare, FileText, CheckCircle, XCircle, Clock, Search, Filter } from 'lucide-react';
+import type { Session } from 'next-auth';
 
 type Report = {
   id: number;
@@ -39,7 +40,7 @@ type ModalState = {
 
 export default function AdminReportsPage() {
   const router = useRouter();
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +50,24 @@ export default function AdminReportsPage() {
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false, report: null, action: 'view' });
   const [updateStatus, setUpdateStatus] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
+
+  const fetchReports = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (filterType !== 'ALL') params.append('type', filterType);
+      if (filterStatus !== 'ALL') params.append('status', filterStatus);
+      
+      const res = await fetch(`/api/reports?${params.toString()}`);
+      if (!res.ok) throw new Error('通報一覧の取得に失敗しました。');
+      const data = await res.json();
+      setReports(data.reports || []);
+    } catch (error) {
+      console.error('通報一覧取得エラー:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [filterType, filterStatus]);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -80,25 +99,7 @@ export default function AdminReportsPage() {
     if (status === 'authenticated') {
       fetchReports();
     }
-  }, [status, filterType, filterStatus]);
-
-  const fetchReports = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (filterType !== 'ALL') params.append('type', filterType);
-      if (filterStatus !== 'ALL') params.append('status', filterStatus);
-      
-      const res = await fetch(`/api/reports?${params.toString()}`);
-      if (!res.ok) throw new Error('通報一覧の取得に失敗しました。');
-      const data = await res.json();
-      setReports(data.reports || []);
-    } catch (error) {
-      console.error('通報一覧取得エラー:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [status, fetchReports]);
 
   const handleUpdateStatus = async () => {
     if (!modalState.report || !updateStatus) return;
