@@ -295,9 +295,10 @@ model detailed_memories {
 
 model reports {
   id            Int       @id @default(autoincrement())
-  type          String    // CHARACTER_REPORT, SUGGESTION, INQUIRY
+  type          String    // CHARACTER_REPORT, SUGGESTION, INQUIRY, SYSTEM_ISSUE, REFUND_REQUEST, FEATURE_REQUEST, BUG_REPORT, OTHER
   characterId   Int?
   reporterId    Int
+  title         String?   @db.VarChar(255)
   reason        String
   content       String    @db.Text
   status        String    @default("PENDING") // PENDING, REVIEWED, RESOLVED, REJECTED

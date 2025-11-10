@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { type, characterId, reason, content } = body;
+    const { type, characterId, reason, title, content } = body;
 
     if (!type || !reason) {
       return NextResponse.json({ error: '通報種類と理由は必須です。' }, { status: 400 });
@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
         type,
         characterId: characterId ? parseInt(characterId, 10) : null,
         reporterId: userId,
+        title: title || null,
         reason,
         content: content || '',
         status: 'PENDING',

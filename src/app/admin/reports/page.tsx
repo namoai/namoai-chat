@@ -10,6 +10,7 @@ type Report = {
   type: string;
   characterId: number | null;
   reporterId: number;
+  title: string | null;
   reason: string;
   content: string;
   status: string;
@@ -146,6 +147,7 @@ export default function AdminReportsPage() {
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       return (
+        (report.title?.toLowerCase().includes(searchLower) || false) ||
         report.reason.toLowerCase().includes(searchLower) ||
         report.content.toLowerCase().includes(searchLower) ||
         report.reporter.nickname.toLowerCase().includes(searchLower) ||
@@ -238,8 +240,11 @@ export default function AdminReportsPage() {
                     {getStatusIcon(report.status)}
                     <span className="text-sm text-gray-400">{report.status}</span>
                   </div>
+                  {report.title && (
+                    <div className="text-lg font-bold text-white mb-2">{report.title}</div>
+                  )}
                   <div className="text-sm text-gray-300 mb-1">
-                    <span className="font-medium">理由:</span> {report.reason}
+                    <span className="font-medium">種類:</span> {report.reason}
                   </div>
                   {report.characters && (
                     <div className="text-sm text-gray-400 mb-1">
@@ -295,8 +300,15 @@ export default function AdminReportsPage() {
                 </div>
               </div>
 
+              {modalState.report.title && (
+                <div>
+                  <label className="text-sm font-medium text-gray-400">タイトル</label>
+                  <div className="mt-1 text-white font-bold">{modalState.report.title}</div>
+                </div>
+              )}
+
               <div>
-                <label className="text-sm font-medium text-gray-400">理由</label>
+                <label className="text-sm font-medium text-gray-400">種類</label>
                 <div className="mt-1 text-white">{modalState.report.reason}</div>
               </div>
 

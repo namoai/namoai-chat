@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Flag, MessageSquare, FileText, CheckCircle, XCircle, Clock, Search, Filter } from 'lucide-react';
+import { ArrowLeft, Flag, MessageSquare, FileText, CheckCircle, XCircle, Clock, Search, Filter, Plus, X } from 'lucide-react';
 import type { Session } from 'next-auth';
 
 type Report = {
   id: number;
   type: string;
   characterId: number | null;
+  title: string | null;
   reason: string;
   content: string;
   status: string;
@@ -21,6 +22,16 @@ type Report = {
   } | null;
 };
 
+const INQUIRY_TYPES = [
+  { value: 'SYSTEM_ISSUE', label: 'システム問題' },
+  { value: 'REFUND_REQUEST', label: '返金問題' },
+  { value: 'FEATURE_REQUEST', label: '機能要望' },
+  { value: 'BUG_REPORT', label: 'バグ報告' },
+  { value: 'ACCOUNT_ISSUE', label: 'アカウント問題' },
+  { value: 'PAYMENT_ISSUE', label: '決済問題' },
+  { value: 'OTHER', label: 'その他' },
+];
+
 export default function InquiriesPage() {
   const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
@@ -30,6 +41,11 @@ export default function InquiriesPage() {
   const [filterType, setFilterType] = useState<string>('ALL');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showInquiryModal, setShowInquiryModal] = useState(false);
+  const [inquiryType, setInquiryType] = useState('');
+  const [inquiryTitle, setInquiryTitle] = useState('');
+  const [inquiryContent, setInquiryContent] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -76,6 +92,44 @@ export default function InquiriesPage() {
     }
   }, [status, fetchReports]);
 
+  const handleSubmitInquiry = async () => {
+    if (!inquiryType || !inquiryTitle.trim() || !inquiryContent.trim()) {
+      alert('すべての項目を入力してください。');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const res = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'INQUIRY',
+          reason: INQUIRY_TYPES.find(t => t.value === inquiryType)?.label || inquiryType,
+          title: inquiryTitle,
+          content: inquiryContent,
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'お問い合わせの送信に失敗しました。');
+      }
+
+      alert('お問い合わせを送信しました。');
+      setShowInquiryModal(false);
+      setInquiryType('');
+      setInquiryTitle('');
+      setInquiryContent('');
+      fetchReports();
+    } catch (error: any) {
+      console.error('お問い合わせ送信エラー:', error);
+      alert(error.message || 'お問い合わせの送信に失敗しました。');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'PENDING': return <Clock size={16} className="text-yellow-400" />;
@@ -101,7 +155,7 @@ export default function InquiriesPage() {
       case 'CHARACTER_REPORT': return <Flag size={16} className="text-red-400" />;
       case 'SUGGESTION': return <MessageSquare size={16} className="text-blue-400" />;
       case 'INQUIRY': return <FileText size={16} className="text-green-400" />;
-      default: return null;
+      default: return <FileText size={16} className="text-gray-400" />;
     }
   };
 
@@ -110,7 +164,7 @@ export default function InquiriesPage() {
       case 'CHARACTER_REPORT': return '通報';
       case 'SUGGESTION': return '要望';
       case 'INQUIRY': return 'お問い合わせ';
-      default: return type;
+      default: return INQUIRY_TYPES.find(t => t.value === type)?.label || type;
     }
   };
 
@@ -118,6 +172,7 @@ export default function InquiriesPage() {
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       return (
+        (report.title?.toLowerCase().includes(searchLower) || false) ||
         report.reason.toLowerCase().includes(searchLower) ||
         report.content.toLowerCase().includes(searchLower) ||
         (report.characters?.name.toLowerCase().includes(searchLower) || false)
@@ -131,12 +186,18 @@ export default function InquiriesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-4">
+    <div className="min-h-screen bg-black text-white p-4 pb-20">
       <header className="flex items-center gap-4 mb-6">
         <button onClick={() => router.push('/MyPage')} className="p-2 rounded-full hover:bg-gray-800">
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-2xl font-bold">お問い合わせ履歴</h1>
+        <h1 className="text-2xl font-bold">お問い合わせ</h1>
+        <button
+          onClick={() => setShowInquiryModal(true)}
+          className="ml-auto bg-pink-600 hover:bg-pink-700 text-white p-2 rounded-full transition-colors"
+        >
+          <Plus size={24} />
+        </button>
       </header>
 
       {/* ▼▼▼【フィルターおよび検索】▼▼▼ */}
@@ -190,7 +251,15 @@ export default function InquiriesPage() {
       {loading ? (
         <div className="text-center py-8">読み込み中...</div>
       ) : filteredReports.length === 0 ? (
-        <div className="text-center py-8 text-gray-400">お問い合わせ履歴がありません。</div>
+        <div className="text-center py-8 text-gray-400">
+          <p className="mb-4">お問い合わせ履歴がありません。</p>
+          <button
+            onClick={() => setShowInquiryModal(true)}
+            className="bg-pink-600 hover:bg-pink-700 text-white px-6 py-2 rounded-lg transition-colors"
+          >
+            お問い合わせを作成
+          </button>
+        </div>
       ) : (
         <div className="space-y-3">
           {filteredReports.map((report) => (
@@ -206,8 +275,11 @@ export default function InquiriesPage() {
                     {getStatusIcon(report.status)}
                     <span className="text-sm text-gray-400">{getStatusText(report.status)}</span>
                   </div>
+                  {report.title && (
+                    <div className="text-lg font-bold text-white mb-2">{report.title}</div>
+                  )}
                   <div className="text-sm text-gray-300 mb-1">
-                    <span className="font-medium">理由:</span> {report.reason}
+                    <span className="font-medium">種類:</span> {report.reason}
                   </div>
                   {report.characters && (
                     <div className="text-sm text-gray-400 mb-1">
@@ -229,7 +301,91 @@ export default function InquiriesPage() {
         </div>
       )}
       {/* ▲▲▲ */}
+
+      {/* ▼▼▼【お問い合わせ作成モーダル】▼▼▼ */}
+      {showInquiryModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
+          <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">お問い合わせ</h2>
+              <button
+                onClick={() => {
+                  setShowInquiryModal(false);
+                  setInquiryType('');
+                  setInquiryTitle('');
+                  setInquiryContent('');
+                }}
+                className="p-2 hover:bg-gray-700 rounded-full"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">お問い合わせ種類 *</label>
+                <select
+                  value={inquiryType}
+                  onChange={(e) => setInquiryType(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                >
+                  <option value="">選択してください</option>
+                  {INQUIRY_TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">タイトル *</label>
+                <input
+                  type="text"
+                  value={inquiryTitle}
+                  onChange={(e) => setInquiryTitle(e.target.value)}
+                  placeholder="お問い合わせのタイトルを入力してください"
+                  maxLength={255}
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">内容 *</label>
+                <textarea
+                  value={inquiryContent}
+                  onChange={(e) => setInquiryContent(e.target.value)}
+                  placeholder="お問い合わせの詳細を入力してください"
+                  rows={8}
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"
+                />
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button
+                  onClick={() => {
+                    setShowInquiryModal(false);
+                    setInquiryType('');
+                    setInquiryTitle('');
+                    setInquiryContent('');
+                  }}
+                  className="flex-1 border border-gray-600 text-white hover:bg-gray-700 py-2 px-4 rounded-lg transition-colors"
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={handleSubmitInquiry}
+                  disabled={submitting || !inquiryType || !inquiryTitle.trim() || !inquiryContent.trim()}
+                  className="flex-1 bg-pink-600 text-white hover:bg-pink-700 py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? '送信中...' : '送信'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ▲▲▲ */}
     </div>
   );
 }
-

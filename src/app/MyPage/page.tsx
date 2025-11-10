@@ -210,7 +210,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
       action: handleSafetyFilterToggle
     },
     { icon: <BrainCircuit size={20} className="text-gray-400" />, text: "ペルソナ設定", action: "/persona/list" },
-    { icon: <MessageSquare size={20} className="text-gray-400" />, text: "お問い合わせ履歴", action: "/MyPage/inquiries" },
+    { icon: <MessageSquare size={20} className="text-gray-400" />, text: "お問い合わせ", action: "/MyPage/inquiries" },
   ];
   const infoMenuItems: Omit<MenuItem, 'badge'>[] = [
     { icon: <Users size={20} className="text-gray-400" />, text: "ディスコード", action: "/discord" },
