@@ -14,6 +14,7 @@ export type ChatMessageParserProps = {
   showImage: boolean;
   isMultiImage: boolean;
   onImageClick?: (url: string) => void;
+  userNickname?: string; // {{user}}置換用
 };
 
 /**
@@ -33,13 +34,18 @@ export default function ChatMessageParser({
   showImage,
   isMultiImage,
   onImageClick,
+  userNickname,
 }: ChatMessageParserProps): ReactElement {
+  // {{user}}をユーザーのニックネームに置換
+  const processedContent = userNickname 
+    ? content.replace(/\{\{user\}\}/g, userNickname)
+    : content;
   // ▼▼▼【コードブロック解析】まずコードブロックを抽出 ▼▼▼
   const codeBlockRegex = /```([\s\S]*?)```/g;
   const codeBlocks: Array<{ start: number; end: number; content: string }> = [];
   let match;
   
-  while ((match = codeBlockRegex.exec(content)) !== null) {
+  while ((match = codeBlockRegex.exec(processedContent)) !== null) {
     codeBlocks.push({
       start: match.index,
       end: match.index + match[0].length,
@@ -54,7 +60,7 @@ export default function ChatMessageParser({
   codeBlocks.forEach((block, blockIndex) => {
     // コードブロックの前のテキストを処理
     if (block.start > lastIndex) {
-      const textBefore = content.substring(lastIndex, block.start);
+      const textBefore = processedContent.substring(lastIndex, block.start);
       elements.push(...parseTextContent(textBefore, blockIndex * 1000, characterImages, showImage, isMultiImage, onImageClick));
     }
 
@@ -72,8 +78,8 @@ export default function ChatMessageParser({
   });
 
   // 最後のコードブロック以降のテキストを処理
-  if (lastIndex < content.length) {
-    const textAfter = content.substring(lastIndex);
+  if (lastIndex < processedContent.length) {
+    const textAfter = processedContent.substring(lastIndex);
     elements.push(...parseTextContent(textAfter, codeBlocks.length * 1000, characterImages, showImage, isMultiImage, onImageClick));
   }
 
@@ -104,6 +110,7 @@ function parseTextContent(
   let lineIndex = 0;
   
   // セリフ(「...」)、外部リンク画像、内部画像トークン、ボーダーボックス(|...|)を検出する正規表現
+  // ボーダーボックスは |내용| 形式のみ（|で囲まれた内容）
   const regex = /(「.*?」)|(!\[.*?\]\(.*?\))|(\{img:\d+\})|(\|[^|]+\|)/g;
   
   let imageRendered = false;
@@ -150,106 +157,202 @@ function parseTextContent(
     }
 
     // 行内の特殊要素を検出して処理
-    const parts = line.split(regex).filter(Boolean);
+    // まずボーダーボックス(|内容|)を全て検出
+    const borderBoxRegex = /\|([^|]+)\|/g;
+    const borderBoxMatches: Array<{ start: number; end: number; content: string }> = [];
+    let borderMatch;
+    
+    while ((borderMatch = borderBoxRegex.exec(line)) !== null) {
+      borderBoxMatches.push({
+        start: borderMatch.index,
+        end: borderMatch.index + borderMatch[0].length,
+        content: borderMatch[1],
+      });
+    }
+
+    // ボーダーボックスとその間のテキストを処理
+    let lastIndex = 0;
     const lineElements: React.ReactNode[] = [];
 
-    for (const part of parts) {
-      // --- ボーダーボックスの処理 (|内容|) ---
-      const borderBoxMatch = part.match(/^\|([^|]+)\|$/);
-      if (borderBoxMatch) {
-        const content = borderBoxMatch[1];
-        // 区切り線以降なら通常背景、以前なら黒背景タイトルスタイル
-        if (isAfterSeparator) {
-          // 通常背景説明スタイル
+    borderBoxMatches.forEach((box, boxIndex) => {
+      // ボーダーボックスの前のテキストを処理
+      if (box.start > lastIndex) {
+        const textBefore = line.substring(lastIndex, box.start);
+        // このテキスト部分も他の特殊要素（セリフ、画像など）を処理
+        const textParts = textBefore.split(/(「.*?」)|(!\[.*?\]\(.*?\))|(\{img:\d+\})/g).filter(Boolean);
+        textParts.forEach((textPart) => {
+          if (textPart.startsWith('「') && textPart.endsWith('」')) {
+            lineElements.push(
+              <span key={`dialogue-${globalIndex}-${lineElements.length}`} className="text-white">
+                {textPart}
+              </span>
+            );
+          } else if (textPart.match(/!\[.*?\]\((.*?)\)/)) {
+            const externalImageMatch = textPart.match(/!\[.*?\]\((.*?)\)/);
+            if (externalImageMatch) {
+              const imageUrl = externalImageMatch[1];
+              lineElements.push(
+                <div key={`ext-img-${globalIndex}-${lineElements.length}`} className="relative my-2 w-full max-w-md mx-auto rounded-lg overflow-hidden shadow-lg">
+                  <Image
+                    src={imageUrl}
+                    alt="外部画像"
+                    width={500}
+                    height={300}
+                    className="object-contain cursor-zoom-in"
+                    onClick={() => onImageClick?.(imageUrl)}
+                    unoptimized={imageUrl.startsWith('http')}
+                  />
+                </div>
+              );
+            }
+          } else if (textPart.trim()) {
+            lineElements.push(
+              <span key={`text-${globalIndex}-${lineElements.length}`} className="text-gray-400">
+                {textPart}
+              </span>
+            );
+          }
+        });
+      }
+
+      // ボーダーボックスを追加
+      if (isAfterSeparator) {
+        // 通常背景説明スタイル
+        lineElements.push(
+          <span key={`border-box-${globalIndex}-${boxIndex}`} className="inline-block my-1 mx-1 border border-gray-400 rounded px-3 py-2 text-white bg-gray-800/50">
+            {box.content}
+          </span>
+        );
+      } else {
+        // 黒背景タイトルスタイル
+        lineElements.push(
+          <span key={`border-box-${globalIndex}-${boxIndex}`} className="inline-block my-1 mx-1 border border-gray-400 rounded px-3 py-2 text-white bg-gray-900">
+            {box.content}
+          </span>
+        );
+      }
+
+      lastIndex = box.end;
+    });
+
+    // 最後のボーダーボックス以降のテキストを処理
+    if (lastIndex < line.length) {
+      const textAfter = line.substring(lastIndex);
+      const textParts = textAfter.split(/(「.*?」)|(!\[.*?\]\(.*?\))|(\{img:\d+\})/g).filter(Boolean);
+      textParts.forEach((textPart) => {
+        if (textPart.startsWith('「') && textPart.endsWith('」')) {
           lineElements.push(
-            <span key={`border-box-${globalIndex}-${lineElements.length}`} className="inline-block my-1 mx-1 border border-gray-600 rounded px-3 py-2 text-gray-300 bg-gray-900/30">
-              {content}
+            <span key={`dialogue-${globalIndex}-${lineElements.length}`} className="text-white">
+              {textPart}
             </span>
           );
-        } else {
-          // 黒背景タイトルスタイル
+        } else if (textPart.match(/!\[.*?\]\((.*?)\)/)) {
+          const externalImageMatch = textPart.match(/!\[.*?\]\((.*?)\)/);
+          if (externalImageMatch) {
+            const imageUrl = externalImageMatch[1];
+            lineElements.push(
+              <div key={`ext-img-${globalIndex}-${lineElements.length}`} className="relative my-2 w-full max-w-md mx-auto rounded-lg overflow-hidden shadow-lg">
+                <Image
+                  src={imageUrl}
+                  alt="外部画像"
+                  width={500}
+                  height={300}
+                  className="object-contain cursor-zoom-in"
+                  onClick={() => onImageClick?.(imageUrl)}
+                  unoptimized={imageUrl.startsWith('http')}
+                />
+              </div>
+            );
+          }
+        } else if (textPart.trim()) {
           lineElements.push(
-            <span key={`border-box-${globalIndex}-${lineElements.length}`} className="inline-block my-1 mx-1 border border-gray-600 rounded px-3 py-2 text-white bg-gray-900">
-              {content}
+            <span key={`text-${globalIndex}-${lineElements.length}`} className="text-gray-400">
+              {textPart}
             </span>
           );
         }
-        continue;
-      }
-      // --- 「セリフ」の処理 (白文字) ---
-      if (part.startsWith('「') && part.endsWith('」')) {
-        lineElements.push(
-          <span key={`dialogue-${globalIndex}-${lineElements.length}`} className="text-white">
-            {part}
-          </span>
-        );
-        continue;
-      }
+      });
+    }
 
-      // --- ![](URL) 外部リンク画像の処理 ---
-      const externalImageMatch = part.match(/!\[.*?\]\((.*?)\)/);
-      if (externalImageMatch) {
-        const imageUrl = externalImageMatch[1];
-        lineElements.push(
-          <div key={`ext-img-${globalIndex}-${lineElements.length}`} className="relative my-2 w-full max-w-md rounded-lg overflow-hidden shadow-lg">
-            <Image
-              src={imageUrl}
-              alt="外部画像"
-              width={500}
-              height={300}
-              className="object-contain cursor-zoom-in"
-              onClick={() => onImageClick?.(imageUrl)}
-              unoptimized={imageUrl.startsWith('http')}
-            />
-          </div>
-        );
-        continue;
-      }
-
-      // --- {img:n} 内部画像の処理 ---
-      const internalImageMatch = part.match(/\{img:(\d+)\}/);
-      if (showImage && internalImageMatch) {
-        if (!isMultiImage && imageRendered) {
+    // ボーダーボックスがない場合は既存の処理を実行
+    if (borderBoxMatches.length === 0) {
+      const parts = line.split(regex).filter(Boolean);
+      for (const part of parts) {
+        // --- 「セリフ」の処理 (白文字) ---
+        if (part.startsWith('「') && part.endsWith('」')) {
+          lineElements.push(
+            <span key={`dialogue-${globalIndex}-${lineElements.length}`} className="text-white">
+              {part}
+            </span>
+          );
           continue;
         }
 
-        const n = parseInt(internalImageMatch[1], 10);
-        // ▼▼▼【修正】parseImageTagsと同様にnonMainImagesを使用 (isMain=falseの画像のみ)
-        const nonMainImages = characterImages.filter(img => !img.isMain);
-        const imgIndex = n - 1; // 1-indexed to 0-indexed
-        const image = imgIndex >= 0 && imgIndex < nonMainImages.length ? nonMainImages[imgIndex] : null;
-        // ▲▲▲
-
-        if (image) {
-          imageRendered = true;
+        // --- ![](URL) 外部リンク画像の処理 ---
+        const externalImageMatch = part.match(/!\[.*?\]\((.*?)\)/);
+        if (externalImageMatch) {
+          const imageUrl = externalImageMatch[1];
           lineElements.push(
-            <div key={`int-img-${globalIndex}-${lineElements.length}`} className="relative my-2 w-full max-w-xs rounded-lg overflow-hidden shadow-lg">
+            <div key={`ext-img-${globalIndex}-${lineElements.length}`} className="relative my-2 w-full max-w-md mx-auto rounded-lg overflow-hidden shadow-lg">
               <Image
-                src={image.imageUrl}
-                alt={image.keyword || `キャラクター画像 ${n}`}
-                width={400}
+                src={imageUrl}
+                alt="外部画像"
+                width={500}
                 height={300}
                 className="object-contain cursor-zoom-in"
-                priority={imgIndex < 3}
-                onClick={() => onImageClick?.(image.imageUrl)}
+                onClick={() => onImageClick?.(imageUrl)}
+                unoptimized={imageUrl.startsWith('http')}
               />
             </div>
           );
           continue;
-        } else {
-          // ▼▼▼【デバッグ】画像が見つからない場合の警告
-          console.warn(`⚠️ ChatMessageParser: 無効な画像インデックス {img:${n}} (非メイン画像数: ${nonMainImages.length})`);
-          // ▲▲▲
         }
-      }
 
-      // --- 通常テキストの処理 (デフォルトは灰色) ---
-      if (part.trim()) {
-        lineElements.push(
-          <span key={`text-${globalIndex}-${lineElements.length}`} className="text-gray-400">
-            {part}
-          </span>
-        );
+        // --- {img:n} 内部画像の処理 ---
+        const internalImageMatch = part.match(/\{img:(\d+)\}/);
+        if (showImage && internalImageMatch) {
+          if (!isMultiImage && imageRendered) {
+            continue;
+          }
+
+          const n = parseInt(internalImageMatch[1], 10);
+          // ▼▼▼【修正】parseImageTagsと同様にnonMainImagesを使用 (isMain=falseの画像のみ)
+          const nonMainImages = characterImages.filter(img => !img.isMain);
+          const imgIndex = n - 1; // 1-indexed to 0-indexed
+          const image = imgIndex >= 0 && imgIndex < nonMainImages.length ? nonMainImages[imgIndex] : null;
+          // ▲▲▲
+
+          if (image) {
+            imageRendered = true;
+            lineElements.push(
+              <div key={`int-img-${globalIndex}-${lineElements.length}`} className="relative my-2 w-full max-w-xs mx-auto rounded-lg overflow-hidden shadow-lg">
+                <Image
+                  src={image.imageUrl}
+                  alt={image.keyword || `キャラクター画像 ${n}`}
+                  width={400}
+                  height={300}
+                  className="object-contain cursor-zoom-in"
+                  priority={imgIndex < 3}
+                  onClick={() => onImageClick?.(image.imageUrl)}
+                />
+              </div>
+            );
+            continue;
+          } else {
+            // ▼▼▼【デバッグ】画像が見つからない場合の警告
+            console.warn(`⚠️ ChatMessageParser: 無効な画像インデックス {img:${n}} (非メイン画像数: ${nonMainImages.length})`);
+            // ▲▲▲
+          }
+        }
+
+        // --- 通常テキストの処理 (デフォルトは灰色) ---
+        if (part.trim()) {
+          lineElements.push(
+            <span key={`text-${globalIndex}-${lineElements.length}`} className="text-gray-400">
+              {part}
+            </span>
+          );
+        }
       }
     }
 

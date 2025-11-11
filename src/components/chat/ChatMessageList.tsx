@@ -32,6 +32,7 @@ interface ChatMessageListProps {
   showChatImage: boolean;
   isMultiImage: boolean;
   setLightboxImage: (url: string | null) => void;
+  userNickname?: string; // {{user}}置換用
 }
 
 const EditableTextarea: React.FC<{
@@ -77,7 +78,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
   // ▼▼▼【修正】prioritizeImagesByKeyword propは削除
   // prioritizeImagesByKeyword,
   // ▲▲▲
-  showChatImage, isMultiImage, setLightboxImage,
+  showChatImage, isMultiImage, setLightboxImage, userNickname,
   // turns, // ★★★【Stale State修正】`turns` propを受け取りません。
 }) => {
   
@@ -113,13 +114,14 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           {characterInfo.firstSituation && (
             <div className="flex justify-center">
               <div className="bg-gray-900/60 border border-gray-700 rounded-xl p-3 max-w-xs md:max-w-md lg:max-w-2xl">
-                <div className="text-gray-400 text-sm text-center">
+                <div className="text-gray-400 text-sm text-left">
                   <ChatMessageParser
                     content={characterInfo.firstSituation}
                     characterImages={characterInfo.characterImages}
                     showImage={showChatImage}
                     isMultiImage={isMultiImage}
                     onImageClick={setLightboxImage}
+                    userNickname={userNickname}
                   />
                 </div>
               </div>
@@ -135,6 +137,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                   showImage={showChatImage}
                   isMultiImage={isMultiImage}
                   onImageClick={setLightboxImage}
+                  userNickname={userNickname}
                 />
               </div>
             </div>
@@ -174,6 +177,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                       showImage={showChatImage}
                       isMultiImage={isMultiImage}
                       onImageClick={setLightboxImage}
+                      userNickname={userNickname}
                     />
                   )}
                 </div>
@@ -212,6 +216,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                         showImage={showChatImage}
                         isMultiImage={isMultiImage}
                         onImageClick={setLightboxImage}
+                        userNickname={userNickname}
                       />
                     )}
                   </div>

@@ -116,6 +116,7 @@ export default function ChatPage() {
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: "", message: "" });
   const [userPoints, setUserPoints] = useState(0);
+  const [userNickname, setUserNickname] = useState<string | undefined>(undefined);
   
   // ▼▼▼【ビルドエラー修正】setGenerationSettings を useState 宣言から完全に削除 ▼▼▼
   const [generationSettings] = useState<GenerationSettings>({ model: "gemini-2.5-flash" });
@@ -166,6 +167,34 @@ export default function ChatPage() {
   }, [session]);
 
   useEffect(() => { fetchUserPoints(); }, [fetchUserPoints]);
+
+  // ユーザーのペルソナニックネームを取得
+  useEffect(() => {
+    const fetchUserNickname = async () => {
+      try {
+        const res = await fetch('/api/persona');
+        if (res.ok) {
+          const data = await res.json();
+          const defaultPersona = data.personas?.find((p: { id: number }) => p.id === data.defaultPersonaId);
+          if (defaultPersona?.nickname) {
+            setUserNickname(defaultPersona.nickname);
+          } else {
+            // デフォルトペルソナがない場合、ユーザーのニックネームを使用
+            const profileRes = await fetch('/api/users/profile');
+            if (profileRes.ok) {
+              const profileData = await profileRes.json();
+              setUserNickname(profileData.nickname || 'ユーザー');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('ペルソナ情報取得エラー:', error);
+      }
+    };
+    if (session?.user) {
+      fetchUserNickname();
+    }
+  }, [session]);
 
   useEffect(() => {
     if (!characterId) return;
@@ -1000,6 +1029,7 @@ export default function ChatPage() {
           showChatImage={showChatImage}
           isMultiImage={isMultiImage}
           setLightboxImage={setLightboxImage}
+          userNickname={userNickname}
         />
         <div ref={messagesEndRef} style={{ height: '1px', width: '100%' }} />
       </main>
