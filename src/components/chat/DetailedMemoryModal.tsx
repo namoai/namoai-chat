@@ -105,7 +105,7 @@ export default function DetailedMemoryModal({
           <div>
             <h2 className="text-2xl font-bold">詳細記憶</h2>
             <p className="text-sm text-gray-400 mt-1">無制限に保存できます。関連キーワードで自動的に適用され、適用時は最大3つまでです。</p>
-            {/* ▼▼▼【追加】상세 기억 작동 방식 상세 설명 */}
+            {/* ▼▼▼【追加】詳細記憶の動作方式の詳細説明 */}
             <div className="mt-3 p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
               <details className="cursor-pointer">
                 <summary className="text-sm text-gray-300 mb-2 font-semibold hover:text-white">

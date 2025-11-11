@@ -25,7 +25,7 @@ export type ChatMessageParserProps = {
  * - {img:n} -> 内部画像
  * - --- -> 水平線
  * - |-| -> 空のボーダーボックス
- * - |내용| -> 内容付きボーダーボックス
+ * - |内容| -> 内容付きボーダーボックス
  */
 export default function ChatMessageParser({
   content,
@@ -107,7 +107,7 @@ function parseTextContent(
   const regex = /(「.*?」)|(!\[.*?\]\(.*?\))|(\{img:\d+\})|(\|[^|]+\|)/g;
   
   let imageRendered = false;
-  let isAfterSeparator = false; // |-|-| 구분선 이후인지 추적
+  let isAfterSeparator = false; // |-|-| 区切り線以降かどうかを追跡
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -132,10 +132,10 @@ function parseTextContent(
       continue;
     }
 
-    // --- 구분선 처리 (|-|-|) ---
+    // --- 区切り線の処理 (|-|-|) ---
     if (trimmedLine === '|-|-|') {
       isAfterSeparator = true;
-      // 구분선은 시각적으로 표시하지 않음 (또는 얇은 선으로 표시)
+      // 区切り線は視覚的に表示しない（または細い線で表示）
       lineIndex++;
       continue;
     }
@@ -154,20 +154,20 @@ function parseTextContent(
     const lineElements: React.ReactNode[] = [];
 
     for (const part of parts) {
-      // --- ボーダーボックスの処理 (|내용|) ---
+      // --- ボーダーボックスの処理 (|内容|) ---
       const borderBoxMatch = part.match(/^\|([^|]+)\|$/);
       if (borderBoxMatch) {
         const content = borderBoxMatch[1];
-        // 구분선 이후면 일반 배경, 이전이면 검은색 배경 제목 스타일
+        // 区切り線以降なら通常背景、以前なら黒背景タイトルスタイル
         if (isAfterSeparator) {
-          // 일반 배경 설명 스타일
+          // 通常背景説明スタイル
           lineElements.push(
             <span key={`border-box-${globalIndex}-${lineElements.length}`} className="inline-block my-1 mx-1 border border-gray-600 rounded px-3 py-2 text-gray-300 bg-gray-900/30">
               {content}
             </span>
           );
         } else {
-          // 검은색 배경 제목 스타일
+          // 黒背景タイトルスタイル
           lineElements.push(
             <span key={`border-box-${globalIndex}-${lineElements.length}`} className="inline-block my-1 mx-1 border border-gray-600 rounded px-3 py-2 text-white bg-gray-900">
               {content}
@@ -214,7 +214,7 @@ function parseTextContent(
         }
 
         const n = parseInt(internalImageMatch[1], 10);
-        // ▼▼▼【修正】parseImageTags와 동일하게 nonMainImages 사용 (isMain=false인 이미지만)
+        // ▼▼▼【修正】parseImageTagsと同様にnonMainImagesを使用 (isMain=falseの画像のみ)
         const nonMainImages = characterImages.filter(img => !img.isMain);
         const imgIndex = n - 1; // 1-indexed to 0-indexed
         const image = imgIndex >= 0 && imgIndex < nonMainImages.length ? nonMainImages[imgIndex] : null;

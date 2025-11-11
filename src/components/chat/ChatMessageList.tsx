@@ -26,7 +26,7 @@ interface ChatMessageListProps {
   // ▼▼▼【Stale State修正】`Turn`オブジェクトの代わりに`turnId` (number)を受け取るように修正します。▼▼▼
   handleRegenerate: (turnId: number) => void;
   switchModelMessage: (turnId: number, direction: 'next' | 'prev') => void;
-  // ▼▼▼【修正】prioritizeImagesByKeyword propは削除（원본 이미지 순서 유지）
+  // ▼▼▼【修正】prioritizeImagesByKeyword propは削除（元の画像順序を維持）
   // prioritizeImagesByKeyword: (userText: string, allImages: CharacterImageInfo[]) => CharacterImageInfo[];
   // ▲▲▲
   showChatImage: boolean;
@@ -113,7 +113,15 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
           {characterInfo.firstSituation && (
             <div className="flex justify-center">
               <div className="bg-gray-900/60 border border-gray-700 rounded-xl p-3 max-w-xs md:max-w-md lg:max-w-2xl">
-                <p className="text-gray-400 text-sm whitespace-pre-wrap text-center">{characterInfo.firstSituation}</p>
+                <div className="text-gray-400 text-sm text-center">
+                  <ChatMessageParser
+                    content={characterInfo.firstSituation}
+                    characterImages={characterInfo.characterImages}
+                    showImage={showChatImage}
+                    isMultiImage={isMultiImage}
+                    onImageClick={setLightboxImage}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -137,8 +145,8 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
       {processedTurns.map((turn, turnIndex) => {
         const userMsg = turn.userMessage;
         const isEditingUser = editingMessageId === userMsg.id;
-        // ▼▼▼【修正】{img:n} 태그 파싱을 위해 원본 순서 유지 (prioritizeImagesByKeyword는 인덱스 해석에 사용하지 않음)
-        // prioritizedImages는 이미지 표시 우선순위 결정용이지만, {img:n} 태그는 원본 순서 기준으로 파싱해야 함
+        // ▼▼▼【修正】{img:n} タグのパースのために元の順序を維持 (prioritizeImagesByKeywordはインデックス解釈に使用しない)
+        // prioritizedImagesは画像表示優先順位決定用だが、{img:n} タグは元の順序基準でパースする必要がある
         // ▲▲▲
 
         return (
@@ -162,10 +170,10 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                   ) : (
                     <ChatMessageParser
                       content={userMsg.content}
-                      characterImages={[]}
-                      showImage={false}
-                      isMultiImage={false}
-                      onImageClick={() => {}}
+                      characterImages={characterInfo.characterImages}
+                      showImage={showChatImage}
+                      isMultiImage={isMultiImage}
+                      onImageClick={setLightboxImage}
                     />
                   )}
                 </div>
