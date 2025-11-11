@@ -688,6 +688,10 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       setModalState({ isOpen: true, title: '入力エラー', message: '最初の状況は必須項目です。' });
       return;
     }
+    if (!form.firstMessage.trim()) {
+      setModalState({ isOpen: true, title: '入力エラー', message: 'キャラクターの最初のメッセージは必須項目です。' });
+      return;
+    }
     if (!session?.user?.id) {
         setModalState({ 
             isOpen: true, 
