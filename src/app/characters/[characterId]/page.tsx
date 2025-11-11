@@ -371,12 +371,12 @@ export default function CharacterDetailPage({
   }, [showMenu]);
   // ▲▲▲
 
-  // ▼▼▼【제작자 여부 확인】▼▼▼
+  // ▼▼▼【制作者かどうか確認】▼▼▼
   const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
   const isAuthor = character?.author?.id === currentUserId;
   // ▲▲▲
 
-  // ▼▼▼【메뉴 액션 핸들러】▼▼▼
+  // ▼▼▼【メニューアクションハンドラー】▼▼▼
   const handleEdit = () => {
     if (!characterId) return;
     router.push(`/characters/edit/${characterId}`);

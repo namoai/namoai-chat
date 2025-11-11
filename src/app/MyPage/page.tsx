@@ -64,7 +64,7 @@ type MenuItem = {
 // ログインしているユーザー向けのビュー
 const LoggedInView = ({ session }: { session: Session }) => {
   const [points, setPoints] = useState<{ total: number; loading: boolean }>({ total: 0, loading: true });
-  const [isSafetyFilterOn, setIsSafetyFilterOn] = useState<boolean | null>(null); // null = 로딩 중
+  const [isSafetyFilterOn, setIsSafetyFilterOn] = useState<boolean | null>(null); // null = ローディング中
   const [modalState, setModalState] = useState<Omit<ModalProps, 'onClose'>>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   const userRole = session?.user?.role;
@@ -100,16 +100,16 @@ const LoggedInView = ({ session }: { session: Session }) => {
         const filterRes = await fetch('/api/users/safety-filter', { cache: 'no-store' }); // キャッシュを無効化
         if (filterRes.ok) {
           const filterData = await filterRes.json();
-          // nullの場合はtrue（フィルターON）として処理、즉시 반영
+          // nullの場合はtrue（フィルターON）として処理、即座に反映
           setIsSafetyFilterOn(filterData.safetyFilter ?? true);
         } else {
-          // API 호출 실패 시 기본값으로 설정
+          // API呼び出し失敗時はデフォルト値で設定
           setIsSafetyFilterOn(true);
         }
       } catch (error) {
         console.error(error);
         setPoints({ total: 0, loading: false });
-        // 에러 발생 시 기본값으로 설정
+        // エラー発生時はデフォルト値で設定
         setIsSafetyFilterOn(true);
       }
     };
@@ -129,10 +129,10 @@ const LoggedInView = ({ session }: { session: Session }) => {
       if (!response.ok) throw new Error('設定の変更に失敗しました。');
 
       const data = await response.json();
-      // nullの場合はtrue（フィルターON）として処理、즉시 반영
+      // nullの場合はtrue（フィルターON）として処理、即座に反映
       setIsSafetyFilterOn(data.safetyFilter ?? true);
       
-      // 성공 메시지 표시 후 페이지 리로드
+      // 成功メッセージ表示後、ページリロード
       setModalState({
         isOpen: true,
         title: '成功',
@@ -157,7 +157,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
   };
 
   const handleSafetyFilterToggle = () => {
-    // 로딩 중이면 클릭 무시
+    // ローディング中ならクリック無視
     if (isSafetyFilterOn === null) return;
     
     if (isSafetyFilterOn) {

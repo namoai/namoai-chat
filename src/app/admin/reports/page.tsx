@@ -262,7 +262,7 @@ export default function AdminReportsPage() {
       )}
       {/* ▲▲▲ */}
 
-      {/* ▼▼▼【상세 보기/수정 모달】▼▼▼ */}
+      {/* ▼▼▼【詳細表示/編集モーダル】▼▼▼ */}
       {modalState.isOpen && modalState.report && (
         <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex justify-center items-center p-4">
           <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">

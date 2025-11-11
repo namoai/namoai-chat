@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
             if (msg.turnId === turnId) continue;
             
             if (msg.role === 'user') {
-                // ユーザーメッセージは常に含める（各turnId당 하나）
+                // ユーザーメッセージは常に含める（各turnIdごとに1つ）
                 if (!userMessagesMap.has(msg.turnId) || userMessagesMap.get(msg.turnId)!.createdAt < msg.createdAt) {
                     userMessagesMap.set(msg.turnId, msg);
                 }

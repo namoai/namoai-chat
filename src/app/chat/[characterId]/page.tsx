@@ -72,7 +72,7 @@ function parseImageTags(text: string, characterImages: CharacterImageInfo[]): {
 }
 // ▲▲▲
 
-// ▼▼▼【削除】prioritizeImagesByKeyword関数は未使用のため削除（원본 이미지 순서 유지）
+// ▼▼▼【削除】prioritizeImagesByKeyword関数は未使用のため削除（元の画像順序を維持）
 // const prioritizeImagesByKeyword = (userText: string, allImages: CharacterImageInfo[]): CharacterImageInfo[] => {
 //   const images = allImages.slice(1);
 //   if (!userText.trim()) return images;
@@ -210,36 +210,36 @@ export default function ChatPage() {
       // 方法1: main要素のscrollTopを直接設定（最優先）
       if (mainScrollRef.current) {
         const scrollContainer = mainScrollRef.current;
-        // 매우 큰 값으로 설정하여 확실히 최하단으로 이동
+        // 非常に大きな値を設定して確実に最下部へ移動
         scrollContainer.scrollTop = 999999999;
-        // scrollHeight가 변경될 수 있으므로 최신 값으로 계산
+        // scrollHeightが変更される可能性があるため最新の値で計算
         const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight;
         scrollContainer.scrollTop = maxScroll;
-        // 추가로 scrollTop을 직접 설정
+        // 追加でscrollTopを直接設定
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
-        // 한 번 더
+        // もう一度
         setTimeout(() => {
           scrollContainer.scrollTop = scrollContainer.scrollHeight;
         }, 0);
       }
       
-      // 方法2: window.scrollTo도 사용
+      // 方法2: window.scrollToも使用
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' });
       
       // 方法3: messagesEndRefを使用
       if (messagesEndRef.current) {
         messagesEndRef.current.scrollIntoView({ behavior: 'instant', block: 'end', inline: 'nearest' });
-        // 여러 번 시도
+        // 複数回試行
         setTimeout(() => {
           messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end', inline: 'nearest' });
         }, 0);
       }
     };
     
-    // 즉시 시도
+    // 即座に試行
     attemptScroll();
     
-    // 여러 번 시도 (DOM 렌더링 완료 대기)
+    // 複数回試行 (DOMレンダリング完了待機)
     requestAnimationFrame(() => {
       attemptScroll();
       requestAnimationFrame(() => {
@@ -250,7 +250,7 @@ export default function ChatPage() {
             attemptScroll();
             setTimeout(() => {
               attemptScroll();
-              // 최종 시도
+              // 最終試行
               setTimeout(() => {
                 attemptScroll();
               }, 1000);
@@ -307,8 +307,8 @@ export default function ChatPage() {
             const formattedMessages = (data.chat_message || []).map((msg: DbMessage) => {
               // モデルメッセージの場合、画像タグを検出してimageUrlsを設定（contentはそのまま保持）
               if (msg.role === 'model' && msg.content) {
-                // DB에 저장된 content에는 이미지 태그가 남아있으므로, ChatMessageParser가 직접 파싱할 수 있음
-                // imageUrls는 참고용으로만 추출 (실제 표시는 ChatMessageParser가 content에서 직접 처리)
+              // DBに保存されたcontentには画像タグが残っているため、ChatMessageParserが直接パースできる
+              // imageUrlsは参考用としてのみ抽出（実際の表示はChatMessageParserがcontentから直接処理）
                 const { imageUrls } = parseImageTags(msg.content, characterImages);
                 return {
                   ...msg,
@@ -322,35 +322,35 @@ export default function ChatPage() {
                 imageUrls: [], // ユーザーメッセージは画像なし
               };
             });
-            // 브라우저 새로고침 시 완성된 메시지를 바로 표시 (스트리밍 효과 없음)
+            // ブラウザリロード時に完成したメッセージをすぐに表示（ストリーミング効果なし）
             setRawMessages(formattedMessages);
             
-            // ▼▼▼【新規追加】새로고침 시 자동 요약 트리거 (autoSummarize가 true인 경우) ▼▼▼
+            // ▼▼▼【新規追加】リロード時の自動要約トリガー (autoSummarizeがtrueの場合) ▼▼▼
             if (data.autoSummarize !== false && formattedMessages.length >= 2) {
-              // 비동기로 요약 실행 (블로킹하지 않음)
+              // 非同期で要約実行（ブロッキングしない）
               (async () => {
                 try {
-                  // 백메모리 자동 요약
+                  // バックメモリ自動要約
                   await fetch(`/api/chat/${data.id}/back-memory`, {
                     method: 'POST',
-                  }).catch(err => console.error('백메모리 자동 요약 에러:', err));
+                  }).catch(err => console.error('バックメモリ自動要約エラー:', err));
                   
-                  // 상세기억 자동 요약 (재요약)
+                  // 詳細記憶自動要約（再要約）
                   await fetch(`/api/chat/${data.id}/detailed-memories`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ autoSummarize: true }),
-                  }).catch(err => console.error('상세기억 자동 요약 에러:', err));
+                  }).catch(err => console.error('詳細記憶自動要約エラー:', err));
                   
-                  console.log('새로고침 시 자동 요약 트리거 완료');
+                  console.log('リロード時の自動要約トリガー完了');
                 } catch (error) {
-                  console.error('자동 요약 트리거 에러:', error);
+                  console.error('自動要約トリガーエラー:', error);
                 }
               })();
             }
             // ▲▲▲
             
-            // ▼▼▼【강제 스크롤】로드 완료 후 즉시 최하단으로 스크롤 ▼▼▼
+            // ▼▼▼【強制スクロール】ロード完了後、即座に最下部へスクロール ▼▼▼
             setTimeout(() => {
               scrollToBottom();
               setTimeout(() => {
@@ -372,7 +372,7 @@ export default function ChatPage() {
             });
         } finally {
             setIsInitialLoading(false);
-            // ▼▼▼【강제 스크롤】로딩 완료 후에도 스크롤 ▼▼▼
+            // ▼▼▼【強制スクロール】ローディング完了後もスクロール ▼▼▼
             setTimeout(() => {
               scrollToBottom();
               setTimeout(() => {
@@ -391,7 +391,7 @@ export default function ChatPage() {
     if (isInitialLoading || rawMessages.length === 0) return;
     
     const scrollAfterRender = () => {
-      // 매우 강력한 스크롤 시도
+      // 非常に強力なスクロール試行
       if (mainScrollRef.current) {
         const container = mainScrollRef.current;
         container.scrollTop = 999999999;
@@ -407,10 +407,10 @@ export default function ChatPage() {
     // 再生成中またはローディング中は自動スクロールを無効化
     if (regeneratingTurnId !== null || isLoading) return;
     
-    // 즉시 시도
+    // 即座に試行
     scrollAfterRender();
     
-    // 추가 지연으로 재시도
+    // 追加遅延で再試行
     const timer1 = setTimeout(scrollAfterRender, 100);
     const timer2 = setTimeout(scrollAfterRender, 300);
     
@@ -867,13 +867,13 @@ export default function ChatPage() {
                                 const serverImageUrls = eventData.modelMessage.imageUrls || [];
                                 const allImageUrls = [...new Set([...existingImageUrls, ...serverImageUrls])];
                                 
-                                // ストリーミング中に 수집한 content를 유지（서버의 content는 이미지 태그가 포함된 원본）
-                                // 하지만 스트리밍 중에 이미 파싱된 cleanText가 있으므로, 서버의 원본 content를 사용
+                                // ストリーミング中に収集したcontentを維持（サーバーのcontentは画像タグが含まれた元本）
+                                // しかしストリーミング中に既にパースされたcleanTextがあるため、サーバーの元本contentを使用
                                 return {
                                     ...eventData.modelMessage,
                                     timestamp: new Date(eventData.modelMessage.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
                                     imageUrls: allImageUrls,
-                                    // content는 서버에서 보낸 원본을 사용（이미지 태그 포함）
+                                    // contentはサーバーから送られた元本を使用（画像タグ含む）
                                 };
                             }
                             return m;
@@ -958,7 +958,7 @@ export default function ChatPage() {
         ref={(el) => {
           if (el) {
             mainScrollRef.current = el as HTMLDivElement;
-            // ref가 설정되면 즉시 최하단으로 스크롤
+            // refが設定されれば即座に最下部へスクロール
             setTimeout(() => {
               el.scrollTop = el.scrollHeight;
               el.scrollTop = 999999999;
@@ -994,7 +994,7 @@ export default function ChatPage() {
           handleDelete={handleDelete}
           handleRegenerate={handleRegenerate} // ▼▼▼【Stale State修正】(turnId: number) シグネチャの関数を渡します ▼▼▼
           switchModelMessage={switchModelMessage}
-          // ▼▼▼【修正】prioritizeImagesByKeyword propは削除（원본 이미지 순서 유지）
+          // ▼▼▼【修正】prioritizeImagesByKeyword propは削除（元の画像順序を維持）
           // prioritizeImagesByKeyword={prioritizeImagesByKeyword}
           // ▲▲▲
           showChatImage={showChatImage}
