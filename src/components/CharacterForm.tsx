@@ -677,7 +677,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
     return <div className="min-h-screen bg-black text-white flex justify-center items-center"><p>ローディング中...</p></div>;
   }
   
-  const STEPS = ["プロフィール", "キャラクター画像", "詳細情報", "開始状況", "その他設定", "ステータスウィンドウ", "ロアブック", "修正および登録"];
+  const STEPS = ["プロフィール", "画像", "詳細情報", "開始状況", "その他設定", "ステータス", "ロアブック", "登録"];
 
   return (
     <>
@@ -730,12 +730,12 @@ export default function CharacterForm({ isEditMode, initialData, session, status
           </div>
           
           {/* デスクトップ用タブ */}
-          <div className="hidden sm:flex space-x-1 overflow-x-auto scrollbar-hide">
+          <div className="hidden sm:flex flex-wrap gap-1">
             {STEPS.map((label, index) => (
               <button
                 key={label}
                 onClick={() => setStep(index)}
-                className={`px-3 lg:px-4 py-2 lg:py-2.5 rounded-t-lg text-xs lg:text-sm font-medium whitespace-nowrap transition-all duration-200 flex-shrink-0 ${
+                className={`px-2 sm:px-3 py-2 rounded-t-lg text-xs font-medium whitespace-nowrap transition-all duration-200 ${
                   step === index
                     ? "bg-gray-800 text-pink-400 border-b-2 border-pink-500 shadow-lg"
                     : "text-gray-500 hover:text-gray-300 hover:bg-gray-900/50"
@@ -747,7 +747,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
           </div>
         </div>
 
-        <div style={{ display: step === 0 ? 'block' : 'none' }}>
+        <div style={{ display: step === 0 ? 'block' : 'none' }} className="min-h-[400px]">
             <div className="space-y-4 sm:space-y-6 bg-gray-900/30 rounded-lg p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
                     <label className="block text-sm sm:text-base font-semibold text-gray-200">プロフィール</label>
@@ -786,7 +786,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
             </div>
         </div>
 
-        <div style={{ display: step === 1 ? 'block' : 'none' }}>
+        <div style={{ display: step === 1 ? 'block' : 'none' }} className="min-h-[400px]">
             <div className="bg-gray-900/30 rounded-lg p-4 sm:p-6">
                 <label className="block text-sm sm:text-base font-semibold text-gray-200 mb-3 sm:mb-4">キャラクター画像</label>
                 <input type="file" accept="image/*" multiple onChange={handleImageChange} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-pink-600 file:text-white hover:file:bg-pink-700 file:cursor-pointer cursor-pointer" />
@@ -809,7 +809,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
             </div>
         </div>
         
-        <div style={{ display: step === 2 ? 'block' : 'none' }}>
+        <div style={{ display: step === 2 ? 'block' : 'none' }} className="min-h-[400px]">
             <div className="space-y-4 sm:space-y-6 bg-gray-900/30 rounded-lg p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
                     <label className="block text-sm sm:text-base font-semibold text-gray-200">詳細情報</label>
@@ -837,7 +837,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
             </div>
         </div>
 
-        <div style={{ display: step === 3 ? 'block' : 'none' }}>
+        <div style={{ display: step === 3 ? 'block' : 'none' }} className="min-h-[400px]">
             <div className="space-y-4 sm:space-y-6 bg-gray-900/30 rounded-lg p-4 sm:p-6">
                 <div>
                     <label className="block text-sm font-medium text-gray-200 mb-2">最初の状況</label>
@@ -869,7 +869,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
             </div>
         </div>
 
-        <div style={{ display: step === 4 ? 'block' : 'none' }}>
+        <div style={{ display: step === 4 ? 'block' : 'none' }} className="min-h-[400px]">
             <div className="bg-gray-900/30 rounded-lg p-4 sm:p-6 space-y-4 sm:space-y-6">
                 <div>
                     <span className="block text-sm font-medium text-gray-200 mb-2">公開範囲</span>
@@ -917,7 +917,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
             </div>
         </div>
 
-        <div style={{ display: step === 5 ? 'block' : 'none' }}>
+        <div style={{ display: step === 5 ? 'block' : 'none' }} className="min-h-[400px]">
             <div className="space-y-4 sm:space-y-6 bg-gray-900/30 rounded-lg p-4 sm:p-6">
                 <div className="p-3 sm:p-4 bg-gray-800/50 rounded-lg border border-gray-700">
                     <h3 className="font-bold text-lg">ステータスウィンドウ設定</h3>
@@ -965,7 +965,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
             </div>
         </div>
 
-        <div style={{ display: step === 6 ? 'block' : 'none' }}>
+        <div style={{ display: step === 6 ? 'block' : 'none' }} className="min-h-[400px]">
             <div className="space-y-4 sm:space-y-6 bg-gray-900/30 rounded-lg p-4 sm:p-6">
                 <div className="p-3 sm:p-4 bg-gray-800/50 rounded-lg border border-gray-700">
                     <h3 className="font-bold text-lg">ロアブック</h3>
@@ -990,7 +990,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
             </div>
         </div>
 
-        <div style={{ display: step === 7 ? 'block' : 'none' }}>
+        <div style={{ display: step === 7 ? 'block' : 'none' }} className="min-h-[400px]">
             <div className="space-y-4 sm:space-y-6 bg-gray-900/30 rounded-lg p-4 sm:p-6">
                 <div className="p-3 sm:p-4 bg-gray-800/50 rounded-lg border border-gray-700">
                     <h3 className="font-bold text-lg">キャラクター情報</h3>
