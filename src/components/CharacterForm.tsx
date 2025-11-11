@@ -684,6 +684,10 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       setModalState({ isOpen: true, title: '入力エラー', message: 'ハッシュタグを1個以上登録してください。' });
       return;
     }
+    if (!form.firstSituation.trim()) {
+      setModalState({ isOpen: true, title: '入力エラー', message: '最初の状況は必須項目です。' });
+      return;
+    }
     if (!session?.user?.id) {
         setModalState({ 
             isOpen: true, 
