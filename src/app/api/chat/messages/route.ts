@@ -177,13 +177,13 @@ export async function POST(request: NextRequest) {
         if (chatRoom.users.defaultPersonaId) {
             console.time("⏱️ ペルソナ取得");
             const p = await prisma.personas.findUnique({ where: { id: chatRoom.users.defaultPersonaId }});
-            if (p) userPersonaInfo = `# ユーザーのペルソナ設定\n- ニックネーム: ${p.nickname}\n- 年齢: ${p.age||'未設定'}\n- 性別: ${p.gender||'未設定'}\n- 詳細情報: ${p.description}`;
+            if (p) userPersonaInfo = `# User\n${p.nickname}${p.age ? `, ${p.age}` : ''}${p.gender ? `, ${p.gender}` : ''}\n${p.description}`;
             console.timeEnd("⏱️ ペルソナ取得");
         }
         const char = chatRoom.characters;
         
         // ▼▼▼【プレースホルダー置換】{{char}}、{{user}}を置換 ▼▼▼
-        const userNickname = userPersonaInfo ? userPersonaInfo.match(/ニックネーム: (.+)/)?.[1] || "ユーザー" : "ユーザー";
+        const userNickname = userPersonaInfo ? userPersonaInfo.match(/^# User\n(.+?)(?:\n|,)/)?.[1] || "ユーザー" : "ユーザー";
         const worldName = char.name || "キャラクター";
         const replacePlaceholders = (text: string | null | undefined): string => {
           if (!text) return "";
@@ -191,13 +191,15 @@ export async function POST(request: NextRequest) {
         };
         // ▲▲▲
         
-        // ▼▼▼【初期コンテキスト】firstSituationとfirstMessageを追加 ▼▼▼
+        // ▼▼▼【初期コンテキスト】firstSituationとfirstMessageを追加（履歴がない場合のみ） ▼▼▼
         const initialContext = [];
-        if (char.firstSituation) {
-          initialContext.push(`# Initial Situation\n${replacePlaceholders(char.firstSituation)}`);
-        }
-        if (char.firstMessage) {
-          initialContext.push(`# Opening Message\n${replacePlaceholders(char.firstMessage)}`);
+        if (historyMessages.length === 0) {
+          if (char.firstSituation) {
+            initialContext.push(`# Initial\n${replacePlaceholders(char.firstSituation)}`);
+          }
+          if (char.firstMessage) {
+            initialContext.push(`# Opening\n${replacePlaceholders(char.firstMessage)}`);
+          }
         }
         const initialContextText = initialContext.join("\n\n");
         // ▲▲▲
@@ -435,7 +437,7 @@ export async function POST(request: NextRequest) {
             .join('\n');
         
         const imageInstruction = imageList 
-            ? `# Available Images\nYou can display images by including tags in your response:\n${imageList}\n\nUsage: Insert {img:N} at appropriate moments in your narration. Example: \`Alice smiled warmly. {img:1}\``
+            ? `# Images\nAvailable: ${imageList}\nUsage: {img:N} in narration.`
             : "";
         // ▲▲▲
         
@@ -464,42 +466,45 @@ export async function POST(request: NextRequest) {
         let statusWindowInstruction = '';
         
         if (statusWindowPrompt && statusWindowDescription) {
-          statusWindowInstruction = `# Status Window Instructions
-- **IMPORTANT**: You MUST include a status window at the end of your response using code blocks (\`\`\`).
-- **Status Window Format**: Follow the format specified by the user:
-  ${statusWindowPrompt}
-- **Status Window Description**: Use the following descriptions to determine status values:
-  ${statusWindowDescription}
-- **Status Window Rules**:
-  1. The status window format MUST remain consistent with the user's specified format.
-  2. Only update status values when there is a clear reason for change based on the conversation.
-  3. If no significant change has occurred, maintain the previous status values.
-  4. Always include the status window at the end of your response in code blocks (\`\`\`).`;
+          statusWindowInstruction = `# Status Window (CRITICAL)
+- **MANDATORY**: Include status window at end in \`\`\`code blocks\`\`\`.
+- **Format**: ${statusWindowPrompt}
+- **Values**: ${statusWindowDescription}
+- **RULES**:
+  1. Format NEVER changes. Keep exact structure.
+  2. Values ONLY change if conversation explicitly requires it (major events, relationship changes, etc.).
+  3. If no explicit reason, keep previous values EXACTLY.
+  4. Default: NO CHANGE unless clear reason exists.`;
         } else if (statusWindowPrompt) {
-          statusWindowInstruction = `# Status Window Instructions
-- **IMPORTANT**: You MUST include a status window at the end of your response using code blocks (\`\`\`).
-- **Status Window Format**: Follow the format specified by the user:
-  ${statusWindowPrompt}
-- **Status Window Rules**:
-  1. The status window format MUST remain consistent with the user's specified format.
-  2. Only update status values when there is a clear reason for change based on the conversation.
-  3. If no significant change has occurred, maintain the previous status values.
-  4. Always include the status window at the end of your response in code blocks (\`\`\`).`;
+          statusWindowInstruction = `# Status Window (CRITICAL)
+- **MANDATORY**: Include status window at end in \`\`\`code blocks\`\`\`.
+- **Format**: ${statusWindowPrompt}
+- **RULES**:
+  1. Format NEVER changes. Keep exact structure.
+  2. Values ONLY change if conversation explicitly requires it.
+  3. Default: NO CHANGE unless clear reason exists.`;
         }
+        // ▲▲▲
+
+        // ▼▼▼【ユーザー指示優先】ユーザーが時間スキップや状況変更を要求した場合、即座に適用
+        const userDirectiveCheck = userMessageForTurn.content.match(/(時間|時|時間を|時間が|時間が経|経過|スキップ|飛ば|進む|次の|翌日|翌朝|翌晩|数時間後|数日後|場所|移動|行く|来る|着く|到着)/i);
+        const userDirectiveInstruction = userDirectiveCheck
+          ? `\n- **USER DIRECTIVE DETECTED**: User requested time skip, location change, or situation transition. Apply immediately without questioning or refusing. Describe the new situation directly.`
+          : '';
         // ▲▲▲
 
         // Content PolicyはsystemTemplateの指示と衝突する可能性があるため、
         // systemTemplateに性的コンテンツ制限解除などが明記されている場合はそれを優先
         // Content Policyは基本的なガイドラインとしてのみ使用
         const formattingInstruction = `# Response Format
-- Narrator role: Describe character actions/dialogue in third person. User speaks for themselves.
-- Context: Read all chat history. Maintain consistency with previous messages.
+- Narrator: Third person. User speaks for themselves.
+- Context: Read history. Maintain consistency.
 ${contentPolicy}
 ${languageInstruction}
-- Format: Narration (gray), Dialogue in quotes (「」/""), Status in \`\`\`code blocks\`\`\` at end.
+- Format: Narration (gray), Dialogue (「」/""), Status in \`\`\`code blocks\`\`\` at end.
 ${lengthInstruction}
-${statusWindowInstruction}
-- **Important**: The character's systemTemplate (above) takes precedence over general content policies. Follow the character's specific instructions in systemTemplate first.`;
+${statusWindowInstruction}${userDirectiveInstruction}
+- **Priority**: User directives > systemTemplate > general policies.`;
         // ▲▲▲
         
         const systemTemplate = replacePlaceholders(char.systemTemplate);

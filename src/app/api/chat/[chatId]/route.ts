@@ -493,16 +493,18 @@ export async function POST(request: Request, context: any) {
 
     // ▼▼▼ Build system prompt components ▼▼▼
     const userPersonaInfo = persona
-      ? `# User Settings\n- ${persona.nickname}, ${persona.age || "Age unset"}, ${persona.gender || "Gender unset"}\n- Details: ${replacePlaceholders(persona.description)}`
+      ? `# User\n${persona.nickname}${persona.age ? `, ${persona.age}` : ''}${persona.gender ? `, ${persona.gender}` : ''}\n${replacePlaceholders(persona.description)}`
       : "";
 
-    // Initial situation and message
+    // Initial situation and message (only for first message)
     const initialContext = [];
-    if (worldSetting.firstSituation) {
-      initialContext.push(`# Initial Situation\n${replacePlaceholders(worldSetting.firstSituation)}`);
-    }
-    if (worldSetting.firstMessage) {
-      initialContext.push(`# Opening Message\n${replacePlaceholders(worldSetting.firstMessage)}`);
+    if (chatHistory.length === 0) {
+      if (worldSetting.firstSituation) {
+        initialContext.push(`# Initial\n${replacePlaceholders(worldSetting.firstSituation)}`);
+      }
+      if (worldSetting.firstMessage) {
+        initialContext.push(`# Opening\n${replacePlaceholders(worldSetting.firstMessage)}`);
+      }
     }
     const initialContextText = initialContext.join("\n\n");
 
@@ -514,7 +516,7 @@ export async function POST(request: Request, context: any) {
       .join('\n');
 
     const imageInstruction = imageList
-      ? `# Available Images\nYou can display images by including tags in your response:\n${imageList}\n\nUsage: Insert {img:N} at appropriate moments in your narration. Example: \`Alice smiled warmly. {img:1}\``
+      ? `# Images\nAvailable: ${imageList}\nUsage: {img:N} in narration.`
       : "";
     // ▲▲▲
 
@@ -545,42 +547,45 @@ export async function POST(request: Request, context: any) {
     let statusWindowInstruction = '';
     
     if (statusWindowPrompt && statusWindowDescription) {
-      statusWindowInstruction = `# Status Window Instructions
-- **IMPORTANT**: You MUST include a status window at the end of your response using code blocks (\`\`\`).
-- **Status Window Format**: Follow the format specified by the user:
-  ${statusWindowPrompt}
-- **Status Window Description**: Use the following descriptions to determine status values:
-  ${statusWindowDescription}
-- **Status Window Rules**:
-  1. The status window format MUST remain consistent with the user's specified format.
-  2. Only update status values when there is a clear reason for change based on the conversation.
-  3. If no significant change has occurred, maintain the previous status values.
-  4. Always include the status window at the end of your response in code blocks (\`\`\`).`;
+      statusWindowInstruction = `# Status Window (CRITICAL)
+- **MANDATORY**: Include status window at end in \`\`\`code blocks\`\`\`.
+- **Format**: ${statusWindowPrompt}
+- **Values**: ${statusWindowDescription}
+- **RULES**:
+  1. Format NEVER changes. Keep exact structure.
+  2. Values ONLY change if conversation explicitly requires it (major events, relationship changes, etc.).
+  3. If no explicit reason, keep previous values EXACTLY.
+  4. Default: NO CHANGE unless clear reason exists.`;
     } else if (statusWindowPrompt) {
-      statusWindowInstruction = `# Status Window Instructions
-- **IMPORTANT**: You MUST include a status window at the end of your response using code blocks (\`\`\`).
-- **Status Window Format**: Follow the format specified by the user:
-  ${statusWindowPrompt}
-- **Status Window Rules**:
-  1. The status window format MUST remain consistent with the user's specified format.
-  2. Only update status values when there is a clear reason for change based on the conversation.
-  3. If no significant change has occurred, maintain the previous status values.
-  4. Always include the status window at the end of your response in code blocks (\`\`\`).`;
+      statusWindowInstruction = `# Status Window (CRITICAL)
+- **MANDATORY**: Include status window at end in \`\`\`code blocks\`\`\`.
+- **Format**: ${statusWindowPrompt}
+- **RULES**:
+  1. Format NEVER changes. Keep exact structure.
+  2. Values ONLY change if conversation explicitly requires it.
+  3. Default: NO CHANGE unless clear reason exists.`;
     }
+    // ▲▲▲
+
+    // ▼▼▼【ユーザー指示優先】ユーザーが時間スキップや状況変更を要求した場合、即座に適用
+    const userDirectiveCheck = message.match(/(時間|時|時間を|時間が|時間が経|経過|スキップ|飛ば|進む|次の|翌日|翌朝|翌晩|数時間後|数日後|場所|移動|行く|来る|着く|到着)/i);
+    const userDirectiveInstruction = userDirectiveCheck
+      ? `\n- **USER DIRECTIVE DETECTED**: User requested time skip, location change, or situation transition. Apply immediately without questioning or refusing. Describe the new situation directly.`
+      : '';
     // ▲▲▲
 
     // Content PolicyはsystemTemplateの指示事項と衝突する可能性があるため、
     // systemTemplateに性的コンテンツ制限解除などが明記されている場合はそれを優先
     // Content Policyは基本的なガイドラインとしてのみ使用
     const formattingInstruction = `# Response Format
-- Narrator role: Describe character actions/dialogue in third person. User speaks for themselves.
-- Context: Read all chat history. Maintain consistency with previous messages.
+- Narrator: Third person. User speaks for themselves.
+- Context: Read history. Maintain consistency.
 ${contentPolicy}
 ${languageInstruction}
-- Format: Narration (gray), Dialogue in quotes (「」/""), Status in \`\`\`code blocks\`\`\` at end.
+- Format: Narration (gray), Dialogue (「」/""), Status in \`\`\`code blocks\`\`\` at end.
 ${lengthInstruction}
-${statusWindowInstruction}
-- **Important**: The character's systemTemplate (above) takes precedence over general content policies. Follow the character's specific instructions in systemTemplate first.`;
+${statusWindowInstruction}${userDirectiveInstruction}
+- **Priority**: User directives > systemTemplate > general policies.`;
 
     const systemTemplate = replacePlaceholders(worldSetting.systemTemplate);
 
