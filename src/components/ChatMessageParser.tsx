@@ -23,6 +23,9 @@ export type ChatMessageParserProps = {
  * - 通常テキスト -> <span className="text-gray-400">...</span> (デフォルトは灰色)
  * - ![](URL) -> 外部画像
  * - {img:n} -> 内部画像
+ * - --- -> 水平線
+ * - |-| -> 空のボーダーボックス
+ * - |내용| -> 内容付きボーダーボックス
  */
 export default function ChatMessageParser({
   content,
@@ -95,83 +98,172 @@ function parseTextContent(
   isMultiImage: boolean,
   onImageClick?: (url: string) => void
 ): React.ReactNode[] {
-  // セリフ(「...」)、外部リンク画像、内部画像トークンを検出する正規表現
-  const regex = /(「.*?」)|(!\[.*?\]\(.*?\))|(\{img:\d+\})/g;
-  const parts = text.split(regex).filter(Boolean);
+  // テキストを行に分割し、各行を処理
+  const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
+  let lineIndex = 0;
+  
+  // セリフ(「...」)、外部リンク画像、内部画像トークン、ボーダーボックス(|...|)を検出する正規表現
+  const regex = /(「.*?」)|(!\[.*?\]\(.*?\))|(\{img:\d+\})|(\|[^|]+\|)/g;
   
   let imageRendered = false;
+  let isAfterSeparator = false; // |-|-| 구분선 이후인지 추적
 
-  return parts.map((part, index) => {
-    const globalIndex = baseIndex + index;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+    const globalIndex = baseIndex + lineIndex;
 
-    // --- 「セリフ」の処理 (白文字) ---
-    if (part.startsWith('「') && part.endsWith('」')) {
-      return (
-        <span key={`dialogue-${globalIndex}`} className="text-white">
-          {part}
-        </span>
+    // --- 水平線の処理 (---) ---
+    if (trimmedLine === '---') {
+      elements.push(
+        <hr key={`hr-${globalIndex}`} className="my-4 border-t border-gray-600" />
       );
+      lineIndex++;
+      continue;
     }
 
-    // --- ![](URL) 外部リンク画像の処理 ---
-    const externalImageMatch = part.match(/!\[.*?\]\((.*?)\)/);
-    if (externalImageMatch) {
-      const imageUrl = externalImageMatch[1];
-      return (
-        <div key={`ext-img-${globalIndex}`} className="relative my-2 w-full max-w-md rounded-lg overflow-hidden shadow-lg">
-          <Image
-            src={imageUrl}
-            alt="外部画像"
-            width={500}
-            height={300}
-            className="object-contain cursor-zoom-in"
-            onClick={() => onImageClick?.(imageUrl)}
-          />
-        </div>
+    // --- 空のボーダーボックスの処理 (|-|) ---
+    if (trimmedLine === '|-|') {
+      elements.push(
+        <div key={`border-${globalIndex}`} className="my-2 border border-pink-400/50 rounded p-2 min-h-[20px]" />
       );
+      lineIndex++;
+      continue;
     }
 
-    // --- {img:n} 内部画像の処理 ---
-    const internalImageMatch = part.match(/\{img:(\d+)\}/);
-    if (showImage && internalImageMatch) {
-      if (!isMultiImage && imageRendered) {
-        return null;
+    // --- 구분선 처리 (|-|-|) ---
+    if (trimmedLine === '|-|-|') {
+      isAfterSeparator = true;
+      // 구분선은 시각적으로 표시하지 않음 (또는 얇은 선으로 표시)
+      lineIndex++;
+      continue;
+    }
+
+    // 空行の処理
+    if (trimmedLine === '') {
+      if (i < lines.length - 1) {
+        elements.push(<br key={`br-${globalIndex}`} />);
+        lineIndex++;
+      }
+      continue;
+    }
+
+    // 行内の特殊要素を検出して処理
+    const parts = line.split(regex).filter(Boolean);
+    const lineElements: React.ReactNode[] = [];
+
+    for (const part of parts) {
+      // --- ボーダーボックスの処理 (|내용|) ---
+      const borderBoxMatch = part.match(/^\|([^|]+)\|$/);
+      if (borderBoxMatch) {
+        const content = borderBoxMatch[1];
+        // 구분선 이후면 일반 배경, 이전이면 검은색 배경 제목 스타일
+        if (isAfterSeparator) {
+          // 일반 배경 설명 스타일
+          lineElements.push(
+            <span key={`border-box-${globalIndex}-${lineElements.length}`} className="inline-block my-1 mx-1 border border-gray-600 rounded px-3 py-2 text-gray-300 bg-gray-900/30">
+              {content}
+            </span>
+          );
+        } else {
+          // 검은색 배경 제목 스타일
+          lineElements.push(
+            <span key={`border-box-${globalIndex}-${lineElements.length}`} className="inline-block my-1 mx-1 border border-gray-600 rounded px-3 py-2 text-white bg-gray-900">
+              {content}
+            </span>
+          );
+        }
+        continue;
+      }
+      // --- 「セリフ」の処理 (白文字) ---
+      if (part.startsWith('「') && part.endsWith('」')) {
+        lineElements.push(
+          <span key={`dialogue-${globalIndex}-${lineElements.length}`} className="text-white">
+            {part}
+          </span>
+        );
+        continue;
       }
 
-      const n = parseInt(internalImageMatch[1], 10);
-      // ▼▼▼【修正】parseImageTags와 동일하게 nonMainImages 사용 (isMain=false인 이미지만)
-      const nonMainImages = characterImages.filter(img => !img.isMain);
-      const imgIndex = n - 1; // 1-indexed to 0-indexed
-      const image = imgIndex >= 0 && imgIndex < nonMainImages.length ? nonMainImages[imgIndex] : null;
-      // ▲▲▲
-
-      if (image) {
-        imageRendered = true;
-        return (
-          <div key={`int-img-${globalIndex}`} className="relative my-2 w-full max-w-xs rounded-lg overflow-hidden shadow-lg">
+      // --- ![](URL) 外部リンク画像の処理 ---
+      const externalImageMatch = part.match(/!\[.*?\]\((.*?)\)/);
+      if (externalImageMatch) {
+        const imageUrl = externalImageMatch[1];
+        lineElements.push(
+          <div key={`ext-img-${globalIndex}-${lineElements.length}`} className="relative my-2 w-full max-w-md rounded-lg overflow-hidden shadow-lg">
             <Image
-              src={image.imageUrl}
-              alt={image.keyword || `キャラクター画像 ${n}`}
-              width={400}
+              src={imageUrl}
+              alt="外部画像"
+              width={500}
               height={300}
               className="object-contain cursor-zoom-in"
-              priority={imgIndex < 3}
-              onClick={() => onImageClick?.(image.imageUrl)}
+              onClick={() => onImageClick?.(imageUrl)}
+              unoptimized={imageUrl.startsWith('http')}
             />
           </div>
         );
-      } else {
-        // ▼▼▼【デバッグ】画像が見つからない場合の警告
-        console.warn(`⚠️ ChatMessageParser: 無効な画像インデックス {img:${n}} (非メイン画像数: ${nonMainImages.length})`);
+        continue;
+      }
+
+      // --- {img:n} 内部画像の処理 ---
+      const internalImageMatch = part.match(/\{img:(\d+)\}/);
+      if (showImage && internalImageMatch) {
+        if (!isMultiImage && imageRendered) {
+          continue;
+        }
+
+        const n = parseInt(internalImageMatch[1], 10);
+        // ▼▼▼【修正】parseImageTags와 동일하게 nonMainImages 사용 (isMain=false인 이미지만)
+        const nonMainImages = characterImages.filter(img => !img.isMain);
+        const imgIndex = n - 1; // 1-indexed to 0-indexed
+        const image = imgIndex >= 0 && imgIndex < nonMainImages.length ? nonMainImages[imgIndex] : null;
         // ▲▲▲
+
+        if (image) {
+          imageRendered = true;
+          lineElements.push(
+            <div key={`int-img-${globalIndex}-${lineElements.length}`} className="relative my-2 w-full max-w-xs rounded-lg overflow-hidden shadow-lg">
+              <Image
+                src={image.imageUrl}
+                alt={image.keyword || `キャラクター画像 ${n}`}
+                width={400}
+                height={300}
+                className="object-contain cursor-zoom-in"
+                priority={imgIndex < 3}
+                onClick={() => onImageClick?.(image.imageUrl)}
+              />
+            </div>
+          );
+          continue;
+        } else {
+          // ▼▼▼【デバッグ】画像が見つからない場合の警告
+          console.warn(`⚠️ ChatMessageParser: 無効な画像インデックス {img:${n}} (非メイン画像数: ${nonMainImages.length})`);
+          // ▲▲▲
+        }
+      }
+
+      // --- 通常テキストの処理 (デフォルトは灰色) ---
+      if (part.trim()) {
+        lineElements.push(
+          <span key={`text-${globalIndex}-${lineElements.length}`} className="text-gray-400">
+            {part}
+          </span>
+        );
       }
     }
 
-    // --- 通常テキストの処理 (デフォルトは灰色) ---
-    return (
-      <span key={`text-${globalIndex}`} className="text-gray-400">
-        {part}
-      </span>
-    );
-  });
+    // 行の要素を追加
+    if (lineElements.length > 0) {
+      elements.push(
+        <React.Fragment key={`line-${globalIndex}`}>
+          {lineElements}
+          {i < lines.length - 1 && <br />}
+        </React.Fragment>
+      );
+      lineIndex++;
+    }
+  }
+
+  return elements;
 }
