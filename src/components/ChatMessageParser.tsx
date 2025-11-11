@@ -185,7 +185,7 @@ function parseTextContent(
                 {table[0].map((cell, cellIndex) => (
                   <th
                     key={`th-${globalIndex}-${cellIndex}`}
-                    className="border border-gray-500 bg-gray-900 px-4 py-3 text-white font-bold text-center"
+                    className="border border-gray-500 bg-black px-4 py-3 text-white font-bold text-center"
                   >
                     {cell}
                   </th>
