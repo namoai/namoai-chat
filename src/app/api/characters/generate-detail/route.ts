@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const model = vertex_ai.preview.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
+    const model = vertex_ai.getGenerativeModel({
+      model: "gemini-2.5-flash",
       safetySettings,
     });
 
@@ -113,8 +113,14 @@ export async function POST(request: NextRequest) {
 すべて日本語で記述し、{{char}}と{{user}}のプレースホルダーは使用しないでください。`;
 
     const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const text = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    if (!text) {
+      return NextResponse.json(
+        { success: false, error: '詳細設定生成に失敗しました。応答が空でした。' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,

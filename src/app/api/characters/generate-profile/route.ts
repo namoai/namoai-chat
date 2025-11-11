@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
   try {
     const { genre, characterType } = await request.json();
 
-    const model = vertex_ai.preview.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
+    const model = vertex_ai.getGenerativeModel({
+      model: "gemini-2.5-flash",
       safetySettings,
     });
 
@@ -52,8 +52,14 @@ ${characterType ? `キャラクタータイプ: ${characterType}` : 'キャラ�
 このような形式で、創造的で魅力的なキャラクターを作成してください。`;
 
     const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const text = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    if (!text) {
+      return NextResponse.json(
+        { success: false, error: 'プロフィール生成に失敗しました。応答が空でした。' },
+        { status: 500 }
+      );
+    }
 
     // JSONを抽出
     const jsonMatch = text.match(/\{[\s\S]*\}/);
