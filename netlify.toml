@@ -32,3 +32,20 @@
 [build.environment]
   # Secret Manager を使用するため secrets scanning を無効化
   SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
+# ▼▼▼【デプロイ設定】Productionデプロイをmainブランチのみに制限 ▼▼▼
+# Production: mainブランチのみ
+[context.production]
+  command = "node scripts/load-gsm-secrets.js && npm run build"
+  publish = ".next"
+
+# Deploy Preview: PRや他のブランチ (クレジット消費が少ない)
+[context.deploy-preview]
+  command = "node scripts/load-gsm-secrets.js && npm run build"
+  publish = ".next"
+
+# Branch deploys: 特定のブランチ (例: develop) もBranch deployとして設定可能
+# [context.branch-deploy]
+#   command = "node scripts/load-gsm-secrets.js && npm run build"
+#   publish = ".next"
+# ▲▲▲
