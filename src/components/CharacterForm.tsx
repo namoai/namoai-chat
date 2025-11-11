@@ -234,6 +234,10 @@ export default function CharacterForm({ isEditMode, initialData, session, status
   // ▼▼▼【画像アップロード進行状況】▼▼▼
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
   // ▲▲▲
+  // ▼▼▼【自動生成】▼▼▼
+  const [isGeneratingProfile, setIsGeneratingProfile] = useState(false);
+  const [isGeneratingDetail, setIsGeneratingDetail] = useState(false);
+  // ▲▲▲
 
   // ▼▼▼【修正】initialDataを1回だけ読み込むためのフラグ ▼▼▼
   const [isInitialized, setIsInitialized] = useState(false);
@@ -335,6 +339,97 @@ export default function CharacterForm({ isEditMode, initialData, session, status
   const handleChange = (field: keyof FormState, value: string | boolean | string[]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
+
+  // ▼▼▼【自動生成】プロフィール自動生成 ▼▼▼
+  const handleGenerateProfile = async () => {
+    setIsGeneratingProfile(true);
+    try {
+      const response = await fetch('/api/characters/generate-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          genre: form.category || undefined,
+          characterType: undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('プロフィール生成に失敗しました');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        handleChange('name', data.name || '');
+        handleChange('description', data.description || '');
+        setModalState({
+          isOpen: true,
+          title: '成功',
+          message: 'プロフィールが自動生成されました。',
+        });
+      } else {
+        throw new Error(data.error || 'プロフィール生成に失敗しました');
+      }
+    } catch (error) {
+      console.error('プロフィール生成エラー:', error);
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: error instanceof Error ? error.message : 'プロフィール生成に失敗しました。',
+      });
+    } finally {
+      setIsGeneratingProfile(false);
+    }
+  };
+
+  // ▼▼▼【自動生成】詳細設定自動生成 ▼▼▼
+  const handleGenerateDetail = async () => {
+    if (!form.name && !form.description) {
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: '詳細設定を生成するには、名前または作品紹介が必要です。',
+      });
+      return;
+    }
+
+    setIsGeneratingDetail(true);
+    try {
+      const response = await fetch('/api/characters/generate-detail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          description: form.description,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('詳細設定生成に失敗しました');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        handleChange('detailSetting', data.detailSetting || '');
+        setModalState({
+          isOpen: true,
+          title: '成功',
+          message: '詳細設定が自動生成されました。',
+        });
+      } else {
+        throw new Error(data.error || '詳細設定生成に失敗しました');
+      }
+    } catch (error) {
+      console.error('詳細設定生成エラー:', error);
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: error instanceof Error ? error.message : '詳細設定生成に失敗しました。',
+      });
+    } finally {
+      setIsGeneratingDetail(false);
+    }
+  };
+  // ▲▲▲
   
   const handleAddLorebook = () => {
     if (lorebooks.length >= 100) {
@@ -627,6 +722,16 @@ export default function CharacterForm({ isEditMode, initialData, session, status
 
         <div style={{ display: step === 0 ? 'block' : 'none' }}>
             <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-200">プロフィール</label>
+                    <Button 
+                        onClick={handleGenerateProfile} 
+                        disabled={isGeneratingProfile}
+                        className="bg-pink-600 hover:bg-pink-700 text-white text-sm px-4 py-2"
+                    >
+                        {isGeneratingProfile ? '生成中...' : '自動生成'}
+                    </Button>
+                </div>
                 <Input placeholder="キャラクターの名前を入力してください" value={form.name} maxLength={20} onChange={(e) => handleChange("name", e.target.value)} className="rounded-md" />
                 <Textarea placeholder="キャラクター紹介文を入力してください" value={form.description} maxLength={250} onChange={(e) => handleChange("description", e.target.value)} className="h-32 rounded-md" />
             </div>
@@ -658,6 +763,16 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         
         <div style={{ display: step === 2 ? 'block' : 'none' }}>
             <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-200">詳細情報</label>
+                    <Button 
+                        onClick={handleGenerateDetail} 
+                        disabled={isGeneratingDetail || (!form.name && !form.description)}
+                        className="bg-pink-600 hover:bg-pink-700 text-white text-sm px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isGeneratingDetail ? '生成中...' : '自動生成'}
+                    </Button>
+                </div>
                 <label className="block text-sm font-medium text-gray-200">システムテンプレート</label>
                 <select className="mt-1 block w-full rounded-md border-gray-700 bg-gray-800 py-2 px-3 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-pink-500 sm:text-sm" value={form.systemTemplate} onChange={(e) => handleChange("systemTemplate", e.target.value)}>
                     <option value="">テンプレートを選択...</option>
