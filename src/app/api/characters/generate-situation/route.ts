@@ -68,7 +68,6 @@ ${detailSetting}
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       // JSONが見つからない場合、テキストから推測
-      const lines = text.split('\n').filter(line => line.trim());
       const situationMatch = text.match(/最初の状況["':：\s]*["'「]?([^"'」\n]+)["'」]?/i) || 
         text.match(/firstSituation["':：\s]*["'「]?([^"'」\n]+)["'」]?/i);
       const messageMatch = text.match(/最初のメッセージ["':：\s]*["'「]?([^"'」\n]+)["'」]?/i) ||
