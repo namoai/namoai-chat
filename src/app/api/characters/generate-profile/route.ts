@@ -56,7 +56,7 @@ ${characterType ? `キャラクタータイプ: ${characterType}` : 'キャラ�
     const text = response.text();
 
     // JSONを抽出
-    let jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       // JSONが見つからない場合、テキストから推測
       const lines = text.split('\n').filter(line => line.trim());
