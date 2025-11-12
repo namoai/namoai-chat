@@ -712,47 +712,76 @@ export default function CharacterForm({ isEditMode, initialData, session, status
           {isEditMode ? "キャラクター修正" : "キャラクター作成"}
         </h1>
 
-        <div className="flex space-x-2 border-b border-gray-700 mb-6 text-sm overflow-x-auto">
+        <div className="flex space-x-1 mb-8 overflow-x-auto scrollbar-hide">
           {STEPS.map((label, index) => (
-            <div key={label} className={`pb-2 px-2 cursor-pointer whitespace-nowrap transition-all ${step === index ? "border-b-2 border-pink-500 font-semibold" : "text-gray-400"}`} onClick={() => setStep(index)}>
+            <button
+              key={label}
+              onClick={() => setStep(index)}
+              className={`px-4 py-2.5 rounded-t-lg text-sm font-medium whitespace-nowrap transition-all duration-200 ${
+                step === index
+                  ? "bg-gray-800 text-pink-400 border-b-2 border-pink-500 shadow-lg"
+                  : "text-gray-500 hover:text-gray-300 hover:bg-gray-900/50"
+              }`}
+            >
               {label}
-            </div>
+            </button>
           ))}
         </div>
 
         <div style={{ display: step === 0 ? 'block' : 'none' }}>
-            <div className="space-y-4">
+            <div className="space-y-6 bg-gray-900/30 rounded-lg p-6">
                 <div className="flex items-center justify-between">
-                    <label className="block text-sm font-medium text-gray-200">プロフィール</label>
+                    <label className="block text-base font-semibold text-gray-200">プロフィール</label>
                     <Button 
                         onClick={handleGenerateProfile} 
                         disabled={isGeneratingProfile}
-                        className="bg-pink-600 hover:bg-pink-700 text-white text-sm px-4 py-2"
+                        className="bg-pink-600 hover:bg-pink-700 text-white text-sm px-4 py-2 rounded-md transition-all"
                     >
                         {isGeneratingProfile ? '生成中...' : '自動生成'}
                     </Button>
                 </div>
-                <Input placeholder="キャラクターの名前を入力してください" value={form.name} maxLength={20} onChange={(e) => handleChange("name", e.target.value)} className="rounded-md" />
-                <Textarea placeholder="キャラクター紹介文を入力してください" value={form.description} maxLength={250} onChange={(e) => handleChange("description", e.target.value)} className="h-32 rounded-md" />
+                <div>
+                    <Input 
+                        placeholder="キャラクターの名前を入力してください" 
+                        value={form.name} 
+                        maxLength={20} 
+                        onChange={(e) => handleChange("name", e.target.value)} 
+                        className="rounded-md bg-gray-800 border-gray-700 focus:border-pink-500" 
+                    />
+                    <p className="text-xs text-right text-gray-500 mt-1">
+                        {form.name.length} / 20
+                    </p>
+                </div>
+                <div>
+                    <Textarea 
+                        placeholder="キャラクター紹介文を入力してください" 
+                        value={form.description} 
+                        maxLength={250} 
+                        onChange={(e) => handleChange("description", e.target.value)} 
+                        className="h-32 rounded-md bg-gray-800 border-gray-700 focus:border-pink-500" 
+                    />
+                    <p className="text-xs text-right text-gray-500 mt-1">
+                        {form.description.length} / 250
+                    </p>
+                </div>
             </div>
         </div>
 
         <div style={{ display: step === 1 ? 'block' : 'none' }}>
-            <div className="p-4">
-                <label className="block text-sm font-medium text-gray-200">キャラクター画像</label>
-                <input type="file" accept="image/*" multiple onChange={handleImageChange} className="mt-2 block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100" />
-                <p className="text-xs text-gray-500 mt-1">画像ファイルを選択してください（最大10枚まで）。</p>
-                <div className="mt-4 flex flex-wrap gap-4">
+            <div className="bg-gray-900/30 rounded-lg p-6">
+                <label className="block text-base font-semibold text-gray-200 mb-4">キャラクター画像</label>
+                <input type="file" accept="image/*" multiple onChange={handleImageChange} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-pink-600 file:text-white hover:file:bg-pink-700 file:cursor-pointer cursor-pointer" />
+                <p className="text-xs text-gray-500 mt-2">画像ファイルを選択してください（最大10枚まで）。</p>
+                <div className="mt-6 flex flex-wrap gap-4">
                 {images.map((img, idx) => (
-                    <div key={img.id || `new-${idx}`} className="relative w-24 h-24">
-                        <div onClick={() => openImageModal(idx)} className="w-full h-full border rounded overflow-hidden cursor-pointer">
-                            {/* ▼▼▼【修正】Imageコンポーネントを標準のimgタグに戻します ▼▼▼ */}
+                    <div key={img.id || `new-${idx}`} className="relative w-24 h-24 group">
+                        <div onClick={() => openImageModal(idx)} className="w-full h-full border-2 border-gray-700 rounded-lg overflow-hidden cursor-pointer transition-all hover:border-pink-500 hover:shadow-lg">
                             <img src={img.file ? URL.createObjectURL(img.file) : img.imageUrl!} alt={`image-${idx}`} width={96} height={96} className="object-cover w-full h-full" />
-                            <div className="absolute bottom-0 bg-black bg-opacity-60 text-xs text-white w-full text-center px-1 py-0-5 truncate">
+                            <div className="absolute bottom-0 bg-black/70 text-xs text-white w-full text-center px-1 py-1 truncate">
                             {idx === 0 ? "基本画像" : img.keyword || "クリックで入力"}
                             </div>
                         </div>
-                        <button type="button" onClick={(e) => { e.stopPropagation(); handleImageDelete(idx); }} className="absolute -top-2 -right-2 bg-red-600 rounded-full p-1 text-white shadow-lg transition-transform hover:scale-110 z-10" aria-label="画像を削除">
+                        <button type="button" onClick={(e) => { e.stopPropagation(); handleImageDelete(idx); }} className="absolute -top-2 -right-2 bg-red-600 rounded-full p-1 text-white shadow-lg transition-transform hover:scale-110 z-10 opacity-0 group-hover:opacity-100" aria-label="画像を削除">
                             <X size={16} />
                         </button>
                     </div>
@@ -762,38 +791,67 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         </div>
         
         <div style={{ display: step === 2 ? 'block' : 'none' }}>
-            <div className="space-y-4">
+            <div className="space-y-6 bg-gray-900/30 rounded-lg p-6">
                 <div className="flex items-center justify-between">
-                    <label className="block text-sm font-medium text-gray-200">詳細情報</label>
+                    <label className="block text-base font-semibold text-gray-200">詳細情報</label>
                     <Button 
                         onClick={handleGenerateDetail} 
                         disabled={isGeneratingDetail || (!form.name && !form.description)}
-                        className="bg-pink-600 hover:bg-pink-700 text-white text-sm px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-pink-600 hover:bg-pink-700 text-white text-sm px-4 py-2 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isGeneratingDetail ? '生成中...' : '自動生成'}
                     </Button>
                 </div>
-                <label className="block text-sm font-medium text-gray-200">システムテンプレート</label>
-                <select className="mt-1 block w-full rounded-md border-gray-700 bg-gray-800 py-2 px-3 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-pink-500 sm:text-sm" value={form.systemTemplate} onChange={(e) => handleChange("systemTemplate", e.target.value)}>
-                    <option value="">テンプレートを選択...</option>
-                    <option value="template1">テンプレート1</option>
-                    <option value="template2">テンプレート2</option>
-                </select>
-                <Textarea placeholder="キャラクターの詳細設定（外見・性格・背景など）" value={form.detailSetting} className="h-48 rounded-md" maxLength={5000} onChange={(e) => handleChange("detailSetting", e.target.value)} />
-                <p className="text-xs text-gray-400">{'`{{char}}` と `{{user}}` を使用して、キャラクター名とユーザー名を動的に挿入できます。'}</p>
+                <div>
+                    <Textarea 
+                        placeholder="キャラクターの詳細設定（外見・性格・背景など）" 
+                        value={form.detailSetting} 
+                        className="h-64 rounded-md bg-gray-800 border-gray-700 focus:border-pink-500" 
+                        maxLength={5000} 
+                        onChange={(e) => handleChange("detailSetting", e.target.value)} 
+                    />
+                    <p className="text-xs text-gray-400 mt-2">{'`{{char}}` と `{{user}}` を使用して、キャラクター名とユーザー名を動的に挿入できます。'}</p>
+                    <p className="text-xs text-right text-gray-500 mt-1">
+                        {form.detailSetting.length} / 5000
+                    </p>
+                </div>
             </div>
         </div>
 
         <div style={{ display: step === 3 ? 'block' : 'none' }}>
-            <div className="space-y-4">
-                <Textarea placeholder="最初の状況を入力してください" value={form.firstSituation} maxLength={1000} className="h-40 rounded-md" onChange={(e) => handleChange("firstSituation", e.target.value)} />
-                <Textarea placeholder="キャラクターの最初のメッセージを入力してください" value={form.firstMessage} maxLength={500} className="h-32 rounded-md" onChange={(e) => handleChange("firstMessage", e.target.value)} />
+            <div className="space-y-6 bg-gray-900/30 rounded-lg p-6">
+                <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-2">最初の状況</label>
+                    <Textarea 
+                        placeholder="最初の状況を入力してください" 
+                        value={form.firstSituation} 
+                        maxLength={1000} 
+                        className="h-40 rounded-md bg-gray-800 border-gray-700 focus:border-pink-500" 
+                        onChange={(e) => handleChange("firstSituation", e.target.value)} 
+                    />
+                    <p className="text-xs text-right text-gray-500 mt-1">
+                        {form.firstSituation.length} / 1000
+                    </p>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-2">キャラクターの最初のメッセージ</label>
+                    <Textarea 
+                        placeholder="キャラクターの最初のメッセージを入力してください" 
+                        value={form.firstMessage} 
+                        maxLength={500} 
+                        className="h-32 rounded-md bg-gray-800 border-gray-700 focus:border-pink-500" 
+                        onChange={(e) => handleChange("firstMessage", e.target.value)} 
+                    />
+                    <p className="text-xs text-right text-gray-500 mt-1">
+                        {form.firstMessage.length} / 500
+                    </p>
+                </div>
                 <p className="text-xs text-gray-400">{'`{{char}}` と `{{user}}` を使用して、キャラクター名とユーザー名を動的に挿入できます。'}</p>
             </div>
         </div>
 
         <div style={{ display: step === 4 ? 'block' : 'none' }}>
-            <div className="p-4 space-y-6">
+            <div className="bg-gray-900/30 rounded-lg p-6 space-y-6">
                 <div>
                     <span className="block text-sm font-medium text-gray-200 mb-2">公開範囲</span>
                     <div className="flex flex-wrap gap-x-4 gap-y-2">
@@ -815,7 +873,16 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                     <p className="text-xs text-gray-400 mb-3">キャラクターが活動するテーマを選択してください。</p>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                     {CATEGORIES.map((category) => (
-                        <button key={category} type="button" onClick={() => handleChange("category", category)} className={`py-3 px-2 rounded-md transition-colors text-center text-sm ${form.category === category ? "bg-pink-600 font-bold" : "bg-gray-700 hover:bg-gray-600"}`}>
+                        <button 
+                            key={category} 
+                            type="button" 
+                            onClick={() => handleChange("category", category)} 
+                            className={`py-3 px-2 rounded-lg transition-all text-center text-sm font-medium ${
+                                form.category === category 
+                                    ? "bg-pink-600 text-white font-bold shadow-lg scale-105" 
+                                    : "bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white"
+                            }`}
+                        >
                         {category}
                         </button>
                     ))}
@@ -832,8 +899,8 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         </div>
 
         <div style={{ display: step === 5 ? 'block' : 'none' }}>
-            <div className="space-y-4">
-                <div className="p-4 bg-gray-800 rounded-lg">
+            <div className="space-y-6 bg-gray-900/30 rounded-lg p-6">
+                <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
                     <h3 className="font-bold text-lg">ステータスウィンドウ設定</h3>
                     <p className="text-sm text-gray-400 mt-1">
                         チャット画面で表示されるステータスウィンドウの内容と説明を設定します。<br />
@@ -849,7 +916,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                         value={form.statusWindowPrompt} 
                         maxLength={500} 
                         onChange={(e) => handleChange("statusWindowPrompt", e.target.value)} 
-                        className="h-32 rounded-md"
+                        className="h-32 rounded-md bg-gray-800 border-gray-700 focus:border-pink-500"
                     />
                     <p className="text-xs text-gray-400 mt-1">
                         AIがステータスウィンドウに表示する内容の形式を設定します。変動する項目（数値など）を指定してください。
@@ -867,7 +934,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                         value={form.statusWindowDescription} 
                         maxLength={1000} 
                         onChange={(e) => handleChange("statusWindowDescription", e.target.value)} 
-                        className="h-48 rounded-md"
+                        className="h-48 rounded-md bg-gray-800 border-gray-700 focus:border-pink-500"
                     />
                     <p className="text-xs text-gray-400 mt-1">
                         ステータス項目の値の範囲ごとの意味を説明します。例: 呼び出し度 0-10は「全く関係がない」、10-20は「少し興味がある」など。
@@ -880,8 +947,8 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         </div>
 
         <div style={{ display: step === 6 ? 'block' : 'none' }}>
-            <div className="space-y-4">
-                <div className="p-4 bg-gray-800 rounded-lg">
+            <div className="space-y-6 bg-gray-900/30 rounded-lg p-6">
+                <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
                     <h3 className="font-bold text-lg">ロアブック</h3>
                     <p className="text-sm text-gray-400 mt-1">
                         世界観、設定、人物情報などをキーワードと紐付けてAIに記憶させます。(最大100件)<br />
@@ -905,32 +972,44 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         </div>
 
         <div style={{ display: step === 7 ? 'block' : 'none' }}>
-            <div className="space-y-6">
-                <div className="p-4 bg-gray-800 rounded-lg">
+            <div className="space-y-6 bg-gray-900/30 rounded-lg p-6">
+                <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
                     <h3 className="font-bold text-lg">キャラクター情報</h3>
                     <p className="text-sm text-gray-400 mt-1">キャラクターの追加情報を入力します。</p>
                 </div>
                 <div>
                     <label htmlFor="firstSituationDate" className="block text-sm font-medium text-gray-300 mb-2">日付</label>
-                    <Input id="firstSituationDate" type="date" value={form.firstSituationDate} onChange={(e) => handleChange("firstSituationDate", e.target.value)} />
+                    <Input id="firstSituationDate" type="date" value={form.firstSituationDate} onChange={(e) => handleChange("firstSituationDate", e.target.value)} className="bg-gray-800 border-gray-700 focus:border-pink-500" />
                 </div>
                 <div>
                     <label htmlFor="firstSituationPlace" className="block text-sm font-medium text-gray-300 mb-2">場所</label>
-                    <Input id="firstSituationPlace" type="text" placeholder="場所を入力してください" value={form.firstSituationPlace} onChange={(e) => handleChange("firstSituationPlace", e.target.value)} />
+                    <Input id="firstSituationPlace" type="text" placeholder="場所を入力してください" value={form.firstSituationPlace} onChange={(e) => handleChange("firstSituationPlace", e.target.value)} className="bg-gray-800 border-gray-700 focus:border-pink-500" />
                 </div>
             </div>
         </div>
         
-        <div className="mt-8 flex justify-between items-center">
-            <Button variant="outline" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0}>
+        <div className="mt-8 flex justify-between items-center gap-4 pt-6 border-t border-gray-800">
+            <Button 
+                variant="outline" 
+                onClick={() => setStep(s => Math.max(0, s - 1))} 
+                disabled={step === 0}
+                className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+            >
                 前の段階へ
             </Button>
             {step < STEPS.length - 1 ? (
-              <Button className="bg-pink-500 hover:bg-pink-600 cursor-pointer" onClick={() => setStep(s => Math.min(STEPS.length - 1, s + 1))}>
+              <Button 
+                className="bg-pink-600 hover:bg-pink-700 text-white px-6 py-2 rounded-md transition-all shadow-lg hover:shadow-xl" 
+                onClick={() => setStep(s => Math.min(STEPS.length - 1, s + 1))}
+              >
                 次の段階へ
               </Button>
             ) : (
-              <Button className="bg-pink-500 hover:bg-pink-600 cursor-pointer disabled:opacity-50" onClick={handleSubmit} disabled={isSubmitting}>
+              <Button 
+                className="bg-pink-600 hover:bg-pink-700 text-white px-8 py-2 rounded-md transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed" 
+                onClick={handleSubmit} 
+                disabled={isSubmitting}
+              >
                 {isSubmitting ? (isEditMode ? "保存中..." : "登録中...") : (isEditMode ? "保存する" : "登録する")}
               </Button>
             )}
@@ -984,15 +1063,31 @@ function LorebookItem({ lorebook, index, onContentChange, onAddKeyword, onDelete
 
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-1">内容</label>
-          <Textarea value={lorebook.content} onChange={(e) => onContentChange(index, e.target.value)} placeholder="キャラクターが思い出すべき設定や情報を入力します。" className="h-24" maxLength={500} />
-          <p className="text-xs text-right text-gray-400 mt-1">{'`{{char}}` と `{{user}}` が使用できます。'}</p>
+          <Textarea value={lorebook.content} onChange={(e) => onContentChange(index, e.target.value)} placeholder="キャラクターが思い出すべき設定や情報を入力します。" className="h-24 bg-gray-800 border-gray-700 focus:border-pink-500" maxLength={500} />
+          <p className="text-xs text-gray-400 mt-1">{'`{{char}}` と `{{user}}` が使用できます。'}</p>
+          <p className="text-xs text-right text-gray-500 mt-1">
+            {lorebook.content.length} / 500
+          </p>
         </div>
 
         <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">キーワード (最大5個)</label>
             <div className="flex gap-2">
-                <Input value={currentKeyword} onChange={(e) => setCurrentKeyword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAdd())} placeholder="キーワードを入力して追加" disabled={lorebook.keywords.length >= 5} />
-                <Button onClick={handleAdd} disabled={!currentKeyword.trim() || lorebook.keywords.length >= 5}>追加</Button>
+                <Input 
+                    value={currentKeyword} 
+                    onChange={(e) => setCurrentKeyword(e.target.value)} 
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAdd())} 
+                    placeholder="キーワードを入力して追加" 
+                    disabled={lorebook.keywords.length >= 5}
+                    className="bg-gray-800 border-gray-700 focus:border-pink-500"
+                />
+                <Button 
+                    onClick={handleAdd} 
+                    disabled={!currentKeyword.trim() || lorebook.keywords.length >= 5}
+                    className="bg-pink-600 hover:bg-pink-700"
+                >
+                    追加
+                </Button>
             </div>
             <div className="flex flex-wrap gap-2 mt-3">
             {lorebook.keywords.map((kw, kwIndex) => (
