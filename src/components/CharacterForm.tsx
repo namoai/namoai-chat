@@ -237,6 +237,8 @@ export default function CharacterForm({ isEditMode, initialData, session, status
   // ▼▼▼【自動生成】▼▼▼
   const [isGeneratingProfile, setIsGeneratingProfile] = useState(false);
   const [isGeneratingDetail, setIsGeneratingDetail] = useState(false);
+  const [isGeneratingSituation, setIsGeneratingSituation] = useState(false);
+  const [isGeneratingDatePlace, setIsGeneratingDatePlace] = useState(false);
   // ▲▲▲
 
   // ▼▼▼【修正】initialDataを1回だけ読み込むためのフラグ ▼▼▼
@@ -429,6 +431,106 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       setIsGeneratingDetail(false);
     }
   };
+
+  // ▼▼▼【自動生成】開始状況自動生成 ▼▼▼
+  const handleGenerateSituation = async () => {
+    if (!form.detailSetting) {
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: '開始状況を生成するには、詳細設定が必要です。',
+      });
+      return;
+    }
+
+    setIsGeneratingSituation(true);
+    try {
+      const response = await fetch('/api/characters/generate-situation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          description: form.description,
+          detailSetting: form.detailSetting,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('開始状況生成に失敗しました');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        handleChange('firstSituation', data.firstSituation || '');
+        handleChange('firstMessage', data.firstMessage || '');
+        setModalState({
+          isOpen: true,
+          title: '成功',
+          message: '開始状況と最初のメッセージが自動生成されました。',
+        });
+      } else {
+        throw new Error(data.error || '開始状況生成に失敗しました');
+      }
+    } catch (error) {
+      console.error('開始状況生成エラー:', error);
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: error instanceof Error ? error.message : '開始状況生成に失敗しました。',
+      });
+    } finally {
+      setIsGeneratingSituation(false);
+    }
+  };
+
+  // ▼▼▼【自動生成】日付・場所自動生成 ▼▼▼
+  const handleGenerateDatePlace = async () => {
+    if (!form.firstSituation) {
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: '日付・場所を生成するには、最初の状況が必要です。',
+      });
+      return;
+    }
+
+    setIsGeneratingDatePlace(true);
+    try {
+      const response = await fetch('/api/characters/generate-date-place', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstSituation: form.firstSituation,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('日付・場所生成に失敗しました');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        handleChange('firstSituationDate', data.date || '');
+        handleChange('firstSituationPlace', data.place || '');
+        setModalState({
+          isOpen: true,
+          title: '成功',
+          message: '日付と場所が自動生成されました。',
+        });
+      } else {
+        throw new Error(data.error || '日付・場所生成に失敗しました');
+      }
+    } catch (error) {
+      console.error('日付・場所生成エラー:', error);
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: error instanceof Error ? error.message : '日付・場所生成に失敗しました。',
+      });
+    } finally {
+      setIsGeneratingDatePlace(false);
+    }
+  };
   // ▲▲▲
   
   const handleAddLorebook = () => {
@@ -572,6 +674,14 @@ export default function CharacterForm({ isEditMode, initialData, session, status
     }
     if (images.length === 0) {
       setModalState({ isOpen: true, title: '入力エラー', message: 'キャラクターの画像を1枚以上登録してください。' });
+      return;
+    }
+    if (!form.category) {
+      setModalState({ isOpen: true, title: '入力エラー', message: 'カテゴリーを選択してください。' });
+      return;
+    }
+    if (form.hashtags.length === 0) {
+      setModalState({ isOpen: true, title: '入力エラー', message: 'ハッシュタグを1個以上登録してください。' });
       return;
     }
     if (!session?.user?.id) {
@@ -826,12 +936,12 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                         placeholder="キャラクターの詳細設定（外見・性格・背景など）" 
                         value={form.detailSetting} 
                         className="h-48 sm:h-64 rounded-md bg-gray-800 border-gray-700 focus:border-pink-500 text-sm sm:text-base" 
-                        maxLength={5000} 
+                        maxLength={6000} 
                         onChange={(e) => handleChange("detailSetting", e.target.value)} 
                     />
                     <p className="text-xs text-gray-400 mt-2">{'`{{char}}` と `{{user}}` を使用して、キャラクター名とユーザー名を動的に挿入できます。'}</p>
                     <p className="text-xs text-right text-gray-500 mt-1">
-                        {form.detailSetting.length} / 5000
+                        {form.detailSetting.length} / 6000
                     </p>
                 </div>
             </div>
@@ -839,6 +949,16 @@ export default function CharacterForm({ isEditMode, initialData, session, status
 
         <div style={{ display: step === 3 ? 'block' : 'none' }} className="min-h-[400px]">
             <div className="space-y-4 sm:space-y-6 bg-gray-900/30 rounded-lg p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+                    <label className="block text-sm sm:text-base font-semibold text-gray-200">開始状況</label>
+                    <Button 
+                        onClick={handleGenerateSituation} 
+                        disabled={isGeneratingSituation || !form.detailSetting}
+                        className="bg-pink-600 hover:bg-pink-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                    >
+                        {isGeneratingSituation ? '生成中...' : '自動生成'}
+                    </Button>
+                </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-200 mb-2">最初の状況</label>
                     <Textarea 
@@ -992,9 +1112,18 @@ export default function CharacterForm({ isEditMode, initialData, session, status
 
         <div style={{ display: step === 7 ? 'block' : 'none' }} className="min-h-[400px]">
             <div className="space-y-4 sm:space-y-6 bg-gray-900/30 rounded-lg p-4 sm:p-6">
-                <div className="p-3 sm:p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
                     <h3 className="font-bold text-lg">キャラクター情報</h3>
-                    <p className="text-sm text-gray-400 mt-1">キャラクターの追加情報を入力します。</p>
+                    <Button 
+                        onClick={handleGenerateDatePlace} 
+                        disabled={isGeneratingDatePlace || !form.firstSituation}
+                        className="bg-pink-600 hover:bg-pink-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                    >
+                        {isGeneratingDatePlace ? '生成中...' : '自動生成'}
+                    </Button>
+                </div>
+                <div className="p-3 sm:p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                    <p className="text-sm text-gray-400">キャラクターの追加情報を入力します。</p>
                 </div>
                 <div>
                     <label htmlFor="firstSituationDate" className="block text-sm font-medium text-gray-300 mb-2">日付</label>
