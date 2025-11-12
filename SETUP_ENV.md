@@ -11,7 +11,19 @@
    - **Project URL** (例: `https://abcdefgh.supabase.co`)
    - **anon public key** (例: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`)
 
-### 2️⃣ **Netlify環境変数設定** ⭐ 重要
+### 2️⃣ **ローカル開発環境設定** ⭐ 重要
+
+プロジェクトルートに `.env.local` ファイルを作成し、以下を追加:
+
+```bash
+# .env.local
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**💡 Note:** `.env.local` ファイルは `.gitignore` に含まれているため、Gitにコミットされません。
+
+### 3️⃣ **Netlify環境変数設定** ⭐ 重要
 
 Netlify Dashboard → Site configuration → Environment variables → **Add a variable** で以下2つを追加:
 
