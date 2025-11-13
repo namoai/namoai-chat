@@ -52,69 +52,90 @@ export default function ChangePasswordPage() {
     };
 
     return (
-        <div className="bg-black min-h-screen text-white flex flex-col items-center">
-            <div className="w-full max-w-2xl">
-                <header className="flex items-center p-4 sticky top-0 bg-black/80 backdrop-blur-sm z-10">
-                    <button onClick={() => window.history.back()} className="p-2 rounded-full hover:bg-gray-700 transition-colors">
-                        <ArrowLeft />
-                    </button>
-                    <h1 className="font-bold text-lg mx-auto">パスワード変更</h1>
-                </header>
-                
-                <main className="p-4 md:p-8">
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-2" htmlFor="currentPassword">
-                                現在のパスワード
-                            </label>
-                            <input
-                                id="currentPassword"
-                                type="password"
-                                value={currentPassword}
-                                onChange={(e) => setCurrentPassword(e.target.value)}
-                                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-2" htmlFor="newPassword">
-                                新しいパスワード
-                            </label>
-                            <input
-                                id="newPassword"
-                                type="password"
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-2" htmlFor="confirmPassword">
-                                新しいパスワード (確認)
-                            </label>
-                            <input
-                                id="confirmPassword"
-                                type="password"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
-                                required
-                            />
-                        </div>
-                        
-                        {error && <p className="text-red-500 text-center">{error}</p>}
-                        {success && <p className="text-green-500 text-center">{success}</p>}
-                        
-                        <button 
-                            type="submit" 
-                            disabled={isLoading}
-                            className="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-pink-800 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-                        >
-                           <KeyRound size={18} /> {isLoading ? '変更中...' : 'パスワードを変更'}
+        <div className="bg-black min-h-screen text-white">
+            {/* 背景装飾 */}
+            <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
+                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+            </div>
+
+            <div className="relative z-10">
+                <div className="max-w-2xl mx-auto px-4 md:px-6 py-6 pb-24">
+                    <header className="flex items-center justify-center mb-8 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50 relative">
+                        <button onClick={() => window.history.back()} className="absolute left-4 md:left-6 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
+                            <ArrowLeft size={24} />
                         </button>
-                    </form>
-                </main>
+                        <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                            パスワード変更
+                        </h1>
+                    </header>
+                    
+                    <main>
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
+                                <label className="block text-sm font-medium text-gray-300 mb-2" htmlFor="currentPassword">
+                                    現在のパスワード
+                                </label>
+                                <input
+                                    id="currentPassword"
+                                    type="password"
+                                    value={currentPassword}
+                                    onChange={(e) => setCurrentPassword(e.target.value)}
+                                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all placeholder-gray-500"
+                                    placeholder="現在のパスワードを入力"
+                                    required
+                                />
+                            </div>
+                            <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
+                                <label className="block text-sm font-medium text-gray-300 mb-2" htmlFor="newPassword">
+                                    新しいパスワード
+                                </label>
+                                <input
+                                    id="newPassword"
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all placeholder-gray-500"
+                                    placeholder="新しいパスワードを入力（8文字以上）"
+                                    required
+                                />
+                            </div>
+                            <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
+                                <label className="block text-sm font-medium text-gray-300 mb-2" htmlFor="confirmPassword">
+                                    新しいパスワード (確認)
+                                </label>
+                                <input
+                                    id="confirmPassword"
+                                    type="password"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all placeholder-gray-500"
+                                    placeholder="新しいパスワードを再入力"
+                                    required
+                                />
+                            </div>
+                            
+                            {error && (
+                                <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl text-center">
+                                    {error}
+                                </div>
+                            )}
+                            {success && (
+                                <div className="bg-green-500/10 border border-green-500/30 text-green-400 px-4 py-3 rounded-xl text-center">
+                                    {success}
+                                </div>
+                            )}
+                            
+                            <button 
+                                type="submit" 
+                                disabled={isLoading}
+                                className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-4 px-6 rounded-xl transition-all shadow-lg shadow-pink-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                            >
+                                <KeyRound size={20} /> {isLoading ? '変更中...' : 'パスワードを変更'}
+                            </button>
+                        </form>
+                    </main>
+                </div>
             </div>
         </div>
     );

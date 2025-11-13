@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 // ▼▼▼【修正点】未使用の 'X' アイコンを削除しました ▼▼▼
-import { Search, MoreVertical, Edit, Trash2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Search, MoreVertical, Edit, Trash2, Eye, EyeOff, ArrowLeft, Star, StarOff } from 'lucide-react';
 
 // 型定義
 type Character = {
@@ -13,6 +14,7 @@ type Character = {
   name: string;
   description: string | null;
   visibility: string | null;
+  isOfficial?: boolean;
   author: { nickname: string | null } | null;
   characterImages: { imageUrl: string }[];
 };
@@ -62,17 +64,30 @@ const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalSta
 // ケバブメニューコンポーネント
 const KebabMenu = ({ character, onAction }: { character: Character, onAction: (action: string, char: Character) => void }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+      if (
+        buttonRef.current?.contains(event.target as Node) ||
+        menuRef.current?.contains(event.target as Node)
+      ) {
+        return;
       }
+      setIsOpen(false);
     };
-    document.addEventListener("mousedown", handleClickOutside);
+    if (isOpen && buttonRef.current) {
+      document.addEventListener("mousedown", handleClickOutside);
+      const rect = buttonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.right + window.scrollX - 192, // メニュー幅192px
+      });
+    }
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [isOpen]);
 
   const handleAction = (action: string) => {
     setIsOpen(false);
@@ -80,25 +95,41 @@ const KebabMenu = ({ character, onAction }: { character: Character, onAction: (a
   };
 
   return (
-    <div className="relative" ref={menuRef}>
-      <button onClick={() => setIsOpen(!isOpen)} className="p-2 rounded-full hover:bg-gray-700">
+    <>
+      <button ref={buttonRef} onClick={() => setIsOpen(!isOpen)} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
         <MoreVertical size={20} />
       </button>
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg z-20 text-sm">
-          <button onClick={() => handleAction('toggleVisibility')} className="w-full text-left flex items-center gap-2 px-4 py-2 hover:bg-gray-700">
-            {character.visibility === 'private' ? <Eye size={16} /> : <EyeOff size={16} />}
-            {character.visibility === 'private' ? '公開に切り替え' : '非公開に切り替え'}
-          </button>
-          <button onClick={() => handleAction('edit')} className="w-full text-left flex items-center gap-2 px-4 py-2 hover:bg-gray-700">
-            <Edit size={16} /> 修正
-          </button>
-          <button onClick={() => handleAction('delete')} className="w-full text-left flex items-center gap-2 px-4 py-2 hover:bg-gray-700 text-red-400">
-            <Trash2 size={16} /> 削除
-          </button>
-        </div>
-      )}
-    </div>
+      {isOpen &&
+        typeof window !== "undefined" &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="fixed w-48 bg-gray-800/95 backdrop-blur-xl rounded-xl shadow-2xl z-[9999] text-sm border border-gray-700/50 py-2"
+            style={{
+              top: `${menuPosition.top}px`,
+              left: `${menuPosition.left}px`,
+            }}
+          >
+            <button onClick={() => handleAction('toggleOfficial')} className="w-full text-left flex items-center gap-2 px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 group">
+              {character.isOfficial ? <StarOff size={16} className="text-yellow-400 group-hover:scale-110 group-hover:text-yellow-300 transition-all duration-300" /> : <Star size={16} className="text-yellow-400 group-hover:scale-110 group-hover:text-yellow-300 transition-all duration-300" />}
+              <span className="group-hover:translate-x-1 transition-transform duration-300">{character.isOfficial ? 'ナモアイフレンズから削除' : 'ナモアイフレンズに登録'}</span>
+            </button>
+            <button onClick={() => handleAction('toggleVisibility')} className="w-full text-left flex items-center gap-2 px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 group">
+              {character.visibility === 'private' ? <Eye size={16} className="text-white group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" /> : <EyeOff size={16} className="text-white group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" />}
+              <span className="group-hover:translate-x-1 transition-transform duration-300">{character.visibility === 'private' ? '公開に切り替え' : '非公開に切り替え'}</span>
+            </button>
+            <button onClick={() => handleAction('edit')} className="w-full text-left flex items-center gap-2 px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 group">
+              <Edit size={16} className="text-white group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" /> 
+              <span className="group-hover:translate-x-1 transition-transform duration-300">修正</span>
+            </button>
+            <button onClick={() => handleAction('delete')} className="w-full text-left flex items-center gap-2 px-4 py-2 !text-red-400 hover:bg-gradient-to-r hover:from-red-500/20 hover:via-pink-500/20 hover:to-red-500/20 hover:text-red-300 hover:shadow-lg hover:shadow-red-500/30 transition-all duration-300 group">
+              <Trash2 size={16} className="text-red-400 group-hover:scale-110 group-hover:text-red-300 transition-all duration-300" /> 
+              <span className="group-hover:translate-x-1 transition-transform duration-300">削除</span>
+            </button>
+          </div>,
+          document.body
+        )}
+    </>
   );
 };
 
@@ -163,6 +194,28 @@ export default function AdminCharactersPage() {
 
   const handleMenuAction = (action: string, char: Character) => {
     switch (action) {
+      case 'toggleOfficial':
+        const newOfficialStatus = !char.isOfficial;
+        setModalState({
+          isOpen: true,
+          title: 'ナモアイフレンズ',
+          message: `このキャラクターを${newOfficialStatus ? 'ナモアイフレンズに登録' : 'ナモアイフレンズから削除'}しますか？`,
+          confirmText: newOfficialStatus ? '登録' : '削除',
+          onConfirm: async () => {
+            const res = await fetch('/api/admin/characters', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: char.id, isOfficial: newOfficialStatus }),
+            });
+            if (res.ok) {
+              setModalState({ isOpen: true, title: '成功', message: `${newOfficialStatus ? 'ナモアイフレンズに登録' : 'ナモアイフレンズから削除'}しました。`, isAlert: true });
+              fetchCharacters(currentPage, debouncedQuery);
+            } else {
+              setModalState({ isOpen: true, title: 'エラー', message: '更新に失敗しました。', isAlert: true });
+            }
+          }
+        });
+        break;
       case 'toggleVisibility':
         const newVisibility = char.visibility === 'private' ? 'public' : 'private';
         setModalState({
@@ -212,82 +265,114 @@ export default function AdminCharactersPage() {
     }
   };
 
-  return (
-    <div className="bg-black text-white min-h-screen p-4 sm:p-8">
-      <ConfirmationModal modalState={modalState} setModalState={setModalState} />
-
-      <div className="max-w-7xl mx-auto">
-        <header className="flex items-center mb-6">
-          <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-gray-700">
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="text-2xl font-bold ml-4">キャラクター管理</h1>
-        </header>
-
-        <div className="relative mb-6">
-          <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="キャラクター名で検索..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white focus:ring-pink-500 focus:border-pink-500"
-          />
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-black text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <p className="text-gray-400">読み込み中...</p>
         </div>
+      </div>
+    );
+  }
 
-        {loading ? (
-          <p className="text-center py-16">読み込み中...</p>
-        ) : (
-          <>
-            <div className="space-y-4">
-              {characters.length > 0 ? characters.map(char => (
-                <div key={char.id} className="bg-gray-900 p-4 rounded-lg flex items-center gap-4 flex-wrap">
-                  <Link href={`/characters/${char.id}`} className="flex items-center gap-4 flex-grow min-w-[200px]">
-                    <Image
-                      src={char.characterImages[0]?.imageUrl || 'https://placehold.co/64x64/1a1a1a/ffffff?text=?'}
-                      alt={char.name}
-                      width={64}
-                      height={64}
-                      className="rounded-md object-cover flex-shrink-0"
-                    />
-                    <div className="flex-grow overflow-hidden">
-                      <p className="font-bold truncate">{char.name}</p>
-                      <p className="text-sm text-gray-400 truncate">{char.description || '説明がありません'}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        作成者: {char.author?.nickname || '不明'} | 状態: {char.visibility === 'private' ? '非公開' : '公開'}
+  return (
+    <div className="bg-black text-white min-h-screen" style={{ overflow: 'visible' }}>
+      {/* 背景装飾 */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10" style={{ overflow: 'visible' }}>
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 pb-24" style={{ overflow: 'visible' }}>
+          <ConfirmationModal modalState={modalState} setModalState={setModalState} />
+
+          <header className="flex items-center mb-8">
+            <button onClick={() => router.back()} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
+              <ArrowLeft size={24} />
+            </button>
+            <h1 className="text-2xl md:text-3xl font-bold ml-4 bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              キャラクター管理
+            </h1>
+          </header>
+
+          <div className="relative mb-6">
+            <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="キャラクター名で検索..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-xl pl-12 pr-4 py-3 text-white focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all placeholder-gray-500"
+            />
+          </div>
+
+          <div className="space-y-4" style={{ overflow: 'visible' }}>
+            {characters.length > 0 ? characters.map(char => (
+              <div key={char.id} className="bg-gray-900/50 backdrop-blur-sm p-4 md:p-6 rounded-2xl border border-gray-800/50 hover:border-pink-500/30 transition-all group relative" style={{ overflow: 'visible' }}>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <Link href={`/characters/${char.id}`} className="flex items-center gap-4 flex-grow min-w-0 group/link">
+                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-gray-800 to-gray-900 ring-2 ring-pink-500/20 group-hover:ring-pink-500/50 transition-all">
+                      <Image
+                        src={char.characterImages[0]?.imageUrl || 'https://placehold.co/80x80/1a1a1a/ffffff?text=?'}
+                        alt={char.name}
+                        fill
+                        className="object-cover group-hover/link:scale-110 transition-transform duration-300"
+                        sizes="80px"
+                      />
+                    </div>
+                    <div className="flex-grow min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <p className="font-bold text-lg group-hover/link:text-pink-400 transition-colors truncate">{char.name}</p>
+                        {char.isOfficial && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-yellow-500/20 via-pink-500/20 to-purple-500/20 rounded-full text-xs text-pink-400 border border-pink-500/30">
+                            <Star size={12} className="fill-pink-400" />
+                            ナモアイフレンズ
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-400 mb-2 line-clamp-2">{char.description || '説明がありません'}</p>
+                      <p className="text-xs text-gray-500">
+                        作成者: <span className="text-gray-400">{char.author?.nickname || '不明'}</span> | 
+                        状態: <span className={char.visibility === 'private' ? 'text-red-400' : 'text-green-400'}>
+                          {char.visibility === 'private' ? '非公開' : '公開'}
+                        </span>
                       </p>
                     </div>
                   </Link>
-                  <div className="ml-auto">
+                  <div className="ml-auto flex-shrink-0">
                     <KebabMenu character={char} onAction={handleMenuAction} />
                   </div>
                 </div>
-              )) : (
-                <p className="text-center text-gray-500 py-16">該当するキャラクターがいません。</p>
-              )}
-            </div>
-
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-4 mt-8">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 bg-gray-800 rounded-lg disabled:opacity-50"
-                >
-                  前へ
-                </button>
-                <span className="font-semibold">{currentPage} / {totalPages}</span>
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-4 py-2 bg-gray-800 rounded-lg disabled:opacity-50"
-                >
-                  次へ
-                </button>
+              </div>
+            )) : (
+              <div className="text-center py-16">
+                <p className="text-gray-500 text-lg">該当するキャラクターがいません。</p>
               </div>
             )}
-          </>
-        )}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-4 mt-8">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 bg-gray-800/50 hover:bg-gray-700/50 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all border border-gray-700/50"
+              >
+                前へ
+              </button>
+              <span className="font-semibold px-4">{currentPage} / {totalPages}</span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 bg-gray-800/50 hover:bg-gray-700/50 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all border border-gray-700/50"
+              >
+                次へ
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -166,7 +166,14 @@ function PersonaListComponent() {
   // ▲▲▲【修正完了】▲▲▲
 
   if (isLoading) {
-    return <div className="min-h-screen bg-black text-white flex items-center justify-center">ローディング中...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-black text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <p className="text-gray-400">読み込み中...</p>
+        </div>
+      </div>
+    );
   }
 
   const personaQuery = searchParams.toString();
@@ -174,54 +181,85 @@ function PersonaListComponent() {
   return (
     <>
       <CustomModal state={modalState} />
-      <div className="bg-black min-h-screen text-white p-4">
-        <header className="text-center py-4 relative">
-          <button 
-            onClick={handleGoBack} 
-            className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="text-lg font-bold">ペルソナ</h1>
-        </header>
-        <div className="mt-4">
-          <p className="text-sm text-gray-400">ペルソナを設定して、役割に合ったキャラクターと会話できます。</p>
-          <p className="text-sm text-gray-400 mt-1">生成されたキャラクターの制作者は、あなたの基本プロフィールとニックネームを閲覧できます。</p>
+      <div className="bg-black min-h-screen text-white">
+        {/* 背景装飾 */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
         </div>
-        <main className="mt-6 space-y-4">
-          {personas.map(p => (
-            <div 
-              key={p.id}
-              onClick={() => handleSelectPersona(p.id)}
-              className={`p-4 rounded-lg cursor-pointer transition-all border relative ${selectedId === p.id ? 'bg-pink-500/20 border-pink-500' : 'bg-gray-800 border-gray-700 hover:border-gray-600'}`}
-            >
-              <div className="flex justify-between items-start">
-                <div className="flex-grow">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-white">{p.nickname}</h3>
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${selectedId === p.id ? 'border-pink-500 bg-pink-500' : 'border-gray-500'}`}>
-                      {selectedId === p.id && <Check size={14} className="text-white" />}
+
+        <div className="relative z-10">
+          <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-24">
+            <header className="text-center py-6 mb-6 relative">
+              <button 
+                onClick={handleGoBack} 
+                className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+              >
+                <ArrowLeft size={24} />
+              </button>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                ペルソナ
+              </h1>
+            </header>
+            <div className="mb-8 bg-gray-900/50 backdrop-blur-sm p-4 rounded-2xl border border-gray-800/50">
+              <p className="text-sm text-gray-300 leading-relaxed">ペルソナを設定して、役割に合ったキャラクターと会話できます。</p>
+              <p className="text-sm text-gray-400 mt-2 leading-relaxed">生成されたキャラクターの制作者は、あなたの基本プロフィールとニックネームを閲覧できます。</p>
+            </div>
+            <main className="space-y-4">
+              {personas.map(p => (
+                <div 
+                  key={p.id}
+                  onClick={() => handleSelectPersona(p.id)}
+                  className={`p-5 rounded-2xl cursor-pointer transition-all border relative group ${
+                    selectedId === p.id 
+                      ? 'bg-gradient-to-br from-pink-500/20 to-purple-500/20 border-pink-500/50 shadow-lg shadow-pink-500/20' 
+                      : 'bg-gray-900/50 backdrop-blur-sm border-gray-800/50 hover:border-pink-500/30 hover:bg-gray-800/50'
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex-grow min-w-0 pr-16">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className={`font-bold text-lg ${selectedId === p.id ? 'text-pink-400' : 'text-white group-hover:text-pink-400'} transition-colors`}>
+                          {p.nickname}
+                        </h3>
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
+                          selectedId === p.id 
+                            ? 'border-pink-500 bg-pink-500 shadow-lg shadow-pink-500/50' 
+                            : 'border-gray-500 group-hover:border-pink-500/50'
+                        }`}>
+                          {selectedId === p.id && <Check size={16} className="text-white" />}
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-400 mb-2">{p.gender || '未設定'} | {p.age ? `${p.age}歳` : '未設定'}</p>
+                      <p className="text-sm text-gray-300 leading-relaxed">{p.description}</p>
+                    </div>
+                    <div className="absolute top-4 right-4 flex gap-1">
+                      <Link 
+                        href={`/persona/form/${p.id}?${personaQuery}`} 
+                        onClick={(e) => e.stopPropagation()} 
+                        className="p-2 text-gray-400 hover:text-pink-400 hover:bg-pink-500/10 rounded-xl transition-all"
+                      >
+                        <Pencil size={18} />
+                      </Link>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); openDeleteModal(p); }} 
+                        className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
+                      >
+                        <Trash2 size={18} />
+                      </button>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-400 mt-1">{p.gender || '未設定'} | {p.age ? `${p.age}歳` : '未設定'}</p>
-                  <p className="text-sm text-gray-300 mt-2 pr-16 truncate">{p.description}</p>
                 </div>
-                <div className="absolute top-3 right-3 flex gap-1">
-                  <Link href={`/persona/form/${p.id}?${personaQuery}`} onClick={(e) => e.stopPropagation()} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors cursor-pointer">
-                    <Pencil size={16} />
-                  </Link>
-                  <button onClick={(e) => { e.stopPropagation(); openDeleteModal(p); }} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-gray-700 rounded-full transition-colors cursor-pointer">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-          <Link href={`/persona/form?${personaQuery}`} className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-600 rounded-lg text-gray-400 hover:bg-gray-800 hover:border-gray-500 transition-colors cursor-pointer">
-            <Plus size={20} />
-            ペルソナ追加
-          </Link>
-        </main>
+              ))}
+              <Link 
+                href={`/persona/form?${personaQuery}`} 
+                className="w-full flex items-center justify-center gap-2 p-5 border-2 border-dashed border-gray-700/50 rounded-2xl text-gray-400 hover:bg-gray-900/50 hover:border-pink-500/50 hover:text-pink-400 transition-all group"
+              >
+                <Plus size={20} className="group-hover:scale-110 transition-transform" />
+                <span className="font-semibold">ペルソナ追加</span>
+              </Link>
+            </main>
+          </div>
+        </div>
       </div>
     </>
   );

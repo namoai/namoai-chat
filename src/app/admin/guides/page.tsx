@@ -181,21 +181,37 @@ export default function AdminGuidesPage() {
   };
 
   if (loading) {
-    return <div className="bg-black text-white min-h-screen flex justify-center items-center">読み込み中...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-black text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <p className="text-gray-400">読み込み中...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="bg-black text-white min-h-screen p-4 sm:p-8">
       <ConfirmationModal modalState={modalState} setModalState={setModalState} />
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">ガイド管理</h1>
-          {/* ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更 ▼▼▼ */}
-          <Link href="/guide" className="flex items-center bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold py-2 px-4 rounded-lg transition-colors">
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.push('/admin')}
+              className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+              ガイド管理
+            </h1>
+          </div>
+          <Link href="/guide" className="flex items-center bg-gray-800/50 hover:bg-gray-700/50 text-white text-sm font-semibold py-2 px-4 rounded-xl transition-all border border-gray-700/50">
             <ArrowLeft size={16} className="mr-2" />
             ユーザーガイドに戻る
           </Link>
-        </div>
+        </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1">

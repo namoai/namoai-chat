@@ -56,18 +56,20 @@ type SettingItemProps = {
 
 const SettingItem = ({ icon, label, onClick, href, hasSwitch = false, switchState = false, onSwitchChange = () => {} }: SettingItemProps) => {
     const content = (
-        <div className="flex items-center justify-between w-full p-3 text-left hover:bg-gray-700 rounded-md transition-colors">
-            <div className="flex items-center">
-            {icon}
-            <span className="ml-3">{label}</span>
+        <div className="flex items-center justify-between w-full p-4 text-left hover:bg-pink-500/10 rounded-xl transition-all duration-200 group">
+            <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-pink-500/20 to-purple-500/20 group-hover:from-pink-500/30 group-hover:to-purple-500/30 transition-all">
+                    {icon}
+                </div>
+                <span className="text-base group-hover:text-pink-300 transition-colors">{label}</span>
             </div>
             {hasSwitch ? (
             <label className="relative inline-flex items-center cursor-pointer" onClick={(e) => e.stopPropagation()}>
                 <input type="checkbox" checked={switchState} onChange={onSwitchChange} className="sr-only peer" />
-                <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-pink-500 peer-checked:to-purple-600"></div>
             </label>
             ) : (
-            <ChevronRight className="text-gray-500" />
+            <ChevronRight className="text-gray-400 group-hover:text-pink-400 group-hover:translate-x-1 transition-all" />
             )}
         </div>
     );
@@ -86,16 +88,21 @@ const NoteModal = ({ note, onSave, onClose }: { note: string; onSave: (note: str
       onClose();
     };
     return (
-      <div className="absolute inset-0 bg-gray-800 z-10 flex flex-col p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold">ユーザーノート</h3>
-          <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-full"><X size={20} /></button>
+      <div className="absolute inset-0 bg-gray-900/95 backdrop-blur-xl z-10 flex flex-col p-6 border-l border-gray-800/50">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">ユーザーノート</h3>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"><X size={20} /></button>
         </div>
-        <div className="relative flex-1">
-          <textarea value={currentNote} onChange={(e) => setCurrentNote(e.target.value)} className="w-full h-full bg-gray-900 border border-gray-700 rounded-md p-2 resize-none" placeholder="キャラクターとの対話に影響を与える設定やメモを入力します。" />
-          <div className={`absolute bottom-2 right-2 text-sm ${currentNote.length > 1000 ? 'text-red-500' : 'text-gray-400'}`}>{currentNote.length} / 1000</div>
+        <div className="relative flex-1 bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-4">
+          <textarea 
+            value={currentNote} 
+            onChange={(e) => setCurrentNote(e.target.value)} 
+            className="w-full h-full bg-transparent border-none rounded-md p-2 resize-none text-white placeholder-gray-500 focus:outline-none" 
+            placeholder="キャラクターとの対話に影響を与える設定やメモを入力します。" 
+          />
+          <div className={`absolute bottom-4 right-4 text-sm font-medium ${currentNote.length > 1000 ? 'text-red-400' : 'text-gray-400'}`}>{currentNote.length} / 1000</div>
         </div>
-        <button onClick={handleSave} disabled={isSaving || currentNote.length > 1000} className="mt-4 w-full bg-pink-600 hover:bg-pink-700 disabled:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">
+        <button onClick={handleSave} disabled={isSaving || currentNote.length > 1000} className="mt-6 w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50 disabled:shadow-none">
           {isSaving ? '保存中...' : '保存'}
         </button>
       </div>
@@ -104,13 +111,13 @@ const NoteModal = ({ note, onSave, onClose }: { note: string; onSave: (note: str
 
 const SaveConversationModal = ({ onSaveAsTxt, onClose }: { onSaveAsTxt: () => void; onClose: () => void; }) => {
     return (
-        <div className="absolute inset-0 bg-gray-800 z-10 flex flex-col p-4">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold">会話内容を保存</h3>
-                <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-full"><X size={20} /></button>
+        <div className="absolute inset-0 bg-gray-900/95 backdrop-blur-xl z-10 flex flex-col p-6 border-l border-gray-800/50">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">会話内容を保存</h3>
+                <button onClick={onClose} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"><X size={20} /></button>
             </div>
             <div className="flex flex-col gap-3">
-                <button onClick={onSaveAsTxt} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md">
+                <button onClick={onSaveAsTxt} className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/50">
                     テキスト (.txt) で保存
                 </button>
             </div>
@@ -136,35 +143,41 @@ const StyleSettingsModal = ({ settings, onSave, onClose }: { settings: ChatStyle
     };
 
     return (
-        <div className="absolute inset-0 bg-gray-800 z-20 flex flex-col p-4">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold">チャット表示設定</h3>
-                <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-full"><X size={20} /></button>
+        <div className="absolute inset-0 bg-gray-900/95 backdrop-blur-xl z-20 flex flex-col p-6 border-l border-gray-800/50">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">チャット表示設定</h3>
+                <button onClick={onClose} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"><X size={20} /></button>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-6">
                 {/* フォントサイズ設定 */}
-                <div>
-                    <h4 className="font-semibold mb-3 flex items-center"><Type size={16} className="mr-2"/>フォントサイズ</h4>
+                <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
+                    <h4 className="font-semibold mb-4 flex items-center text-gray-200"><Type size={18} className="mr-2 text-pink-400"/>フォントサイズ</h4>
                     <div className="flex items-center gap-4">
-                        <input type="range" min="12" max="18" step="1" value={localSettings.fontSize} onChange={(e) => setLocalSettings(prev => ({...prev, fontSize: parseInt(e.target.value)}))} className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-pink-500"/>
-                        <span className="font-bold text-pink-400 w-12 text-center">{localSettings.fontSize}px</span>
+                        <input type="range" min="12" max="18" step="1" value={localSettings.fontSize} onChange={(e) => setLocalSettings(prev => ({...prev, fontSize: parseInt(e.target.value)}))} className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-pink-500"/>
+                        <span className="font-bold text-pink-400 w-12 text-center bg-gray-800/50 px-2 py-1 rounded-lg">{localSettings.fontSize}px</span>
                     </div>
                 </div>
 
                 {/* ユーザーのチャットバブル色設定 */}
-                <div>
-                    <h4 className="font-semibold mb-3 flex items-center"><Palette size={16} className="mr-2"/>自分の吹き出し色</h4>
+                <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
+                    <h4 className="font-semibold mb-4 flex items-center text-gray-200"><Palette size={18} className="mr-2 text-pink-400"/>自分の吹き出し色</h4>
                     <div className="grid grid-cols-4 gap-3">
                         {COLOR_OPTIONS.map(color => (
-                            <button key={color.name} onClick={() => setLocalSettings(prev => ({...prev, userBubbleColor: color.bubbleColor, userBubbleTextColor: color.textColor}))} className={`w-full h-10 rounded-md transition-all ${localSettings.userBubbleColor === color.bubbleColor ? 'ring-2 ring-offset-2 ring-offset-gray-800 ring-white' : ''}`} style={{ backgroundColor: color.bubbleColor }} aria-label={color.name} />
+                            <button 
+                                key={color.name} 
+                                onClick={() => setLocalSettings(prev => ({...prev, userBubbleColor: color.bubbleColor, userBubbleTextColor: color.textColor}))} 
+                                className={`w-full h-12 rounded-xl transition-all shadow-lg hover:scale-105 ${localSettings.userBubbleColor === color.bubbleColor ? 'ring-2 ring-pink-400 ring-offset-2 ring-offset-gray-900' : 'hover:ring-2 hover:ring-gray-600'}`} 
+                                style={{ backgroundColor: color.bubbleColor }} 
+                                aria-label={color.name} 
+                            />
                         ))}
                     </div>
                 </div>
             </div>
 
-            <div className="mt-auto pt-4 border-t border-gray-700">
-                <button onClick={handleSave} className="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-4 rounded-md transition-colors">設定を保存</button>
+            <div className="mt-auto pt-6 border-t border-gray-800/50">
+                <button onClick={handleSave} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50">設定を保存</button>
             </div>
         </div>
     );
@@ -382,23 +395,34 @@ export default function ChatSettings({
   const handleSaveStyleSettings = (newSettings: ChatStyleSettings) => { onChatStyleSettingsChange(newSettings); setIsStyleModalOpen(false); };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={onClose}>
-      <div className="fixed top-0 right-0 h-full w-80 bg-gray-800 text-white shadow-lg z-50 flex flex-col transition-transform duration-300 ease-in-out" style={{ transform: isOpen ? 'translateX(0)' : 'translateX(100%)' }} onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-3 right-3 p-2 hover:bg-gray-700 rounded-full z-30"><X size={24} /></button>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={onClose}>
+      <div className="fixed top-0 right-0 h-full w-80 bg-gray-900/95 backdrop-blur-xl text-white shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out border-l border-gray-800/50" style={{ transform: isOpen ? 'translateX(0)' : 'translateX(100%)' }} onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all z-30"><X size={24} /></button>
         <>
-            <div className="p-4 border-b border-gray-700 flex justify-between items-center"><h2 className="text-lg font-bold">チャットルーム管理</h2><div className="text-sm text-yellow-400 font-semibold">保有: {userPoints} P</div></div>
-            <div className="p-2 space-y-1">
-                <SettingItem icon={<ImageIcon size={20} />} label="チャットイメージ" hasSwitch={true} switchState={showChatImage} onSwitchChange={() => onShowChatImageChange(!showChatImage)} />
-                <SettingItem icon={<Film size={20} />} label="マルチイメージ" hasSwitch={true} switchState={isMultiImage} onSwitchChange={() => onIsMultiImageChange(!isMultiImage)} />
-                <SettingItem icon={<Palette size={20} />} label="チャット表示設定" onClick={() => setIsStyleModalOpen(true)} />
-                <SettingItem icon={<MessageSquare size={20} />} label="会話内容を保存" onClick={() => setIsSaveModalOpen(true)} />
-                <SettingItem icon={<BookUser size={20} />} label="ユーザーノート" onClick={() => setNoteModalOpen(true)} />
-                <SettingItem icon={<FileText size={20} />} label="ペルソナ" href={personaHref} />
-                <SettingItem icon={<BookOpen size={20} />} label="メモリブック" onClick={() => setIsBackMemoryModalOpen(true)} />
-                <SettingItem icon={<Brain size={20} />} label="詳細記憶" onClick={() => setIsDetailedMemoryModalOpen(true)} />
+            <div className="p-6 border-b border-gray-800/50">
+                <h2 className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent mb-2">チャットルーム管理</h2>
+                <div className="flex items-center gap-2 text-sm">
+                    <span className="text-gray-400">保有ポイント:</span>
+                    <span className="text-yellow-400 font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">{userPoints} P</span>
+                </div>
             </div>
-            <div className="p-2 mt-auto border-t border-gray-700">
-                <button onClick={onNewChat} className="flex items-center w-full p-3 text-left text-red-400 hover:bg-gray-700 rounded-md"><Trash2 size={20} /><span className="ml-3">新しいチャット</span></button>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                <SettingItem icon={<ImageIcon size={20} className="text-pink-400" />} label="チャットイメージ" hasSwitch={true} switchState={showChatImage} onSwitchChange={() => onShowChatImageChange(!showChatImage)} />
+                <SettingItem icon={<Film size={20} className="text-pink-400" />} label="マルチイメージ" hasSwitch={true} switchState={isMultiImage} onSwitchChange={() => onIsMultiImageChange(!isMultiImage)} />
+                <SettingItem icon={<Palette size={20} className="text-pink-400" />} label="チャット表示設定" onClick={() => setIsStyleModalOpen(true)} />
+                <SettingItem icon={<MessageSquare size={20} className="text-pink-400" />} label="会話内容を保存" onClick={() => setIsSaveModalOpen(true)} />
+                <SettingItem icon={<BookUser size={20} className="text-pink-400" />} label="ユーザーノート" onClick={() => setNoteModalOpen(true)} />
+                <SettingItem icon={<FileText size={20} className="text-pink-400" />} label="ペルソナ" href={personaHref} />
+                <SettingItem icon={<BookOpen size={20} className="text-pink-400" />} label="メモリブック" onClick={() => setIsBackMemoryModalOpen(true)} />
+                <SettingItem icon={<Brain size={20} className="text-pink-400" />} label="詳細記憶" onClick={() => setIsDetailedMemoryModalOpen(true)} />
+            </div>
+            <div className="p-4 mt-auto border-t border-gray-800/50">
+                <button onClick={onNewChat} className="flex items-center w-full p-4 text-left text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-200 group">
+                    <div className="p-2 rounded-lg bg-red-500/20 group-hover:bg-red-500/30 transition-all">
+                        <Trash2 size={20} className="text-red-400" />
+                    </div>
+                    <span className="ml-3 group-hover:text-red-300 transition-colors">新しいチャット</span>
+                </button>
             </div>
         </>
         {isNoteModalOpen && <NoteModal note={userNote} onSave={onSaveNote} onClose={() => setNoteModalOpen(false)} />}

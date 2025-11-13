@@ -183,23 +183,40 @@ export default function InquiriesPage() {
   });
 
   if (status === 'loading' || !session) {
-    return <div className="min-h-screen bg-black text-white flex justify-center items-center">読み込み中...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-black text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <p className="text-gray-400">読み込み中...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 pb-20">
-      <header className="flex items-center gap-4 mb-6">
-        <button onClick={() => router.push('/MyPage')} className="p-2 rounded-full hover:bg-gray-800">
-          <ArrowLeft size={24} />
-        </button>
-        <h1 className="text-2xl font-bold">お問い合わせ</h1>
-        <button
-          onClick={() => setShowInquiryModal(true)}
-          className="ml-auto bg-pink-600 hover:bg-pink-700 text-white p-2 rounded-full transition-colors"
-        >
-          <Plus size={24} />
-        </button>
-      </header>
+    <div className="min-h-screen bg-black text-white">
+      {/* 背景装飾 */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10">
+        <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-24">
+          <header className="flex items-center gap-4 mb-8 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50">
+            <button onClick={() => router.push('/MyPage')} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
+              <ArrowLeft size={24} />
+            </button>
+            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent flex-1">
+              お問い合わせ
+            </h1>
+            <button
+              onClick={() => setShowInquiryModal(true)}
+              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white p-3 rounded-xl transition-all shadow-lg shadow-pink-500/30"
+            >
+              <Plus size={24} />
+            </button>
+          </header>
 
       {/* ▼▼▼【フィルターおよび検索】▼▼▼ */}
       <div className="mb-6 space-y-4">
@@ -248,10 +265,15 @@ export default function InquiriesPage() {
       </div>
       {/* ▲▲▲ */}
 
-      {/* ▼▼▼【お問い合わせ一覧】▼▼▼ */}
-      {loading ? (
-        <div className="text-center py-8">読み込み中...</div>
-      ) : filteredReports.length === 0 ? (
+          {/* ▼▼▼【お問い合わせ一覧】▼▼▼ */}
+          {loading ? (
+            <div className="flex justify-center items-center py-16">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+                <p className="text-gray-400">読み込み中...</p>
+              </div>
+            </div>
+          ) : filteredReports.length === 0 ? (
         <div className="text-center py-8 text-gray-400">
           <p className="mb-4">お問い合わせ履歴がありません。</p>
           <button
@@ -385,8 +407,10 @@ export default function InquiriesPage() {
             </div>
           </div>
         </div>
-      )}
-      {/* ▲▲▲ */}
+          )}
+          {/* ▲▲▲ */}
+        </div>
+      </div>
     </div>
   );
 }

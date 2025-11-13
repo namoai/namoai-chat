@@ -70,82 +70,108 @@ export default function CharListPage() {
 
   return (
     <div className="bg-black min-h-screen text-white">
-      <div className="sticky top-0 bg-black z-10 p-4">
-        <header className="relative flex justify-center items-center mb-4">
-            {/* ▼▼▼【修正点】router.back()で前のページに戻ります ▼▼▼ */}
-            <button onClick={() => router.back()} className="absolute left-0 p-2 rounded-full hover:bg-pink-500/20 transition-colors">
-              <ArrowLeft size={24} />
-            </button>
-            <h1 className="text-xl font-bold">キャラクター一覧</h1>
-        </header>
-        <div className="overflow-x-auto whitespace-nowrap pb-2 -mx-4 px-4">
-          {tags.map(tag => (
-            <button
-              key={tag}
-              onClick={() => setActiveTag(tag)}
-              className={`inline-block px-4 py-2 mr-2 rounded-full text-sm font-semibold transition-colors ${
-                activeTag === tag ? 'bg-pink-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
+      {/* 背景装飾 */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
       </div>
 
-      <div className="p-4">
-        <div className="flex justify-end mb-4">
-          <div className="relative">
-            <button onClick={() => setIsSortMenuOpen(!isSortMenuOpen)} className="flex items-center text-sm text-gray-300 hover:text-white transition-colors">
-              {activeSort.label}
-              <ChevronDown size={16} className={`ml-1 transition-transform ${isSortMenuOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {isSortMenuOpen && (
-              <div className="absolute right-0 mt-2 w-40 bg-gray-800 rounded-md shadow-lg z-20">
-                {sortOptions.map(option => (
-                  <button
-                    key={option.key}
-                    onClick={() => handleSortChange(option)}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700"
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            )}
+      <div className="relative z-10">
+        <div className="sticky top-0 bg-black/80 backdrop-blur-xl border-b border-gray-900/50 z-10">
+          <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
+            <header className="relative flex justify-center items-center mb-4">
+              <button onClick={() => router.back()} className="absolute left-0 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
+                <ArrowLeft size={24} />
+              </button>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                キャラクター一覧
+              </h1>
+            </header>
+            <div className="overflow-x-auto whitespace-nowrap pb-2 -mx-4 px-4 scrollbar-hide">
+              {tags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => setActiveTag(tag)}
+                  className={`inline-block px-4 py-2 mr-2 rounded-full text-sm font-semibold transition-all ${
+                    activeTag === tag 
+                      ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg shadow-pink-500/30' 
+                      : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50 hover:text-white'
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {loading ? (
-          <p className="text-center">読み込み中...</p>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {characters.map(char => (
-              // ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更 ▼▼▼
-              <Link href={`/characters/${char.id}`} key={char.id} className="group">
-                <div className="relative aspect-square bg-gray-800 rounded-lg overflow-hidden">
-                  <Image
-                    src={char.characterImages[0]?.imageUrl || 'https://placehold.co/300x300/1a1a1a/ffffff?text=?'}
-                    alt={char.name}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform"
-                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                  />
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 pb-24">
+          <div className="flex justify-end mb-6">
+            <div className="relative">
+              <button 
+                onClick={() => setIsSortMenuOpen(!isSortMenuOpen)} 
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800/50 text-sm text-gray-300 hover:text-white hover:bg-gray-700/50 transition-all"
+              >
+                {activeSort.label}
+                <ChevronDown size={16} className={`transition-transform ${isSortMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isSortMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-gray-800/95 backdrop-blur-xl rounded-xl shadow-lg z-20 border border-gray-700/50">
+                  {sortOptions.map(option => (
+                    <button
+                      key={option.key}
+                      onClick={() => handleSortChange(option)}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-pink-500/10 hover:text-pink-400 transition-colors first:rounded-t-xl last:rounded-b-xl"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
                 </div>
-                <h3 className="mt-2 font-bold truncate">{char.name}</h3>
-                <p className="text-sm text-gray-400 truncate h-10">{char.description}</p>
-                <div className="flex items-center text-xs text-gray-500 mt-1">
-                  <div className="flex items-center mr-2">
-                    <MessageSquare size={12} className="mr-1" /> {char._count?.interactions ?? 0}
-                  </div>
-                  <div className="flex items-center">
-                    <Heart size={12} className="mr-1" /> {char._count?.favorites ?? 0}
-                  </div>
-                </div>
-              </Link>
-            ))}
+              )}
+            </div>
           </div>
-        )}
+
+          {loading ? (
+            <div className="flex justify-center items-center py-16">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+                <p className="text-gray-400">読み込み中...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+              {characters.map(char => (
+                <Link href={`/characters/${char.id}`} key={char.id} className="group">
+                  <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl overflow-hidden mb-3">
+                    <Image
+                      src={char.characterImages[0]?.imageUrl || 'https://placehold.co/300x400/1a1a1a/ffffff?text=?'}
+                      alt={char.name}
+                      fill
+                      className="object-cover group-hover:scale-110 transition-transform duration-500"
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                    />
+                    {/* ホバー時のグラデーションオーバーレイ */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-pink-500/0 via-purple-500/0 to-pink-500/0 group-hover:from-pink-500/20 group-hover:via-purple-500/10 group-hover:to-pink-500/20 transition-all duration-500" />
+                  </div>
+                  <h3 className="font-semibold text-white mb-1 truncate group-hover:text-pink-400 transition-colors">
+                    {char.name}
+                  </h3>
+                  <p className="text-sm text-gray-400 truncate line-clamp-2 mb-2">{char.description}</p>
+                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <MessageSquare size={12} /> 
+                      <span>{char._count?.interactions ?? 0}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Heart size={12} /> 
+                      <span>{char._count?.favorites ?? 0}</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

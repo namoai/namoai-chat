@@ -532,7 +532,16 @@ export default function CharacterDetailPage({
       }
   };
 
-  if (loading || sessionStatus === 'loading') return <div className="min-h-screen bg-black text-white flex justify-center items-center"><p>読み込み中...</p></div>;
+  if (loading || sessionStatus === 'loading') {
+    return (
+      <div className="flex h-screen items-center justify-center bg-black text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <p className="text-gray-400">読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
   
   if (error) {
     const isBlockedError = error.includes('ブロックされている');
@@ -560,171 +569,205 @@ export default function CharacterDetailPage({
   
   return (
     <div className="bg-black text-white min-h-screen font-sans">
-      <ConfirmationModal modalState={modalState} setModalState={setModalState} />
-      
-      {/* ▼▼▼【通報確認モーダル】▼▼▼ */}
-      {showReportConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex justify-center items-center">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-sm m-4 text-white">
-            <h2 className="text-xl font-bold mb-4">通報しますか？</h2>
-            <p className="text-gray-200 mb-6">通報内容は管理者に送信されます。</p>
-            <div className="flex justify-between gap-4">
-              <button onClick={() => setShowReportConfirm(false)} className="px-4 py-2 bg-gray-600 text-white hover:bg-gray-500 rounded-lg">
-                キャンセル
-              </button>
-              <button onClick={handleReportConfirm} className="px-4 py-2 bg-red-600 text-white hover:bg-red-500 rounded-lg">
-                通報する
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* ▲▲▲ */}
+      {/* 背景装飾 */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+      </div>
 
-      {/* ▼▼▼【通報モーダル】▼▼▼ */}
-      {showReportModal && !showReportConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex justify-center items-center">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md m-4 text-white">
-            <h2 className="text-xl font-bold mb-4">通報する</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">通報理由</label>
-                <select
-                  value={reportReason}
-                  onChange={(e) => setReportReason(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
-                >
-                  <option value="">選択してください</option>
-                  <option value="不適切なコンテンツ">不適切なコンテンツ</option>
-                  <option value="性的コンテンツ">性的コンテンツ</option>
-                  <option value="暴力的コンテンツ">暴力的コンテンツ</option>
-                  <option value="著作権侵害">著作権侵害</option>
-                  <option value="スパム">スパム</option>
-                  <option value="なりすまし">なりすまし</option>
-                  <option value="その他">その他</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">詳細内容</label>
-                <textarea
-                  value={reportContent}
-                  onChange={(e) => setReportContent(e.target.value)}
-                  placeholder="通報内容を詳しく入力してください..."
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 h-32 focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"
-                  maxLength={1000}
-                />
-                <p className="text-xs text-gray-400 mt-1 text-right">{reportContent.length} / 1000</p>
+      <div className="relative z-10">
+        <ConfirmationModal modalState={modalState} setModalState={setModalState} />
+        
+        {/* ▼▼▼【通報確認モーダル】▼▼▼ */}
+        {showReportConfirm && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex justify-center items-center p-4">
+            <div className="bg-gray-800/95 backdrop-blur-xl rounded-xl p-6 w-full max-w-sm border border-gray-700/50">
+              <h2 className="text-xl font-bold mb-4 text-white">通報しますか？</h2>
+              <p className="text-gray-200 mb-6">通報内容は管理者に送信されます。</p>
+              <div className="flex justify-between gap-4">
+                <button onClick={() => setShowReportConfirm(false)} className="px-4 py-2 bg-gray-700 text-white hover:bg-gray-600 rounded-xl transition-colors">
+                  キャンセル
+                </button>
+                <button onClick={handleReportConfirm} className="px-4 py-2 bg-red-600 text-white hover:bg-red-500 rounded-xl transition-colors">
+                  通報する
+                </button>
               </div>
             </div>
-            <div className="flex justify-between gap-4 mt-6">
-              <button onClick={() => { setShowReportModal(false); setReportReason(''); setReportContent(''); }} className="px-4 py-2 bg-gray-600 text-white hover:bg-gray-500 rounded-lg">
-                キャンセル
-              </button>
-              <button onClick={handleReportSubmit} className="px-4 py-2 bg-red-600 text-white hover:bg-red-500 rounded-lg">
-                通報受付
-              </button>
+          </div>
+        )}
+        {/* ▲▲▲ */}
+
+        {/* ▼▼▼【通報モーダル】▼▼▼ */}
+        {showReportModal && !showReportConfirm && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex justify-center items-center p-4">
+            <div className="bg-gray-800/95 backdrop-blur-xl rounded-xl p-6 w-full max-w-md border border-gray-700/50">
+              <h2 className="text-xl font-bold mb-4 text-white">通報する</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-300">通報理由</label>
+                  <select
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    className="w-full bg-gray-900/50 border border-gray-700/50 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 text-white"
+                  >
+                    <option value="">選択してください</option>
+                    <option value="不適切なコンテンツ">不適切なコンテンツ</option>
+                    <option value="性的コンテンツ">性的コンテンツ</option>
+                    <option value="暴力的コンテンツ">暴力的コンテンツ</option>
+                    <option value="著作権侵害">著作権侵害</option>
+                    <option value="スパム">スパム</option>
+                    <option value="なりすまし">なりすまし</option>
+                    <option value="その他">その他</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-300">詳細内容</label>
+                  <textarea
+                    value={reportContent}
+                    onChange={(e) => setReportContent(e.target.value)}
+                    placeholder="通報内容を詳しく入力してください..."
+                    className="w-full bg-gray-900/50 border border-gray-700/50 rounded-xl px-4 py-2 h-32 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 resize-none text-white placeholder-gray-500"
+                    maxLength={1000}
+                  />
+                  <p className="text-xs text-gray-400 mt-1 text-right">{reportContent.length} / 1000</p>
+                </div>
+              </div>
+              <div className="flex justify-between gap-4 mt-6">
+                <button onClick={() => { setShowReportModal(false); setReportReason(''); setReportContent(''); }} className="px-4 py-2 bg-gray-700 text-white hover:bg-gray-600 rounded-xl transition-colors">
+                  キャンセル
+                </button>
+                <button onClick={handleReportSubmit} className="px-4 py-2 bg-red-600 text-white hover:bg-red-500 rounded-xl transition-colors">
+                  通報受付
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      {/* ▲▲▲ */}
+        )}
+        {/* ▲▲▲ */}
 
-      <header className="fixed top-0 left-0 right-0 bg-black bg-opacity-80 backdrop-blur-sm z-20 flex items-center justify-between p-4">
-          <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-gray-800"><ArrowLeft size={24} /></button>
+        <header className="fixed top-0 left-0 right-0 bg-black/80 backdrop-blur-xl z-20 flex items-center justify-between p-4 border-b border-gray-900/50">
+          <button onClick={() => router.back()} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
+            <ArrowLeft size={24} />
+          </button>
           <div className="flex items-center gap-2 relative" ref={menuRef}>
-            <button onClick={handleFavorite} className="p-2 rounded-full hover:bg-gray-800"><Heart size={24} className={character.isFavorited ? 'text-pink-500 fill-current' : ''} /></button>
-            <button onClick={() => setShowMenu(!showMenu)} className="p-2 rounded-full hover:bg-gray-800"><MoreVertical size={24} /></button>
+            <button onClick={handleFavorite} className="p-2 rounded-xl hover:bg-pink-500/10 transition-all">
+              <Heart size={24} className={character.isFavorited ? 'text-pink-500 fill-current' : 'text-gray-400'} />
+            </button>
+            <button onClick={() => setShowMenu(!showMenu)} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
+              <MoreVertical size={24} />
+            </button>
             {showMenu && (
-              <div className="absolute right-0 top-12 bg-gray-800 rounded-md shadow-lg z-30 w-40">
+              <div className="absolute right-0 top-12 bg-gray-800/95 backdrop-blur-xl rounded-xl shadow-lg z-30 w-40 border border-gray-700/50 py-2">
                 {isAuthor ? (
                   <>
-                    <button onClick={handleEdit} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-700 rounded-t-md">
+                    <button onClick={handleEdit} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm hover:bg-pink-500/10 hover:text-pink-400 transition-colors rounded-t-xl">
                       <Edit size={16} /> 修正
                     </button>
-                    <button onClick={handleDelete} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-gray-700 rounded-b-md">
+                    <button onClick={handleDelete} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors rounded-b-xl">
                       <Trash2 size={16} /> 削除
                     </button>
                   </>
                 ) : sessionStatus === 'authenticated' ? (
-                  <button onClick={handleReport} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-gray-700 rounded-md">
+                  <button onClick={handleReport} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors rounded-xl">
                     <Flag size={16} /> 通報する
                   </button>
                 ) : null}
               </div>
             )}
           </div>
-      </header>
-      
-      <div className="pb-28 pt-16"> 
-        <div className="relative w-full max-w-2xl mx-auto aspect-square rounded-xl overflow-hidden">
-            <img 
-              src={character.characterImages[0]?.imageUrl || 'https://placehold.co/640x640/1a1a1a/ffffff?text=?'} 
-              alt={character.name} 
-              className="w-full h-full object-cover"
-            />
-        </div>
+        </header>
+        
+        <div className="pb-28 pt-20"> 
+          <div className="max-w-4xl mx-auto px-4 md:px-6">
+            <div className="relative w-full max-w-2xl mx-auto aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 mb-6">
+              <img 
+                src={character.characterImages[0]?.imageUrl || 'https://placehold.co/640x640/1a1a1a/ffffff?text=?'} 
+                alt={character.name} 
+                className="w-full h-full object-contain"
+              />
+            </div>
 
-        <main className="max-w-2xl mx-auto px-4 relative z-10">
-          <div className="text-center mb-6 mt-4">
-            <h1 className="text-2xl font-bold text-white">{character.name}</h1>
-            {character.author ? (
-              <a href={`/profile/${character.author.id}`} className="mt-2 inline-flex items-center gap-2">
-                <img 
-                  src={character.author.image_url || 'https://placehold.co/24x24/1a1a1a/ffffff?text=?'} 
-                  alt={character.author.nickname || ''}
-                  width={24}
-                  height={24}
-                  className="w-6 h-6 rounded-full object-cover"
-                />
-                <span className="text-sm font-semibold text-gray-300 hover:underline">
-                  {character.author.nickname || '不明'}
-                </span>
-              </a>
-            ) : (
-              <div className="mt-2 inline-flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-gray-700"></div>
-                <span className="text-sm text-gray-400">&apos;不明な作成者&apos;</span>
+            <main className="max-w-2xl mx-auto relative z-10">
+              <div className="text-center mb-6">
+                <h1 className="text-3xl md:text-4xl font-bold mb-3 bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                  {character.name}
+                </h1>
+                {character.author ? (
+                  <a href={`/profile/${character.author.id}`} className="mt-2 inline-flex items-center gap-2 hover:opacity-80 transition-opacity">
+                    <img 
+                      src={character.author.image_url || 'https://placehold.co/24x24/1a1a1a/ffffff?text=?'} 
+                      alt={character.author.nickname || ''}
+                      width={24}
+                      height={24}
+                      className="w-6 h-6 rounded-full object-cover ring-2 ring-pink-500/30"
+                    />
+                    <span className="text-sm font-semibold text-gray-300 hover:text-pink-400 transition-colors">
+                      {character.author.nickname || '不明'}
+                    </span>
+                  </a>
+                ) : (
+                  <div className="mt-2 inline-flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-gray-700"></div>
+                    <span className="text-sm text-gray-400">不明な作成者</span>
+                  </div>
+                )}
               </div>
+              <div className="flex justify-center items-center gap-8 text-sm my-6">
+                <div className="text-center">
+                  <div className="font-bold text-2xl bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                    {character._count.favorites.toLocaleString()}
+                  </div>
+                  <div className="text-gray-400">お気に入り</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-bold text-2xl bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                    {character._count.chat.toLocaleString()}
+                  </div>
+                  <div className="text-gray-400">チャット</div>
+                </div>
+              </div>
+              <div className="flex flex-wrap justify-center gap-2 my-6">
+                {character.hashtags.map((tag: string) => (
+                  <span key={tag} className="bg-gradient-to-r from-pink-500/20 to-purple-500/20 text-pink-300 text-xs font-semibold px-4 py-1.5 rounded-full border border-pink-500/30">
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+              <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50 mb-6">
+                <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">{character.description}</p>
+              </div>
+              <div className="text-xs text-gray-500 text-center mb-6">
+                <p>作成日: {new Date(character.createdAt).toLocaleDateString()}</p>
+                <p>最終更新日: {new Date(character.updatedAt).toLocaleDateString()}</p>
+              </div>
+              <div>
+                <Comments 
+                  characterId={characterId} 
+                  characterAuthorId={character.author?.id ?? null}
+                  session={session}
+                  setModalState={setModalState}
+                />
+              </div>
+            </main>
+          </div>
+        </div>
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-black/80 backdrop-blur-xl border-t border-gray-900/50 z-20">
+          <div className="max-w-2xl mx-auto flex gap-3">
+            {sessionStatus === 'authenticated' ? (
+              <>
+                <a href={`/chat/${characterId}`} className="flex-1 text-center bg-gray-800/50 text-white font-semibold py-3 px-4 rounded-xl hover:bg-gray-700/50 transition-all border border-gray-700/50">
+                  続きから会話
+                </a>
+                <button onClick={handleNewChat} disabled={isCreatingChat} className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-pink-500/30 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {isCreatingChat ? '作成中...' : '新しいチャットを開始'}
+                </button>
+              </>
+            ) : (
+              <button onClick={() => router.push('/login')} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-pink-500/30">
+                ログインしてチャットを開始
+              </button>
             )}
           </div>
-          <div className="flex justify-center items-center gap-6 text-sm text-gray-400 my-4">
-              <div className="text-center"><div className="font-bold text-white">{character._count.favorites.toLocaleString()}</div><div>お気に入り</div></div>
-              <div className="text-center"><div className="font-bold text-white">{character._count.chat.toLocaleString()}</div><div>チャット</div></div>
-          </div>
-          <div className="flex flex-wrap justify-center gap-2 my-4">
-              {character.hashtags.map((tag: string) => <span key={tag} className="bg-gray-800 text-pink-400 text-xs font-semibold px-3 py-1 rounded-full">#{tag}</span>)}
-          </div>
-          <p className="text-gray-300 my-6 whitespace-pre-wrap text-center">{character.description}</p>
-          <div className="text-xs text-gray-500 text-center">
-              <p>作成日: {new Date(character.createdAt).toLocaleDateString()}</p>
-              <p>最終更新日: {new Date(character.updatedAt).toLocaleDateString()}</p>
-          </div>
-          <div>
-            <Comments 
-              characterId={characterId} 
-              characterAuthorId={character.author?.id ?? null}
-              session={session}
-              setModalState={setModalState}
-            />
-          </div>
-        </main>
-      </div>
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-black border-t border-gray-800 z-20">
-        <div className="mx-auto max-w-2xl flex gap-4">
-          {sessionStatus === 'authenticated' ? (
-            <>
-              <a href={`/chat/${characterId}`} className="flex-1 text-center bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition-colors">
-                続きから会話
-              </a>
-              <button onClick={handleNewChat} disabled={isCreatingChat} className="flex-1 bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors disabled:bg-pink-800 disabled:cursor-not-allowed">
-                {isCreatingChat ? '作成中...' : '新しいチャットを開始'}
-              </button>
-            </>
-          ) : (
-            <button onClick={() => router.push('/login')} className="w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors">
-              ログインしてチャットを開始
-            </button>
-          )}
         </div>
       </div>
     </div>

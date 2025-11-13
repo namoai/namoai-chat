@@ -104,72 +104,88 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center px-4 py-8 relative">
-      {/* ✅ ログイン画面に戻るボタンを追加 */}
-      <button
-        onClick={() => router.back()}
-        className="absolute top-4 left-4 text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-md cursor-pointer flex items-center gap-2"
-      >
-        <ArrowLeft size={16} />
-        ログイン画面へ戻る
-      </button>
+    <div className="min-h-screen bg-black text-white">
+      {/* 背景装飾 */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+      </div>
 
-      <h1 className="text-xl font-semibold mb-6">会員登録</h1>
+      <div className="relative z-10 flex flex-col items-center px-4 py-8 min-h-screen">
+        <header className="w-full max-w-md flex items-center justify-center mb-8 relative">
+          <button
+            onClick={() => router.back()}
+            className="absolute left-0 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+          >
+            <ArrowLeft size={24} />
+          </button>
+          <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            会員登録
+          </h1>
+        </header>
 
-      <Card className="w-full max-w-md bg-[#1a1a1a]">
-        <CardContent className="p-6 space-y-4">
-          <p className="text-sm text-white">
+        <div className="w-full max-w-md bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800/50 p-6 md:p-8 space-y-6">
+          <p className="text-gray-300 text-center">
             以下の情報を入力して会員登録を完了してください。
           </p>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {[{
-              icon: <Mail size={16} className="text-white" />,
+              icon: <Mail size={18} className="text-pink-400" />,
+              label: "メールアドレス",
               field: "email",
               placeholder: "例: user@example.com",
             },
             {
-              icon: <Lock size={16} className="text-white" />,
+              icon: <Lock size={18} className="text-pink-400" />,
+              label: "パスワード",
               field: "password",
               placeholder: "8〜16文字のパスワード",
               type: "password",
             },
             {
-              icon: <User size={16} className="text-white" />,
+              icon: <User size={18} className="text-pink-400" />,
+              label: "氏名",
               field: "name",
               placeholder: "例: 山田太郎",
             },
             {
-              icon: <Phone size={16} className="text-white" />,
+              icon: <Phone size={18} className="text-pink-400" />,
+              label: "電話番号",
               field: "phone",
               placeholder: "例: 070-1234-5678",
             },
             {
-              icon: <Smile size={16} className="text-white" />,
+              icon: <Smile size={18} className="text-pink-400" />,
+              label: "ニックネーム",
               field: "nickname",
               placeholder: "2〜12文字のニックネーム",
-            }].map(({ icon, field, placeholder, type = "text" }) => (
-              <div className="flex items-center gap-2" key={field}>
-                {icon}
+            }].map(({ icon, label, field, placeholder, type = "text" }) => (
+              <div className="space-y-2" key={field}>
+                <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                  {icon}
+                  {label}
+                </label>
                 <Input
                   type={type}
                   placeholder={placeholder}
-                  className="bg-[#333] text-white placeholder-gray-400 border border-gray-600"
+                  className="bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all"
                   value={form[field as keyof typeof form]}
                   onChange={(e) => handleChange(field, e.target.value)}
                 />
               </div>
             ))}
 
-            <div className="flex items-center space-x-2 mt-4">
+            <div className="flex items-start space-x-3 pt-2">
               <Checkbox
                 id="terms"
                 checked={agreed}
                 onCheckedChange={(v) => setAgreed(!!v)}
+                className="mt-1"
               />
-              <label htmlFor="terms" className="text-sm text-white">
+              <label htmlFor="terms" className="text-sm text-gray-300 leading-relaxed">
                 <span
-                  className="text-pink-400 underline cursor-pointer"
+                  className="text-pink-400 hover:text-pink-300 underline cursor-pointer transition-colors"
                   onClick={() => setShowTerms(true)}
                 >
                   利用規約
@@ -181,37 +197,39 @@ export default function SignUpPage() {
             <Button
               disabled={!agreed}
               onClick={handleSubmit}
-              className="w-full bg-pink-500 hover:bg-pink-600"
+              className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-pink-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               会員登録
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {showTerms && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-          <div className="bg-white text-black rounded-lg w-11/12 max-w-md p-6 space-y-4">
-            <h2 className="text-lg font-semibold">利用規約</h2>
-            <div className="text-sm max-h-64 overflow-y-auto">
-              <p>
-                本サービスを利用する前に、以下の規約をよくお読みください。利用することで、全ての条項に同意したことになります。
-              </p>
-              <p>1. 利用者は...</p>
-              <p>2. 禁止事項...</p>
-              <p>...</p>
-            </div>
-            <div className="text-right">
-              <Button
-                onClick={agreeFromPopup}
-                className="bg-pink-500 hover:bg-pink-600"
-              >
-                同意します
-              </Button>
+        {showTerms && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-900/95 backdrop-blur-xl rounded-2xl w-full max-w-md border border-gray-800/50 p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              <h2 className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                利用規約
+              </h2>
+              <div className="text-sm text-gray-300 leading-relaxed space-y-2">
+                <p>
+                  本サービスを利用する前に、以下の規約をよくお読みください。利用することで、全ての条項に同意したことになります。
+                </p>
+                <p>1. 利用者は...</p>
+                <p>2. 禁止事項...</p>
+                <p>...</p>
+              </div>
+              <div className="text-right pt-4">
+                <Button
+                  onClick={agreeFromPopup}
+                  className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-2 px-6 rounded-xl transition-all shadow-lg shadow-pink-500/30"
+                >
+                  同意します
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

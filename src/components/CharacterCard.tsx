@@ -13,19 +13,25 @@ type CharacterCardProps = {
 };
 
 export default function CharacterCard({ character }: CharacterCardProps) {
+  const src = character.characterImages[0]?.imageUrl || 'https://placehold.co/300x400/1a1a1a/ffffff?text=?';
+  
   return (
-    <Link href={`/characters/${character.id}`}>
+    <Link href={`/characters/${character.id}`} className="group">
       <div className="flex-shrink-0 w-40 space-y-2 cursor-pointer">
-        <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden">
-          {/* ▼▼▼ 変更点: 基本キャラクター画像を追加 ▼▼▼ */}
+        <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800">
           <Image
-            src={character.characterImages[0]?.imageUrl || 'https://placehold.co/300x400/1a1a1a/ffffff?text=?'}
+            src={src}
             alt={character.name}
             fill
-            className="object-cover"
+            className="object-cover group-hover:scale-110 transition-transform duration-500"
           />
+          {/* ホバー時のグラデーションオーバーレイ */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="absolute inset-0 bg-gradient-to-br from-pink-500/0 via-purple-500/0 to-pink-500/0 group-hover:from-pink-500/20 group-hover:via-purple-500/10 group-hover:to-pink-500/20 transition-all duration-500" />
         </div>
-        <h3 className="font-semibold text-white truncate">{character.name}</h3>
+        <h3 className="font-semibold text-white truncate group-hover:text-pink-400 transition-colors">
+          {character.name}
+        </h3>
         <p className="text-xs text-gray-400 truncate h-8">
           {character.description}
         </p>

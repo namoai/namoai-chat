@@ -16,8 +16,8 @@ export default function BottomNav() {
   const pathname = usePathname(); 
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-black border-t border-gray-800">
-      <div className="flex justify-around items-center h-16">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-xl border-t border-gray-900/50">
+      <div className="flex justify-around items-center h-20 max-w-7xl mx-auto py-2">
         {navItems.map((item) => {
           // ✅ ホームボタンの判定ロジックを修正しました
           // これでキャラクター詳細ページでもホームがアクティブになります
@@ -29,14 +29,28 @@ export default function BottomNav() {
             <Link
               key={item.label}
               href={item.href}
-              className="flex flex-col items-center justify-center gap-1 text-xs transition-colors duration-200"
+              className="flex flex-col items-center justify-center gap-1 text-xs transition-all duration-200 relative group"
             >
-              <item.icon
-                size={24}
-                className={isActive ? "text-pink-500" : "text-gray-400"}
-              />
+              {/* アクティブインジケーター */}
+              {isActive && (
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-12 h-1 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full" />
+              )}
+              
+              <div className={`relative p-2 rounded-xl transition-all duration-200 ${
+                isActive 
+                  ? "bg-gradient-to-br from-pink-500/20 to-purple-500/20 text-pink-400" 
+                  : "text-gray-400 group-hover:text-pink-400 group-hover:bg-pink-500/10"
+              }`}>
+                <item.icon
+                  size={22}
+                  className={isActive ? "text-pink-400" : "text-gray-400 group-hover:text-pink-400"}
+                />
+              </div>
+              
               <span
-                className={isActive ? "text-pink-500" : "text-gray-400"}
+                className={`text-sm font-medium transition-colors ${
+                  isActive ? "text-pink-400" : "text-gray-400 group-hover:text-pink-400"
+                }`}
               >
                 {item.label}
               </span>

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowLeft, MoreVertical, Heart, MessageSquare, User, Share2, ShieldBan, ShieldCheck, Edit, KeyRound, X, UserMinus, Trash2 } from 'lucide-react';
 // ▼▼▼【修正】Next.jsのImageコンポーネントをインポートします ▼▼▼
 import Image from 'next/image';
@@ -108,6 +109,31 @@ export default function UserProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        menuButtonRef.current?.contains(event.target as Node) ||
+        menuRef.current?.contains(event.target as Node)
+      ) {
+        return;
+      }
+      setShowMenu(false);
+    };
+    if (showMenu && menuButtonRef.current) {
+      document.addEventListener("mousedown", handleClickOutside);
+      const rect = menuButtonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.right + window.scrollX - 224, // メニュー幅224px
+      });
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showMenu]);
   
   const [modalState, setModalState] = useState<{type: 'followers' | 'following' | 'blocked', users: (FollowUser | BlockedUser)[]} | null>(null);
   const [isModalLoading, setIsModalLoading] = useState(false);
@@ -294,7 +320,16 @@ export default function UserProfilePage() {
     });
   };
 
-  if (loading || sessionStatus === 'loading') return <div className="min-h-screen bg-black text-white flex justify-center items-center">ローディング中...</div>;
+  if (loading || sessionStatus === 'loading') {
+    return (
+      <div className="flex h-screen items-center justify-center bg-black text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <p className="text-gray-400">読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
   if (error) return <div className="min-h-screen bg-black text-white flex justify-center items-center"><p className="text-red-500">{error}</p></div>;
   if (!profile) return <div className="min-h-screen bg-black text-white flex justify-center items-center">ユーザーが見つかりません。</div>;
   
@@ -408,100 +443,216 @@ export default function UserProfilePage() {
           </div>
         </div>
       )}
-      <div className="bg-black min-h-screen text-white">
-        <div className="mx-auto max-w-4xl">
-          <header className="flex items-center justify-between p-4 sticky top-0 bg-black/80 backdrop-blur-sm z-10">
-            <button onClick={() => window.history.back()} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><ArrowLeft /></button>
-            <h1 className="font-bold text-lg">製作者プロフィール</h1>
-            <div className="relative">
-               <button onClick={() => setShowMenu(!showMenu)} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><MoreVertical /></button>
-              {showMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-gray-800 rounded-lg shadow-lg z-20 py-1">
-                  {isMyProfile ? (
-                    <>
-                      <button onClick={() => window.location.href = '/profile-edit'} className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"><Edit size={16} /> プロフィール編集</button>
-                      {/* パスワードが設定されている場合のみパスワード変更メニュー表示 */}
-                      {profile.hasPassword && (
-                        <button onClick={() => window.location.href = '/change-password'} className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"><KeyRound size={16} /> パスワード変更</button>
+      <div className="bg-black min-h-screen text-white" style={{ overflow: 'visible' }}>
+        {/* 背景装飾 */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10" style={{ overflow: 'visible' }}>
+          <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-24" style={{ overflow: 'visible' }}>
+            <header className="flex items-center justify-between mb-6 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50" style={{ overflow: 'visible' }}>
+              <button onClick={() => window.history.back()} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
+                <ArrowLeft size={24} />
+              </button>
+              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                製作者プロフィール
+              </h1>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsHelpOpen(true)}
+                  className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+                  aria-label="ヘルプ"
+                >
+                  <HelpCircle size={24} />
+                </button>
+                <div className="relative" style={{ overflow: 'visible' }}>
+                  <button 
+                    ref={menuButtonRef}
+                    onClick={() => setShowMenu(!showMenu)} 
+                    className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+                  >
+                    <MoreVertical size={24} />
+                  </button>
+                </div>
+              </div>
+                {showMenu &&
+                  typeof window !== "undefined" &&
+                  createPortal(
+                    <div
+                      ref={menuRef}
+                      className="fixed w-56 bg-gray-800/95 backdrop-blur-xl rounded-xl shadow-2xl z-[9999] py-2 border border-gray-700/50"
+                      style={{
+                        top: `${menuPosition.top}px`,
+                        left: `${menuPosition.left}px`,
+                      }}
+                    >
+                      {isMyProfile ? (
+                        <>
+                          <button onClick={() => { window.location.href = '/profile-edit'; setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center gap-2 group">
+                            <Edit size={16} className="text-white group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" /> 
+                            <span className="group-hover:translate-x-1 transition-transform duration-300">プロフィール編集</span>
+                          </button>
+                          {profile.hasPassword && (
+                            <button onClick={() => { window.location.href = '/change-password'; setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center gap-2 group">
+                              <KeyRound size={16} className="text-white group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" /> 
+                              <span className="group-hover:translate-x-1 transition-transform duration-300">パスワード変更</span>
+                            </button>
+                          )}
+                          <button onClick={() => { handleShowList('blocked'); setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center gap-2 group">
+                            <UserMinus size={16} className="text-white group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" /> 
+                            <span className="group-hover:translate-x-1 transition-transform duration-300">ブロックリスト</span>
+                          </button>
+                          <div className="border-t border-gray-700/50 my-1"></div>
+                          <button onClick={() => { handleAccountDeleteConfirm(); setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-red-400 hover:bg-gradient-to-r hover:from-red-500/20 hover:via-pink-500/20 hover:to-red-500/20 hover:text-red-300 hover:shadow-lg hover:shadow-red-500/30 transition-all duration-300 flex items-center gap-2 group">
+                            <Trash2 size={16} className="text-red-400 group-hover:scale-110 group-hover:text-red-300 transition-all duration-300" /> 
+                            <span className="group-hover:translate-x-1 transition-transform duration-300">会員退会</span>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center gap-2 group">
+                            <Share2 size={16} className="text-white group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" /> 
+                            <span className="group-hover:translate-x-1 transition-transform duration-300">共有する</span>
+                          </button>
+                          <button onClick={() => { handleBlock(profile.id); setShowMenu(false); }} className={`w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center gap-2 group ${profile.isBlocked ? 'hover:text-green-300' : 'hover:text-red-300'}`}>
+                            {profile.isBlocked ? <ShieldCheck size={16} className="text-white group-hover:scale-110 group-hover:text-green-400 transition-all duration-300"/> : <ShieldBan size={16} className="text-white group-hover:scale-110 group-hover:text-red-400 transition-all duration-300"/>}
+                            <span className="group-hover:translate-x-1 transition-transform duration-300">{profile.isBlocked ? 'ブロック解除' : '製作者をブロック'}</span>
+                          </button>
+                        </>
                       )}
-                      <button onClick={() => handleShowList('blocked')} className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"><UserMinus size={16} /> ブロックリスト</button>
-                      <div className="border-t border-gray-700 my-1"></div>
-                      <button onClick={handleAccountDeleteConfirm} className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2 text-red-400"><Trash2 size={16} /> 会員退会</button>
-                    </>
+                    </div>,
+                    document.body
+                  )}
+              </div>
+            </header>
+
+            <main className="space-y-8">
+              <section className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
+                <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+                  {profile.image_url ? (
+                    <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden ring-2 ring-pink-500/30 flex-shrink-0">
+                      <Image src={profile.image_url} alt={profile.nickname} fill className="object-cover" sizes="128px" />
+                    </div>
                   ) : (
+                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center ring-2 ring-pink-500/30 flex-shrink-0">
+                      <User size={48} className="text-pink-400" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-2xl sm:text-3xl font-bold mb-2 bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                      {profile.nickname}
+                    </h2>
+                    <div className="flex flex-wrap gap-4 text-sm text-gray-400 mb-3">
+                      <button onClick={() => handleShowList('followers')} className="hover:text-pink-400 transition-colors">
+                        フォロワー <span className="font-semibold text-white">{formatNumber(profile._count.followers)}</span>
+                      </button>
+                      <button onClick={() => handleShowList('following')} className="hover:text-pink-400 transition-colors">
+                        フォロー中 <span className="font-semibold text-white">{formatNumber(profile._count.following)}</span>
+                      </button>
+                    </div>
+                    <p className="text-base text-gray-300 leading-relaxed">{profile.bio || "自己紹介がありません。"}</p>
+                  </div>
+                </div>
+                <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                  {isMyProfile && (
+                    <button onClick={() => window.location.href = '/profile-edit'} className="w-full sm:w-auto bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-2 px-6 rounded-xl transition-all shadow-lg shadow-pink-500/30">
+                      プロフィール編集
+                    </button>
+                  )}
+                  {!isMyProfile && sessionStatus === 'authenticated' && (
                     <>
-                      <button className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"><Share2 size={16} /> 共有する</button>
-                      <button onClick={() => handleBlock(profile.id)} className={`w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2 ${profile.isBlocked ? 'text-green-400' : 'text-red-500'}`}>
-                         {profile.isBlocked ? <ShieldCheck size={16}/> : <ShieldBan size={16}/>}
-                         {profile.isBlocked ? 'ブロック解除' : '製作者をブロック'}
+                      <button onClick={handleFollow} className={`flex-1 font-bold py-2 px-4 rounded-xl transition-all ${
+                        profile.isFollowing 
+                          ? 'bg-gray-800/50 text-white hover:bg-gray-700/50 border border-gray-700/50' 
+                          : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-lg shadow-pink-500/30'
+                      }`}>
+                        {profile.isFollowing ? 'フォロー中' : 'フォロー'}
+                      </button>
+                      <button className="border border-pink-500/50 text-pink-400 hover:bg-pink-500/10 hover:border-pink-500 font-semibold py-2 px-4 rounded-xl transition-all">
+                        応援する
                       </button>
                     </>
                   )}
                 </div>
-              )}
-            </div>
-          </header>
+              </section>
 
-          <main className="p-4">
-            <section>
-              <div className="flex items-start gap-4">
-                 {/* ▼▼▼【修正】imgタグをImageコンポーネントに、widthとheightを追加 ▼▼▼ */}
-                {profile.image_url ? ( <Image src={profile.image_url} alt={profile.nickname} width={80} height={80} className="rounded-full object-cover w-20 h-20" /> ) : ( <DefaultAvatarIcon size={80} /> )}
-                <div className="flex-1">
-                  <h2 className="text-xl font-bold">{profile.nickname}</h2>
-                  <div className="flex gap-4 text-sm text-gray-400 mt-1">
-                    <button onClick={() => handleShowList('followers')} className="hover:underline">フォロワー {formatNumber(profile._count.followers)}</button>
-                    <button onClick={() => handleShowList('following')} className="hover:underline">フォロー中 {formatNumber(profile._count.following)}</button>
-                  </div>
+              <section>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-2">
+                  <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                    {profile.characters.length}個のキャラクター | 会話量 {formatNumber(profile.totalMessageCount)}
+                  </h3>
+                  <span className="text-sm text-gray-400">会話量順</span>
                 </div>
-              </div>
-              <p className="mt-4 text-base">{profile.bio || "自己紹介がありません。"}</p>
-               {isMyProfile && ( <button onClick={() => window.location.href = '/profile-edit'} className="mt-4 w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">プロフィール編集</button> )}
-               {!isMyProfile && sessionStatus === 'authenticated' && (
-                <div className="flex gap-2 mt-4">
-                  <button onClick={handleFollow} className={`flex-1 font-bold py-2 px-4 rounded-lg transition-colors ${profile.isFollowing ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-pink-600 text-white hover:bg-pink-500'}`}>
-                    {profile.isFollowing ? 'フォロー中' : 'フォロー'}
-                  </button>
-                  <button className="border border-pink-600 text-pink-500 hover:bg-pink-600 hover:text-white font-bold py-2 px-4 rounded-lg transition-colors">応援する</button>
-                </div>
-              )}
-            </section>
-
-            <section className="mt-8">
-               <div className="flex justify-between items-end mb-4">
-                 <h3 className="text-lg font-bold">{profile.characters.length}個のキャラクター | 会話量 {formatNumber(profile.totalMessageCount)}</h3>
-                 <span className="text-sm text-gray-400">会話量順</span>
-               </div>
-               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                 {profile.characters.map(char => (
-                   <a href={`/characters/${char.id}`} key={char.id} className="block group">
-                     <div className="bg-[#1C1C1E] rounded-lg overflow-hidden transition-transform group-hover:scale-105">
-                       <div className="relative aspect-[3/4]">
-                         {/* ▼▼▼【修正】imgタグをImageコンポーネントに、fillとstyleを追加し、プレースホルダーURLを安全なものに変更 ▼▼▼ */}
-                         <Image 
-                            src={char.characterImages[0]?.imageUrl || 'https://via.placeholder.com/300x400'} 
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                  {profile.characters.map(char => (
+                    <a href={`/characters/${char.id}`} key={char.id} className="block group">
+                      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl overflow-hidden border border-gray-800/50 hover:border-pink-500/30 transition-all group-hover:scale-105">
+                        <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-800 to-gray-900 overflow-hidden">
+                          <Image 
+                            src={char.characterImages[0]?.imageUrl || 'https://placehold.co/300x400/1a1a1a/ffffff?text=?'} 
                             alt={char.name} 
                             fill
-                            style={{ objectFit: 'cover' }}
-                            sizes="(max-width: 768px) 50vw, 33vw"
-                         />
-                       </div>
-                       <div className="p-3">
-                         <h4 className="font-semibold truncate text-white">{char.name}</h4>
-                         <p className="text-xs text-gray-400 truncate">@{profile.nickname}</p>
-                         <div className="flex justify-between text-xs text-gray-400 mt-1">
-                           <div className="flex items-center gap-1"><Heart size={12}/> {formatNumber(char._count.favorites)}</div>
-                           <div className="flex items-center gap-1"><MessageSquare size={12}/> {formatNumber(char._count.chat)}</div>
-                         </div>
-                       </div>
-                     </div>
-                   </a>
-                 ))}
-               </div>
-            </section>
-          </main>
+                            className="object-cover group-hover:scale-110 transition-transform duration-500"
+                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                          />
+                          {/* ホバー時のピンク-パープルグラデーションオーバーレイ（黒いオーバーレイを削除） */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-pink-500/0 via-purple-500/0 to-pink-500/0 group-hover:from-pink-500/30 group-hover:via-purple-500/20 group-hover:to-pink-500/30 transition-all duration-500" />
+                        </div>
+                        <div className="p-3">
+                          <h4 className="font-semibold truncate text-white mb-1 group-hover:text-pink-400 transition-colors">{char.name}</h4>
+                          <p className="text-xs text-gray-400 truncate mb-2">@{profile.nickname}</p>
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <div className="flex items-center gap-1">
+                              <Heart size={12}/> {formatNumber(char._count.favorites)}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <MessageSquare size={12}/> {formatNumber(char._count.chat)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            </main>
+          </div>
         </div>
       </div>
+      <HelpModal
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+        title="プロフィールページの使い方"
+        content={
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold text-pink-400 mb-2">概要</h3>
+              <p className="text-gray-300">
+                ユーザーのプロフィールページです。作成したキャラクター、フォロワー、フォロー中のユーザーを確認できます。
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-pink-400 mb-2">主要機能</h3>
+              <ul className="list-disc list-inside space-y-2 text-gray-300 ml-2">
+                <li><strong>フォロー/フォロー解除</strong>: ユーザーをフォローして更新情報を受け取る</li>
+                <li><strong>ブロック/ブロック解除</strong>: 不適切なユーザーをブロック</li>
+                <li><strong>キャラクター一覧</strong>: このユーザーが作成したキャラクターを表示</li>
+                <li><strong>フォロワー/フォロー中</strong>: フォロー関係を確認</li>
+                <li><strong>チャット数/いいね数</strong>: キャラクターの人気度を確認</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-pink-400 mb-2">メニュー機能（...ボタン）</h3>
+              <ul className="list-disc list-inside space-y-1 text-gray-300 ml-2">
+                <li>自分のプロフィールの場合: プロフィール編集、パスワード変更、会員退会</li>
+                <li>他人のプロフィールの場合: フォロー、ブロック、共有</li>
+              </ul>
+            </div>
+          </div>
+        }
+      />
     </>
   );
 }

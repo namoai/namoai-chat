@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { X, Plus, Trash2, GripVertical } from "lucide-react";
+import { X, Plus, Trash2, GripVertical, ArrowLeft } from "lucide-react";
 import { uploadImageToStorage } from "@/lib/supabase-client";
 
 // --- 定数と型定義（共通） ---
@@ -91,12 +91,12 @@ const NotificationModal = ({ modalState, setModalState }: { modalState: ModalSta
         setModalState({ isOpen: false, title: '', message: '' });
     };
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex justify-center items-center">
-            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-sm m-4">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex justify-center items-center">
+            <div className="bg-gray-800/95 backdrop-blur-xl rounded-xl p-6 w-full max-w-sm m-4 border border-gray-700/50 shadow-2xl">
                 <h2 className="text-xl font-bold mb-4 text-white">{modalState.title}</h2>
                 <p className="text-gray-200 mb-6">{modalState.message}</p>
                 <div className="flex justify-end">
-                    <Button onClick={handleConfirm} className="bg-pink-600 text-white hover:bg-pink-500">
+                    <Button onClick={handleConfirm} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-xl shadow-lg shadow-pink-500/30 font-semibold">
                         確認
                     </Button>
                 </div>
@@ -154,8 +154,8 @@ const HashtagModal = ({ isOpen, onClose, onComplete, initialHashtags }: HashtagM
     };
   
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
-        <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-md mx-4">
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50">
+        <div className="bg-gray-800/95 backdrop-blur-xl text-white rounded-xl p-6 w-full max-w-md mx-4 border border-gray-700/50 shadow-2xl">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-bold">ハッシュタグ登録</h2>
             <button onClick={onClose}><X size={24} /></button>
@@ -165,7 +165,7 @@ const HashtagModal = ({ isOpen, onClose, onComplete, initialHashtags }: HashtagM
             placeholder="ハッシュタグを検索してください"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-red-500"
+            className="w-full bg-gray-700/50 backdrop-blur-sm border border-gray-600/50 rounded-xl px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all"
           />
           <p className="text-sm text-right mb-2 text-gray-400">{selectedTags.size} / 5</p>
           <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto mb-4 pr-2">
@@ -177,7 +177,7 @@ const HashtagModal = ({ isOpen, onClose, onComplete, initialHashtags }: HashtagM
                   key={tag}
                   onClick={() => handleToggleTag(tag)}
                   disabled={isDisabled}
-                  className={`px-3 py-1 rounded-full text-sm transition-colors ${isSelected ? "bg-red-500 text-white font-semibold" : "bg-gray-600 hover:bg-gray-500"} ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                  className={`px-3 py-1 rounded-full text-sm transition-all ${isSelected ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold shadow-lg shadow-pink-500/30" : "bg-gray-600/50 hover:bg-gray-500/50"} ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   {tag}
                 </button>
@@ -193,14 +193,14 @@ const HashtagModal = ({ isOpen, onClose, onComplete, initialHashtags }: HashtagM
                 value={customTag}
                 onChange={(e) => setCustomTag(e.target.value)}
                 disabled={isLimitReached}
-                className="flex-grow bg-gray-700 border-gray-600 focus:ring-red-500 text-white disabled:opacity-50"
+                className="flex-grow bg-gray-700/50 backdrop-blur-sm border-gray-600/50 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 text-white disabled:opacity-50 rounded-xl transition-all"
               />
-              <Button onClick={handleAddCustomTag} disabled={isLimitReached || !customTag} className="bg-gray-600 hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed">
+              <Button onClick={handleAddCustomTag} disabled={isLimitReached || !customTag} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-lg shadow-pink-500/30">
                 追加
               </Button>
             </div>
           </div>
-          <Button onClick={handleComplete} className="w-full bg-red-500 hover:bg-red-600 rounded-md py-2 mt-6 font-bold">
+          <Button onClick={handleComplete} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl py-2 mt-6 font-semibold shadow-lg shadow-pink-500/30">
             完了
           </Button>
         </div>
@@ -799,12 +799,41 @@ export default function CharacterForm({ isEditMode, initialData, session, status
 
   return (
     <>
+      <style dangerouslySetInnerHTML={{__html: `
+        .character-form-tab,
+        .character-form-tab:focus,
+        .character-form-tab:focus-visible,
+        .character-form-tab:active,
+        .character-form-tab:focus-within,
+        .character-form-tab:hover:focus,
+        .character-form-tab:hover:focus-visible {
+          outline: none !important;
+          box-shadow: none !important;
+          border-color: inherit !important;
+        }
+        
+        .character-form-tabs button,
+        .character-form-tabs button:focus,
+        .character-form-tabs button:focus-visible,
+        .character-form-tabs button:active,
+        .character-form-tabs button:hover:focus,
+        .character-form-tabs button:hover:focus-visible {
+          outline: none !important;
+          box-shadow: none !important;
+          -webkit-tap-highlight-color: transparent !important;
+          -webkit-focus-ring-color: transparent !important;
+        }
+        
+        .character-form-tabs *:focus {
+          outline: none !important;
+        }
+      `}} />
       <NotificationModal modalState={modalState} setModalState={setModalState} />
       
       {/* ▼▼▼【アップロード進行状況表示】▼▼▼ */}
       {uploadProgress && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-gray-900 p-8 rounded-lg max-w-md w-full">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-gray-900/95 backdrop-blur-xl p-8 rounded-xl max-w-md w-full border border-gray-700/50 shadow-2xl">
             <h3 className="text-xl font-bold mb-4 text-center">画像をアップロード中...</h3>
             <div className="mb-4">
               <div className="w-full bg-gray-700 rounded-full h-4 overflow-hidden">
@@ -822,22 +851,35 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       )}
       {/* ▲▲▲【アップロード進行状況表示 終了】▲▲▲ */}
 
-      <div className="min-h-screen bg-black text-white px-2 sm:px-4 py-4 sm:py-8 max-w-4xl mx-auto font-sans">
-        <button onClick={() => window.history.back()} className="mb-3 sm:mb-4 text-pink-400 hover:underline cursor-pointer text-sm sm:text-base">
-          ← 戻る
-        </button>
-        <h1 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 px-2 sm:px-0">
-          {isEditMode ? "キャラクター修正" : "キャラクター作成"}
-        </h1>
+      <div className="bg-black min-h-screen text-white">
+        {/* 背景装飾 */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10">
+          <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-24">
+            <header className="flex items-center gap-4 mb-6 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50">
+              <button 
+                onClick={() => window.history.back()} 
+                className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+              >
+                <ArrowLeft size={24} />
+              </button>
+              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                {isEditMode ? "キャラクター修正" : "キャラクター作成"}
+              </h1>
+            </header>
 
         {/* モバイル: ドロップダウン, デスクトップ: タブ */}
-        <div className="mb-4 sm:mb-8">
+        <div className="mb-6 md:mb-8">
           {/* モバイル用ドロップダウン */}
           <div className="sm:hidden mb-4">
             <select
               value={step}
               onChange={(e) => setStep(Number(e.target.value))}
-              className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-pink-500"
+              className="w-full bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all"
             >
               {STEPS.map((label, index) => (
                 <option key={label} value={index}>
@@ -848,16 +890,35 @@ export default function CharacterForm({ isEditMode, initialData, session, status
           </div>
           
           {/* デスクトップ用タブ */}
-          <div className="hidden sm:flex flex-wrap gap-1">
+          <div className="hidden sm:flex flex-wrap gap-2 bg-gray-900/30 backdrop-blur-sm p-2 rounded-xl border border-gray-800/50 character-form-tabs">
             {STEPS.map((label, index) => (
               <button
                 key={label}
-                onClick={() => setStep(index)}
-                className={`px-2 sm:px-3 py-2 rounded-t-lg text-xs font-medium whitespace-nowrap transition-all duration-200 ${
+                type="button"
+                tabIndex={-1}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setStep(index);
+                  (e.target as HTMLElement).blur();
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setStep(index);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setStep(index);
+                  }
+                }}
+                className={`character-form-tab px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors duration-200 outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 border ${
                   step === index
-                    ? "bg-gray-800 text-pink-400 border-b-2 border-pink-500 shadow-lg"
-                    : "text-gray-500 hover:text-gray-300 hover:bg-gray-900/50"
+                    ? "bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-pink-500/20 text-pink-300 border-pink-500/30 shadow-lg shadow-pink-500/20"
+                    : "text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 border-transparent"
                 }`}
+                style={{ outline: 'none', boxShadow: 'none', WebkitTapHighlightColor: 'transparent' }}
               >
                 {label}
               </button>
@@ -866,13 +927,20 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         </div>
 
         <div style={{ display: step === 0 ? 'block' : 'none' }} className="min-h-[400px]">
-            <div className="space-y-4 sm:space-y-6 bg-gray-900/30 rounded-lg p-4 sm:p-6">
+            <div className="space-y-4 sm:space-y-6 bg-gray-900/50 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-gray-800/50">
+                <div className="p-3 sm:p-4 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700/50">
+                    <h3 className="font-bold text-lg mb-2">プロフィール設定</h3>
+                    <p className="text-sm text-gray-400">
+                        キャラクターの基本的な情報を入力します。名前と紹介文は検索や一覧表示で使用され、ユーザーが最初に目にする情報です。<br />
+                        <span className="text-pink-400 font-semibold">「自動生成」ボタンを使用すると、AIが自動でプロフィールを生成します。</span>
+                    </p>
+                </div>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
                     <label className="block text-sm sm:text-base font-semibold text-gray-200">プロフィール</label>
                     <Button 
                         onClick={handleGenerateProfile} 
                         disabled={isGeneratingProfile}
-                        className="bg-pink-600 hover:bg-pink-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-md transition-all w-full sm:w-auto"
+                        className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50 w-full sm:w-auto font-semibold disabled:opacity-50"
                     >
                         {isGeneratingProfile ? '生成中...' : '自動生成'}
                     </Button>
@@ -883,7 +951,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                         value={form.name} 
                         maxLength={20} 
                         onChange={(e) => handleChange("name", e.target.value)} 
-                        className="rounded-md bg-gray-800 border-gray-700 focus:border-pink-500" 
+                        className="rounded-xl bg-gray-800/50 backdrop-blur-sm border-gray-700/50 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all" 
                     />
                     <p className="text-xs text-right text-gray-500 mt-1">
                         {form.name.length} / 20
@@ -895,7 +963,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                         value={form.description} 
                         maxLength={250} 
                         onChange={(e) => handleChange("description", e.target.value)} 
-                        className="h-24 sm:h-32 rounded-md bg-gray-800 border-gray-700 focus:border-pink-500 text-sm sm:text-base" 
+                        className="h-24 sm:h-32 rounded-xl bg-gray-800/50 backdrop-blur-sm border-gray-700/50 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 text-sm sm:text-base transition-all" 
                     />
                     <p className="text-xs text-right text-gray-500 mt-1">
                         {form.description.length} / 250
@@ -905,14 +973,21 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         </div>
 
         <div style={{ display: step === 1 ? 'block' : 'none' }} className="min-h-[400px]">
-            <div className="bg-gray-900/30 rounded-lg p-4 sm:p-6">
-                <label className="block text-sm sm:text-base font-semibold text-gray-200 mb-3 sm:mb-4">キャラクター画像</label>
-                <input type="file" accept="image/*" multiple onChange={handleImageChange} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-pink-600 file:text-white hover:file:bg-pink-700 file:cursor-pointer cursor-pointer" />
+            <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-gray-800/50">
+                <div className="p-3 sm:p-4 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700/50 mb-4">
+                    <h3 className="font-bold text-lg mb-2">キャラクター画像</h3>
+                    <p className="text-sm text-gray-400">
+                        キャラクターの画像をアップロードします。最大10枚まで登録可能です。<br />
+                        <span className="text-pink-400 font-semibold">最初の画像が基本画像として使用され、2枚目以降はキーワード（感情や状況など）を設定することで、特定の状況で表示される画像として使用できます。</span>
+                    </p>
+                </div>
+                <label className="block text-sm sm:text-base font-semibold text-gray-200 mb-3 sm:mb-4">画像アップロード</label>
+                <input type="file" accept="image/*" multiple onChange={handleImageChange} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gradient-to-r file:from-pink-500 file:to-purple-600 hover:file:from-pink-600 hover:file:to-purple-700 file:text-white file:cursor-pointer cursor-pointer file:shadow-lg file:shadow-pink-500/30 transition-all" />
                 <p className="text-xs text-gray-500 mt-2">画像ファイルを選択してください（最大10枚まで）。</p>
                 <div className="mt-4 sm:mt-6 flex flex-wrap gap-3 sm:gap-4">
                 {images.map((img, idx) => (
                     <div key={img.id || `new-${idx}`} className="relative w-20 h-20 sm:w-24 sm:h-24 group">
-                        <div onClick={() => openImageModal(idx)} className="w-full h-full border-2 border-gray-700 rounded-lg overflow-hidden cursor-pointer transition-all hover:border-pink-500 hover:shadow-lg">
+                        <div onClick={() => openImageModal(idx)} className="w-full h-full border-2 border-gray-700/50 rounded-xl overflow-hidden cursor-pointer transition-all hover:border-pink-500/50 hover:shadow-lg hover:shadow-pink-500/30 hover:scale-105">
                             <img src={img.file ? URL.createObjectURL(img.file) : img.imageUrl!} alt={`image-${idx}`} width={96} height={96} className="object-cover w-full h-full" />
                             <div className="absolute bottom-0 bg-black/70 text-xs text-white w-full text-center px-1 py-1 truncate">
                             {idx === 0 ? "基本画像" : img.keyword || "クリックで入力"}
@@ -928,13 +1003,20 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         </div>
         
         <div style={{ display: step === 2 ? 'block' : 'none' }} className="min-h-[400px]">
-            <div className="space-y-4 sm:space-y-6 bg-gray-900/30 rounded-lg p-4 sm:p-6">
+            <div className="space-y-4 sm:space-y-6 bg-gray-900/50 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-gray-800/50">
+                <div className="p-3 sm:p-4 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700/50">
+                    <h3 className="font-bold text-lg mb-2">詳細情報設定</h3>
+                    <p className="text-sm text-gray-400">
+                        キャラクターの外見、性格、背景、世界観などの詳細な設定を記述します。この情報はAIがキャラクターの行動や会話を生成する際の重要な基準となります。<br />
+                        <span className="text-pink-400 font-semibold">{'`{{char}}`と`{{user}}`を使用することで、キャラクター名とユーザー名を動的に挿入できます。「自動生成」ボタンでAIが自動生成することも可能です。'}</span>
+                    </p>
+                </div>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
                     <label className="block text-sm sm:text-base font-semibold text-gray-200">詳細情報</label>
                     <Button 
                         onClick={handleGenerateDetail} 
                         disabled={isGeneratingDetail || (!form.name && !form.description)}
-                        className="bg-pink-600 hover:bg-pink-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                        className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto font-semibold"
                     >
                         {isGeneratingDetail ? '生成中...' : '自動生成'}
                     </Button>
@@ -943,7 +1025,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                     <Textarea 
                         placeholder="キャラクターの詳細設定（外見・性格・背景など）" 
                         value={form.detailSetting} 
-                        className="h-48 sm:h-64 rounded-md bg-gray-800 border-gray-700 focus:border-pink-500 text-sm sm:text-base" 
+                        className="h-48 sm:h-64 rounded-xl bg-gray-800/50 backdrop-blur-sm border-gray-700/50 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 text-sm sm:text-base transition-all" 
                         maxLength={6000} 
                         onChange={(e) => handleChange("detailSetting", e.target.value)} 
                     />
@@ -956,13 +1038,20 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         </div>
 
         <div style={{ display: step === 3 ? 'block' : 'none' }} className="min-h-[400px]">
-            <div className="space-y-4 sm:space-y-6 bg-gray-900/30 rounded-lg p-4 sm:p-6">
+            <div className="space-y-4 sm:space-y-6 bg-gray-900/50 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-gray-800/50">
+                <div className="p-3 sm:p-4 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700/50">
+                    <h3 className="font-bold text-lg mb-2">開始状況設定</h3>
+                    <p className="text-sm text-gray-400">
+                        チャットが開始される際の初期状況と、キャラクターの最初のメッセージを設定します。<br />
+                        <span className="text-pink-400 font-semibold">「最初の状況」でチャット開始時の背景や状況を記述し、「最初のメッセージ」でキャラクターが最初に送るメッセージを設定します。「自動生成」ボタンでAIが自動生成することも可能です。</span>
+                    </p>
+                </div>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
                     <label className="block text-sm sm:text-base font-semibold text-gray-200">開始状況</label>
                     <Button 
                         onClick={handleGenerateSituation} 
                         disabled={isGeneratingSituation || !form.detailSetting}
-                        className="bg-pink-600 hover:bg-pink-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                        className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto font-semibold"
                     >
                         {isGeneratingSituation ? '生成中...' : '自動生成'}
                     </Button>
@@ -973,7 +1062,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                         placeholder="最初の状況を入力してください" 
                         value={form.firstSituation} 
                         maxLength={1000} 
-                        className="h-32 sm:h-40 rounded-md bg-gray-800 border-gray-700 focus:border-pink-500 text-sm sm:text-base" 
+                        className="h-32 sm:h-40 rounded-xl bg-gray-800/50 backdrop-blur-sm border-gray-700/50 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 text-sm sm:text-base transition-all" 
                         onChange={(e) => handleChange("firstSituation", e.target.value)} 
                     />
                     <p className="text-xs text-right text-gray-500 mt-1">
@@ -986,7 +1075,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                         placeholder="キャラクターの最初のメッセージを入力してください" 
                         value={form.firstMessage} 
                         maxLength={500} 
-                        className="h-24 sm:h-32 rounded-md bg-gray-800 border-gray-700 focus:border-pink-500 text-sm sm:text-base" 
+                        className="h-24 sm:h-32 rounded-xl bg-gray-800/50 backdrop-blur-sm border-gray-700/50 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 text-sm sm:text-base transition-all" 
                         onChange={(e) => handleChange("firstMessage", e.target.value)} 
                     />
                     <p className="text-xs text-right text-gray-500 mt-1">
@@ -998,7 +1087,14 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         </div>
 
         <div style={{ display: step === 4 ? 'block' : 'none' }} className="min-h-[400px]">
-            <div className="bg-gray-900/30 rounded-lg p-4 sm:p-6 space-y-4 sm:space-y-6">
+            <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-6 border border-gray-800/50">
+                <div className="p-3 sm:p-4 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700/50">
+                    <h3 className="font-bold text-lg mb-2">その他設定</h3>
+                    <p className="text-sm text-gray-400">
+                        キャラクターの公開設定、カテゴリー、ハッシュタグなどを設定します。<br />
+                        <span className="text-pink-400 font-semibold">公開範囲でキャラクターの表示方法を制御し、カテゴリーとハッシュタグで検索性を向上させます。セーフティフィルターをONにすると、不適切なコンテンツをフィルタリングします。</span>
+                    </p>
+                </div>
                 <div>
                     <span className="block text-sm font-medium text-gray-200 mb-2">公開範囲</span>
                     <div className="flex flex-wrap gap-x-4 gap-y-2">
@@ -1024,10 +1120,10 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                             key={category} 
                             type="button" 
                             onClick={() => handleChange("category", category)} 
-                            className={`py-3 px-2 rounded-lg transition-all text-center text-sm font-medium ${
+                            className={`py-3 px-2 rounded-xl transition-all text-center text-sm font-medium ${
                                 form.category === category 
-                                    ? "bg-pink-600 text-white font-bold shadow-lg scale-105" 
-                                    : "bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white"
+                                    ? "bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-pink-500/20 text-pink-300 font-bold shadow-lg shadow-pink-500/30 border border-pink-500/30 scale-105" 
+                                    : "bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 hover:text-white border border-gray-700/50 hover:border-pink-500/30"
                             }`}
                         >
                         {category}
@@ -1038,7 +1134,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                 <div>
                     <h3 className="font-bold text-base mb-2">ハッシュタグ</h3>
                     <p className="text-xs text-gray-400 mb-3">最大5個、最小1個以上のタグを選択してください。</p>
-                    <div onClick={() => setIsHashtagModalOpen(true)} className="bg-gray-800 border border-gray-700 rounded-md p-3 min-h-[48px] cursor-pointer flex flex-wrap gap-2 items-center">
+                    <div onClick={() => setIsHashtagModalOpen(true)} className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-3 min-h-[48px] cursor-pointer flex flex-wrap gap-2 items-center hover:border-pink-500/30 transition-all">
                     {form.hashtags.length === 0 ? (<span className="text-gray-500">ハッシュタグを登録してください。</span>) : (form.hashtags.map((tag) => (<span key={tag} className="bg-pink-500 text-white text-sm font-semibold px-2 py-1 rounded">#{tag}</span>)))}
                     </div>
                 </div>
@@ -1046,8 +1142,8 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         </div>
 
         <div style={{ display: step === 5 ? 'block' : 'none' }} className="min-h-[400px]">
-            <div className="space-y-4 sm:space-y-6 bg-gray-900/30 rounded-lg p-4 sm:p-6">
-                <div className="p-3 sm:p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+            <div className="space-y-4 sm:space-y-6 bg-gray-900/50 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-gray-800/50">
+                <div className="p-3 sm:p-4 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700/50">
                     <h3 className="font-bold text-lg">ステータスウィンドウ設定</h3>
                     <p className="text-sm text-gray-400 mt-1">
                         チャット画面で表示されるステータスウィンドウの内容と説明を設定します。<br />
@@ -1063,7 +1159,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                         value={form.statusWindowPrompt} 
                         maxLength={500} 
                         onChange={(e) => handleChange("statusWindowPrompt", e.target.value)} 
-                        className="h-24 sm:h-32 rounded-md bg-gray-800 border-gray-700 focus:border-pink-500 text-sm sm:text-base"
+                        className="h-24 sm:h-32 rounded-xl bg-gray-800/50 backdrop-blur-sm border-gray-700/50 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 text-sm sm:text-base transition-all"
                     />
                     <p className="text-xs text-gray-400 mt-1">
                         AIがステータスウィンドウに表示する内容の形式を設定します。変動する項目（数値など）を指定してください。
@@ -1081,7 +1177,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                         value={form.statusWindowDescription} 
                         maxLength={1000} 
                         onChange={(e) => handleChange("statusWindowDescription", e.target.value)} 
-                        className="h-36 sm:h-48 rounded-md bg-gray-800 border-gray-700 focus:border-pink-500 text-sm sm:text-base"
+                        className="h-36 sm:h-48 rounded-xl bg-gray-800/50 backdrop-blur-sm border-gray-700/50 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 text-sm sm:text-base transition-all"
                     />
                     <p className="text-xs text-gray-400 mt-1">
                         ステータス項目の値の範囲ごとの意味を説明します。例: 呼び出し度 0-10は「全く関係がない」、10-20は「少し興味がある」など。
@@ -1094,12 +1190,12 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         </div>
 
         <div style={{ display: step === 6 ? 'block' : 'none' }} className="min-h-[400px]">
-            <div className="space-y-4 sm:space-y-6 bg-gray-900/30 rounded-lg p-4 sm:p-6">
-                <div className="p-3 sm:p-4 bg-gray-800/50 rounded-lg border border-gray-700">
-                    <h3 className="font-bold text-lg">ロアブック</h3>
-                    <p className="text-sm text-gray-400 mt-1">
-                        世界観、設定、人物情報などをキーワードと紐付けてAIに記憶させます。(最大100件)<br />
-                        <span className="text-pink-400 font-semibold">最大5個のロアブックを同時に使用でき、上位のロアブックが優先的に適用されます。</span>
+            <div className="space-y-4 sm:space-y-6 bg-gray-900/50 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-gray-800/50">
+                <div className="p-3 sm:p-4 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700/50">
+                    <h3 className="font-bold text-lg mb-2">ロアブック設定</h3>
+                    <p className="text-sm text-gray-400">
+                        世界観、設定、人物情報などをキーワードと紐付けてAIに記憶させます。最大100件まで登録可能です。<br />
+                        <span className="text-pink-400 font-semibold">最大5個のロアブックを同時に使用でき、上位のロアブックが優先的に適用されます。キーワードが会話中に出現すると、対応するロアブックの内容がAIに参照されます。</span>
                     </p>
                 </div>
                 {lorebooks.map((lore, index) => (
@@ -1112,57 +1208,64 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                         onDeleteKeyword={handleDeleteKeyword} 
                         onDeleteLorebook={handleDeleteLorebook} />
                 ))}
-                <Button onClick={handleAddLorebook} disabled={lorebooks.length >= 100} className="w-full border-2 border-dashed border-gray-600 hover:bg-gray-700 text-gray-400">
+                <Button onClick={handleAddLorebook} disabled={lorebooks.length >= 100} className="w-full border-2 border-dashed border-gray-600/50 hover:border-pink-500/30 hover:bg-gray-800/50 text-gray-400 hover:text-pink-400 rounded-xl transition-all">
                     <Plus className="mr-2 h-4 w-4" /> ロアブックを追加
                 </Button>
             </div>
         </div>
 
         <div style={{ display: step === 7 ? 'block' : 'none' }} className="min-h-[400px]">
-            <div className="space-y-4 sm:space-y-6 bg-gray-900/30 rounded-lg p-4 sm:p-6">
+            <div className="space-y-4 sm:space-y-6 bg-gray-900/50 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-gray-800/50">
+                <div className="p-3 sm:p-4 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700/50">
+                    <h3 className="font-bold text-lg mb-2">キャラクター情報</h3>
+                    <p className="text-sm text-gray-400">
+                        チャット開始時の日付と場所を設定します。これらの情報は会話の文脈として使用されます。<br />
+                        <span className="text-pink-400 font-semibold">「自動生成」ボタンを使用すると、開始状況に基づいてAIが適切な日付と場所を自動生成します。</span>
+                    </p>
+                </div>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
-                    <h3 className="font-bold text-lg">キャラクター情報</h3>
+                    <h3 className="font-bold text-lg">追加情報</h3>
                     <Button 
                         onClick={handleGenerateDatePlace} 
                         disabled={isGeneratingDatePlace || !form.firstSituation}
-                        className="bg-pink-600 hover:bg-pink-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                        className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto font-semibold"
                     >
                         {isGeneratingDatePlace ? '生成中...' : '自動生成'}
                     </Button>
                 </div>
-                <div className="p-3 sm:p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                <div className="p-3 sm:p-4 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700/50">
                     <p className="text-sm text-gray-400">キャラクターの追加情報を入力します。</p>
                 </div>
                 <div>
                     <label htmlFor="firstSituationDate" className="block text-sm font-medium text-gray-300 mb-2">日付</label>
-                    <Input id="firstSituationDate" type="date" value={form.firstSituationDate} onChange={(e) => handleChange("firstSituationDate", e.target.value)} className="bg-gray-800 border-gray-700 focus:border-pink-500" />
+                    <Input id="firstSituationDate" type="date" value={form.firstSituationDate} onChange={(e) => handleChange("firstSituationDate", e.target.value)} className="bg-gray-800/50 backdrop-blur-sm border-gray-700/50 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 rounded-xl transition-all" />
                 </div>
                 <div>
                     <label htmlFor="firstSituationPlace" className="block text-sm font-medium text-gray-300 mb-2">場所</label>
-                    <Input id="firstSituationPlace" type="text" placeholder="場所を入力してください" value={form.firstSituationPlace} onChange={(e) => handleChange("firstSituationPlace", e.target.value)} className="bg-gray-800 border-gray-700 focus:border-pink-500" />
+                    <Input id="firstSituationPlace" type="text" placeholder="場所を入力してください" value={form.firstSituationPlace} onChange={(e) => handleChange("firstSituationPlace", e.target.value)} className="bg-gray-800/50 backdrop-blur-sm border-gray-700/50 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 rounded-xl transition-all" />
                 </div>
             </div>
         </div>
         
-        <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-gray-800 px-2 sm:px-0">
+        <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-gray-800/50">
             <Button 
                 variant="outline" 
                 onClick={() => setStep(s => Math.max(0, s - 1))} 
                 disabled={step === 0}
-                className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed text-sm sm:text-base py-2 sm:py-2"
+                className="border-gray-700/50 text-gray-300 hover:bg-gray-800/50 hover:text-white hover:border-pink-500/50 disabled:opacity-30 disabled:cursor-not-allowed text-sm sm:text-base py-2 sm:py-2 rounded-xl transition-all"
             >
                 前の段階へ
             </Button>
             {step < STEPS.length - 1 ? (
               <Button 
-                className="bg-pink-600 hover:bg-pink-700 text-white px-4 sm:px-6 py-2 rounded-md transition-all shadow-lg hover:shadow-xl text-sm sm:text-base" 
+                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-4 sm:px-6 py-2 rounded-xl transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50 text-sm sm:text-base font-semibold" 
                 onClick={() => setStep(s => Math.min(STEPS.length - 1, s + 1))}
               >
                 次の段階へ
               </Button>
             ) : (
               <Button 
-                className="bg-pink-600 hover:bg-pink-700 text-white px-6 sm:px-8 py-2 rounded-md transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base" 
+                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-6 sm:px-8 py-2 rounded-xl transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base font-semibold" 
                 onClick={handleSubmit} 
                 disabled={isSubmitting}
               >
@@ -1170,21 +1273,23 @@ export default function CharacterForm({ isEditMode, initialData, session, status
               </Button>
             )}
         </div>
+          </div>
+        </div>
       </div>
 
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-          <DialogContent className="sm:max-w-[425px] bg-gray-800 text-white border-gray-700">
+          <DialogContent className="sm:max-w-[425px] bg-gray-800/95 backdrop-blur-xl text-white border-gray-700/50 rounded-xl">
             <DialogHeader><DialogTitle>キーワード入力</DialogTitle></DialogHeader>
             <div className="py-4">
               {selectedIndex !== null && images[selectedIndex] && (
                 <>
                   {/* ▼▼▼【修正】Imageコンポーネントを標準のimgタグに戻します ▼▼▼ */}
                   <img src={images[selectedIndex].file ? URL.createObjectURL(images[selectedIndex].file!) : images[selectedIndex].imageUrl!} alt={`preview-${selectedIndex}`} width={200} height={200} className="object-cover rounded mb-4 mx-auto" />
-                  <Input placeholder="感情や状況などを入力..." value={images[selectedIndex].keyword} onChange={(e) => updateKeyword(e.target.value)} className="bg-gray-900 border-gray-600 focus:ring-pink-500" />
+                  <Input placeholder="感情や状況などを入力..." value={images[selectedIndex].keyword} onChange={(e) => updateKeyword(e.target.value)} className="bg-gray-900/50 backdrop-blur-sm border-gray-600/50 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 rounded-xl transition-all" />
                 </>
               )}
             </div>
-            <DialogFooter><Button onClick={closeImageModal} className="bg-pink-500 hover:bg-pink-600">保存</Button></DialogFooter>
+            <DialogFooter><Button onClick={closeImageModal} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 shadow-lg shadow-pink-500/30 rounded-xl">保存</Button></DialogFooter>
           </DialogContent>
         </Dialog>
 
@@ -1211,7 +1316,7 @@ function LorebookItem({ lorebook, index, onContentChange, onAddKeyword, onDelete
     };
 
     return (
-      <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700 space-y-4">
+      <div className="bg-gray-900/50 backdrop-blur-sm p-4 rounded-xl border border-gray-700/50 space-y-4 hover:border-pink-500/30 transition-all">
         <div className="flex justify-between items-center">
             <div className="flex items-center gap-2 text-gray-400"><GripVertical size={16} className="cursor-grab" /><h4 className="font-semibold text-white">ロアブック #{index + 1}</h4></div>
             <div className="flex gap-2"><Button variant="ghost" size="sm" onClick={() => onDeleteLorebook(index)} className="text-red-500 hover:bg-red-500/10 hover:text-red-400"><Trash2 size={16} /> <span className="ml-1">削除</span></Button></div>
@@ -1235,12 +1340,12 @@ function LorebookItem({ lorebook, index, onContentChange, onAddKeyword, onDelete
                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAdd())} 
                     placeholder="キーワードを入力して追加" 
                     disabled={lorebook.keywords.length >= 5}
-                    className="bg-gray-800 border-gray-700 focus:border-pink-500"
+                    className="bg-gray-800/50 backdrop-blur-sm border-gray-700/50 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 rounded-xl transition-all"
                 />
                 <Button 
                     onClick={handleAdd} 
                     disabled={!currentKeyword.trim() || lorebook.keywords.length >= 5}
-                    className="bg-pink-600 hover:bg-pink-700"
+                    className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50 rounded-xl"
                 >
                     追加
                 </Button>

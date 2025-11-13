@@ -69,25 +69,39 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * PUT: キャラクターの公開状態を切り替えます
+ * PUT: キャラクターの公開状態または公式キャラクター状態を切り替えます
  */
 export async function PUT(request: NextRequest) {
     const auth = await requireCharManagementPermission();
     if (!auth.ok) return auth.res;
 
     try {
-        const { id, visibility } = await request.json();
-        if (typeof id !== 'number' || typeof visibility !== 'string') {
-            return NextResponse.json({ error: '無効なデータです。' }, { status: 400 });
+        const body = await request.json();
+        const { id, visibility, isOfficial } = body;
+        
+        if (typeof id !== 'number') {
+            return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
+        }
+
+        const updateData: { visibility?: string; isOfficial?: boolean } = {};
+        if (typeof visibility === 'string') {
+            updateData.visibility = visibility;
+        }
+        if (typeof isOfficial === 'boolean') {
+            updateData.isOfficial = isOfficial;
+        }
+
+        if (Object.keys(updateData).length === 0) {
+            return NextResponse.json({ error: '更新するデータがありません。' }, { status: 400 });
         }
 
         const updatedCharacter = await prisma.characters.update({
             where: { id },
-            data: { visibility },
+            data: updateData,
         });
         return NextResponse.json(updatedCharacter);
     } catch (error) {
-        console.error("キャラクター公開状態の更新エラー:", error);
+        console.error("キャラクター状態の更新エラー:", error);
         return NextResponse.json({ error: '更新に失敗しました。' }, { status: 500 });
     }
 }

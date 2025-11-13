@@ -56,61 +56,79 @@ export default function NoticesPage() {
   const canCreateNotice = userRole === 'MODERATOR' || userRole === 'SUPER_ADMIN';
 
   if (isLoading) {
-    return <div className="min-h-screen bg-black text-white flex items-center justify-center">ローディング中...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-black text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <p className="text-gray-400">読み込み中...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="bg-black min-h-screen text-white">
-      <div className="mx-auto max-w-3xl">
-        <header className="flex items-center justify-between p-4 sticky top-0 bg-black/80 backdrop-blur-sm z-10 border-b border-gray-800">
-          <button 
-            onClick={() => router.push('/MyPage')}
-            className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"
-          >
-            <ArrowLeft />
-          </button>
-          <h1 className="font-bold text-lg absolute left-1/2 -translate-x-1/2">お知らせ</h1>
-          
-          {/* ▼▼▼ 変更点: 修正した権限チェック変数を使用します ▼▼▼ */}
-          {canCreateNotice ? (
-            <button 
-              onClick={() => router.push('/notice/admin')}
-              className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"
-            >
-              <PlusCircle />
-            </button>
-          ) : (
-            <div className="w-10 h-10"></div> // ボタン領域分のスペースを確保
-          )}
-        </header>
+      {/* 背景装飾 */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+      </div>
 
-        <main>
-          <ul>
+      <div className="relative z-10">
+        <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-24">
+          <header className="flex items-center justify-between mb-6 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50">
+            <button 
+              onClick={() => router.push('/MyPage')}
+              className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+              お知らせ
+            </h1>
+            {canCreateNotice ? (
+              <button 
+                onClick={() => router.push('/notice/admin')}
+                className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+              >
+                <PlusCircle size={24} />
+              </button>
+            ) : (
+              <div className="w-10 h-10"></div>
+            )}
+          </header>
+
+          <main>
             {notices.length > 0 ? (
-              notices.map((notice) => (
-                <li key={notice.id}>
+              <div className="space-y-3">
+                {notices.map((notice) => (
                   <button 
+                    key={notice.id}
                     onClick={() => router.push(`/notice/${notice.id}`)}
-                    className="w-full flex items-center justify-between p-4 border-b border-gray-800 hover:bg-gray-900 transition-colors cursor-pointer"
+                    className="w-full flex items-center justify-between p-5 bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800/50 hover:border-pink-500/30 hover:bg-gray-800/50 transition-all group"
                   >
-                    <div className="flex-grow text-left">
-                      <p className={`text-sm font-bold ${getCategoryClass(notice.category)}`}>
+                    <div className="flex-grow text-left min-w-0">
+                      <p className={`text-sm font-bold mb-2 ${getCategoryClass(notice.category)}`}>
                         [{notice.category}]
                       </p>
-                      <h2 className="text-white mt-1">{notice.title}</h2>
-                      <p className="text-xs text-gray-500 mt-2">
+                      <h2 className="text-white text-lg font-semibold mb-2 group-hover:text-pink-400 transition-colors truncate">
+                        {notice.title}
+                      </h2>
+                      <p className="text-xs text-gray-500">
                         {new Date(notice.createdAt).toLocaleDateString('ja-JP')}
                       </p>
                     </div>
-                    <ChevronRight className="text-gray-600" />
+                    <ChevronRight className="text-gray-600 group-hover:text-pink-400 group-hover:translate-x-1 transition-all flex-shrink-0 ml-4" />
                   </button>
-                </li>
-              ))
+                ))}
+              </div>
             ) : (
-              <p className="text-center text-gray-500 p-8">登録されたお知らせがありません。</p>
+              <div className="text-center py-16">
+                <p className="text-gray-500 text-lg">登録されたお知らせがありません。</p>
+              </div>
             )}
-          </ul>
-        </main>
+          </main>
+        </div>
       </div>
     </div>
   );

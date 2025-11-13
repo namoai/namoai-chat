@@ -29,11 +29,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     characterInfo?.characterImages?.[0]?.imageUrl ?? '/default-avatar.png';
 
   return (
-    <header className="flex items-center justify-between p-3 border-b border-gray-700 bg-black/50 backdrop-blur-sm sticky top-0 z-10">
+    <header className="flex items-center justify-between p-4 border-b border-gray-800/50 bg-gray-900/50 backdrop-blur-xl sticky top-0 z-10">
       {/* 戻るボタン */}
       <button
         onClick={onBack}
-        className="p-2 hover:bg-gray-700 rounded-full"
+        className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
         aria-label="戻る"
       >
         <ArrowLeft size={24} />
@@ -42,26 +42,27 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       {/* キャラクター詳細リンク */}
       <Link
         href={`/characters/${characterId}`}
-        className="flex flex-col items-center"
+        className="flex items-center gap-3 group"
         aria-label={`${displayName}の詳細`}
       >
-        <div className="relative w-10 h-10 rounded-full overflow-hidden">
-          {/* alt のコメントを行外に移動して JSX パースエラー回避 */}
+        <div className="relative w-12 h-12 rounded-xl overflow-hidden ring-2 ring-pink-500/20 group-hover:ring-pink-500/40 transition-all">
           <Image
             src={avatarSrc}
             alt={displayName}
             fill
             className="object-cover"
-            sizes="40px"
+            sizes="48px"
           />
         </div>
-        <span className="text-sm font-semibold mt-1">{displayName}</span>
+        <span className="text-base font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent group-hover:from-pink-300 group-hover:to-purple-300 transition-all">
+          {displayName}
+        </span>
       </Link>
 
       {/* 設定ボタン */}
       <button
         onClick={onOpenSettings}
-        className="p-2 hover:bg-gray-700 rounded-full"
+        className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
         aria-label="設定を開く"
       >
         <Menu size={24} />

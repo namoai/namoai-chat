@@ -27,7 +27,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         これにより、ページの内容がナビゲーションバーに隠れるのを防ぎます。
         表示されない場合はパディングをなくし、画面全体を使用できるようにします。
       */}
-      <main className={shouldShowNav ? "pb-20" : ""}>{children}</main>
+      <main className={shouldShowNav ? "pb-24" : ""}>{children}</main>
       
       {/* shouldShowNavがtrueの場合のみ、BottomNavコンポーネントをレンダリングします */}
       {shouldShowNav && <BottomNav />}

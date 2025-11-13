@@ -178,8 +178,11 @@ export default function PersonaFormPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        ローディング中...
+      <div className="flex h-screen items-center justify-center bg-black text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <p className="text-gray-400">読み込み中...</p>
+        </div>
       </div>
     );
   }
@@ -192,95 +195,114 @@ export default function PersonaFormPage() {
         message={modalState.message}
         onConfirm={handleModalConfirm}
       />
-      <div className="bg-black min-h-screen text-white p-4">
-        <header className="flex justify-between items-center py-4">
-          <button
-            onClick={() => router.back()}
-            className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="text-lg font-bold">{isEditMode ? 'ペルソナ修正' : 'ペルソナ追加'}</h1>
-          <button
-            onClick={handleSave}
-            className={`font-bold py-2 px-3 rounded-lg transition-colors disabled:cursor-not-allowed ${
-              formData.nickname && formData.description
-                ? 'text-white hover:bg-gray-800 cursor-pointer'
-                : 'text-gray-600'
-            }`}
-            disabled={!formData.nickname || !formData.description || isSubmitting}
-          >
-            {isSubmitting ? '保存中...' : '保存'}
-          </button>
-        </header>
-        <main className="mt-8 space-y-8">
-          <div>
-            <label className="text-sm font-bold text白">ニックネーム <span className="text-red-500">*</span></label>
-            <div className="relative mt-2">
-              <input
-                type="text"
-                value={formData.nickname}
-                onChange={(e) => handleChange('nickname', e.target.value)}
-                maxLength={20}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-500"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-                {formData.nickname.length}/20
-              </span>
-            </div>
-          </div>
+      <div className="bg-black min-h-screen text-white">
+        {/* 背景装飾 */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+        </div>
 
-          <div>
-            <label className="text-sm font-bold text白">年齢</label>
-            <input
-              type="number"
-              value={formData.age ?? ''}
-              onChange={handleAgeChange}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 mt-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-bold text白">性別</label>
-            <div className="grid grid-cols-2 gap-4 mt-2">
+        <div className="relative z-10">
+          <div className="max-w-2xl mx-auto px-4 md:px-6 py-6 pb-24">
+            <header className="flex justify-between items-center mb-8 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50">
               <button
-                onClick={() => handleChange('gender', '女性')}
-                className={`p-3 rounded-lg border-2 transition-colors cursor-pointer ${
-                  formData.gender === '女性'
-                    ? 'bg-pink-500/20 border-pink-500'
-                    : 'bg-gray-800 border-gray-700 hover:border-gray-600'
+                onClick={() => router.back()}
+                className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+              >
+                <ArrowLeft size={24} />
+              </button>
+              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                {isEditMode ? 'ペルソナ修正' : 'ペルソナ追加'}
+              </h1>
+              <button
+                onClick={handleSave}
+                disabled={!formData.nickname || !formData.description || isSubmitting}
+                className={`font-semibold py-2 px-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                  formData.nickname && formData.description
+                    ? 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-lg shadow-pink-500/30'
+                    : 'bg-gray-800/50 text-gray-600 border border-gray-700/50'
                 }`}
               >
-                女性
+                {isSubmitting ? '保存中...' : '保存'}
               </button>
-              <button
-                onClick={() => handleChange('gender', '男性')}
-                className={`p-3 rounded-lg border-2 transition-colors cursor-pointer ${
-                  formData.gender === '男性'
-                    ? 'bg-pink-500/20 border-pink-500'
-                    : 'bg-gray-800 border-gray-700 hover:border-gray-600'
-                }`}
-              >
-                男性
-              </button>
-            </div>
-          </div>
+            </header>
+            <main className="space-y-6">
+              <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
+                <label className="text-sm font-medium text-gray-300 mb-2 block">
+                  ニックネーム <span className="text-red-400">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.nickname}
+                    onChange={(e) => handleChange('nickname', e.target.value)}
+                    maxLength={20}
+                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all placeholder-gray-500"
+                    placeholder="ニックネームを入力"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                    {formData.nickname.length}/20
+                  </span>
+                </div>
+              </div>
 
-          <div>
-            <label className="text-sm font-bold text白">詳細情報 <span className="text-red-500">*</span></label>
-            <div className="relative mt-2">
-              <textarea
-                value={formData.description}
-                onChange={(e) => handleChange('description', e.target.value)}
-                maxLength={1000}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 h-40 resize-none focus:outline-none focus:ring-2 focus:ring-pink-500"
-              />
-              <span className="absolute right-3 bottom-3 text-sm text-gray-400">
-                {formData.description.length}/1000
-              </span>
-            </div>
+              <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
+                <label className="text-sm font-medium text-gray-300 mb-2 block">年齢</label>
+                <input
+                  type="number"
+                  value={formData.age ?? ''}
+                  onChange={handleAgeChange}
+                  className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all placeholder-gray-500"
+                  placeholder="年齢を入力（任意）"
+                />
+              </div>
+
+              <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
+                <label className="text-sm font-medium text-gray-300 mb-3 block">性別</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={() => handleChange('gender', '女性')}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      formData.gender === '女性'
+                        ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 border-pink-500/50 text-pink-400'
+                        : 'bg-gray-800/50 border-gray-700/50 hover:border-pink-500/30 text-gray-300'
+                    }`}
+                  >
+                    女性
+                  </button>
+                  <button
+                    onClick={() => handleChange('gender', '男性')}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      formData.gender === '男性'
+                        ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 border-pink-500/50 text-pink-400'
+                        : 'bg-gray-800/50 border-gray-700/50 hover:border-pink-500/30 text-gray-300'
+                    }`}
+                  >
+                    男性
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
+                <label className="text-sm font-medium text-gray-300 mb-2 block">
+                  詳細情報 <span className="text-red-400">*</span>
+                </label>
+                <div className="relative">
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => handleChange('description', e.target.value)}
+                    maxLength={1000}
+                    rows={8}
+                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all resize-none placeholder-gray-500"
+                    placeholder="詳細情報を入力"
+                  />
+                  <span className="absolute right-3 bottom-3 text-sm text-gray-400">
+                    {formData.description.length}/1000
+                  </span>
+                </div>
+              </div>
+            </main>
           </div>
-        </main>
+        </div>
       </div>
     </>
   );

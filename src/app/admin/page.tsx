@@ -45,57 +45,80 @@ export default function AdminDashboardPage() {
   }, [router]); // routerを依存配列に追加
 
   if (status === 'loading' || !session) {
-    return <div className="bg-black text-white min-h-screen flex justify-center items-center">読み込み中...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-black text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <p className="text-gray-400">読み込み中...</p>
+        </div>
+      </div>
+    );
   }
 
   const userRole = session.user.role;
 
   return (
-    <div className="bg-black text-white min-h-screen p-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">管理パネル</h1>
-        {/* ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更 ▼▼▼ */}
-        <Link href="/MyPage" className="flex items-center bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold py-2 px-4 rounded-lg transition-colors">
-          <ArrowLeft size={16} className="mr-2" />
-          マイページに戻る
-        </Link>
+    <div className="bg-black text-white min-h-screen">
+      {/* 背景装飾 */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {(userRole === 'SUPER_ADMIN') && (
-          // ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更 ▼▼▼
-          <Link href="/admin/users" className="bg-gray-900 p-6 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer flex flex-col items-center text-center">
-            <Users size={40} className="text-pink-400 mb-4" />
-            <h2 className="text-xl font-bold mb-2">ユーザー管理</h2>
-            <p className="text-gray-400 text-sm">ユーザーの役割を変更します。</p>
-          </Link>
-        )}
-
-        {(userRole === 'MODERATOR' || userRole === 'SUPER_ADMIN') && (
-          // ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更 ▼▼▼
-          <Link href="/admin/guides" className="bg-gray-900 p-6 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer flex flex-col items-center text-center">
-            <FileText size={40} className="text-pink-400 mb-4" />
-            <h2 className="text-xl font-bold mb-2">ガイド管理</h2>
-            <p className="text-gray-400 text-sm">ユーザーガイドの内容を管理します。</p>
-          </Link>
-        )}
-        
-        {(userRole === 'CHAR_MANAGER' || userRole === 'SUPER_ADMIN') && (
-            // ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更 ▼▼▼
-            <Link href="/admin/characters" className="bg-gray-900 p-6 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer flex flex-col items-center text-center">
-              <BrainCircuit size={40} className="text-pink-400 mb-4" />
-              <h2 className="text-xl font-bold mb-2">キャラクター管理</h2>
-              <p className="text-gray-400 text-sm">すべてのキャラクターを管理します。</p>
+      <div className="relative z-10">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8 pb-24">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              管理パネル
+            </h1>
+            <Link href="/MyPage" className="flex items-center bg-gray-800/50 hover:bg-gray-700/50 text-white text-sm font-semibold py-2 px-4 rounded-xl transition-all border border-gray-700/50">
+              <ArrowLeft size={16} className="mr-2" />
+              マイページに戻る
             </Link>
-        )}
+          </div>
 
-        {(userRole === 'MODERATOR' || userRole === 'SUPER_ADMIN') && (
-          <Link href="/admin/reports" className="bg-gray-900 p-6 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer flex flex-col items-center text-center">
-            <Flag size={40} className="text-pink-400 mb-4" />
-            <h2 className="text-xl font-bold mb-2">通報・要望・お問い合わせ管理</h2>
-            <p className="text-gray-400 text-sm">通報、要望、お問い合わせを管理します。</p>
-          </Link>
-        )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {(userRole === 'SUPER_ADMIN') && (
+              <Link href="/admin/users" className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl hover:bg-gray-800/50 transition-all cursor-pointer flex flex-col items-center text-center border border-gray-800/50 hover:border-pink-500/30 group">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-pink-500/20 to-purple-500/20 mb-4 group-hover:scale-110 transition-transform">
+                  <Users size={40} className="text-pink-400" />
+                </div>
+                <h2 className="text-xl font-bold mb-2 group-hover:text-pink-400 transition-colors">ユーザー管理</h2>
+                <p className="text-gray-400 text-sm">ユーザーの役割を変更します。</p>
+              </Link>
+            )}
+
+            {(userRole === 'MODERATOR' || userRole === 'SUPER_ADMIN') && (
+              <Link href="/admin/guides" className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl hover:bg-gray-800/50 transition-all cursor-pointer flex flex-col items-center text-center border border-gray-800/50 hover:border-pink-500/30 group">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 mb-4 group-hover:scale-110 transition-transform">
+                  <FileText size={40} className="text-blue-400" />
+                </div>
+                <h2 className="text-xl font-bold mb-2 group-hover:text-pink-400 transition-colors">ガイド管理</h2>
+                <p className="text-gray-400 text-sm">ユーザーガイドの内容を管理します。</p>
+              </Link>
+            )}
+            
+            {(userRole === 'CHAR_MANAGER' || userRole === 'SUPER_ADMIN') && (
+              <Link href="/admin/characters" className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl hover:bg-gray-800/50 transition-all cursor-pointer flex flex-col items-center text-center border border-gray-800/50 hover:border-pink-500/30 group">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 mb-4 group-hover:scale-110 transition-transform">
+                  <BrainCircuit size={40} className="text-purple-400" />
+                </div>
+                <h2 className="text-xl font-bold mb-2 group-hover:text-pink-400 transition-colors">キャラクター管理</h2>
+                <p className="text-gray-400 text-sm">すべてのキャラクターを管理します。</p>
+              </Link>
+            )}
+
+            {(userRole === 'MODERATOR' || userRole === 'SUPER_ADMIN') && (
+              <Link href="/admin/reports" className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl hover:bg-gray-800/50 transition-all cursor-pointer flex flex-col items-center text-center border border-gray-800/50 hover:border-pink-500/30 group">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-red-500/20 to-orange-500/20 mb-4 group-hover:scale-110 transition-transform">
+                  <Flag size={40} className="text-red-400" />
+                </div>
+                <h2 className="text-xl font-bold mb-2 group-hover:text-pink-400 transition-colors">通報・要望・お問い合わせ管理</h2>
+                <p className="text-gray-400 text-sm">通報、要望、お問い合わせを管理します。</p>
+              </Link>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

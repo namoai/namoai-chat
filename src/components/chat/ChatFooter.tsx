@@ -17,36 +17,42 @@ const ChatFooter = forwardRef<HTMLTextAreaElement, ChatFooterProps>(({
   input, setInput, isLoading, handleSendMessage, wrapSelection
 }, ref) => {
   return (
-    <footer className="p-3 border-t border-gray-700 bg-black/50 backdrop-blur-sm sticky bottom-0">
-      {/* 入力補助ツールバー */}
-      <div className="mb-2 flex items-center gap-2 text-sm">
-        <button type="button" onClick={() => wrapSelection("「", "」")} className="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700" title="セリフ">
-          「」
-        </button>
-        <button type="button" onClick={() => wrapSelection("```\n", "\n```")} className="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700" title="状態窓">
-          ```
-        </button>
-      </div>
-
+    <footer className="p-4 border-t border-gray-800/50 bg-gray-900/50 backdrop-blur-xl sticky bottom-0">
       {/* メッセージ入力フォーム */}
-      <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-        <textarea
-          ref={ref}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="メッセージを入力"
-          disabled={isLoading}
-          className="flex-1 bg-gray-800 border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-pink-500 disabled:opacity-50 resize-none"
-          rows={3}
-          style={{ minHeight: '3rem', maxHeight: '10rem' }}
-          onKeyDown={(e: React.KeyboardEvent) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleSendMessage(e);
-            }
-          }}
-        />
-        <button type="submit" disabled={isLoading || !input.trim()} className="bg-pink-600 hover:bg-pink-700 rounded-full p-2 disabled:opacity-50">
+      <form onSubmit={handleSendMessage} className="flex items-end gap-3">
+        <div className="flex-1 relative">
+          <div className="mb-2 flex items-center gap-2">
+            <button 
+              type="button" 
+              onClick={() => wrapSelection("「", "」")} 
+              className="px-3 py-1.5 rounded-lg bg-gray-800/50 hover:bg-pink-500/10 hover:text-pink-400 text-gray-400 text-sm font-medium transition-all border border-gray-700/50 hover:border-pink-500/30" 
+              title="セリフ"
+            >
+              「」
+            </button>
+          </div>
+          <textarea
+            ref={ref}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="メッセージを入力..."
+            disabled={isLoading}
+            className="w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl px-4 py-3 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 disabled:opacity-50 resize-none text-white placeholder-gray-500 transition-all"
+            rows={3}
+            style={{ minHeight: '3rem', maxHeight: '10rem' }}
+            onKeyDown={(e: React.KeyboardEvent) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage(e);
+              }
+            }}
+          />
+        </div>
+        <button 
+          type="submit" 
+          disabled={isLoading || !input.trim()} 
+          className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl p-3 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50"
+        >
           <Send size={24} className="text-white" />
         </button>
       </form>

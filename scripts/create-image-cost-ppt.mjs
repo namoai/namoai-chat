@@ -675,3 +675,5 @@ async function createImageCostPPT() {
 
 createImageCostPPT().catch(console.error);
 
+
+

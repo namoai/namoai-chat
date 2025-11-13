@@ -120,7 +120,14 @@ export default function PointPage() {
   };
 
   if (loading) {
-    return <div className="bg-black min-h-screen text-white flex justify-center items-center">読み込み中...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-black text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <p className="text-gray-400">読み込み中...</p>
+        </div>
+      </div>
+    );
   }
 
   const totalPoints = (pointsData?.free_points ?? 0) + (pointsData?.paid_points ?? 0);
@@ -128,66 +135,87 @@ export default function PointPage() {
   return (
     <>
       <CustomModal {...modalState} onClose={closeModal} />
-      <div className="bg-black min-h-screen text-white p-4">
-        <header className="relative flex justify-center items-center mb-6">
-          {/* ▼▼▼【修正点】router.back() を使用します ▼▼▼ */}
-          <button onClick={() => router.back()} className="absolute left-0 p-2 rounded-full hover:bg-pink-500/20 transition-colors cursor-pointer">
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="text-xl font-bold">ポイント</h1>
-        </header>
-
-        <div className="bg-gray-900 p-6 rounded-lg mb-8">
-          <p className="text-gray-400 text-sm">保有ポイント</p>
-          <p className="text-4xl font-bold">{totalPoints.toLocaleString()}</p>
-          <div className="mt-4 text-sm text-gray-500">
-            <p>有料ポイント: {pointsData?.paid_points?.toLocaleString() ?? 0}</p>
-            <p>無料ポイント: {pointsData?.free_points?.toLocaleString() ?? 0}</p>
-          </div>
+      <div className="bg-black min-h-screen text-white">
+        {/* 背景装飾 */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-yellow-500/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
         </div>
 
-        <div className="bg-gray-900 p-6 rounded-lg mb-8">
-          <h2 className="text-lg font-bold mb-4">毎日出席イベント</h2>
-          <button 
-            onClick={handleAttendance}
-            disabled={pointsData?.attendedToday}
-            className={`w-full p-4 rounded-lg font-bold transition-colors flex items-center justify-center ${
-              pointsData?.attendedToday 
-                ? 'bg-gray-700 text-gray-500 cursor-not-allowed' 
-                : 'bg-pink-500 hover:bg-pink-600 cursor-pointer'
-            }`}
-          >
-            {pointsData?.attendedToday ? (
-              <>
-                <CheckCircle className="mr-2" />
-                <span>本日は出席済み</span>
-              </>
-            ) : (
-              <>
-                <Gift className="mr-2" />
-                <span>出席して30ポイントGET</span>
-              </>
-            )}
-          </button>
-        </div>
+        <div className="relative z-10">
+          <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-24">
+            <header className="relative flex justify-center items-center mb-8">
+              <button onClick={() => router.back()} className="absolute left-0 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
+                <ArrowLeft size={24} />
+              </button>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+                ポイント
+              </h1>
+            </header>
 
-        <div>
-          <h2 className="text-lg font-bold mb-4">ポイント購入</h2>
-          <div className="space-y-4">
-            {pointPackages.map(pkg => (
-              <div key={pkg.yen} className="bg-gray-900 p-4 rounded-lg flex justify-between items-center">
-                <div>
-                  <p className="text-lg font-bold">{pkg.points.toLocaleString()} ポイント</p>
-                  {pkg.bonus && <p className="text-sm text-pink-400">+{pkg.bonus} ボーナス</p>}
-                </div>
-                <button 
-                  onClick={() => handleCharge(pkg.points)}
-                  className="bg-pink-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-pink-600 transition-colors cursor-pointer"
-                >
-                  ￥{pkg.yen.toLocaleString()}
-                </button>
+            <div className="bg-gradient-to-r from-yellow-500/20 via-pink-500/20 to-purple-500/20 backdrop-blur-sm p-6 md:p-8 rounded-2xl mb-8 border border-gray-800/50">
+              <p className="text-gray-400 text-sm mb-2">保有ポイント</p>
+              <p className="text-5xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+                {totalPoints.toLocaleString()}
+              </p>
+              <div className="mt-4 text-sm text-gray-400 space-y-1">
+                <p>有料ポイント: <span className="text-pink-400 font-semibold">{pointsData?.paid_points?.toLocaleString() ?? 0}</span></p>
+                <p>無料ポイント: <span className="text-yellow-400 font-semibold">{pointsData?.free_points?.toLocaleString() ?? 0}</span></p>
               </div>
-            ))}
+            </div>
+
+            <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl mb-8 border border-gray-800/50">
+              <h2 className="text-xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                毎日出席イベント
+              </h2>
+              <button 
+                onClick={handleAttendance}
+                disabled={pointsData?.attendedToday}
+                className={`w-full p-5 rounded-xl font-bold transition-all flex items-center justify-center ${
+                  pointsData?.attendedToday 
+                    ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed border border-gray-700/50' 
+                    : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 cursor-pointer shadow-lg shadow-pink-500/30'
+                }`}
+              >
+                {pointsData?.attendedToday ? (
+                  <>
+                    <CheckCircle className="mr-2" size={24} />
+                    <span>本日は出席済み</span>
+                  </>
+                ) : (
+                  <>
+                    <Gift className="mr-2" size={24} />
+                    <span>出席して30ポイントGET</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div>
+              <h2 className="text-xl font-bold mb-6 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                ポイント購入
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {pointPackages.map(pkg => (
+                  <div key={pkg.yen} className="bg-gray-900/50 backdrop-blur-sm p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4 border border-gray-800/50 hover:border-pink-500/30 transition-all">
+                    <div>
+                      <p className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+                        {pkg.points.toLocaleString()} ポイント
+                      </p>
+                      {pkg.bonus && (
+                        <p className="text-sm text-pink-400 mt-1">+{pkg.bonus} ボーナス</p>
+                      )}
+                    </div>
+                    <button 
+                      onClick={() => handleCharge(pkg.points)}
+                      className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-2 px-6 rounded-xl transition-all shadow-lg shadow-pink-500/30 whitespace-nowrap"
+                    >
+                      ￥{pkg.yen.toLocaleString()}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -61,83 +61,116 @@ export default function RankingPage() {
   };
 
   return (
-    <div className="bg-black min-h-screen text-white p-4">
-      <header className="relative flex justify-center items-center mb-6">
-        {/* ▼▼▼【修正点】router.back() を使用します ▼▼▼ */}
-        <button
-          onClick={() => router.back()}
-          className="absolute left-0 p-2 rounded-full hover:bg-pink-500/20 hover:text-white transition-colors cursor-pointer"
-        >
-          <ArrowLeft size={24} />
-        </button>
-        <h1 className="text-2xl font-bold text-pink-500">ランキング</h1>
-      </header>
-
-      <div className="flex justify-center space-x-2 mb-6">
-        <button onClick={() => setActiveTab("realtime")} className={getTabClassName("realtime")}>リアルタイム</button>
-        <button onClick={() => setActiveTab("daily")} className={getTabClassName("daily")}>日間</button>
-        <button onClick={() => setActiveTab("weekly")} className={getTabClassName("weekly")}>週間</button>
-        <button onClick={() => setActiveTab("monthly")} className={getTabClassName("monthly")}>月間</button>
+    <div className="bg-black min-h-screen text-white">
+      {/* 背景装飾 */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
       </div>
 
-      <div className="space-y-4">
-        {loading ? (
-          <p className="text-center text-gray-500">ランキングを読み込んでいます...</p>
-        ) : ranking.length > 0 ? (
-          ranking.map((char, index) => {
-            const src = char.characterImages[0]?.imageUrl || "https://placehold.co/100x100/1a1a1a/ffffff?text=?";
-            return (
-              // ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更します ▼▼▼
-              <Link
-                href={`/characters/${char.id}`}
-                key={char.id}
-                className="flex items-center bg-gray-900 p-3 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+      <div className="relative z-10">
+        <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-24">
+          <header className="relative flex justify-center items-center mb-8">
+            <button
+              onClick={() => router.back()}
+              className="absolute left-0 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              ランキング
+            </h1>
+          </header>
+
+          <div className="flex justify-center gap-2 mb-8 flex-wrap">
+            {(["realtime", "daily", "weekly", "monthly"] as Period[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-6 py-2 rounded-full text-sm font-semibold transition-all ${
+                  activeTab === tab
+                    ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg shadow-pink-500/30"
+                    : "bg-gray-800/50 text-gray-400 hover:bg-gray-700/50 hover:text-white"
+                }`}
               >
-                <div className="flex items-center w-12 flex-shrink-0">
-                  {index < 3 ? (
-                    <Crown size={24} className={getRankColor(index)} />
-                  ) : (
-                    <span className={`text-lg font-bold w-8 text-center ${getRankColor(index)}`}>
-                      {index + 1}
-                    </span>
-                  )}
-                </div>
+                {tab === "realtime" ? "リアルタイム" : tab === "daily" ? "日間" : tab === "weekly" ? "週間" : "月間"}
+              </button>
+            ))}
+          </div>
 
-                <div className="relative w-16 h-16 mr-4 flex-shrink-0">
-                  <Image
-                    src={src}
-                    alt={char.name}
-                    fill
-                    sizes="64px"
-                    className="rounded-md object-cover"
-                  />
+          <div className="space-y-3">
+            {loading ? (
+              <div className="flex justify-center items-center py-16">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+                  <p className="text-gray-400">ランキングを読み込んでいます...</p>
                 </div>
+              </div>
+            ) : ranking.length > 0 ? (
+              ranking.map((char, index) => {
+                const src = char.characterImages[0]?.imageUrl || "https://placehold.co/100x100/1a1a1a/ffffff?text=?";
+                return (
+                  <Link
+                    href={`/characters/${char.id}`}
+                    key={char.id}
+                    className="group flex items-center bg-gray-900/50 backdrop-blur-sm p-4 rounded-xl hover:bg-gray-800/50 transition-all border border-gray-800/50 hover:border-pink-500/30"
+                  >
+                    <div className="flex items-center w-16 flex-shrink-0 justify-center">
+                      {index < 3 ? (
+                        <div className="relative">
+                          <Crown size={32} className={getRankColor(index)} />
+                          {index === 0 && (
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-pulse" />
+                          )}
+                        </div>
+                      ) : (
+                        <span className={`text-2xl font-bold ${getRankColor(index)}`}>
+                          {index + 1}
+                        </span>
+                      )}
+                    </div>
 
-                <div className="flex-grow overflow-hidden">
-                  <h3 className="font-bold truncate">{char.name}</h3>
-                  <p className="text-sm text-gray-400 truncate">
-                    {char.description}
-                  </p>
-                </div>
+                    <div className="relative w-20 h-20 mr-4 flex-shrink-0 rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900">
+                      <Image
+                        src={src}
+                        alt={char.name}
+                        fill
+                        sizes="80px"
+                        className="object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                    </div>
 
-                <div className="flex items-center text-gray-400 flex-shrink-0 ml-4">
-                  {activeTab === "realtime" ? (
-                    <Flame size={16} className="mr-1 text-pink-400" />
-                  ) : (
-                    <MessageSquare size={16} className="mr-1" />
-                  )}
-                  <span className="text-sm font-semibold">
-                    {char.chatCount}
-                  </span>
-                </div>
-              </Link>
-            );
-          })
-        ) : (
-          <p className="text-center text-gray-500">
-            表示するランキング情報がありません。
-          </p>
-        )}
+                    <div className="flex-grow overflow-hidden min-w-0">
+                      <h3 className="font-bold text-lg truncate group-hover:text-pink-400 transition-colors">
+                        {char.name}
+                      </h3>
+                      <p className="text-sm text-gray-400 truncate">
+                        {char.description}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-gray-400 flex-shrink-0 ml-4 px-4 py-2 rounded-lg bg-gray-800/50">
+                      {activeTab === "realtime" ? (
+                        <Flame size={18} className="text-pink-400" />
+                      ) : (
+                        <MessageSquare size={18} />
+                      )}
+                      <span className="text-base font-bold">
+                        {char.chatCount}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })
+            ) : (
+              <div className="text-center py-16">
+                <p className="text-gray-500 text-lg">
+                  表示するランキング情報がありません。
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

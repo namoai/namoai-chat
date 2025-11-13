@@ -334,12 +334,27 @@ export default function AdminUsersPage() {
   };
 
   if (loading && users.length === 0) {
-    return <div className="bg-black text-white min-h-screen flex justify-center items-center">読み込み中...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-black text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <p className="text-gray-400">読み込み中...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="bg-black text-white min-h-screen p-4 sm:p-8">
-      <ConfirmationModal modalState={modalState} setModalState={setModalState} />
+    <div className="bg-black text-white min-h-screen">
+      {/* 背景装飾 */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 pb-24">
+          <ConfirmationModal modalState={modalState} setModalState={setModalState} />
       
       {/* ▼▼▼【停止モーダル】▼▼▼ */}
       {suspendModal.isOpen && (
@@ -523,15 +538,15 @@ export default function AdminUsersPage() {
         </div>
       )}
       {/* ▲▲▲【編集モーダル完了】▲▲▲ */}
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold">ユーザー管理</h1>
-          {/* ▼▼▼【修正点】<a>タグを<Link>コンポーネントに変更 ▼▼▼ */}
-          <Link href="/admin" className="flex items-center bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold py-2 px-4 rounded-lg transition-colors cursor-pointer">
-            <ArrowLeft size={16} className="mr-2" />
-            管理パネルに戻る
-          </Link>
-        </div>
+          <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              ユーザー管理
+            </h1>
+            <Link href="/admin" className="flex items-center bg-gray-800/50 hover:bg-gray-700/50 text-white text-sm font-semibold py-2 px-4 rounded-xl transition-all border border-gray-700/50">
+              <ArrowLeft size={16} className="mr-2" />
+              管理パネルに戻る
+            </Link>
+          </header>
 
         <form onSubmit={handleSearch} className="mb-8 flex flex-col sm:flex-row gap-2">
           <div className="relative flex-grow">
@@ -633,6 +648,7 @@ export default function AdminUsersPage() {
                 検索結果に一致するユーザーがいません。
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>

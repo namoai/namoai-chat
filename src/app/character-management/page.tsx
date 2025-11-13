@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Image from 'next/image'; // 画像最適化のため追加
 import {
   ArrowLeft,
@@ -13,7 +14,9 @@ import {
   Copy,
   Upload,
   Loader2, // ローディングアイコンを追加
+  HelpCircle,
 } from "lucide-react";
+import HelpModal from "@/components/HelpModal";
 
 // Buttonの仮コンポーネント
 const Button = ({ children, onClick, className, disabled }: { children: React.ReactNode, onClick: () => void, className?: string, disabled?: boolean }) => (
@@ -83,20 +86,22 @@ const ConfirmationModal = ({
 }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
-      <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-sm mx-4">
-        <h2 className="text-lg font-bold mb-4 text-white">{title}</h2>
-        <p className="text-sm text-gray-200 mb-6 whitespace-pre-wrap">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
+      <div className="bg-gray-900/95 backdrop-blur-xl text-white rounded-2xl p-6 w-full max-w-sm mx-4 border border-gray-700/50 shadow-2xl">
+        <h2 className="text-xl font-bold mb-4 text-white bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+          {title}
+        </h2>
+        <p className="text-sm text-gray-300 mb-6 whitespace-pre-wrap">
           {message}
         </p>
-        <div className="flex justify-end gap-4">
+        <div className="flex justify-end gap-3">
           <Button
             onClick={onClose}
-            className="border border-gray-600 text-white hover:bg-gray-700 py-2 px-4 rounded-lg transition-colors"
+            className="border border-gray-600 text-white hover:bg-gray-700/50 py-2 px-4 rounded-xl transition-all"
           >
             {cancelText}
           </Button>
-          <Button onClick={onConfirm} className="bg-red-600 text-white hover:bg-red-700 py-2 px-4 rounded-lg transition-colors">
+          <Button onClick={onConfirm} className="bg-gradient-to-r from-red-500 to-rose-600 text-white hover:from-red-600 hover:to-rose-700 py-2 px-4 rounded-xl transition-all shadow-lg shadow-red-500/30">
             {confirmText}
           </Button>
         </div>
@@ -119,14 +124,16 @@ const AlertModal = ({
 }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
-      <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-sm mx-4">
-        <h2 className="text-lg font-bold mb-4 text-white">{title}</h2>
-        <p className="text-sm text-gray-200 mb-6 whitespace-pre-wrap">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
+      <div className="bg-gray-900/95 backdrop-blur-xl text-white rounded-2xl p-6 w-full max-w-sm mx-4 border border-gray-700/50 shadow-2xl">
+        <h2 className="text-xl font-bold mb-4 text-white bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+          {title}
+        </h2>
+        <p className="text-sm text-gray-300 mb-6 whitespace-pre-wrap">
           {message}
         </p>
-        <div className="flex justify-end gap-4">
-          <Button onClick={onClose} className="bg-pink-500 text-white hover:bg-pink-600 py-2 px-4 rounded-lg transition-colors">
+        <div className="flex justify-end gap-3">
+          <Button onClick={onClose} className="bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:from-pink-600 hover:to-purple-700 py-2 px-4 rounded-xl transition-all shadow-lg shadow-pink-500/30">
             確認
           </Button>
         </div>
@@ -144,16 +151,30 @@ const KebabMenu = ({
   onAction: (action: string, char: CharacterSummary) => void;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node))
-        setIsOpen(false);
+      if (
+        buttonRef.current?.contains(event.target as Node) ||
+        menuRef.current?.contains(event.target as Node)
+      ) {
+        return;
+      }
+      setIsOpen(false);
     };
-    document.addEventListener("mousedown", handleClickOutside);
+    if (isOpen && buttonRef.current) {
+      document.addEventListener("mousedown", handleClickOutside);
+      const rect = buttonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.right + window.scrollX - 160, // メニュー幅160px
+      });
+    }
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [isOpen]);
 
   const menuItems = [
     { label: "修正", icon: Edit, action: "edit" },
@@ -163,34 +184,45 @@ const KebabMenu = ({
   ];
 
   return (
-    <div className="relative" ref={menuRef}>
+    <>
       <button
+        ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-full hover:bg-gray-700"
+        className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
       >
         <MoreVertical size={20} />
       </button>
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-40 bg-[#2C2C2E] border border-gray-700 rounded-lg shadow-lg z-10">
-          <ul>
-            {menuItems.map((item) => (
-              <li key={item.action}>
-                <button
-                  onClick={() => {
-                    onAction(item.action, character);
-                    setIsOpen(false);
-                  }}
-                  className="w-full flex items-center px-4 py-2 text-sm text-left text-white hover:bg-gray-700"
-                >
-                  <item.icon size={16} className="mr-3" />
-                  {item.label}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+      {isOpen &&
+        typeof window !== "undefined" &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="fixed w-40 bg-gray-800/95 backdrop-blur-xl border border-gray-700 rounded-xl shadow-2xl z-[9999] text-sm py-2"
+            style={{
+              top: `${menuPosition.top}px`,
+              left: `${menuPosition.left}px`,
+            }}
+          >
+            <ul>
+              {menuItems.map((item) => (
+                <li key={item.action}>
+                  <button
+                    onClick={() => {
+                      onAction(item.action, character);
+                      setIsOpen(false);
+                    }}
+                    className="w-full flex items-center px-4 py-2 text-sm text-left !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 group"
+                  >
+                    <item.icon size={16} className="mr-3 group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" />
+                    <span className="group-hover:translate-x-1 transition-transform duration-300">{item.label}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>,
+          document.body
+        )}
+    </>
   );
 };
 
@@ -218,6 +250,7 @@ export default function CharacterManagementPage() {
     message: "",
     onClose: () => {},
   });
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   const showNotification = useCallback(
     (message: string, type: "success" | "error" = "success") => {
@@ -401,14 +434,17 @@ export default function CharacterManagementPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black text-white flex justify-center items-center">
-        ローディング中...
+      <div className="flex h-screen items-center justify-center bg-black text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <p className="text-gray-400">読み込み中...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 font-sans max-w-4xl mx-auto">
+    <div className="min-h-screen bg-black text-white p-4 font-sans max-w-4xl mx-auto" style={{ overflow: 'visible' }}>
       {/* ▼▼▼【追加】インポート処理中のローディング画面 ▼▼▼ */}
       {isImporting && (
           <div className="fixed inset-0 bg-black bg-opacity-70 flex flex-col justify-center items-center z-50">
@@ -422,8 +458,14 @@ export default function CharacterManagementPage() {
       {notification && (
         <div
           className={`fixed top-5 left-1/2 -translate-x-1/2 ${
-            notification.type === "success" ? "bg-green-500" : "bg-red-500"
-          } text-white px-4 py-2 rounded-lg shadow-lg z-50 whitespace-pre-wrap`}
+            notification.type === "success" 
+              ? "bg-gradient-to-r from-green-500 to-emerald-600" 
+              : "bg-gradient-to-r from-red-500 to-rose-600"
+          } text-white px-6 py-3 rounded-xl shadow-2xl z-50 whitespace-pre-wrap backdrop-blur-sm border ${
+            notification.type === "success" 
+              ? "border-green-400/30" 
+              : "border-red-400/30"
+          }`}
         >
           {notification.message}
         </div>
@@ -441,32 +483,83 @@ export default function CharacterManagementPage() {
         title={alertModal.title}
         message={alertModal.message}
       />
+      <HelpModal
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+        title="キャラクター管理の使い方"
+        content={
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold text-pink-400 mb-2">概要</h3>
+              <p className="text-gray-300">
+                作成したキャラクターを管理するページです。キャラクターの編集、削除、コピー、インポートなどの操作が可能です。
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-pink-400 mb-2">タブ機能</h3>
+              <ul className="list-disc list-inside space-y-1 text-gray-300 ml-2">
+                <li><strong>全体</strong>: すべてのキャラクターを表示</li>
+                <li><strong>公開</strong>: 公開設定のキャラクターのみ表示</li>
+                <li><strong>非公開</strong>: 非公開設定のキャラクターのみ表示</li>
+                <li><strong>リンク限定公開</strong>: リンク限定公開のキャラクターのみ表示</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-pink-400 mb-2">メニュー機能（...ボタン）</h3>
+              <ul className="list-disc list-inside space-y-1 text-gray-300 ml-2">
+                <li><strong>修正</strong>: キャラクターの設定を編集</li>
+                <li><strong>削除</strong>: キャラクターを削除（元に戻せません）</li>
+                <li><strong>コピー</strong>: キャラクターの情報をコピー（インポート用）</li>
+                <li><strong>インポート</strong>: コピーしたキャラクター情報を別のキャラクターに適用</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-pink-400 mb-2">その他</h3>
+              <ul className="list-disc list-inside space-y-1 text-gray-300 ml-2">
+                <li><strong>チャット</strong>ボタン: キャラクターとチャットを開始</li>
+                <li><strong>+</strong>ボタン: 新しいキャラクターを作成</li>
+              </ul>
+            </div>
+          </div>
+        }
+      />
 
-      <header className="flex items-center justify-between py-4">
+      <header className="flex items-center justify-between py-6 mb-6">
         <button
           onClick={() => window.history.back()}
-          className="p-2 rounded-full hover:bg-gray-800"
+          className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
         >
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-lg font-bold">キャラクター管理</h1>
-        <button
-          onClick={() => window.location.href = "/characters/create"}
-          className="p-2 rounded-full text-pink-500 hover:bg-gray-800"
-        >
-          <Plus size={24} />
-        </button>
+        <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+          キャラクター管理
+        </h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsHelpOpen(true)}
+            className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+            aria-label="ヘルプ"
+          >
+            <HelpCircle size={24} />
+          </button>
+          <button
+            onClick={() => window.location.href = "/characters/create"}
+            className="p-2 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50"
+          >
+            <Plus size={24} />
+          </button>
+        </div>
       </header>
 
-      <nav className="flex space-x-4 border-b border-gray-700 mb-6">
+      <nav className="flex space-x-2 mb-6 overflow-x-auto pb-2">
         {["全体", "公開", "非公開", "リンク限定公開"].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`py-2 px-1 text-sm transition-colors ${
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === tab
-                ? "border-b-2 border-pink-500 text-white font-semibold"
-                : "text-gray-400 hover:text-white"
+                ? "bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-pink-500/20 text-pink-300 border border-pink-500/30 shadow-lg shadow-pink-500/20"
+                : "text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 border border-transparent"
             }`}
           >
             {tab}
@@ -474,56 +567,65 @@ export default function CharacterManagementPage() {
         ))}
       </nav>
 
-      <div className="space-y-3">
+      <div className="space-y-4" style={{ overflow: 'visible' }}>
         {filteredCharacters.length > 0 ? (
           filteredCharacters.map((char) => (
             <div
               key={char.id}
-              className="bg-[#1C1C1E] p-3 rounded-lg flex items-center gap-4"
+              className="bg-gray-900/50 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-gray-800/50 hover:border-pink-500/30 transition-all relative group"
+              style={{ overflow: 'visible' }}
             >
-              <a href={`/chat/${char.id}`} className="flex-grow flex items-center gap-4 min-w-0">
-                <Image
-                  src={
-                    char.characterImages[0]?.imageUrl ||
-                    "https://placehold.co/64x64/1C1C1E/FFFFFF?text=..."
-                  }
-                  alt={char.name}
-                  width={64}
-                  height={64}
-                  className="rounded-md object-cover w-16 h-16 flex-shrink-0"
-                />
-                <div className="flex-grow min-w-0">
-                  <h2 className="font-semibold truncate">{char.name}</h2>
-                  <div className="flex items-center gap-4 text-xs text-gray-400 mt-1">
-                    <span>{getVisibilityText(char.visibility)}</span>
-                    <div className="flex items-center gap-1">
-                      <MessageSquare size={12} />
-                      <span>{char._count?.chat || 0}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Heart size={12} />
-                      <span>{char._count?.favorites || 0}</span>
+              <div className="flex items-center gap-4">
+                <a href={`/chat/${char.id}`} className="flex-grow flex items-center gap-4 min-w-0">
+                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-xl overflow-hidden ring-2 ring-pink-500/20 group-hover:ring-pink-500/40 transition-all">
+                    <Image
+                      src={
+                        char.characterImages[0]?.imageUrl ||
+                        "https://placehold.co/80x80/1C1C1E/FFFFFF?text=..."
+                      }
+                      alt={char.name}
+                      width={80}
+                      height={80}
+                      className="object-cover w-full h-full"
+                    />
+                  </div>
+                  <div className="flex-grow min-w-0">
+                    <h2 className="font-bold text-lg text-white truncate group-hover:text-pink-300 transition-colors">
+                      {char.name}
+                    </h2>
+                    <div className="flex items-center gap-3 text-sm text-gray-400 mt-2">
+                      <span className="px-2 py-1 rounded-lg bg-gray-800/50 text-xs font-medium">
+                        {getVisibilityText(char.visibility)}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <MessageSquare size={14} className="text-pink-400/70" />
+                        <span>{char._count?.chat || 0}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Heart size={14} className="text-pink-400/70" />
+                        <span>{char._count?.favorites || 0}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </a>
-              
-              <button 
-                onClick={() => window.location.href = `/chat/${char.id}`}
-                className="bg-pink-500 hover:bg-pink-600 transition-colors cursor-pointer text-white text-sm font-bold py-2 px-4 rounded-lg flex-shrink-0"
-              >
-                チャット
-              </button>
+                </a>
+                
+                <button 
+                  onClick={() => window.location.href = `/characters/${char.id}`}
+                  className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-sm font-semibold py-2 px-4 rounded-xl transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50 flex-shrink-0"
+                >
+                  チャット
+                </button>
 
-              <div className="flex-shrink-0">
-                <KebabMenu character={char} onAction={handleMenuAction} />
+                <div className="flex-shrink-0">
+                  <KebabMenu character={char} onAction={handleMenuAction} />
+                </div>
               </div>
             </div>
           ))
         ) : (
-          <div className="text-center text-gray-500 py-16">
-            <p className="mb-2">作成したキャラクターがいません。</p>
-            <p>「+」ボタンを押して新しいキャラクターを作成しましょう！</p>
+          <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl p-12 border border-gray-800/50 text-center">
+            <p className="text-gray-400 mb-2 text-lg">作成したキャラクターがいません。</p>
+            <p className="text-gray-500 text-sm">「+」ボタンを押して新しいキャラクターを作成しましょう！</p>
           </div>
         )}
       </div>

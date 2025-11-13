@@ -81,6 +81,13 @@ export async function GET() {
     try {
         const baseWhere = { ...publicOnlyWhereClause, ...safetyWhereClause, ...blockWhereClause };
 
+        // ナモアイフレンズ（公式キャラクター）を取得
+        const officialCharacters = await getCharactersWithMainImage(
+            { ...baseWhere, isOfficial: true }, 
+            { createdAt: 'desc' }, 
+            20
+        );
+
         const trendingCharacters = await getCharactersWithMainImage(baseWhere, [{ chat: { _count: 'desc' } }, { favorites: { _count: 'desc' } }], 10);
         
         const sevenDaysAgo = new Date();
@@ -95,10 +102,11 @@ export async function GET() {
         const generalCharacters = await getCharactersWithMainImage(baseWhere, { createdAt: 'desc' }, 10);
 
         return NextResponse.json({
-            trendingCharacters,
-            newTopCharacters,
-            specialCharacters,
-            generalCharacters,
+            officialCharacters: officialCharacters || [],
+            trendingCharacters: trendingCharacters || [],
+            newTopCharacters: newTopCharacters || [],
+            specialCharacters: specialCharacters || [],
+            generalCharacters: generalCharacters || [],
         });
 
     } catch (error) {

@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from 'next/navigation';
 import { VscChevronLeft } from "react-icons/vsc";
 import { BsThreeDotsVertical } from "react-icons/bs";
+import { Search } from "lucide-react";
 
 // 型定義
 type ChatData = {
@@ -171,98 +172,140 @@ export default function ChatListPage() {
   });
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center bg-[#1c1c1e] text-gray-400">ローディング中...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-black text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <p className="text-gray-400">読み込み中...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-[#1c1c1e] p-4 font-sans text-[#f2f2f7]">
-      <ConfirmationModal modalState={modalState} setModalState={setModalState} />
-      <header className="mb-5 flex items-center justify-between">
-        {isSelectionMode ? (
-          <button onClick={cancelSelectionMode} className="text-pink-400">キャンセル</button>
-        ) : (
-          <button onClick={() => router.back()} className="rounded-full p-1 hover:bg-gray-700">
-            <VscChevronLeft size={24} />
-          </button>
-        )}
-        <h1 className="text-lg font-semibold">
-          {isSelectionMode ? `${selectedChatIds.size}件選択中` : 'チャット'}
-        </h1>
-        {isSelectionMode ? (
-          <button onClick={handleBulkDelete} className="text-pink-400 disabled:text-gray-500" disabled={selectedChatIds.size === 0}>
-            削除
-          </button>
-        ) : (
-          <div className="relative" ref={menuRef}>
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)}>
-              <BsThreeDotsVertical size={20} className="cursor-pointer" />
-            </button>
-            {isMenuOpen && (
-              <div className="absolute right-0 mt-2 w-40 bg-gray-700 rounded-md shadow-lg z-10">
-                <button onClick={enterSelectionMode} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-600">
-                  選択削除
+    <div className="min-h-screen bg-black text-white">
+      {/* 背景装飾 */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10">
+        <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-24">
+          <ConfirmationModal modalState={modalState} setModalState={setModalState} />
+          
+          <header className="mb-6 flex items-center justify-between">
+            {isSelectionMode ? (
+              <button onClick={cancelSelectionMode} className="text-pink-400 hover:text-pink-300 transition-colors">
+                キャンセル
+              </button>
+            ) : (
+              <button onClick={() => router.back()} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
+                <VscChevronLeft size={24} />
+              </button>
+            )}
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+              {isSelectionMode ? `${selectedChatIds.size}件選択中` : 'チャット'}
+            </h1>
+            {isSelectionMode ? (
+              <button 
+                onClick={handleBulkDelete} 
+                className="text-pink-400 hover:text-pink-300 disabled:text-gray-500 transition-colors" 
+                disabled={selectedChatIds.size === 0}
+              >
+                削除
+              </button>
+            ) : (
+              <div className="relative" ref={menuRef}>
+                <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 rounded-xl hover:bg-gray-800/50 transition-all">
+                  <BsThreeDotsVertical size={20} />
                 </button>
+                {isMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-40 bg-gray-800/95 backdrop-blur-xl rounded-xl shadow-lg z-10 border border-gray-700/50">
+                    <button onClick={enterSelectionMode} className="w-full text-left px-4 py-2 text-sm hover:bg-pink-500/10 hover:text-pink-400 transition-colors rounded-xl">
+                      選択削除
+                    </button>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
-      </header>
+          </header>
 
-      {!isSelectionMode && (
-        <div className="relative mb-6">
-          <input
-            type="text"
-            placeholder="チャット検索"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border-none bg-[#2c2c2e] p-2.5 pl-10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
-          />
-        </div>
-      )}
-
-      <main>
-        {filteredChats.length > 0 ? (
-          filteredChats.map((chat) => (
-            <div key={chat.id} className={`mb-4 flex items-center rounded-xl p-2 transition-colors ${isSelectionMode ? 'hover:bg-[#2c2c2e]' : ''}`}>
-              {isSelectionMode && (
+          {!isSelectionMode && (
+            <div className="relative mb-6">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                 <input
-                  type="checkbox"
-                  checked={selectedChatIds.has(chat.id)}
-                  onChange={() => handleToggleSelection(chat.id)}
-                  className="flex-shrink-0 w-5 h-5 mr-3 accent-pink-500 cursor-pointer"
-                  style={{ minWidth: '20px', minHeight: '20px' }}
+                  type="text"
+                  placeholder="チャット検索"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full rounded-xl border border-gray-700/50 bg-gray-800/50 backdrop-blur-sm p-3 pl-12 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all"
                 />
-              )}
-              <Link href={isSelectionMode ? '#' : `/chat/${chat.characterId}?chatId=${chat.id}`} className="flex flex-grow items-start overflow-hidden">
-                <Image
-                  src={chat.characters.characterImages[0]?.imageUrl || "/avatars/default.png"}
-                  alt={chat.characters.name}
-                  width={50}
-                  height={50}
-                  className="mr-3 rounded-full object-cover"
-                />
-                <div className="flex-grow overflow-hidden">
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="truncate text-base font-medium text-gray-200">
-                      {chat.characters.name}
-                    </span>
-                    <span className="ml-2 flex-shrink-0 text-xs text-gray-500">
-                      {new Date(chat.updatedAt).toLocaleDateString("ja-JP")}
-                    </span>
-                  </div>
-                  <p className="truncate text-sm text-gray-400">
-                    {chat.chat_message[0]?.content || "まだメッセージがありません。"}
-                  </p>
-                </div>
-              </Link>
+              </div>
             </div>
-          ))
-        ) : (
-          <p className="pt-12 text-center text-gray-500">
-            {searchQuery.trim() ? '検索結果がありません。' : 'チャット履歴がありません。'}
-          </p>
-        )}
-      </main>
+          )}
+
+          <main>
+            {filteredChats.length > 0 ? (
+              <div className="space-y-3">
+                {filteredChats.map((chat) => (
+                  <div 
+                    key={chat.id} 
+                    className={`group flex items-center rounded-xl p-4 transition-all border ${
+                      isSelectionMode 
+                        ? 'hover:bg-gray-800/50 border-gray-800/50' 
+                        : 'bg-gray-900/50 backdrop-blur-sm border-gray-800/50 hover:border-pink-500/30 hover:bg-gray-800/50'
+                    }`}
+                  >
+                    {isSelectionMode && (
+                      <input
+                        type="checkbox"
+                        checked={selectedChatIds.has(chat.id)}
+                        onChange={() => handleToggleSelection(chat.id)}
+                        className="flex-shrink-0 w-5 h-5 mr-3 accent-pink-500 cursor-pointer"
+                        style={{ minWidth: '20px', minHeight: '20px' }}
+                      />
+                    )}
+                    <Link 
+                      href={isSelectionMode ? '#' : `/chat/${chat.characterId}?chatId=${chat.id}`} 
+                      className="flex flex-grow items-start overflow-hidden"
+                    >
+                      <div className="relative w-14 h-14 mr-4 flex-shrink-0 rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900">
+                        <Image
+                          src={chat.characters.characterImages[0]?.imageUrl || "/avatars/default.png"}
+                          alt={chat.characters.name}
+                          fill
+                          className="object-cover group-hover:scale-110 transition-transform duration-300"
+                          sizes="56px"
+                        />
+                      </div>
+                      <div className="flex-grow overflow-hidden min-w-0">
+                        <div className="mb-1 flex items-center justify-between">
+                          <span className="truncate text-base font-semibold text-white group-hover:text-pink-400 transition-colors">
+                            {chat.characters.name}
+                          </span>
+                          <span className="ml-2 flex-shrink-0 text-xs text-gray-500">
+                            {new Date(chat.updatedAt).toLocaleDateString("ja-JP")}
+                          </span>
+                        </div>
+                        <p className="truncate text-sm text-gray-400">
+                          {chat.chat_message[0]?.content || "まだメッセージがありません。"}
+                        </p>
+                      </div>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="pt-12 text-center">
+                <p className="text-gray-500 text-lg">
+                  {searchQuery.trim() ? '検索結果がありません。' : 'チャット履歴がありません。'}
+                </p>
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
     </div>
   );
 }
