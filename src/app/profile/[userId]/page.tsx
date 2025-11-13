@@ -6,6 +6,7 @@ import { ArrowLeft, MoreVertical, Heart, MessageSquare, User, Share2, ShieldBan,
 // ▼▼▼【修正】Next.jsのImageコンポーネントをインポートします ▼▼▼
 import Image from 'next/image';
 import { signOut } from 'next-auth/react';
+import HelpModal from '@/components/HelpModal';
 
 // 型定義
 type FollowUser = {
