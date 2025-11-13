@@ -14,16 +14,6 @@ import Link from 'next/link';
 // ▼▼▼【修正】未使用のuseRouterのインポートを削除しました ▼▼▼
 // import { useRouter } from 'next/navigation';
 
-// ユーザーのプロフィール画像がない場合に表示するデフォルトのSVGアイコンコンポーネント
-const DefaultAvatarIcon = ({ size = 48 }: { size?: number }) => (
-  <div
-    className="rounded-full bg-gray-700 flex items-center justify-center"
-    style={{ width: size, height: size }}
-  >
-    <User size={size * 0.6} className="text-gray-400" />
-  </div>
-);
-
 // 確認モーダルコンポーネントの型定義
 type ModalProps = {
   isOpen: boolean;

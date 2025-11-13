@@ -45,14 +45,6 @@ export default function RankingPage() {
     fetchRanking();
   }, [activeTab]);
 
-  const getTabClassName = (tabName: Period) => {
-    return `px-4 py-2 rounded-full text-sm font-semibold transition-colors cursor-pointer ${
-      activeTab === tabName
-        ? "bg-pink-500 text-white"
-        : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-    }`;
-  };
-
   const getRankColor = (rank: number) => {
     if (rank === 0) return "text-yellow-400";
     if (rank === 1) return "text-gray-400";

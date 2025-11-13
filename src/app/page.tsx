@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, User, Trophy, Users, PlusCircle, Sparkles, TrendingUp, Star, ArrowRight } from "lucide-react";
+import { Search, User, Trophy, Users, Sparkles, TrendingUp, Star, ArrowRight } from "lucide-react";
 import Image from "next/image";
 
 // キャラクターのデータ型

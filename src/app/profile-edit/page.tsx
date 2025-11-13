@@ -32,17 +32,6 @@ const CustomModal = ({ isOpen, onClose, title, message }: ModalProps) => {
   );
 };
 
-// デフォルトアバターアイコン
-// ▼▼▼【修正】コンポーネント名を大文字のアルファベットで始まるように変更 (デフォルトアバターアイコン -> DefaultAvatarIcon) ▼▼▼
-const DefaultAvatarIcon = ({ size = 96 }: { size?: number }) => (
-  <div
-    className="rounded-full bg-gray-700 flex items-center justify-center"
-    style={{ width: size, height: size }}
-  >
-    <User size={size * 0.6} className="text-gray-400" />
-  </div>
-);
-
 // ▼▼▼【修正】Reactのルールに従い、コンポーネント名を大文字のアルファベットで始まるように変更します。▼▼▼
 export default function ProfileEditPage() {
   const ルーター = useRouter();

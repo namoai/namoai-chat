@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from 'next/link'; // Linkコンポーネントをインポート
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { FcGoogle } from "react-icons/fc";
 import { Mail, Lock, ArrowLeft } from "lucide-react";
 import { signIn } from "next-auth/react";
