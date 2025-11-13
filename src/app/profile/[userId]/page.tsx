@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, MoreVertical, Heart, MessageSquare, User, Share2, ShieldBan, ShieldCheck, Edit, KeyRound, X, UserMinus, Trash2 } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Heart, MessageSquare, User, Share2, ShieldBan, ShieldCheck, Edit, KeyRound, X, UserMinus, Trash2, HelpCircle } from 'lucide-react';
 // ▼▼▼【修正】Next.jsのImageコンポーネントをインポートします ▼▼▼
 import Image from 'next/image';
 import { signOut } from 'next-auth/react';
@@ -526,7 +526,6 @@ export default function UserProfilePage() {
                     </div>,
                     document.body
                   )}
-              </div>
             </header>
 
             <main className="space-y-8">
