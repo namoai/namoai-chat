@@ -690,6 +690,15 @@ ${statusWindowInstruction}${userDirectiveInstruction}
           const generativeModel = vertex_ai.getGenerativeModel({ model: modelToUse, safetySettings });
 
           // チャットセッションを開始（履歴とシステム指示を渡す）
+          // ▼▼▼【重要デバッグ】システム指示が正しく渡されているか確認
+          console.log(`\n📋 システム指示確認:`);
+          console.log(`  - 長さ: ${systemInstructionText.length}文字`);
+          console.log(`  - 800-1100文字指示含む: ${systemInstructionText.includes('800-1100')}`);
+          console.log(`  - HTML禁止指示含む: ${systemInstructionText.includes('PLAIN TEXT')}`);
+          console.log(`  - システムテンプレート含む: ${systemInstructionText.includes(worldSetting.systemTemplate?.substring(0, 50) || 'N/A')}`);
+          console.log(`  - 先頭200文字:\n${systemInstructionText.substring(0, 200)}...\n`);
+          // ▲▲▲
+          
           const chatSession = generativeModel.startChat({
             history: chatHistory,
             systemInstruction: systemInstructionText
