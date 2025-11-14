@@ -988,6 +988,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                 {images.map((img, idx) => (
                     <div key={img.id || `new-${idx}`} className="relative w-20 h-20 sm:w-24 sm:h-24 group">
                         <div onClick={() => openImageModal(idx)} className="w-full h-full border-2 border-gray-700/50 rounded-xl overflow-hidden cursor-pointer transition-all hover:border-pink-500/50 hover:shadow-lg hover:shadow-pink-500/30 hover:scale-105">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={img.file ? URL.createObjectURL(img.file) : img.imageUrl!} alt={`image-${idx}`} width={96} height={96} className="object-cover w-full h-full" />
                             <div className="absolute bottom-0 bg-black/70 text-xs text-white w-full text-center px-1 py-1 truncate">
                             {idx === 0 ? "基本画像" : img.keyword || "クリックで入力"}
@@ -1283,7 +1284,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
             <div className="py-4">
               {selectedIndex !== null && images[selectedIndex] && (
                 <>
-                  {/* ▼▼▼【修正】Imageコンポーネントを標準のimgタグに戻します ▼▼▼ */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={images[selectedIndex].file ? URL.createObjectURL(images[selectedIndex].file!) : images[selectedIndex].imageUrl!} alt={`preview-${selectedIndex}`} width={200} height={200} className="object-cover rounded mb-4 mx-auto" />
                   <Input placeholder="感情や状況などを入力..." value={images[selectedIndex].keyword} onChange={(e) => updateKeyword(e.target.value)} className="bg-gray-900/50 backdrop-blur-sm border-gray-600/50 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 rounded-xl transition-all" />
                 </>
