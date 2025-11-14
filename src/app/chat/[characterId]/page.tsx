@@ -119,7 +119,7 @@ export default function ChatPage() {
   const [userNickname, setUserNickname] = useState<string | undefined>(undefined);
   
   // ▼▼▼【ビルドエラー修正】setGenerationSettings を useState 宣言から完全に削除 ▼▼▼
-  const [generationSettings] = useState<GenerationSettings>({ model: "gemini-2.5-flash" });
+  const [generationSettings] = useState<GenerationSettings>({ model: "gemini-2.5-pro" }); // ★ Proに変更
   
   const [chatStyleSettings, setChatStyleSettings] = useState<ChatStyleSettings>({ fontSize: 14, userBubbleColor: "#db2777", userBubbleTextColor: "#ffffff" });
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
