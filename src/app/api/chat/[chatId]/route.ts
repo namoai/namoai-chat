@@ -521,12 +521,13 @@ Available Images:
 ${imageList}
 
 **CRITICAL INSTRUCTIONS**:
-- Use MULTIPLE images throughout your response (minimum 2-3 different images)
-- Insert {img:N} tags at APPROPRIATE MOMENTS when describing scenes, emotions, or actions
+- Use MULTIPLE images throughout your response based on the scene and context
+- Insert {img:N} tags at APPROPRIATE MOMENTS when describing scenes, emotions, actions, or character expressions
 - Match image keywords with your narrative content
-- Place images naturally within the story flow, NOT just at the end
-- Example: "彼女は微笑んだ {img:2} そして手を伸ばす {img:3}"
-- The more images you use appropriately, the better the visual storytelling`
+- Place images naturally THROUGHOUT the story, NOT clustered or only at the end
+- Use as many different images as the scene naturally calls for (could be 2, 3, 5, or more depending on scene complexity)
+- Example: "彼女は微笑んだ {img:2} 部屋に入ると {img:5} 彼が振り返った {img:3}"
+- The richer the visual storytelling with varied appropriate images, the better the experience`
       : "";
     // ▲▲▲
 
