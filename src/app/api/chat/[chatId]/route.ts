@@ -580,6 +580,7 @@ export async function POST(request: Request, context: any) {
     const formattingInstruction = `# Response Format
 - Narrator: Third person. User speaks for themselves.
 - Context: Read history. Maintain consistency.
+- **CRITICAL**: Use PLAIN TEXT only. NEVER use HTML tags (<div>, <span>, <p>, style attributes, etc.). Output pure text with simple formatting only.
 ${contentPolicy}
 ${languageInstruction}
 - Format: Narration (gray), Dialogue (「」/""), Status in \`\`\`code blocks\`\`\` at end.
