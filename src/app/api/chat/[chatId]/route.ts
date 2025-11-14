@@ -676,7 +676,7 @@ ${statusWindowInstruction}${userDirectiveInstruction}
           const modelToUse = settings?.model || "gemini-2.5-flash";
           console.log(`\n🤖 ========================================`);
           console.log(`🤖 使用モデル: ${modelToUse}`);
-          console.log(`🤖 リージョン: us-central1`);
+          console.log(`🤖 リージョン: asia-northeast1`);
           console.log(`🤖 ========================================\n`);
 
           // ▼▼▼【デバッグ】AIに送信されるシステムプロンプトの確認
