@@ -661,7 +661,10 @@ ${statusWindowInstruction}${userDirectiveInstruction}
           console.log("ステップ5: Vertex AI (Gemini) モデル呼び出し開始");
           console.time("⏱️ AI sendMessageStream Total"); // AI応答完了までの総時間
           const modelToUse = settings?.model || "gemini-2.5-pro"; // ★ デフォルトをProに変更
-          console.log(`使用モデル: ${modelToUse}`);
+          console.log(`\n🤖 ========================================`);
+          console.log(`🤖 使用モデル: ${modelToUse}`);
+          console.log(`🤖 リージョン: us-central1`);
+          console.log(`🤖 ========================================\n`);
 
           // ▼▼▼【デバッグ】AIに送信されるシステムプロンプトの確認
           console.log("📤 Vertex AIに送信されるシステムプロンプト:");

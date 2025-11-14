@@ -34,7 +34,21 @@ const ChatImageRenderer: React.FC<Props> = ({
   isMultiImage,
   onImageClick,
 }) => {
-  if (!showImage || !characterImages || characterImages.length === 0) {
+  console.log('[ChatImageRenderer] Debug:', {
+    showImage,
+    characterImagesCount: characterImages?.length,
+    contentLength: content?.length,
+    hasImgTag: /\{img:\d+\}/.test(content || ''),
+    hasMarkdownImg: /!\[.*?\]\(.*?\)/.test(content || '')
+  });
+
+  if (!showImage) {
+    console.log('[ChatImageRenderer] showImage is false, not rendering');
+    return null;
+  }
+  
+  if (!characterImages || characterImages.length === 0) {
+    console.log('[ChatImageRenderer] No character images available');
     return null;
   }
 
@@ -70,9 +84,11 @@ const ChatImageRenderer: React.FC<Props> = ({
   }
 
   if (imagesToRender.length === 0) {
+    console.log('[ChatImageRenderer] No images matched - no {img:N} tags or keywords found');
     return null;
   }
 
+  console.log(`[ChatImageRenderer] Rendering ${imagesToRender.length} images`);
   const finalImages = isMultiImage ? imagesToRender : [imagesToRender[0]];
 
   return (
