@@ -517,20 +517,20 @@ export default function CharacterDetailPage({
     
     // ★ 楽観的更新: 即座にUIを更新
     const previousState = character;
-    setCharacter((prev) => 
-      prev 
-      ? { 
-          ...prev, 
-          isFavorited: !prev.isFavorited, 
-          _count: { 
-            ...prev._count, 
-            favorites: prev.isFavorited 
-              ? prev._count.favorites - 1 
-              : prev._count.favorites + 1 
+      setCharacter((prev) => 
+        prev 
+        ? { 
+            ...prev, 
+            isFavorited: !prev.isFavorited, 
+            _count: { 
+              ...prev._count, 
+              favorites: prev.isFavorited 
+                ? prev._count.favorites - 1 
+                : prev._count.favorites + 1 
+            } 
           } 
-        } 
-      : null
-    );
+        : null
+      );
     
     try {
       const method = character.isFavorited ? 'DELETE' : 'POST';
@@ -715,7 +715,7 @@ export default function CharacterDetailPage({
             <div className="relative w-full max-w-2xl mx-auto aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 mb-6">
               <Image 
                 src={character.characterImages[0]?.imageUrl || 'https://placehold.co/640x640/1a1a1a/ffffff?text=?'} 
-                alt={character.name}
+                alt={character.name} 
                 fill
                 className="object-contain"
                 sizes="(max-width: 768px) 100vw, 640px"

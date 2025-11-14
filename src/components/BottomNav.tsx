@@ -16,7 +16,7 @@ const navItems = [
 ];
 
 export default function BottomNav() {
-  const pathname = usePathname();
+  const pathname = usePathname(); 
   const { data: session } = useSession();
   const [unreadCount, setUnreadCount] = useState(0);
 

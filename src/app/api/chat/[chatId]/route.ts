@@ -18,7 +18,7 @@ import { createDetailedMemories, updateMemoriesWithAIKeywords } from "@/lib/chat
 // VertexAIクライアントの初期化
 const vertex_ai = new VertexAI({
   project: process.env.GOOGLE_PROJECT_ID,
-  location: "asia-northeast1",
+  location: "us-central1", // ★ Pro用にus-central1に変更
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -660,7 +660,7 @@ ${statusWindowInstruction}${userDirectiveInstruction}
 
           console.log("ステップ5: Vertex AI (Gemini) モデル呼び出し開始");
           console.time("⏱️ AI sendMessageStream Total"); // AI応答完了までの総時間
-          const modelToUse = settings?.model || "gemini-2.5-flash"; // デフォルトモデル
+          const modelToUse = settings?.model || "gemini-2.5-pro"; // ★ デフォルトをProに変更
           console.log(`使用モデル: ${modelToUse}`);
 
           // ▼▼▼【デバッグ】AIに送信されるシステムプロンプトの確認
@@ -831,7 +831,7 @@ ${statusWindowInstruction}${userDirectiveInstruction}
                     // Vertex AIで要約
                     const summaryVertexAI = new VertexAI({
                       project: process.env.GOOGLE_PROJECT_ID || '',
-                      location: 'asia-northeast1',
+                      location: 'us-central1', // ★ Pro用にus-central1に変更
                     });
 
                     const summaryModel = summaryVertexAI.getGenerativeModel({
@@ -993,11 +993,11 @@ ${conversationText}`;
                     // Vertex AIで要約
                     const summaryVertexAI = new VertexAI({
                       project: process.env.GOOGLE_PROJECT_ID || '',
-                      location: 'asia-northeast1',
+                      location: 'us-central1', // ★ Pro用にus-central1に変更
                     });
 
                     const summaryModel = summaryVertexAI.getGenerativeModel({
-                      model: 'gemini-2.5-flash',
+                      model: 'gemini-2.5-flash', // ★ Flash維持（ステータス更新用）
                       safetySettings,
                     });
 
