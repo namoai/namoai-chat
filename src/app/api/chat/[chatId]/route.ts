@@ -516,7 +516,17 @@ export async function POST(request: Request, context: any) {
       .join('\n');
 
     const imageInstruction = imageList
-      ? `# Images\nAvailable: ${imageList}\nUsage: Insert {img:N} at appropriate moments in narration.`
+      ? `# Images (MANDATORY)
+Available Images:
+${imageList}
+
+**CRITICAL INSTRUCTIONS**:
+- Use MULTIPLE images throughout your response (minimum 2-3 different images)
+- Insert {img:N} tags at APPROPRIATE MOMENTS when describing scenes, emotions, or actions
+- Match image keywords with your narrative content
+- Place images naturally within the story flow, NOT just at the end
+- Example: "彼女は微笑んだ {img:2} そして手を伸ばす {img:3}"
+- The more images you use appropriately, the better the visual storytelling`
       : "";
     // ▲▲▲
 
