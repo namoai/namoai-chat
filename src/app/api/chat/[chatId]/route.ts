@@ -539,7 +539,8 @@ ${imageList}
       : `- **Output Language**: Respond in Japanese (日本語). All narration, dialogue, and descriptions should be in Japanese.`;
 
     // 応答長さは常に800-1100文字に固定
-    const lengthInstruction = `- **Response Length**: Aim for 800-1100 characters (including spaces) per response. Provide rich, detailed descriptions and dialogue.`;
+    const lengthInstruction = `- **Response Length**: Aim for 800-1100 characters (including spaces) per response. Provide rich, detailed descriptions and dialogue.
+- **Character Interactions**: If multiple characters are defined in systemTemplate, make them actively participate in the scene with dialogue and actions. Show their personalities through their words and behaviors.`;
 
     // ▼▼▼【追加】セーフティフィルター設定に基づいてContent Policyを動的に生成
     // キャラクターのセーフティフィルターがONの場合、より厳格な制限を適用
