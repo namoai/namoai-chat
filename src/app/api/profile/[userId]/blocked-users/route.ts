@@ -36,7 +36,7 @@ export async function GET() {
     // `blocking`オブジェクトの配列に変換
     const blockedUsers = blockedRelations.map(relation => relation.users_Block_blockingIdTousers);
 
-    return NextResponse.json(blockedUsers);
+    return NextResponse.json({ blockedUsers });
   } catch (error) {
     console.error("ブロックリストの取得エラー:", error);
     // 型ガードを追加してエラーメッセージを安全に読み取ります
