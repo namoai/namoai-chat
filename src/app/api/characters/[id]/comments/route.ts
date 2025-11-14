@@ -1,10 +1,12 @@
 export const runtime = 'nodejs';
+export const dynamic = "force-dynamic"; // ★ キャッシュを無効化
 
 // ./src/app/api/characters/[id]/comments/route.ts
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
+import { notifyOnComment } from '@/lib/notifications'; // ★ 通知関数をインポート
 
 /** Body 型: { content: string } を満たすか判定（作成用） */
 function hasValidContent(body: unknown): body is { content: string } {
@@ -33,7 +35,9 @@ export async function GET(
 
   const url = new URL(request.url);
   const takeRaw = url.searchParams.get('take');
-  const take = Number.isFinite(Number(takeRaw)) ? Number(takeRaw) : 20;
+  // ★ Number(null) や Number('') は 0 になるため、明示的に > 0 チェック
+  const takeNum = Number(takeRaw);
+  const take = Number.isFinite(takeNum) && takeNum > 0 ? takeNum : 20;
 
   try {
     const comments = await prisma.comments.findMany({
@@ -90,6 +94,12 @@ export async function POST(
         users: { select: { id: true, nickname: true, image_url: true } },
       },
     });
+    
+    // ★ コメント通知を作成
+    notifyOnComment(characterId, created.id, Number.parseInt(userId, 10)).catch(err => 
+      console.error('通知作成エラー:', err)
+    );
+    
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     console.error('コメント作成エラー:', error);

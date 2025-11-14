@@ -98,6 +98,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
           // API呼び出し失敗時はデフォルト値で設定
           setIsSafetyFilterOn(true);
         }
+
       } catch (error) {
         console.error(error);
         setPoints({ total: 0, loading: false });
@@ -218,7 +219,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
           {item.icon}
         </div>
         <span className="ml-4 text-base group-hover:text-pink-400 transition-colors">{item.text}</span>
-        {'badge' in item && (
+        {'badge' in item && item.badge && (
           <span
             className={`ml-auto text-sm px-3 py-1 rounded-full flex items-center justify-center font-semibold ${
               isSafetyFilterOn === null 

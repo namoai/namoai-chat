@@ -2,8 +2,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, User, Trophy, Users, Sparkles, TrendingUp, Star, ArrowRight } from "lucide-react";
+import { Search, User, Trophy, Users, Sparkles, TrendingUp, Star, ArrowRight, Bell } from "lucide-react";
 import Image from "next/image";
+import { useSession } from "next-auth/react";
 
 // キャラクターのデータ型
 type Character = {
@@ -155,6 +156,8 @@ const CharacterRow = ({
 export default function HomePage() {
   const [pageData, setPageData] = useState<MainPageData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { data: session } = useSession();
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -171,6 +174,46 @@ export default function HomePage() {
     };
     fetchData();
   }, []);
+
+  // 未読通知数を取得（リアルタイム対応）
+  useEffect(() => {
+    if (!session?.user) return;
+
+    const fetchUnreadCount = async () => {
+      try {
+        const res = await fetch("/api/notifications/unread-count");
+        const data = await res.json();
+        setUnreadCount(data.unreadCount || 0);
+      } catch (error) {
+        console.error("未読通知数取得エラー:", error);
+      }
+    };
+
+    fetchUnreadCount();
+    
+    // 5秒ごとにポーリング（リアルタイムに近い更新）
+    const interval = setInterval(fetchUnreadCount, 5000);
+
+    // ページがアクティブになったときに即座に更新
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchUnreadCount();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // ページにフォーカスが戻ったときに即座に更新
+    const handleFocus = () => {
+      fetchUnreadCount();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [session]);
 
   if (loading) {
     return (
@@ -223,6 +266,30 @@ export default function HomePage() {
                 </h1>
               </div>
               <div className="flex items-center gap-1 md:gap-2">
+                {/* 通知アイコン - 最初の位置に配置 */}
+                {session?.user && (
+                  <a
+                    href="/notifications"
+                    title="通知"
+                    className="relative p-2 md:p-3 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all duration-200"
+                  >
+                    <Bell className="w-5 h-5" />
+                    {unreadCount > 0 && (
+                      <>
+                        {/* 点滅する赤い点（ライブインジケーター） */}
+                        <div className="absolute top-1 right-1 w-3 h-3">
+                          <div className="absolute inset-0 bg-red-500 rounded-full animate-ping"></div>
+                          <div className="absolute inset-0 bg-red-500 rounded-full"></div>
+                        </div>
+                        
+                        {/* 数字バッジ */}
+                        <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-gradient-to-br from-red-500 to-pink-600 rounded-full flex items-center justify-center text-[10px] font-bold text-white animate-pulse border-2 border-black shadow-lg shadow-red-500/50">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </div>
+                      </>
+                    )}
+                  </a>
+                )}
                 <a
                   href="/charlist"
                   title="キャラクター一覧"

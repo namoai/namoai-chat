@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
+import { notifyOnInquiryResponse } from '@/lib/notifications'; // ★ 通知関数をインポート
 
 // 通報状態更新 (PUT) - 管理者用
 export async function PUT(
@@ -38,7 +39,17 @@ export async function PUT(
         reviewedBy: userId,
         reviewedAt: new Date(),
       },
+      include: {
+        reporter: true,
+      },
     });
+
+    // ★ お問い合わせが解決された場合、ユーザーに通知
+    if (status === 'RESOLVED' && updatedReport.reporterId) {
+      notifyOnInquiryResponse(updatedReport.id, updatedReport.reporterId).catch(err => 
+        console.error('通知作成エラー:', err)
+      );
+    }
 
     return NextResponse.json({ success: true, report: updatedReport });
   } catch (error) {

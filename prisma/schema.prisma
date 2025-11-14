@@ -68,6 +68,8 @@ model users {
   personas                      personas[]
   points                        points?
   reports                       reports[]      @relation("Reporter")
+  notifications                 notifications[] @relation("NotificationReceiver")
+  notificationsSent             notifications[] @relation("NotificationActor")
   // ▼▼▼【修正】エラーを引き起こす重複した'sessions'フィールドを削除しました。▼▼▼
 }
 
@@ -316,6 +318,26 @@ model reports {
   @@index([status])
   @@index([type])
   @@index([createdAt])
+}
+
+model notifications {
+  id          Int       @id @default(autoincrement())
+  userId      Int       // 通知を受け取るユーザー
+  type        String    // FOLLOWER_CHARACTER, LIKE, COMMENT, INQUIRY_RESPONSE, FOLLOW
+  title       String    @db.VarChar(255)
+  content     String    @db.Text
+  link        String?   // 通知クリック時の遷移先URL
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  actorId     Int?      // アクションを実行したユーザーID
+  characterId Int?      // 関連キャラクターID
+  commentId   Int?      // 関連コメントID
+  reportId    Int?      // 関連レポートID
+  user        users     @relation("NotificationReceiver", fields: [userId], references: [id], onDelete: Cascade)
+  actor       users?    @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@index([userId, createdAt])
 }
 
 enum Role {

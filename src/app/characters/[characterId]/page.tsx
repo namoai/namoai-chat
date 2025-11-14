@@ -85,21 +85,40 @@ function Comments({ characterId, characterAuthorId, session, setModalState }: Co
 
   useEffect(() => {
     const fetchComments = async () => {
-      if (!characterId) return;
+      if (!characterId) {
+        console.log('[Comments] characterId is null');
+        return;
+      }
       try {
         setLoading(true);
-        const res = await fetch(`/api/characters/${characterId}/comments`);
+        console.log(`[Comments] Fetching comments for character ${characterId}`);
+        // ★ キャッシュを無効化 + タイムスタンプでキャッシュバスティング
+        const timestamp = Date.now();
+        const res = await fetch(`/api/characters/${characterId}/comments?t=${timestamp}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+          },
+        });
+        console.log(`[Comments] Response status: ${res.status}`);
+        
         if (!res.ok) throw new Error('コメントの読み込みに失敗しました。');
         const data = await res.json();
+        console.log('[Comments] Response data:', data);
         
         if (Array.isArray(data)) {
+          console.log(`[Comments] Setting ${data.length} comments (array format)`);
           setComments(data);
         } else if (data && Array.isArray(data.comments)) {
+          console.log(`[Comments] Setting ${data.comments.length} comments (object format)`);
           setComments(data.comments);
         } else {
+          console.log('[Comments] No comments found or invalid format');
           setComments([]);
         }
       } catch (err) {
+        console.error('[Comments] Error:', err);
         setError(err instanceof Error ? err.message : '不明なエラー');
         setComments([]);
       } finally {
@@ -122,7 +141,8 @@ function Comments({ characterId, characterAuthorId, session, setModalState }: Co
       });
       if (!res.ok) throw new Error('コメントの投稿に失敗しました。');
       const createdComment: Comment = await res.json();
-      setComments([createdComment, ...comments]);
+      // ★ 新しいコメントを末尾に追加（API は asc 順なので）
+      setComments([...comments, createdComment]);
       setNewComment('');
     } catch (err) {
       setModalState({ isOpen: true, title: 'エラー', message: err instanceof Error ? err.message : 'コメント投稿中にエラーが発生しました。', isAlert: true });
@@ -330,7 +350,13 @@ export default function CharacterDetailPage({
       if (!characterId) return;
       try {
         setLoading(true);
-        const res = await fetch(`/api/characters/${characterId}`);
+        // ★ キャッシュを無効化して常に最新データを取得
+        const res = await fetch(`/api/characters/${characterId}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
+        });
         if (!res.ok) {
           const errorData = await res.json();
           if (res.status === 403) {
@@ -487,25 +513,31 @@ export default function CharacterDetailPage({
 
   const handleFavorite = async () => {
     if (!character) return;
+    
+    // ★ 楽観的更新: 即座にUIを更新
+    const previousState = character;
+    setCharacter((prev) => 
+      prev 
+      ? { 
+          ...prev, 
+          isFavorited: !prev.isFavorited, 
+          _count: { 
+            ...prev._count, 
+            favorites: prev.isFavorited 
+              ? prev._count.favorites - 1 
+              : prev._count.favorites + 1 
+          } 
+        } 
+      : null
+    );
+    
     try {
       const method = character.isFavorited ? 'DELETE' : 'POST';
       const res = await fetch(`/api/characters/${character.id}/favorite`, { method });
       if (!res.ok) throw new Error('お気に入り登録に失敗しました。');
-      setCharacter((prev) => 
-        prev 
-        ? { 
-            ...prev, 
-            isFavorited: !prev.isFavorited, 
-            _count: { 
-              ...prev._count, 
-              favorites: prev.isFavorited 
-                ? prev._count.favorites - 1 
-                : prev._count.favorites + 1 
-            } 
-          } 
-        : null
-      );
     } catch (e) {
+      // ★ エラーが発生したら元に戻す
+      setCharacter(previousState);
       setModalState({ isOpen: true, title: 'エラー', message: e instanceof Error ? e.message : 'お気に入り登録中にエラーが発生しました。', isAlert: true });
     }
   };

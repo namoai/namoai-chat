@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
+import { notifyOnFavorite } from '@/lib/notifications'; // ★ 通知関数をインポート
 
 /**
  * キャラクターに「いいね」を付与（POST）
@@ -48,6 +49,11 @@ export async function POST(
         character_id: characterId,
       },
     });
+
+    // ★ いいね通知を作成
+    notifyOnFavorite(characterId, userId).catch(err => 
+      console.error('通知作成エラー:', err)
+    );
 
     return NextResponse.json(created, { status: 201 });
   } catch (error) {

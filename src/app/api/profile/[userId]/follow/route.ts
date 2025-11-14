@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth/next';
 // プロジェクト構成に合わせてパスを調整してください（authOptionsの所在）
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
+import { notifyOnFollow } from '@/lib/notifications'; // ★ 通知関数をインポート
 
 /**
  * RouteContext（自前定義）
@@ -88,6 +89,11 @@ export async function POST(req: NextRequest, context: unknown) {
       const newFollowerCount = await prisma.follows.count({
         where: { followingId: targetUserId },
       });
+
+      // ★ フォロー通知を作成
+      notifyOnFollow(targetUserId, currentUserId).catch(err => 
+        console.error('通知作成エラー:', err)
+      );
 
       return NextResponse.json({
         message: 'フォローしました。',

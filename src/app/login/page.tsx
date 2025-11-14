@@ -168,7 +168,7 @@ function LoginComponent() {
         </p>
 
         <Button
-          className="w-full flex items-center justify-center gap-3 bg-white text-black hover:bg-gray-100 transition-all py-3 rounded-xl font-semibold"
+          className="w-full flex items-center justify-center gap-3 bg-white text-black hover:bg-gray-100 hover:scale-105 active:scale-95 transition-all duration-200 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl cursor-pointer"
           onClick={() => signIn("google", { callbackUrl: "/MyPage" })}
         >
           <FcGoogle size={24} /> Googleアカウントで始まる

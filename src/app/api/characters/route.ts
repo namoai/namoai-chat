@@ -11,6 +11,7 @@ import { createClient } from '@supabase/supabase-js';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { randomUUID } from 'crypto';
 import OpenAI from 'openai'; // ★ OpenAIクライアントをインポート
+import { notifyFollowersOnCharacterCreation } from '@/lib/notifications'; // ★ 通知関数をインポート
 
 // =================================================================================
 //  型定義 (Type Definitions)
@@ -424,6 +425,11 @@ export async function POST(request: Request) {
                     return character;
                 });
                 
+                // ★ フォロワーに通知
+                notifyFollowersOnCharacterCreation(userIdNum, newCharacter.id, newCharacter.name).catch(err => 
+                    console.error('通知作成エラー:', err)
+                );
+                
                 return NextResponse.json({ 
                     message: 'キャラクターが正常に作成されました！', 
                     character: newCharacter 
@@ -691,6 +697,13 @@ export async function POST(request: Request) {
                 include: { characterImages: true, lorebooks: true },
             });
         });
+
+        // ★ フォロワーに通知
+        if (newCharacter) {
+            notifyFollowersOnCharacterCreation(userId, newCharacter.id, newCharacter.name).catch(err => 
+                console.error('通知作成エラー:', err)
+            );
+        }
 
         console.log('[POST] キャラクター作成成功');
         return NextResponse.json(

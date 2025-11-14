@@ -562,18 +562,13 @@ export default function UserProfilePage() {
                     </button>
                   )}
                   {!isMyProfile && sessionStatus === 'authenticated' && (
-                    <>
-                      <button onClick={handleFollow} className={`flex-1 font-bold py-2 px-4 rounded-xl transition-all ${
-                        profile.isFollowing 
-                          ? 'bg-gray-800/50 text-white hover:bg-gray-700/50 border border-gray-700/50' 
-                          : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-lg shadow-pink-500/30'
-                      }`}>
-                        {profile.isFollowing ? 'フォロー中' : 'フォロー'}
-                      </button>
-                      <button className="border border-pink-500/50 text-pink-400 hover:bg-pink-500/10 hover:border-pink-500 font-semibold py-2 px-4 rounded-xl transition-all">
-                        応援する
-                      </button>
-                    </>
+                    <button onClick={handleFollow} className={`w-full font-bold py-3 px-6 rounded-xl transition-all ${
+                      profile.isFollowing 
+                        ? 'bg-gray-800/50 text-white hover:bg-gray-700/50 border border-gray-700/50' 
+                        : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-lg shadow-pink-500/30'
+                    }`}>
+                      {profile.isFollowing ? 'フォロー中' : 'フォロー'}
+                    </button>
                   )}
                 </div>
               </section>
@@ -585,37 +580,62 @@ export default function UserProfilePage() {
                   </h3>
                   <span className="text-sm text-gray-400">会話量順</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-                  {profile.characters.map(char => (
-                    <a href={`/characters/${char.id}`} key={char.id} className="block group">
-                      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl overflow-hidden border border-gray-800/50 hover:border-pink-500/30 transition-all group-hover:scale-105">
-                        <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-800 to-gray-900 overflow-hidden">
-                          <Image 
-                            src={char.characterImages[0]?.imageUrl || 'https://placehold.co/300x400/1a1a1a/ffffff?text=?'} 
-                            alt={char.name} 
-                            fill
-                            className="object-cover group-hover:scale-110 transition-transform duration-500"
-                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-                          />
-                          {/* ホバー時のピンク-パープルグラデーションオーバーレイ（黒いオーバーレイを削除） */}
-                          <div className="absolute inset-0 bg-gradient-to-br from-pink-500/0 via-purple-500/0 to-pink-500/0 group-hover:from-pink-500/30 group-hover:via-purple-500/20 group-hover:to-pink-500/30 transition-all duration-500" />
-                        </div>
-                        <div className="p-3">
-                          <h4 className="font-semibold truncate text-white mb-1 group-hover:text-pink-400 transition-colors">{char.name}</h4>
-                          <p className="text-xs text-gray-400 truncate mb-2">@{profile.nickname}</p>
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <div className="flex items-center gap-1">
-                              <Heart size={12}/> {formatNumber(char._count.favorites)}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <MessageSquare size={12}/> {formatNumber(char._count.chat)}
+                
+                {profile.characters.length === 0 ? (
+                  // ★ キャラクターが0件の場合の表示
+                  <div className="flex flex-col items-center justify-center py-16 px-4 rounded-2xl bg-gradient-to-br from-gray-900/50 to-gray-800/50 backdrop-blur-sm border border-gray-800/50">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center mb-4">
+                      <User className="w-10 h-10 text-pink-400/50" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-300 mb-2">製作したキャラクターがありません</h3>
+                    <p className="text-gray-500 text-center max-w-md mb-4">
+                      {isMyProfile 
+                        ? "まだキャラクターを作成していません。\n最初のキャラクターを作成してみましょう！" 
+                        : `${profile.nickname}さんはまだキャラクターを作成していません。`}
+                    </p>
+                    {isMyProfile && (
+                      <a
+                        href="/characters/create"
+                        className="mt-4 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-pink-500/30"
+                      >
+                        キャラクターを作成
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  // ★ キャラクターがある場合の表示
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                    {profile.characters.map(char => (
+                      <a href={`/characters/${char.id}`} key={char.id} className="block group">
+                        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl overflow-hidden border border-gray-800/50 hover:border-pink-500/30 transition-all group-hover:scale-105">
+                          <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-800 to-gray-900 overflow-hidden">
+                            <Image 
+                              src={char.characterImages[0]?.imageUrl || 'https://placehold.co/300x400/1a1a1a/ffffff?text=?'} 
+                              alt={char.name} 
+                              fill
+                              className="object-cover group-hover:scale-110 transition-transform duration-500"
+                              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                            />
+                            {/* ホバー時のピンク-パープルグラデーションオーバーレイ（黒いオーバーレイを削除） */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-pink-500/0 via-purple-500/0 to-pink-500/0 group-hover:from-pink-500/30 group-hover:via-purple-500/20 group-hover:to-pink-500/30 transition-all duration-500" />
+                          </div>
+                          <div className="p-3">
+                            <h4 className="font-semibold truncate text-white mb-1 group-hover:text-pink-400 transition-colors">{char.name}</h4>
+                            <p className="text-xs text-gray-400 truncate mb-2">@{profile.nickname}</p>
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <div className="flex items-center gap-1">
+                                <Heart size={12}/> {formatNumber(char._count.favorites)}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <MessageSquare size={12}/> {formatNumber(char._count.chat)}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </a>
-                  ))}
-                </div>
+                      </a>
+                    ))}
+                  </div>
+                )}
               </section>
             </main>
           </div>
