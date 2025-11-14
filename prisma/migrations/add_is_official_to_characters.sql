@@ -9,3 +9,4 @@ COMMENT ON COLUMN "characters"."isOfficial" IS 'Marks official characters (ãƒŠãƒ
 
 
 
+

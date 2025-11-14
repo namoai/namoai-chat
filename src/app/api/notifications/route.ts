@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
 
     // フィルター条件構築
-    const where: any = { userId };
+    const where: { userId: number; isRead?: boolean } = { userId };
     if (isRead !== null) {
       where.isRead = isRead === "true";
     }

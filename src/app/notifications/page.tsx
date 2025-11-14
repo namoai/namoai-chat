@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Bell, Check, Trash2, Filter, X, ArrowLeft } from "lucide-react";
+import Image from "next/image";
+import { Bell, Check, Trash2, Filter, ArrowLeft } from "lucide-react";
 
 type Notification = {
   id: number;
@@ -29,7 +30,7 @@ const typeLabels: Record<string, { label: string; color: string; icon: string }>
 };
 
 export default function NotificationsPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -277,9 +278,11 @@ export default function NotificationsPage() {
                         {notification.actor && (
                           <div className="flex items-center gap-2 mt-2">
                             {notification.actor.image_url ? (
-                              <img
+                              <Image
                                 src={notification.actor.image_url}
                                 alt={notification.actor.nickname}
+                                width={24}
+                                height={24}
                                 className="w-6 h-6 rounded-full object-cover"
                               />
                             ) : (

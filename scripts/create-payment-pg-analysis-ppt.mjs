@@ -1192,3 +1192,4 @@ console.log(`\n✅ PPTファイルが生成されました: ${filename}`);
 console.log(`📄 総スライド数: 30枚`);
 console.log(`📊 内容: AI成人コンテンツ決済PG総合分析`);
 
+

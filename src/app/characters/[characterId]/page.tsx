@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, FormEvent, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Heart, MoreVertical, ArrowLeft, Send, Edit, Trash2, ShieldBan, Flag } from 'lucide-react';
 
 // --- 型定義 (変更なし) ---
@@ -228,7 +229,7 @@ function Comments({ characterId, characterAuthorId, session, setModalState }: Co
           return (
             <div key={comment.id} className="flex gap-3">
               <a href={`/profile/${comment.users.id}`} className="flex-shrink-0">
-                <img src={comment.users.image_url || 'https://placehold.co/40x40/1a1a1a/ffffff?text=?'} alt={comment.users.nickname} width={40} height={40} className="rounded-full mt-1 w-10 h-10 object-cover" />
+                <Image src={comment.users.image_url || 'https://placehold.co/40x40/1a1a1a/ffffff?text=?'} alt={comment.users.nickname} width={40} height={40} className="rounded-full mt-1 w-10 h-10 object-cover" />
               </a>
               <div className='flex-1'>
                 {editingCommentId === comment.id ? (
@@ -712,10 +713,13 @@ export default function CharacterDetailPage({
         <div className="pb-28 pt-20"> 
           <div className="max-w-4xl mx-auto px-4 md:px-6">
             <div className="relative w-full max-w-2xl mx-auto aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 mb-6">
-              <img 
+              <Image 
                 src={character.characterImages[0]?.imageUrl || 'https://placehold.co/640x640/1a1a1a/ffffff?text=?'} 
-                alt={character.name} 
-                className="w-full h-full object-contain"
+                alt={character.name}
+                fill
+                className="object-contain"
+                sizes="(max-width: 768px) 100vw, 640px"
+                priority
               />
             </div>
 
@@ -726,7 +730,7 @@ export default function CharacterDetailPage({
                 </h1>
                 {character.author ? (
                   <a href={`/profile/${character.author.id}`} className="mt-2 inline-flex items-center gap-2 hover:opacity-80 transition-opacity">
-                    <img 
+                    <Image 
                       src={character.author.image_url || 'https://placehold.co/24x24/1a1a1a/ffffff?text=?'} 
                       alt={character.author.nickname || ''}
                       width={24}

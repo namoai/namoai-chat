@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/nextauth";
 import { prisma } from "@/lib/prisma";
 
 // 未読通知数取得 (GET) - ポーリング用の軽量エンドポイント
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {

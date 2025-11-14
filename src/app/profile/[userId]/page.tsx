@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { ArrowLeft, MoreVertical, Heart, MessageSquare, User, Share2, ShieldBan, ShieldCheck, Edit, KeyRound, X, UserMinus, Trash2, HelpCircle } from 'lucide-react';
 // ▼▼▼【修正】Next.jsのImageコンポーネントをインポートします ▼▼▼
 import Image from 'next/image';
+import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import HelpModal from '@/components/HelpModal';
 
@@ -594,12 +595,12 @@ export default function UserProfilePage() {
                         : `${profile.nickname}さんはまだキャラクターを作成していません。`}
                     </p>
                     {isMyProfile && (
-                      <a
+                      <Link
                         href="/characters/create"
-                        className="mt-4 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-pink-500/30"
+                        className="mt-4 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-pink-500/30 inline-block"
                       >
                         キャラクターを作成
-                      </a>
+                      </Link>
                     )}
                   </div>
                 ) : (
