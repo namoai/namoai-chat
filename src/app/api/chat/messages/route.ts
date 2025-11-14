@@ -8,10 +8,10 @@ import { authOptions } from "@/lib/nextauth";
 import { getEmbedding } from "@/lib/embeddings";
 import { searchSimilarDetailedMemories } from "@/lib/vector-search"; 
 
-// VertexAIクライアントの初期化（asia-northeast1に変更して高速化）
+// VertexAIクライアントの初期化（us-central1でProモデル使用）
 const vertex_ai = new VertexAI({
   project: process.env.GOOGLE_PROJECT_ID,
-  location: "asia-northeast1",
+  location: "us-central1", // ★ Proと同じリージョンに変更
 });
 
 // 安全性設定（デフォルト、ユーザー設定に基づいて動的に変更される）
@@ -553,7 +553,7 @@ ${statusWindowInstruction}${userDirectiveInstruction}
         const modelToUse = settings?.model || "gemini-2.5-pro"; // ★ Proに変更
         console.log(`\n🤖 ========================================`);
         console.log(`🤖 再生成使用モデル: ${modelToUse}`);
-        console.log(`🤖 リージョン: asia-northeast1`);
+        console.log(`🤖 リージョン: us-central1`); // ★ 変更
         console.log(`🤖 ========================================\n`);
         
         // ▼▼▼【デバッグ】AIに送信されるシステムプロンプトの確認
