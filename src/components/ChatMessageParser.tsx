@@ -369,6 +369,13 @@ function parseTextContent(
     } else {
       // ボーダーボックスがない場合は既存の処理を実行
       const parts = line.split(regex).filter(Boolean);
+      
+      console.log(`[ChatMessageParser] Line ${i}:`, { 
+        partsCount: parts.length, 
+        imageRendered, 
+        isMultiImage 
+      });
+      
       for (const part of parts) {
         // --- 「セリフ」の処理 (白文字) ---
         if (part.startsWith('「') && part.endsWith('」')) {
