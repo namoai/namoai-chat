@@ -552,8 +552,8 @@ ${statusWindowInstruction}${userDirectiveInstruction}
         // チャット生成APIと同じように、設定からモデルを取得（デフォルト: gemini-2.5-pro）
         const modelToUse = settings?.model || "gemini-2.5-pro"; // ★ Proに変更
         console.log(`\n🤖 ========================================`);
-        console.log(`🤖 再生成使用モデル: ${modelToUse}`);
-        console.log(`🤖 リージョン: us-central1`); // ★ 変更
+        console.log(`🤖 [再生成] 使用モデル: ${modelToUse}`);
+        console.log(`🤖 [再生成] リージョン: us-central1`);
         console.log(`🤖 ========================================\n`);
         
         // ▼▼▼【デバッグ】AIに送信されるシステムプロンプトの確認
