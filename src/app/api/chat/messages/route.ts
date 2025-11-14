@@ -8,10 +8,10 @@ import { authOptions } from "@/lib/nextauth";
 import { getEmbedding } from "@/lib/embeddings";
 import { searchSimilarDetailedMemories } from "@/lib/vector-search"; 
 
-// VertexAIクライアントの初期化（us-central1でProモデル使用）
+// VertexAIクライアントの初期化
 const vertex_ai = new VertexAI({
   project: process.env.GOOGLE_PROJECT_ID,
-  location: "us-central1", // ★ Proと同じリージョンに変更
+  location: "asia-northeast1",
 });
 
 // 安全性設定（デフォルト、ユーザー設定に基づいて動的に変更される）
@@ -549,8 +549,8 @@ ${statusWindowInstruction}${userDirectiveInstruction}
             parts: [{ text: msg.content }],
         }));
 
-        // チャット生成APIと同じように、設定からモデルを取得（デフォルト: gemini-2.5-pro）
-        const modelToUse = settings?.model || "gemini-2.5-pro"; // ★ Proに変更
+        // チャット生成APIと同じように、設定からモデルを取得
+        const modelToUse = settings?.model || "gemini-2.5-flash";
         console.log(`\n🤖 ========================================`);
         console.log(`🤖 [再生成] 使用モデル: ${modelToUse}`);
         console.log(`🤖 [再生成] リージョン: us-central1`);

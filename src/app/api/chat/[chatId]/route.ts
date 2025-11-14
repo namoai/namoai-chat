@@ -18,7 +18,7 @@ import { createDetailedMemories, updateMemoriesWithAIKeywords } from "@/lib/chat
 // VertexAIクライアントの初期化
 const vertex_ai = new VertexAI({
   project: process.env.GOOGLE_PROJECT_ID,
-  location: "us-central1", // ★ Pro用にus-central1に変更
+  location: "asia-northeast1",
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -856,11 +856,11 @@ ${statusWindowInstruction}${userDirectiveInstruction}
                     // Vertex AIで要約
                     const summaryVertexAI = new VertexAI({
                       project: process.env.GOOGLE_PROJECT_ID || '',
-                      location: 'us-central1', // ★ Pro用にus-central1に変更
+                      location: 'asia-northeast1',
                     });
 
                     const summaryModel = summaryVertexAI.getGenerativeModel({
-                      model: 'gemini-2.5-pro',
+                      model: 'gemini-2.5-flash',
                       safetySettings,
                     });
 
