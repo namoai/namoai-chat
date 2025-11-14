@@ -549,9 +549,12 @@ ${statusWindowInstruction}${userDirectiveInstruction}
             parts: [{ text: msg.content }],
         }));
 
-        // チャット生成APIと同じように、設定からモデルを取得（デフォルト: gemini-2.5-flash）
-        const modelToUse = settings?.model || "gemini-2.5-flash";
-        console.log(`再生成使用モデル: ${modelToUse}`);
+        // チャット生成APIと同じように、設定からモデルを取得（デフォルト: gemini-2.5-pro）
+        const modelToUse = settings?.model || "gemini-2.5-pro"; // ★ Proに変更
+        console.log(`\n🤖 ========================================`);
+        console.log(`🤖 再生成使用モデル: ${modelToUse}`);
+        console.log(`🤖 リージョン: asia-northeast1`);
+        console.log(`🤖 ========================================\n`);
         
         // ▼▼▼【デバッグ】AIに送信されるシステムプロンプトの確認
         console.log("📤 再生成: Vertex AIに送信されるシステムプロンプト:");
