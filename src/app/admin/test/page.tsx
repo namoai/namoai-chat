@@ -432,11 +432,14 @@ export default function TestToolPage() {
               }
             }
           } else if (testIndex === 2) {
-            // キャラクター検索
-            const searchRes = await fetch('/api/search?q=test');
-            const searchResult = await searchRes.json() as { characters?: unknown[] };
-            if (searchRes.ok) {
-              updateTestResult(categoryIndex, testIndex, 'success', `検索結果: ${searchResult.characters?.length || 0}件`, Date.now() - startTime);
+            // キャラクター検索（テストキャラクターのハッシュタグ「テスト」で検索）
+            const searchRes = await fetch('/api/search?query=テスト');
+            const searchResult = await searchRes.json() as unknown[];
+            if (searchRes.ok && Array.isArray(searchResult)) {
+              if (searchResult.length === 0) {
+                throw new Error('検索結果が0件です。テストキャラクターが作成されていないか、検索が機能していません。');
+              }
+              updateTestResult(categoryIndex, testIndex, 'success', `検索結果: ${searchResult.length}件`, Date.now() - startTime);
             } else {
               throw new Error('検索に失敗');
             }
@@ -672,11 +675,14 @@ export default function TestToolPage() {
               throw new Error('ランキング取得に失敗');
             }
           } else if (testIndex === 1) {
-            // 検索機能
-            const searchRes = await fetch('/api/search?q=test');
-            const searchResult2 = await searchRes.json() as { characters?: unknown[] };
-            if (searchRes.ok) {
-              updateTestResult(categoryIndex, testIndex, 'success', `検索結果: ${searchResult2.characters?.length || 0}件`, Date.now() - startTime);
+            // 検索機能（テストキャラクターのハッシュタグ「テスト」で検索）
+            const searchRes = await fetch('/api/search?query=テスト');
+            const searchResult2 = await searchRes.json() as unknown[];
+            if (searchRes.ok && Array.isArray(searchResult2)) {
+              if (searchResult2.length === 0) {
+                throw new Error('検索結果が0件です。テストキャラクターが作成されていないか、検索が機能していません。');
+              }
+              updateTestResult(categoryIndex, testIndex, 'success', `検索結果: ${searchResult2.length}件`, Date.now() - startTime);
             } else {
               throw new Error('検索に失敗');
             }
