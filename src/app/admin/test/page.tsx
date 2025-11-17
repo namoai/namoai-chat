@@ -329,9 +329,10 @@ export default function TestToolPage() {
           if (testIndex === 0) {
             // セッション確認
             const sessionRes = await fetch('/api/auth/session');
-            result = await sessionRes.json();
-            if (sessionRes.ok && result?.user) {
-              updateTestResult(categoryIndex, testIndex, 'success', `ユーザーID: ${result.user.id}`, Date.now() - startTime);
+            const sessionResult = await sessionRes.json() as { user?: { id?: string } };
+            result = sessionResult;
+            if (sessionRes.ok && sessionResult?.user) {
+              updateTestResult(categoryIndex, testIndex, 'success', `ユーザーID: ${sessionResult.user.id}`, Date.now() - startTime);
             } else {
               throw new Error('セッションが取得できませんでした');
             }
