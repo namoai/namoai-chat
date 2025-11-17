@@ -10,7 +10,7 @@ import { Role } from '@prisma/client';
  * 
  * テスト用のユーザー、キャラクター、チャットルームをすべて削除します。
  */
-export async function DELETE(request: NextRequest) {
+export async function DELETE(_request: NextRequest) {
   try {
     // セッション確認
     const session = await getServerSession(authOptions);
