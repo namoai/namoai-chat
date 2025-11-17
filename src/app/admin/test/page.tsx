@@ -35,12 +35,14 @@ export default function TestToolPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [testUserInfo, setTestUserInfo] = useState<{ email: string; password: string; userId?: number } | null>(null);
   const [testCharacterId, setTestCharacterId] = useState<number | null>(null);
+  const [testCharacterName, setTestCharacterName] = useState<string | null>(null);
   const [isSettingUp, setIsSettingUp] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<{ message: string; deleted: { users: number; characters: number; chats: number } } | null>(null);
 
   const testUserInfoRef = useRef<{ email: string; password: string; userId?: number } | null>(null);
   const testCharacterIdRef = useRef<number | null>(null);
+  const testCharacterNameRef = useRef<string | null>(null);
 
   useEffect(() => {
     testUserInfoRef.current = testUserInfo;
@@ -49,6 +51,10 @@ export default function TestToolPage() {
   useEffect(() => {
     testCharacterIdRef.current = testCharacterId;
   }, [testCharacterId]);
+
+  useEffect(() => {
+    testCharacterNameRef.current = testCharacterName;
+  }, [testCharacterName]);
 
   // テストの詳細説明
   const testDescriptions: { [key: string]: string } = {
@@ -258,6 +264,9 @@ export default function TestToolPage() {
       setTestCharacterId(characterId);
       testCharacterIdRef.current = characterId;
 
+      setTestCharacterName(name);
+      testCharacterNameRef.current = name;
+
       return { testUserId, characterId, testEmail, testPassword };
     } catch (error) {
       console.error('テスト環境セットアップエラー:', error);
@@ -432,14 +441,45 @@ export default function TestToolPage() {
               }
             }
           } else if (testIndex === 2) {
-            // キャラクター検索（テストキャラクターのハッシュタグ「テスト」で検索）
+            // キャラクター検索（テストキャラクターのハッシュタグ「テスト」で検索し、作成したキャラクターが含まれるか確認）
+            const currentTestCharacterId = testCharacterIdRef.current;
+            const currentTestCharacterName = testCharacterNameRef.current;
+            
+            if (!currentTestCharacterId) {
+              throw new Error('テストキャラクターが作成されていません。先にテスト環境をセットアップしてください。');
+            }
+            
+            // ハッシュタグ「テスト」で検索
             const searchRes = await fetch('/api/search?query=テスト');
-            const searchResult = await searchRes.json() as unknown[];
+            const searchResult = await searchRes.json() as Array<{ id?: number; name?: string }>;
             if (searchRes.ok && Array.isArray(searchResult)) {
               if (searchResult.length === 0) {
                 throw new Error('検索結果が0件です。テストキャラクターが作成されていないか、検索が機能していません。');
               }
-              updateTestResult(categoryIndex, testIndex, 'success', `検索結果: ${searchResult.length}件`, Date.now() - startTime);
+              
+              // 作成したキャラクターが検索結果に含まれているか確認
+              const foundCharacter = searchResult.find(c => c.id === currentTestCharacterId);
+              if (!foundCharacter) {
+                // キャラクター名でも再検索を試みる
+                if (currentTestCharacterName) {
+                  const nameSearchRes = await fetch(`/api/search?query=${encodeURIComponent(currentTestCharacterName)}`);
+                  const nameSearchResult = await nameSearchRes.json() as Array<{ id?: number }>;
+                  if (nameSearchRes.ok && Array.isArray(nameSearchResult)) {
+                    const foundByName = nameSearchResult.find(c => c.id === currentTestCharacterId);
+                    if (foundByName) {
+                      updateTestResult(categoryIndex, testIndex, 'success', `検索結果: ${searchResult.length}件（ハッシュタグ）、${nameSearchResult.length}件（名前）`, Date.now() - startTime);
+                    } else {
+                      throw new Error(`検索結果にテストキャラクター（ID: ${currentTestCharacterId}, 名前: ${currentTestCharacterName}）が含まれていません。`);
+                    }
+                  } else {
+                    throw new Error('キャラクター名での検索に失敗');
+                  }
+                } else {
+                  throw new Error(`検索結果にテストキャラクター（ID: ${currentTestCharacterId}）が含まれていません。`);
+                }
+              } else {
+                updateTestResult(categoryIndex, testIndex, 'success', `検索結果: ${searchResult.length}件（テストキャラクター含む）`, Date.now() - startTime);
+              }
             } else {
               throw new Error('検索に失敗');
             }
@@ -675,14 +715,45 @@ export default function TestToolPage() {
               throw new Error('ランキング取得に失敗');
             }
           } else if (testIndex === 1) {
-            // 検索機能（テストキャラクターのハッシュタグ「テスト」で検索）
+            // 検索機能（テストキャラクターのハッシュタグ「テスト」で検索し、作成したキャラクターが含まれるか確認）
+            const currentTestCharacterId = testCharacterIdRef.current;
+            const currentTestCharacterName = testCharacterNameRef.current;
+            
+            if (!currentTestCharacterId) {
+              throw new Error('テストキャラクターが作成されていません。先にテスト環境をセットアップしてください。');
+            }
+            
+            // ハッシュタグ「テスト」で検索
             const searchRes = await fetch('/api/search?query=テスト');
-            const searchResult2 = await searchRes.json() as unknown[];
+            const searchResult2 = await searchRes.json() as Array<{ id?: number; name?: string }>;
             if (searchRes.ok && Array.isArray(searchResult2)) {
               if (searchResult2.length === 0) {
                 throw new Error('検索結果が0件です。テストキャラクターが作成されていないか、検索が機能していません。');
               }
-              updateTestResult(categoryIndex, testIndex, 'success', `検索結果: ${searchResult2.length}件`, Date.now() - startTime);
+              
+              // 作成したキャラクターが検索結果に含まれているか確認
+              const foundCharacter = searchResult2.find(c => c.id === currentTestCharacterId);
+              if (!foundCharacter) {
+                // キャラクター名でも再検索を試みる
+                if (currentTestCharacterName) {
+                  const nameSearchRes = await fetch(`/api/search?query=${encodeURIComponent(currentTestCharacterName)}`);
+                  const nameSearchResult = await nameSearchRes.json() as Array<{ id?: number }>;
+                  if (nameSearchRes.ok && Array.isArray(nameSearchResult)) {
+                    const foundByName = nameSearchResult.find(c => c.id === currentTestCharacterId);
+                    if (foundByName) {
+                      updateTestResult(categoryIndex, testIndex, 'success', `検索結果: ${searchResult2.length}件（ハッシュタグ）、${nameSearchResult.length}件（名前）`, Date.now() - startTime);
+                    } else {
+                      throw new Error(`検索結果にテストキャラクター（ID: ${currentTestCharacterId}, 名前: ${currentTestCharacterName}）が含まれていません。`);
+                    }
+                  } else {
+                    throw new Error('キャラクター名での検索に失敗');
+                  }
+                } else {
+                  throw new Error(`検索結果にテストキャラクター（ID: ${currentTestCharacterId}）が含まれていません。`);
+                }
+              } else {
+                updateTestResult(categoryIndex, testIndex, 'success', `検索結果: ${searchResult2.length}件（テストキャラクター含む）`, Date.now() - startTime);
+              }
             } else {
               throw new Error('検索に失敗');
             }
