@@ -317,7 +317,6 @@ export default function TestToolPage() {
     updateTestResult(categoryIndex, testIndex, 'running');
 
     try {
-      let result: unknown;
       const categoryName = testCategories[categoryIndex].name;
       
       // 現在のtestCharacterIdとtestUserInfoを取得（最新の状態を使用）
@@ -330,7 +329,6 @@ export default function TestToolPage() {
             // セッション確認
             const sessionRes = await fetch('/api/auth/session');
             const sessionResult = await sessionRes.json() as { user?: { id?: string } };
-            result = sessionResult;
             if (sessionRes.ok && sessionResult?.user) {
               updateTestResult(categoryIndex, testIndex, 'success', `ユーザーID: ${sessionResult.user.id}`, Date.now() - startTime);
             } else {
@@ -353,7 +351,6 @@ export default function TestToolPage() {
             // ポイント情報取得
             const pointsRes = await fetch('/api/points');
             const pointsResult = await pointsRes.json() as { free_points?: number; paid_points?: number; error?: string };
-            result = pointsResult;
             if (pointsRes.ok) {
               const total = (pointsResult.free_points || 0) + (pointsResult.paid_points || 0);
               updateTestResult(categoryIndex, testIndex, 'success', `総ポイント: ${total}`, Date.now() - startTime);
@@ -368,7 +365,6 @@ export default function TestToolPage() {
               body: JSON.stringify({ action: 'charge', amount: 100 }),
             });
             const chargeResult = await chargeRes.json() as { message?: string; error?: string };
-            result = chargeResult;
             if (chargeRes.ok) {
               updateTestResult(categoryIndex, testIndex, 'success', chargeResult.message || 'チャージ成功', Date.now() - startTime);
             } else {
@@ -382,7 +378,6 @@ export default function TestToolPage() {
               body: JSON.stringify({ action: 'attend' }),
             });
             const attendResult = await attendRes.json() as { message?: string; error?: string };
-            result = attendResult;
             if (attendRes.ok) {
               updateTestResult(categoryIndex, testIndex, 'success', attendResult.message || '出席成功', Date.now() - startTime);
             } else {
@@ -401,7 +396,6 @@ export default function TestToolPage() {
             // キャラクター一覧取得
             const charsRes = await fetch('/api/charlist');
             const charsResult = await charsRes.json() as { characters?: unknown[] } | unknown[];
-            result = charsResult;
             if (charsRes.ok) {
               // /api/charlistは { characters: [...], tags: [...] } 形式で返す
               const characters = Array.isArray(charsResult) ? charsResult : (charsResult.characters || []);
@@ -415,7 +409,6 @@ export default function TestToolPage() {
             if (currentTestCharacterId) {
               const charRes = await fetch(`/api/characters/${currentTestCharacterId}`);
               const charResult = await charRes.json() as { name?: string };
-              result = charResult;
               if (charRes.ok) {
                 updateTestResult(categoryIndex, testIndex, 'success', `キャラクター: ${charResult.name}`, Date.now() - startTime);
               } else {
@@ -429,7 +422,6 @@ export default function TestToolPage() {
               if (chars.length > 0) {
                 const charRes = await fetch(`/api/characters/${chars[0].id}`);
                 const charResult2 = await charRes.json() as { name?: string };
-                result = charResult2;
                 if (charRes.ok) {
                   updateTestResult(categoryIndex, testIndex, 'success', `キャラクター: ${charResult2.name}`, Date.now() - startTime);
                 } else {
@@ -443,7 +435,6 @@ export default function TestToolPage() {
             // キャラクター検索
             const searchRes = await fetch('/api/search?q=test');
             const searchResult = await searchRes.json() as { characters?: unknown[] };
-            result = searchResult;
             if (searchRes.ok) {
               updateTestResult(categoryIndex, testIndex, 'success', `検索結果: ${searchResult.characters?.length || 0}件`, Date.now() - startTime);
             } else {
@@ -457,7 +448,6 @@ export default function TestToolPage() {
             // チャットリスト取得
             const chatListRes = await fetch('/api/chatlist');
             const chatListResult = await chatListRes.json() as unknown[];
-            result = chatListResult;
             if (chatListRes.ok && Array.isArray(chatListResult)) {
               updateTestResult(categoryIndex, testIndex, 'success', `${chatListResult.length}件のチャット`, Date.now() - startTime);
             } else {
@@ -485,7 +475,6 @@ export default function TestToolPage() {
                 body: JSON.stringify({ characterId: characterIdToUse }),
               });
               const newChatResult = await newChatRes.json() as { chatId?: number; error?: string };
-              result = newChatResult;
               if (newChatRes.ok) {
                 updateTestResult(categoryIndex, testIndex, 'success', `チャットID: ${newChatResult.chatId}`, Date.now() - startTime);
               } else {
@@ -525,7 +514,6 @@ export default function TestToolPage() {
             // 通知一覧取得
             const notifRes = await fetch('/api/notifications');
             const notifResult = await notifRes.json() as { notifications?: unknown[] };
-            result = notifResult;
             if (notifRes.ok) {
               updateTestResult(categoryIndex, testIndex, 'success', `${notifResult.notifications?.length || 0}件の通知`, Date.now() - startTime);
             } else {
@@ -535,7 +523,6 @@ export default function TestToolPage() {
             // 未読通知数取得
             const unreadRes = await fetch('/api/notifications/unread-count');
             const unreadResult = await unreadRes.json() as { unreadCount?: number };
-            result = unreadResult;
             if (unreadRes.ok) {
               updateTestResult(categoryIndex, testIndex, 'success', `未読: ${unreadResult.unreadCount || 0}件`, Date.now() - startTime);
             } else {
@@ -545,11 +532,12 @@ export default function TestToolPage() {
             // 通知既読処理
             const notifRes = await fetch('/api/notifications');
             const notifs = await notifRes.json() as { notifications?: { id: number }[] };
-            if (notifs.notifications?.length > 0) {
+            const notifications = notifs.notifications ?? [];
+            if (notifications.length > 0) {
               const readRes = await fetch('/api/notifications/read', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ notificationIds: [notifs.notifications[0].id] }),
+                body: JSON.stringify({ notificationIds: [notifications[0].id] }),
               });
               if (readRes.ok) {
                 updateTestResult(categoryIndex, testIndex, 'success', '既読処理成功', Date.now() - startTime);
@@ -570,7 +558,6 @@ export default function TestToolPage() {
             if (session?.user?.id) {
               const profileRes = await fetch(`/api/profile/${session.user.id}`);
               const profileResult = await profileRes.json() as { nickname?: string };
-              result = profileResult;
               if (profileRes.ok) {
                 updateTestResult(categoryIndex, testIndex, 'success', `プロフィール: ${profileResult.nickname}`, Date.now() - startTime);
               } else {
@@ -602,7 +589,6 @@ export default function TestToolPage() {
                   method: 'POST',
                 });
                 const followResult = await followRes.json() as { isFollowing?: boolean; error?: string };
-                result = followResult;
                 if (followRes.ok) {
                   updateTestResult(categoryIndex, testIndex, 'success', `フォロー状態: ${followResult.isFollowing ? 'フォロー中' : '未フォロー'}`, Date.now() - startTime);
                 } else {
@@ -634,7 +620,6 @@ export default function TestToolPage() {
                 method: 'POST',
               });
               const favoriteResult = await favoriteRes.json() as { isFavorite?: boolean; error?: string };
-              result = favoriteResult;
               if (favoriteRes.ok) {
                 updateTestResult(categoryIndex, testIndex, 'success', `いいね状態: ${favoriteResult.isFavorite ? 'いいね済み' : '未いいね'}`, Date.now() - startTime);
               } else {
@@ -665,7 +650,6 @@ export default function TestToolPage() {
                 body: JSON.stringify({ content: 'テストコメント' }),
               });
               const commentResult = await commentRes.json() as { error?: string };
-              result = commentResult;
               if (commentRes.ok) {
                 updateTestResult(categoryIndex, testIndex, 'success', 'コメント投稿成功', Date.now() - startTime);
               } else {
@@ -681,8 +665,7 @@ export default function TestToolPage() {
           if (testIndex === 0) {
             // ランキング取得
             const rankingRes = await fetch('/api/ranking');
-            const rankingResult = await rankingRes.json();
-            result = rankingResult;
+            await rankingRes.json();
             if (rankingRes.ok) {
               updateTestResult(categoryIndex, testIndex, 'success', 'ランキング取得成功', Date.now() - startTime);
             } else {
