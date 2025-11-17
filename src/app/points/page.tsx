@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 // ▼▼▼【修正点】useRouterをインポートします ▼▼▼
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Gift, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Gift, CheckCircle, HelpCircle } from 'lucide-react';
+import HelpModal from '@/components/HelpModal';
 
 // ポイントデータの型定義
 type PointsData = {
@@ -58,6 +59,7 @@ export default function PointPage() {
   const [loading, setLoading] = useState(true);
   // ▼▼▼【修正点】モーダル用のstateを追加 ▼▼▼
   const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '' });
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   useEffect(() => {
     fetchPoints();
@@ -151,6 +153,13 @@ export default function PointPage() {
               <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
                 ポイント
               </h1>
+              <button
+                onClick={() => setIsHelpOpen(true)}
+                className="absolute right-0 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+                aria-label="ヘルプ"
+              >
+                <HelpCircle size={24} />
+              </button>
             </header>
 
             <div className="bg-gradient-to-r from-yellow-500/20 via-pink-500/20 to-purple-500/20 backdrop-blur-sm p-6 md:p-8 rounded-2xl mb-8 border border-gray-800/50">
@@ -219,6 +228,52 @@ export default function PointPage() {
           </div>
         </div>
       </div>
+      <HelpModal
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+        title="ポイントページの使い方"
+        content={
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold text-pink-400 mb-2">概要</h3>
+              <p className="text-gray-300">
+                ポイントページでは、保有ポイントの確認、毎日出席イベントへの参加、ポイントの購入ができます。
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-pink-400 mb-2">ポイントの種類</h3>
+              <ul className="list-disc list-inside space-y-2 text-gray-300 ml-2">
+                <li><strong className="text-pink-400">有料ポイント:</strong> 購入したポイントです。すべての機能で使用できます。</li>
+                <li><strong className="text-yellow-400">無料ポイント:</strong> 毎日出席イベントなどで獲得できるポイントです。基本的な機能で使用できます。</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-pink-400 mb-2">毎日出席イベント</h3>
+              <ul className="list-disc list-inside space-y-2 text-gray-300 ml-2">
+                <li>毎日1回、出席ボタンをクリックすると30ポイントを獲得できます</li>
+                <li>1日1回のみ参加可能です（リセット時間: 午前0時）</li>
+                <li>出席済みの場合は、ボタンが無効化されます</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-pink-400 mb-2">ポイント購入</h3>
+              <ul className="list-disc list-inside space-y-2 text-gray-300 ml-2">
+                <li>複数のポイントパッケージから選択して購入できます</li>
+                <li>購入したポイントは即座にアカウントに反映されます</li>
+                <li>ポイントはチャット機能などで使用できます</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-pink-400 mb-2">ポイントの使用</h3>
+              <ul className="list-disc list-inside space-y-2 text-gray-300 ml-2">
+                <li>チャット機能を使用する際にポイントが消費されます</li>
+                <li>有料ポイントと無料ポイントは自動的に適切に使用されます</li>
+                <li>ポイントが不足している場合は、チャット機能を使用できません</li>
+              </ul>
+            </div>
+          </div>
+        }
+      />
     </>
   );
 }

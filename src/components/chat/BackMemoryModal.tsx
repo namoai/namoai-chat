@@ -85,7 +85,7 @@ export default function BackMemoryModal({
       <div className="bg-gray-800 text-white rounded-lg w-full max-w-[95vw] sm:max-w-[90vw] lg:max-w-[85vw] xl:max-w-[80vw] h-[90vh] flex flex-col shadow-2xl mx-auto" onClick={(e) => e.stopPropagation()}>
         {/* ヘッダー */}
         <div className="flex justify-between items-center p-6 border-b border-gray-700">
-          <div>
+          <div className="flex-1">
             <h2 className="text-2xl font-bold">メモリブック</h2>
             <p className="text-sm text-gray-400 mt-1">
               会話履歴が自動的に要約され、キャラクターがより長く記憶できるようになります。
@@ -96,34 +96,60 @@ export default function BackMemoryModal({
           </button>
         </div>
 
+        {/* 説明セクション */}
+        <div className="p-4 border-b border-gray-700 bg-gray-800/30 overflow-y-auto max-h-[200px]">
+          <details className="cursor-pointer" open>
+            <summary className="text-sm font-semibold text-gray-300 hover:text-white mb-2">
+              📚 メモリブックとは？（クリックで折りたたむ）
+            </summary>
+            <div className="mt-2 p-3 bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-700/50">
+              <p className="text-xs text-gray-400 leading-relaxed mb-2">
+                会話の重要な内容を要約して保存する機能です。長い会話でも、キャラクターが過去の重要な出来事や情報を覚えていられます。
+              </p>
+              <div className="text-xs text-gray-400 space-y-1">
+                <p><strong className="text-gray-300">自動要約:</strong> 最初の10メッセージは毎回、その後は5メッセージごとに自動要約</p>
+                <p><strong className="text-gray-300">手動編集:</strong> 要約内容を手動で編集・追加可能</p>
+                <p><strong className="text-gray-300">常時適用:</strong> 保存された内容は今後の会話で常に参照されます</p>
+              </div>
+            </div>
+          </details>
+        </div>
+
         {/* 自動要約セクション */}
-        <div className="p-6 border-b border-gray-700 flex items-center justify-between bg-gray-750">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-300">会話内容を自動的に要約します</p>
-            <p className="text-xs text-gray-500 mt-1">最初の10メッセージまでは毎回、その後は5メッセージごとに自動要約されます</p>
+        <div className="p-4 border-b border-gray-700 bg-gray-800/20">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-sm font-semibold text-gray-200">自動要約機能</p>
+                <span className="text-xs bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full">推奨</span>
+              </div>
+              <p className="text-xs text-gray-400">
+                会話内容を自動的に要約して保存します（最初の10メッセージは毎回、その後は5メッセージごと）
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
+              <input
+                type="checkbox"
+                checked={autoSummarize}
+                onChange={(e) => setAutoSummarize(e.target.checked)}
+                disabled={isEditing}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-pink-500 peer-checked:to-purple-600 peer-disabled:opacity-50"></div>
+            </label>
           </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={autoSummarize}
-              onChange={(e) => setAutoSummarize(e.target.checked)}
-              disabled={isEditing}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600 peer-disabled:opacity-50"></div>
-          </label>
         </div>
 
         {/* 内容エリア */}
         <div className="flex-1 p-6 overflow-y-auto">
-          <div className="flex justify-between items-center mb-4">
-            <label className="block text-sm font-medium">
-              内容 <span className="text-red-500">*</span>
+          <div className="flex justify-between items-center mb-3">
+            <label className="block text-sm font-semibold text-gray-200">
+              メモリブックの内容 <span className="text-red-500">*</span>
             </label>
             {!isEditing && (
               <button
                 onClick={handleEdit}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-medium rounded-lg transition-all shadow-lg hover:shadow-blue-500/30 flex-shrink-0 ml-4"
               >
                 <Edit2 size={16} />
                 編集
@@ -161,31 +187,33 @@ export default function BackMemoryModal({
         </div>
 
         {/* ボタン */}
-        <div className="p-6 border-t border-gray-700 flex gap-3">
+        <div className="p-4 border-t border-gray-700 flex flex-col gap-3">
           {isEditing ? (
             <>
-              <button
-                onClick={handleCancel}
-                disabled={isSaving}
-                className="flex-1 flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-500 text-white font-bold py-3 px-4 rounded-md transition-colors"
-              >
-                <XCircle size={20} />
-                キャンセル
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={isSaving || editContent.length > 3000}
-                className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-500 text-white font-bold py-3 px-4 rounded-md transition-colors"
-              >
-                <Save size={20} />
-                {isSaving ? '保存中...' : '保存'}
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                  className="flex-1 flex items-center justify-center gap-2 bg-gray-700/50 hover:bg-gray-600/50 disabled:bg-gray-500/50 text-white font-semibold py-3 px-4 rounded-lg transition-all border border-gray-600/50"
+                >
+                  <XCircle size={20} />
+                  キャンセル
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving || editContent.length > 3000}
+                  className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold py-3 px-4 rounded-lg transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50"
+                >
+                  <Save size={20} />
+                  {isSaving ? '保存中...' : '保存'}
+                </button>
+              </div>
             </>
           ) : (
             <button
               onClick={handleAutoSummarize}
               disabled={isSummarizing}
-              className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-500 text-white font-bold py-3 px-4 rounded-md transition-colors"
+              className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold py-3 px-4 rounded-lg transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50"
             >
               {isSummarizing ? '要約中...' : '今すぐ自動要約を実行'}
             </button>

@@ -275,18 +275,9 @@ export default function HomePage() {
                   >
                     <Bell className="w-5 h-5" />
                     {unreadCount > 0 && (
-                      <>
-                        {/* 点滅する赤い点（ライブインジケーター） */}
-                        <div className="absolute top-1 right-1 w-3 h-3">
-                          <div className="absolute inset-0 bg-red-500 rounded-full animate-ping"></div>
-                          <div className="absolute inset-0 bg-red-500 rounded-full"></div>
-                        </div>
-                        
-                        {/* 数字バッジ */}
-                        <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-gradient-to-br from-red-500 to-pink-600 rounded-full flex items-center justify-center text-[10px] font-bold text-white animate-pulse border-2 border-black shadow-lg shadow-red-500/50">
-                          {unreadCount > 99 ? "99+" : unreadCount}
-                        </div>
-                      </>
+                      <div className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1.5 bg-gradient-to-br from-red-500 to-pink-600 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-black shadow-lg shadow-red-500/50 z-10 animate-pulse">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </div>
                     )}
                   </a>
                 )}

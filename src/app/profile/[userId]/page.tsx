@@ -63,39 +63,92 @@ const UserListModal = ({ title, users, onClose, isLoading, onUnblock, showUnbloc
     onUnblock?: (userId: number) => void,
     showUnblockButton?: boolean
 }) => (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
-        <div className="bg-gray-800 rounded-lg w-full max-w-sm mx-4 max-h-[80vh] flex flex-col">
-            <header className="flex items-center justify-between p-4 border-b border-gray-700">
-                <h2 className="font-bold text-lg text-white">{title}</h2>
-                <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-700"><X size={20} className="text-gray-400" /></button>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex justify-center items-center z-50 p-4">
+        <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl w-full max-w-md mx-4 max-h-[85vh] flex flex-col shadow-2xl border border-gray-700/50 overflow-hidden">
+            {/* 헤더 */}
+            <header className="flex items-center justify-between p-5 border-b border-gray-700/50 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
+                <h2 className="font-bold text-xl bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                    {title}
+                </h2>
+                <button 
+                    onClick={onClose} 
+                    className="p-2 rounded-xl hover:bg-gray-700/50 hover:text-pink-400 transition-all duration-200 group"
+                >
+                    <X size={20} className="text-gray-400 group-hover:text-pink-400 transition-colors" />
+                </button>
             </header>
-            <div className="overflow-y-auto p-4 space-y-2">
+            
+            {/* 컨텐츠 영역 */}
+            <div className="overflow-y-auto flex-1 p-4">
                 {isLoading ? (
-                    <p className="text-gray-400 text-center py-4">読み込み中...</p>
+                    <div className="flex flex-col items-center justify-center py-12">
+                        <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin mb-4" />
+                        <p className="text-gray-400 text-sm">読み込み中...</p>
+                    </div>
                 ) : users.length > 0 ? (
-                    users.map(user => (
-                        <div key={user.id} className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-gray-700 transition-colors">
-                            <a href={`/profile/${user.id}`} className="flex items-center gap-3 flex-grow">
-                                {user.image_url ? (
-                                    // ▼▼▼【修正】imgタグをNext.jsのImageコンポーネントに変更 ▼▼▼
-                                    <Image src={user.image_url} alt={user.nickname} width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
-                                ) : (
-                                    <DefaultAvatarIcon size={40} />
-                                )}
-                                <span className="font-semibold text-white">{user.nickname}</span>
-                            </a>
-                            {showUnblockButton && onUnblock && (
-                                <button 
-                                    onClick={() => onUnblock(user.id)} 
-                                    className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-3 rounded-full transition-colors"
+                    <div className="space-y-2">
+                        {users.map(user => (
+                            <div 
+                                key={user.id} 
+                                className="group flex items-center justify-between gap-3 p-3 rounded-xl bg-gray-800/30 hover:bg-gradient-to-r hover:from-pink-500/10 hover:via-purple-500/5 hover:to-pink-500/10 border border-gray-700/30 hover:border-pink-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-pink-500/10"
+                            >
+                                <a 
+                                    href={`/profile/${user.id}`} 
+                                    className="flex items-center gap-3 flex-grow min-w-0"
                                 >
-                                    ブロック解除
-                                </button>
-                            )}
-                        </div>
-                    ))
+                                    <div className="relative flex-shrink-0">
+                                        {user.image_url ? (
+                                            <div className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-pink-500/20 group-hover:ring-pink-500/40 transition-all duration-300">
+                                                <Image 
+                                                    src={user.image_url} 
+                                                    alt={user.nickname} 
+                                                    width={48} 
+                                                    height={48} 
+                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center ring-2 ring-pink-500/20 group-hover:ring-pink-500/40 transition-all duration-300">
+                                                <User size={24} className="text-pink-400/70" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <span className="font-semibold text-white group-hover:text-pink-300 transition-colors duration-200 block truncate">
+                                            {user.nickname}
+                                        </span>
+                                    </div>
+                                </a>
+                                {showUnblockButton && onUnblock && (
+                                    <button 
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            onUnblock(user.id);
+                                        }} 
+                                        className="flex-shrink-0 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-semibold py-2 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-red-500/30 hover:scale-105 active:scale-95"
+                                    >
+                                        解除
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
                 ) : (
-                    <p className="text-gray-400 text-center py-4">ユーザーがいません。</p>
+                    <div className="flex flex-col items-center justify-center py-16 px-4">
+                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-pink-500/10 to-purple-500/10 flex items-center justify-center mb-4 ring-2 ring-pink-500/20">
+                            <User size={40} className="text-pink-400/50" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-300 mb-2">
+                            {title === 'ブロックリスト' ? 'ブロックされたユーザーがいません' : 
+                             title === 'フォロワー' ? 'フォロワーがいません' : 
+                             'フォロー中のユーザーがいません'}
+                        </h3>
+                        <p className="text-gray-500 text-sm text-center max-w-xs">
+                            {title === 'ブロックリスト' ? 'ブロックしたユーザーが表示されます' : 
+                             title === 'フォロワー' ? 'あなたをフォローしているユーザーが表示されます' : 
+                             'フォローしているユーザーが表示されます'}
+                        </p>
+                    </div>
                 )}
             </div>
         </div>

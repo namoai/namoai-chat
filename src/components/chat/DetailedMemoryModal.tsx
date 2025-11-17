@@ -102,15 +102,36 @@ export default function DetailedMemoryModal({
       <div className="bg-gray-800 text-white rounded-lg w-full max-w-[95vw] sm:max-w-[90vw] lg:max-w-[85vw] xl:max-w-[80vw] h-[90vh] flex flex-col shadow-2xl mx-auto" onClick={(e) => e.stopPropagation()}>
         {/* ヘッダー */}
         <div className="flex justify-between items-center p-6 border-b border-gray-700">
-          <div>
+          <div className="flex-1">
             <h2 className="text-2xl font-bold">詳細記憶</h2>
             <p className="text-sm text-gray-400 mt-1">無制限に保存できます。関連キーワードで自動的に適用され、適用時は最大3つまでです。</p>
-            {/* ▼▼▼【追加】詳細記憶の動作方式の詳細説明 */}
-            <div className="mt-3 p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
-              <details className="cursor-pointer">
-                <summary className="text-sm text-gray-300 mb-2 font-semibold hover:text-white">
-                  📝 詳細記憶の機能と規則について（クリックで展開）
-                </summary>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-full transition-colors flex-shrink-0 ml-4">
+            <X size={24} />
+          </button>
+        </div>
+
+        {/* 説明セクション */}
+        <div className="p-4 border-b border-gray-700 bg-gray-800/30 overflow-y-auto max-h-[300px]">
+          <details className="cursor-pointer" open>
+            <summary className="text-sm font-semibold text-gray-300 hover:text-white mb-2">
+              🧠 詳細記憶とは？（クリックで折りたたむ）
+            </summary>
+            <div className="mt-2 p-3 bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-700/50">
+              <p className="text-xs text-gray-400 leading-relaxed mb-2">
+                会話の特定の場面を個別に記録する機能です。メモリブックとは異なり、複数の記憶を保存でき、キーワードで自動適用されます（最大3つまで同時適用）。
+              </p>
+              <div className="text-xs text-gray-400 space-y-1">
+                <p><strong className="text-gray-300">無制限保存:</strong> 記憶を無制限に保存可能</p>
+                <p><strong className="text-gray-300">自動適用:</strong> キーワードやベクトル検索で関連記憶を自動適用</p>
+                <p><strong className="text-gray-300">手動作成・編集:</strong> 記憶を手動で作成・編集・削除可能</p>
+              </div>
+              {/* ▼▼▼【追加】詳細記憶の動作方式の詳細説明 */}
+              <div className="mt-3 pt-3 border-t border-gray-700/50">
+                <details className="cursor-pointer">
+                  <summary className="text-xs text-gray-300 mb-1 font-semibold hover:text-white">
+                    📝 詳細な規則について（クリックで展開）
+                  </summary>
                 <div className="mt-3 space-y-3 text-xs text-gray-400">
                   <div>
                     <p className="font-semibold text-gray-300 mb-1">📊 自動要約の規則:</p>
@@ -162,12 +183,10 @@ export default function DetailedMemoryModal({
                   </div>
                 </div>
               </details>
+              </div>
+              {/* ▲▲▲ */}
             </div>
-            {/* ▲▲▲ */}
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-full transition-colors">
-            <X size={24} />
-          </button>
+          </details>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">

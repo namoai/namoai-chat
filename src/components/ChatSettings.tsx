@@ -413,8 +413,14 @@ export default function ChatSettings({
                 <SettingItem icon={<MessageSquare size={20} className="text-pink-400" />} label="会話内容を保存" onClick={() => setIsSaveModalOpen(true)} />
                 <SettingItem icon={<BookUser size={20} className="text-pink-400" />} label="ユーザーノート" onClick={() => setNoteModalOpen(true)} />
                 <SettingItem icon={<FileText size={20} className="text-pink-400" />} label="ペルソナ" href={personaHref} />
-                <SettingItem icon={<BookOpen size={20} className="text-pink-400" />} label="メモリブック" onClick={() => setIsBackMemoryModalOpen(true)} />
-                <SettingItem icon={<Brain size={20} className="text-pink-400" />} label="詳細記憶" onClick={() => setIsDetailedMemoryModalOpen(true)} />
+                <div className="p-3 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700/50 mb-2">
+                    <SettingItem icon={<BookOpen size={20} className="text-pink-400" />} label="メモリブック" onClick={() => setIsBackMemoryModalOpen(true)} />
+                    <p className="text-xs text-gray-400 mt-2 ml-12">会話の重要な内容を要約して保存。長い会話でもキャラクターが記憶を保持できます。</p>
+                </div>
+                <div className="p-3 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700/50 mb-2">
+                    <SettingItem icon={<Brain size={20} className="text-pink-400" />} label="詳細記憶" onClick={() => setIsDetailedMemoryModalOpen(true)} />
+                    <p className="text-xs text-gray-400 mt-2 ml-12">会話の特定の場面を個別に記録。キーワードで自動適用され、最大3つまで同時に適用されます。</p>
+                </div>
             </div>
             <div className="p-4 mt-auto border-t border-gray-800/50">
                 <button onClick={onNewChat} className="flex items-center w-full p-4 text-left text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-200 group">

@@ -7,7 +7,11 @@
     "prebuild": "cross-env NODE_ENV=production node scripts/gsm-fetch.mjs",
     "build": "rm -rf .next && prisma generate && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node scripts/test-runner.mjs",
+    "test:json": "node scripts/test-runner.mjs --json",
+    "test:category": "node scripts/test-runner.mjs --category",
+    "test:ai": "node scripts/test-runner.mjs --ai-analysis"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.887.0",

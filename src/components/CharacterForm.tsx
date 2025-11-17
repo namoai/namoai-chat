@@ -1250,10 +1250,9 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         
         <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-gray-800/50">
             <Button 
-                variant="outline" 
                 onClick={() => setStep(s => Math.max(0, s - 1))} 
                 disabled={step === 0}
-                className="border-gray-700/50 text-gray-300 hover:bg-gray-800/50 hover:text-white hover:border-pink-500/50 disabled:opacity-30 disabled:cursor-not-allowed text-sm sm:text-base py-2 sm:py-2 rounded-xl transition-all"
+                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-4 sm:px-6 py-2 rounded-xl transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50 disabled:opacity-30 disabled:cursor-not-allowed text-sm sm:text-base font-semibold"
             >
                 前の段階へ
             </Button>
