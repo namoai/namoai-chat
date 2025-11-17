@@ -692,7 +692,6 @@ export default function TestToolPage() {
             // 検索機能
             const searchRes = await fetch('/api/search?q=test');
             const searchResult2 = await searchRes.json() as { characters?: unknown[] };
-            result = searchResult2;
             if (searchRes.ok) {
               updateTestResult(categoryIndex, testIndex, 'success', `検索結果: ${searchResult2.characters?.length || 0}件`, Date.now() - startTime);
             } else {
