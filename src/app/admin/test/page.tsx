@@ -681,7 +681,8 @@ export default function TestToolPage() {
           if (testIndex === 0) {
             // ランキング取得
             const rankingRes = await fetch('/api/ranking');
-            result = await rankingRes.json();
+            const rankingResult = await rankingRes.json();
+            result = rankingResult;
             if (rankingRes.ok) {
               updateTestResult(categoryIndex, testIndex, 'success', 'ランキング取得成功', Date.now() - startTime);
             } else {
@@ -701,7 +702,6 @@ export default function TestToolPage() {
             // ペルソナ機能
             const personaRes = await fetch('/api/persona');
             const personaResult = await personaRes.json() as { personas?: unknown[] };
-            result = personaResult;
             if (personaRes.ok) {
               updateTestResult(categoryIndex, testIndex, 'success', `${personaResult.personas?.length || 0}件のペルソナ`, Date.now() - startTime);
             } else {
