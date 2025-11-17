@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Bell, Check, Trash2, Filter, ArrowLeft } from "lucide-react";
+import { Bell, Check, Trash2, Filter, ArrowLeft, HelpCircle } from "lucide-react";
+import HelpModal from "@/components/HelpModal";
 
 type Notification = {
   id: number;
@@ -36,6 +37,7 @@ export default function NotificationsPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   const fetchNotifications = useCallback(async (isInitialLoad = false) => {
     try {
@@ -160,8 +162,103 @@ export default function NotificationsPage() {
     );
   }
 
+  const helpContent = (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-3">通知について</h3>
+        <p className="text-sm text-gray-300 leading-relaxed">
+          このページでは、あなたに関する様々な通知を確認できます。
+          通知をクリックすると、関連するページに移動できます。
+        </p>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-3">通知の種類</h3>
+        <div className="space-y-3">
+          <div className="bg-black/30 border border-gray-800/80 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">🎭</span>
+              <span className="text-xs px-2 py-1 rounded bg-blue-500 text-white font-medium">新キャラクター</span>
+            </div>
+            <p className="text-sm text-gray-300 leading-relaxed">
+              フォローしている制作者が新しいキャラクターを作成したときに通知されます。
+            </p>
+          </div>
+
+          <div className="bg-black/30 border border-gray-800/80 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">❤️</span>
+              <span className="text-xs px-2 py-1 rounded bg-pink-500 text-white font-medium">いいね</span>
+            </div>
+            <p className="text-sm text-gray-300 leading-relaxed">
+              あなたが作成したキャラクターがお気に入りに追加されたときに通知されます。
+            </p>
+          </div>
+
+          <div className="bg-black/30 border border-gray-800/80 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">💬</span>
+              <span className="text-xs px-2 py-1 rounded bg-purple-500 text-white font-medium">コメント</span>
+            </div>
+            <p className="text-sm text-gray-300 leading-relaxed">
+              あなたが作成したキャラクターにコメントが投稿されたときに通知されます。
+            </p>
+          </div>
+
+          <div className="bg-black/30 border border-gray-800/80 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">👥</span>
+              <span className="text-xs px-2 py-1 rounded bg-yellow-500 text-white font-medium">フォロー</span>
+            </div>
+            <p className="text-sm text-gray-300 leading-relaxed">
+              誰かがあなたをフォローしたときに通知されます。
+            </p>
+          </div>
+
+          <div className="bg-black/30 border border-gray-800/80 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">📧</span>
+              <span className="text-xs px-2 py-1 rounded bg-green-500 text-white font-medium">お問い合わせ</span>
+            </div>
+            <p className="text-sm text-gray-300 leading-relaxed">
+              お問い合わせへの回答があったときに通知されます。
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-3">機能</h3>
+        <ul className="space-y-2 text-sm text-gray-300">
+          <li className="flex items-start gap-2">
+            <span className="text-pink-400 mt-0.5">•</span>
+            <span><strong>全て既読にする</strong>: すべての通知を一度に既読にします</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-pink-400 mt-0.5">•</span>
+            <span><strong>フィルター</strong>: 「全て」または「未読」のみを表示できます</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-pink-400 mt-0.5">•</span>
+            <span><strong>通知をクリック</strong>: 通知をクリックすると関連ページに移動し、自動で既読になります</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-pink-400 mt-0.5">•</span>
+            <span><strong>削除</strong>: 不要な通知は削除できます</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-black text-white">
+      <HelpModal
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+        title="通知について"
+        content={helpContent}
+      />
       {/* ヘッダー */}
       <div className="sticky top-0 z-10 bg-black/80 backdrop-blur-xl border-b border-gray-900">
         <div className="max-w-4xl mx-auto px-4 py-4">
@@ -175,6 +272,12 @@ export default function NotificationsPage() {
               </button>
               <Bell className="text-pink-400" size={28} />
               <h1 className="text-2xl font-bold">通知</h1>
+              <button
+                onClick={() => setIsHelpOpen(true)}
+                className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+              >
+                <HelpCircle size={20} />
+              </button>
             </div>
             {unreadCount > 0 && (
               <button

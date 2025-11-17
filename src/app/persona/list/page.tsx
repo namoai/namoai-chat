@@ -3,7 +3,8 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Check, Trash2, Pencil, ArrowLeft } from 'lucide-react';
+import { Plus, Check, Trash2, Pencil, ArrowLeft, HelpCircle } from 'lucide-react';
+import HelpModal from '@/components/HelpModal';
 
 type Persona = {
   id: number;
@@ -56,6 +57,7 @@ function PersonaListComponent() {
   const [modalState, setModalState] = useState<ModalState>({
     isOpen: false, title: '', message: '', onConfirm: () => {}, onClose: () => {}
   });
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   const fromChat = searchParams.get('fromChat') === 'true';
   const characterId = searchParams.get('characterId');
@@ -178,9 +180,73 @@ function PersonaListComponent() {
 
   const personaQuery = searchParams.toString();
 
+  const helpContent = (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-3">ペルソナとは？</h3>
+        <p className="text-sm text-gray-300 leading-relaxed mb-4">
+          ペルソナは、あなたがキャラクターと会話する際の役割を定義する設定です。
+          ニックネーム、年齢、性別、詳細情報を設定することで、キャラクターはその情報を参考にして会話を生成します。
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="bg-black/30 border border-gray-800/80 rounded-xl p-4">
+          <h3 className="text-base font-semibold text-pink-300 mb-3">基本ペルソナの設定</h3>
+          <ul className="space-y-2 text-sm text-gray-300">
+            <li className="flex items-start gap-2">
+              <span className="text-pink-400 mt-0.5">•</span>
+              <span>ペルソナカードをクリックすると、そのペルソナが基本ペルソナとして設定されます</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-pink-400 mt-0.5">•</span>
+              <span>チェックマークが表示されているペルソナが現在の基本ペルソナです</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-pink-400 mt-0.5">•</span>
+              <span>新しくチャットを開始すると、基本ペルソナの情報が使用されます</span>
+            </li>
+          </ul>
+        </div>
+
+        <div className="bg-black/30 border border-gray-800/80 rounded-xl p-4">
+          <h3 className="text-base font-semibold text-pink-300 mb-3">ペルソナの作成・編集</h3>
+          <ul className="space-y-2 text-sm text-gray-300">
+            <li className="flex items-start gap-2">
+              <span className="text-pink-400 mt-0.5">•</span>
+              <span>「ペルソナ追加」ボタンで新しいペルソナを作成できます</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-pink-400 mt-0.5">•</span>
+              <span>各ペルソナカードの編集アイコン（鉛筆）から編集できます</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-pink-400 mt-0.5">•</span>
+              <span>削除アイコン（ゴミ箱）でペルソナを削除できます</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+        <h3 className="text-base font-semibold text-blue-400 mb-2">プライバシーについて</h3>
+        <p className="text-sm text-gray-300 leading-relaxed">
+          生成されたキャラクターの制作者は、あなたの基本プロフィールとニックネームを閲覧できます。
+          詳細情報は制作者には表示されませんので、安心して使用してください。
+        </p>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <CustomModal state={modalState} />
+      <HelpModal
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+        title="ペルソナについて"
+        content={helpContent}
+      />
       <div className="bg-black min-h-screen text-white">
         {/* 背景装飾 */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
@@ -199,10 +265,23 @@ function PersonaListComponent() {
               <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
                 ペルソナ
               </h1>
+              <button 
+                onClick={() => setIsHelpOpen(true)} 
+                className="absolute right-0 top-1/2 -translate-y-1/2 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+              >
+                <HelpCircle size={24} />
+              </button>
             </header>
-            <div className="mb-8 bg-gray-900/50 backdrop-blur-sm p-4 rounded-2xl border border-gray-800/50">
-              <p className="text-sm text-gray-300 leading-relaxed">ペルソナを設定して、役割に合ったキャラクターと会話できます。</p>
-              <p className="text-sm text-gray-400 mt-2 leading-relaxed">生成されたキャラクターの制作者は、あなたの基本プロフィールとニックネームを閲覧できます。</p>
+            <div className="mb-8 bg-gray-900/60 border border-gray-800/60 rounded-2xl p-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <p className="text-sm text-gray-300 leading-relaxed">ペルソナを設定して、役割に合ったキャラクターと会話できます。</p>
+                <button
+                  onClick={() => setIsHelpOpen(true)}
+                  className="w-full md:w-auto bg-gray-800/70 border border-pink-400/40 text-pink-300 font-semibold px-4 py-2 rounded-xl hover:bg-pink-500/10 transition-all"
+                >
+                  詳細を見る
+                </button>
+              </div>
             </div>
             <main className="space-y-4">
               {personas.map(p => (

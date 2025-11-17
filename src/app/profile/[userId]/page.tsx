@@ -49,12 +49,6 @@ type SessionData = {
 };
 
 // コンポーネント
-const DefaultAvatarIcon = ({ size = 80, className = '' }: { size?: number, className?: string }) => (
-  <div className={`rounded-full bg-gray-700 flex items-center justify-center ${className}`} style={{ width: size, height: size }}>
-    <User size={size * 0.6} className="text-gray-400" />
-  </div>
-);
-
 const UserListModal = ({ title, users, onClose, isLoading, onUnblock, showUnblockButton = false }: { 
     title: string, 
     users: (FollowUser | BlockedUser)[], 

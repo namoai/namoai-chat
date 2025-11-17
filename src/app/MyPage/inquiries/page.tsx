@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Flag, MessageSquare, FileText, CheckCircle, XCircle, Clock, Search, Filter, Plus, X } from 'lucide-react';
+import { ArrowLeft, Flag, MessageSquare, FileText, CheckCircle, XCircle, Clock, Search, Filter, Plus, X, HelpCircle } from 'lucide-react';
 import type { Session } from 'next-auth';
+import HelpModal from '@/components/HelpModal';
 
 type Report = {
   id: number;
@@ -46,6 +47,7 @@ export default function InquiriesPage() {
   const [inquiryTitle, setInquiryTitle] = useState('');
   const [inquiryContent, setInquiryContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -193,6 +195,119 @@ export default function InquiriesPage() {
     );
   }
 
+  const helpContent = (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-3">お問い合わせについて</h3>
+        <p className="text-sm text-gray-300 leading-relaxed mb-4">
+          このページでは、サービスに関するお問い合わせや不適切なコンテンツの通報を行うことができます。
+          お問い合わせは管理者が確認後、対応いたします。
+        </p>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-3">お問い合わせの種類</h3>
+        <div className="space-y-3">
+          <div className="bg-black/30 border border-gray-800/80 rounded-xl p-4">
+            <h4 className="text-base font-semibold text-pink-300 mb-2">📋 お問い合わせ</h4>
+            <ul className="space-y-2 text-sm text-gray-300">
+              <li className="flex items-start gap-2">
+                <span className="text-pink-400 mt-0.5">•</span>
+                <span><strong>システム問題</strong>: サービスやシステムに関する問題</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-pink-400 mt-0.5">•</span>
+                <span><strong>返金問題</strong>: ポイントの返金に関するお問い合わせ</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-pink-400 mt-0.5">•</span>
+                <span><strong>機能要望</strong>: 新しい機能や改善要望</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-pink-400 mt-0.5">•</span>
+                <span><strong>バグ報告</strong>: バグや不具合の報告</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-pink-400 mt-0.5">•</span>
+                <span><strong>アカウント問題</strong>: アカウントに関する問題</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-pink-400 mt-0.5">•</span>
+                <span><strong>決済問題</strong>: ポイント購入や決済に関する問題</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-pink-400 mt-0.5">•</span>
+                <span><strong>その他</strong>: 上記以外のお問い合わせ</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4">
+            <h4 className="text-base font-semibold text-red-300 mb-2">🚩 通報</h4>
+            <p className="text-sm text-gray-300 leading-relaxed mb-2">
+              不適切なキャラクターやコンテンツを発見した場合は、通報機能を使用してください。
+              キャラクター詳細ページのメニューから通報できます。
+            </p>
+            <ul className="space-y-2 text-sm text-gray-300">
+              <li className="flex items-start gap-2">
+                <span className="text-red-400 mt-0.5">•</span>
+                <span>通報理由を選択し、詳細内容を入力してください</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-red-400 mt-0.5">•</span>
+                <span>管理者が確認後、適切に対応いたします</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-3">状態の種類</h3>
+        <ul className="space-y-2 text-sm text-gray-300">
+          <li className="flex items-start gap-2">
+            <span className="text-yellow-400 mt-0.5">•</span>
+            <span><strong>保留中</strong>: お問い合わせが受付されました。管理者が確認中です</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-blue-400 mt-0.5">•</span>
+            <span><strong>検討中</strong>: 管理者が内容を検討しています</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-green-400 mt-0.5">•</span>
+            <span><strong>解決済み</strong>: お問い合わせへの対応が完了しました</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-red-400 mt-0.5">•</span>
+            <span><strong>却下</strong>: お問い合わせが却下されました</span>
+          </li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-3">機能</h3>
+        <ul className="space-y-2 text-sm text-gray-300">
+          <li className="flex items-start gap-2">
+            <span className="text-pink-400 mt-0.5">•</span>
+            <span><strong>新規作成</strong>: 「+」ボタンから新しいお問い合わせを作成できます</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-pink-400 mt-0.5">•</span>
+            <span><strong>検索</strong>: タイトルや内容でお問い合わせを検索できます</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-pink-400 mt-0.5">•</span>
+            <span><strong>フィルター</strong>: 種類や状態でお問い合わせを絞り込めます</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-pink-400 mt-0.5">•</span>
+            <span><strong>管理者からの返信</strong>: 対応済みのお問い合わせには管理者からの返信が表示されます</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-black text-white">
       {/* 背景装飾 */}
@@ -202,6 +317,12 @@ export default function InquiriesPage() {
       </div>
 
       <div className="relative z-10">
+        <HelpModal
+          isOpen={isHelpOpen}
+          onClose={() => setIsHelpOpen(false)}
+          title="お問い合わせについて"
+          content={helpContent}
+        />
         <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-24">
           <header className="flex items-center gap-4 mb-8 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50">
             <button onClick={() => router.push('/MyPage')} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
@@ -210,12 +331,20 @@ export default function InquiriesPage() {
             <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent flex-1">
               お問い合わせ
             </h1>
-            <button
-              onClick={() => setShowInquiryModal(true)}
-              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white p-3 rounded-xl transition-all shadow-lg shadow-pink-500/30"
-            >
-              <Plus size={24} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsHelpOpen(true)}
+                className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+              >
+                <HelpCircle size={24} />
+              </button>
+              <button
+                onClick={() => setShowInquiryModal(true)}
+                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white p-3 rounded-xl transition-all shadow-lg shadow-pink-500/30"
+              >
+                <Plus size={24} />
+              </button>
+            </div>
           </header>
 
       {/* ▼▼▼【フィルターおよび検索】▼▼▼ */}

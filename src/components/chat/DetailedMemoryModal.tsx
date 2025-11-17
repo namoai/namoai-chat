@@ -168,8 +168,15 @@ export default function DetailedMemoryModal({
                     <p className="font-semibold text-gray-300 mb-1">🔄 再要約機能:</p>
                     <ul className="space-y-1 list-disc list-inside ml-2">
                       <li>「再要約」ボタンをクリックすると、全ての記憶が削除され、最初から再生成されます</li>
-                      <li>全メッセージを5個ずつグループ化して要約します</li>
+                      <li>メッセージ数を自動でグループ化して要約します（バッチサイズ: 15-30個、メッセージ数に応じて自動調整）</li>
                       <li>既存の記憶は全て削除されるため、注意してください</li>
+                      <li><strong className="text-yellow-400">重要:</strong> メッセージ数が多い場合、処理に時間がかかります</li>
+                      <li><strong className="text-yellow-400">処理時間:</strong> メッセージ数によって自動的にタイムアウト時間が調整されます（最低3分、最高10分）</li>
+                      <li><strong className="text-yellow-400">性能向上:</strong> バッチを並列処理（最大3つ同時実行）するため、以前より約3倍高速化</li>
+                      <li><strong className="text-yellow-400">100個:</strong> 約30秒-1分、200個: 約1-2分、300個以上: 約2-4分程度</li>
+                      <li><strong className="text-red-400">注意:</strong> メモリブックと同時に再要約を実行しないでください。順番に実行してください</li>
+                      <li><strong className="text-red-400">注意:</strong> 再要約中はブラウザを閉じずに、完了するまでお待ちください</li>
+                      <li><strong className="text-blue-400">安全対策:</strong> エラー発生時は自動的にリトライされます（最大2回）</li>
                     </ul>
                   </div>
                   
@@ -235,11 +242,14 @@ export default function DetailedMemoryModal({
 
           {/* 全体記憶 */}
           <div className="mb-4">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <h3 className="text-lg font-semibold">全体記憶</h3>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={async () => {
+                  if (!confirm('すべての記憶を削除して再要約しますか？この操作は取り消せません。')) {
+                    return;
+                  }
                   console.log('再要約ボタンクリック');
                   setIsSummarizing(true);
                   try {
@@ -247,6 +257,7 @@ export default function DetailedMemoryModal({
                     // onAutoSummarizeはメモリが追加されるまで待機する
                     await onAutoSummarize(1);
                     console.log('再要約完了');
+                    alert('再要約が完了しました。');
                   } catch (error) {
                     console.error('再要約エラー:', error);
                     alert(error instanceof Error ? error.message : '再要約に失敗しました');
@@ -255,7 +266,8 @@ export default function DetailedMemoryModal({
                   }
                 }}
                 disabled={isSummarizing}
-                className="flex items-center gap-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:opacity-50 rounded-md text-sm transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-800 disabled:to-gray-800 disabled:opacity-50 rounded-xl text-sm font-semibold text-white transition-all shadow-lg shadow-purple-500/30"
+                title="すべての記憶を削除して最初から再要約します"
               >
                 <Clock size={16} className={isSummarizing ? 'animate-spin' : ''} />
                 <span>{isSummarizing ? '要約中...' : '再要約'}</span>

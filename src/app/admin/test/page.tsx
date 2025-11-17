@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { 
   CheckCircle2, XCircle, Loader2, Play, ArrowLeft, 
-  User, Coins, MessageSquare, Bell, Heart, Search, 
-  Users, BookOpen, Settings, AlertCircle, Sparkles, Info
+  User, Coins, MessageSquare, Bell, 
+  Users, BookOpen, Settings, AlertCircle, Sparkles, Info, Trash2
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -24,7 +23,6 @@ type TestCategory = {
 };
 
 export default function TestToolPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -38,6 +36,8 @@ export default function TestToolPage() {
   const [testUserInfo, setTestUserInfo] = useState<{ email: string; password: string; userId?: number } | null>(null);
   const [testCharacterId, setTestCharacterId] = useState<number | null>(null);
   const [isSettingUp, setIsSettingUp] = useState(false);
+  const [isCleaning, setIsCleaning] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<{ message: string; deleted: { users: number; characters: number; chats: number } } | null>(null);
 
   const testUserInfoRef = useRef<{ email: string; password: string; userId?: number } | null>(null);
   const testCharacterIdRef = useRef<number | null>(null);
@@ -312,13 +312,12 @@ export default function TestToolPage() {
   };
 
   const runTest = async (categoryIndex: number, testIndex: number) => {
-    const test = testCategories[categoryIndex].tests[testIndex];
     const startTime = Date.now();
     setCurrentTest(`${categoryIndex}-${testIndex}`);
     updateTestResult(categoryIndex, testIndex, 'running');
 
     try {
-      let result: any;
+      let result: unknown;
       const categoryName = testCategories[categoryIndex].name;
       
       // 現在のtestCharacterIdとtestUserInfoを取得（最新の状態を使用）
@@ -713,10 +712,9 @@ export default function TestToolPage() {
 
     try {
       // テスト環境セットアップ（テスト用ユーザーとキャラクター作成）
-      let setupInfo = null;
       if (!testUserInfo || !testCharacterId) {
         try {
-          setupInfo = await setupTestEnvironment();
+          await setupTestEnvironment();
           console.log('✅ テスト環境セットアップ完了');
         } catch (error) {
           console.warn('⚠️ テスト環境セットアップに失敗しましたが、既存のデータでテストを続行します:', error);
@@ -801,6 +799,40 @@ export default function TestToolPage() {
 
   const resetTests = () => {
     setTestCategories(initializeTests());
+  };
+
+  const cleanupTestData = async () => {
+    if (!confirm('テストデータをすべて削除しますか？\nこの操作は取り消せません。')) {
+      return;
+    }
+
+    setIsCleaning(true);
+    setCleanupResult(null);
+    try {
+      const response = await fetch('/api/admin/test/cleanup', {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'テストデータの削除に失敗しました。');
+      }
+
+      setCleanupResult(data);
+      // テスト環境情報もリセット
+      setTestUserInfo(null);
+      setTestCharacterId(null);
+      testUserInfoRef.current = null;
+      testCharacterIdRef.current = null;
+      // テスト結果もリセット
+      setTestCategories(initializeTests());
+      setAiAnalysis(null);
+    } catch (error) {
+      alert('エラー: ' + (error instanceof Error ? error.message : '不明なエラー'));
+    } finally {
+      setIsCleaning(false);
+    }
   };
 
   const getStatusIcon = (status: TestResult['status']) => {
@@ -908,7 +940,7 @@ export default function TestToolPage() {
                   <div className="flex gap-3">
                     <button
                       onClick={runAllTests}
-                      disabled={isRunning || isAnalyzing || isSettingUp}
+                      disabled={isRunning || isAnalyzing || isSettingUp || isCleaning}
                       className="flex items-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-2 px-4 rounded-xl transition-all shadow-lg shadow-pink-500/30 disabled:opacity-50"
                     >
                       <Play size={18} />
@@ -916,16 +948,36 @@ export default function TestToolPage() {
                     </button>
                     <button
                       onClick={resetTests}
-                      disabled={isRunning || isAnalyzing || isSettingUp}
+                      disabled={isRunning || isAnalyzing || isSettingUp || isCleaning}
                       className="bg-gray-800/50 hover:bg-gray-700/50 text-white font-semibold py-2 px-4 rounded-xl transition-all border border-gray-700/50 disabled:opacity-50"
                     >
                       リセット
+                    </button>
+                    <button
+                      onClick={cleanupTestData}
+                      disabled={isRunning || isAnalyzing || isSettingUp || isCleaning}
+                      className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-xl transition-all shadow-lg shadow-red-500/30 disabled:opacity-50"
+                    >
+                      <Trash2 size={18} />
+                      {isCleaning ? '削除中...' : 'テストデータ削除'}
                     </button>
                   </div>
                   {testUserInfo && testCharacterId && (
                     <div className="mt-4 p-3 bg-blue-900/30 border border-blue-500/30 rounded-xl">
                       <p className="text-sm text-blue-300">
                         ✅ テスト環境: ユーザーID {testUserInfo.userId}, キャラクターID {testCharacterId}
+                      </p>
+                    </div>
+                  )}
+                  {cleanupResult && (
+                    <div className="mt-4 p-3 bg-green-900/30 border border-green-500/30 rounded-xl">
+                      <p className="text-sm text-green-300 font-semibold mb-2">
+                        ✅ {cleanupResult.message}
+                      </p>
+                      <p className="text-xs text-green-400">
+                        削除されたデータ: ユーザー {cleanupResult.deleted.users}件, 
+                        キャラクター {cleanupResult.deleted.characters}件, 
+                        チャット {cleanupResult.deleted.chats}件
                       </p>
                     </div>
                   )}

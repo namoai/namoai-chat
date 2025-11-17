@@ -3,7 +3,8 @@
 import React, { useState, useEffect, FormEvent, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Heart, MoreVertical, ArrowLeft, Send, Edit, Trash2, ShieldBan, Flag } from 'lucide-react';
+import { Heart, MoreVertical, ArrowLeft, Send, Edit, Trash2, ShieldBan, Flag, HelpCircle } from 'lucide-react';
+import HelpModal from '@/components/HelpModal';
 
 // --- 型定義 (変更なし) ---
 type ManualSession = {
@@ -324,6 +325,7 @@ export default function CharacterDetailPage({
   const [reportReason, setReportReason] = useState('');
   const [reportContent, setReportContent] = useState('');
   const [showReportConfirm, setShowReportConfirm] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -600,6 +602,51 @@ export default function CharacterDetailPage({
 
   if (!character) return <div className="min-h-screen bg-black text-white flex justify-center items-center"><p>キャラクターが見つかりません。</p></div>;
   
+  const helpContent = (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-2">キャラクター詳細ページについて</h3>
+        <p className="text-sm text-gray-300 leading-relaxed">
+          このページでは、選択したキャラクターの詳細情報を確認し、チャットを開始することができます。
+        </p>
+      </div>
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-2">主な機能</h3>
+        <ul className="list-disc list-inside text-sm text-gray-300 space-y-1 ml-2">
+          <li><strong>お気に入り登録</strong>: ハートアイコンをクリックしてキャラクターをお気に入りに追加できます</li>
+          <li><strong>チャット開始</strong>: 「新しいチャットを開始」ボタンで新しい会話を始められます</li>
+          <li><strong>続きから会話</strong>: 既存のチャットがある場合は、続きから会話を再開できます</li>
+          <li><strong>コメント</strong>: キャラクターについてコメントを投稿・閲覧できます（ログインが必要）</li>
+        </ul>
+      </div>
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-2">メニュー機能</h3>
+        <ul className="list-disc list-inside text-sm text-gray-300 space-y-1 ml-2">
+          <li><strong>キャラクター制作者</strong>: メニューからキャラクターの編集・削除が可能です</li>
+          <li><strong>一般ユーザー</strong>: 不適切なコンテンツを発見した場合は通報できます</li>
+        </ul>
+      </div>
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-2">通報機能について</h3>
+        <p className="text-sm text-gray-300 leading-relaxed mb-2">
+          不適切なキャラクターやコンテンツを発見した場合は、メニューから「通報する」を選択して通報してください。
+        </p>
+        <ul className="list-disc list-inside text-sm text-gray-300 space-y-1 ml-2">
+          <li>通報理由を選択し、詳細内容を入力してください</li>
+          <li>管理者が確認後、適切に対応いたします</li>
+          <li>通報内容はお問い合わせページで確認できます</li>
+        </ul>
+      </div>
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-2">統計情報</h3>
+        <p className="text-sm text-gray-300 leading-relaxed">
+          お気に入り数やチャット数などの統計情報が表示されます。
+          これらは他のユーザーによる利用状況を表しています。
+        </p>
+      </div>
+    </div>
+  );
+
   return (
     <div className="bg-black text-white min-h-screen font-sans">
       {/* 背景装飾 */}
@@ -610,6 +657,12 @@ export default function CharacterDetailPage({
 
       <div className="relative z-10">
         <ConfirmationModal modalState={modalState} setModalState={setModalState} />
+        <HelpModal
+          isOpen={isHelpOpen}
+          onClose={() => setIsHelpOpen(false)}
+          title="キャラクター詳細ページについて"
+          content={helpContent}
+        />
         
         {/* ▼▼▼【通報確認モーダル】▼▼▼ */}
         {showReportConfirm && (
@@ -681,6 +734,9 @@ export default function CharacterDetailPage({
         <header className="fixed top-0 left-0 right-0 bg-black/80 backdrop-blur-xl z-20 flex items-center justify-between p-4 border-b border-gray-900/50">
           <button onClick={() => router.back()} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
             <ArrowLeft size={24} />
+          </button>
+          <button onClick={() => setIsHelpOpen(true)} className="absolute left-1/2 -translate-x-1/2 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
+            <HelpCircle size={24} />
           </button>
           <div className="flex items-center gap-2 relative" ref={menuRef}>
             <button onClick={handleFavorite} className="p-2 rounded-xl hover:bg-pink-500/10 transition-all">

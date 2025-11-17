@@ -5,6 +5,10 @@ import { prisma } from '@/lib/prisma';
 import { VertexAI, HarmCategory, HarmBlockThreshold } from '@google-cloud/vertexai';
 import { getEmbedding } from '@/lib/embeddings';
 
+// ▼▼▼【安全対策】同時再要約防止用のMap
+const summarizingChats = new Map<number, boolean>();
+// ▲▲▲
+
 // 安全性設定（ユーザー設定に基づいて動的に変更される）
 const getSafetySettings = (safetyFilterEnabled: boolean) => {
   if (safetyFilterEnabled === false) {
@@ -164,27 +168,62 @@ export async function POST(
       // 自動要約の場合（保存個数制限なし、ただし適用時は最大3個まで）
       console.log('自動要約モード開始, chatId:', chatIdNum);
 
+      // ▼▼▼【安全対策】同時再要約防止チェック
+      if (summarizingChats.get(chatIdNum)) {
+        return NextResponse.json({ 
+          error: '再要約が既に実行中です。完了するまでお待ちください。',
+          isProcessing: true
+        }, { status: 409 }); // Conflict
+      }
+      
+      // メッセージ数を確認
+      const messageCount = await prisma.chat_message.count({
+        where: {
+          chatId: chatIdNum,
+          isActive: true,
+        },
+      });
+      
+      // ▼▼▼【安全対策】メッセージ数が多い場合の警告（注意喚起のみ、処理は継続可能）
+      // 注意: 200個を超える場合でも処理は可能だが、時間がかかることを通知
+      if (messageCount > 200) {
+        console.warn(`再要約警告: メッセージ数が多い (${messageCount}件)。処理に時間がかかる可能性があります。`);
+        // 処理は継続（ユーザーが確認して実行した場合は処理を続行）
+      }
+      // ▲▲▲
+      // ▲▲▲
+
       // ▼▼▼【修正】再要約ロジック: タイムアウト対策のため最適化
       // 1. キーワード抽出をフォールバック方式に変更（AI呼び出し削減）
       // 2. バッチ間の待機時間を削除
       // 3. メッセージロードと既存メモリ削除も非同期で実行（完全なタイムアウト対策）
-      const windowSize = 5;
+      // 4. バッチサイズを20に増加してAPI呼び出し回数を大幅に削減（性能向上）
+      // メッセージ数に応じてバッチサイズを動的に調整
+      const windowSize = messageCount > 100 ? 30 : messageCount > 50 ? 20 : 15;
+      
+      // 処理中フラグを設定
+      summarizingChats.set(chatIdNum, true);
       
       // ▼▼▼【タイムアウト対策】再要約を完全に非同期で開始して即座に応答
       // すべての重い処理（メッセージロード、既存メモリ削除、要約）をバックグラウンドで実行
-                  (async () => {
-                    try {
-          await performReSummarization(chatIdNum, windowSize, safetySettings);
-                    } catch (error) {
+      (async () => {
+        try {
+          await performReSummarization(chatIdNum, windowSize, safetySettings, messageCount);
+        } catch (error) {
           console.error('再要約: バックグラウンド処理エラー:', error);
-                    }
-                  })();
+        } finally {
+          // 処理完了後にフラグを解除
+          summarizingChats.delete(chatIdNum);
+        }
+      })();
                   
       // 即座に応答を返す（タイムアウトを防ぐ）
-        return NextResponse.json({ 
-        message: '再要約を開始しました。バックグラウンドで処理中です。',
-          success: true
-        });
+      return NextResponse.json({ 
+        message: `再要約を開始しました（${messageCount}件のメッセージを処理中）。バックグラウンドで処理中です。`,
+        messageCount,
+        estimatedTime: Math.ceil(messageCount / windowSize) * 8, // 推定時間（秒、バッチサイズに応じて調整）
+        success: true
+      });
     } else {
       // 手動作成の場合（保存個数制限なし、2000文字を超える場合は自動分割）
 
@@ -396,9 +435,10 @@ type SafetySetting = Array<{
 async function performReSummarization(
   chatIdNum: number,
   windowSize: number,
-  safetySettings: SafetySetting
+  safetySettings: SafetySetting,
+  totalMessageCount: number
 ) {
-  console.log('再要約: バックグラウンド処理開始');
+  console.log(`再要約: バックグラウンド処理開始 (メッセージ数: ${totalMessageCount}件, バッチ数: ${Math.ceil(totalMessageCount / windowSize)}件)`);
   
   try {
     // ▼▼▼【注意】再要約: ユーザーが明示的に再要約を要求した場合のみ全削除
@@ -433,102 +473,93 @@ async function performReSummarization(
     
     let createdCount = 0;
   
+  // ▼▼▼【安全対策】バッチ処理にリトライロジックを追加
+  const maxRetries = 2; // 最大リトライ回数（3→2に削減して速度向上）
+  const retryDelay = 1000; // リトライ間隔（ミリ秒、2秒→1秒に短縮）
+  
+  // ▼▼▼【性能向上】バッチを並列処理（最大3つまで同時実行）して速度向上
+  const maxConcurrentBatches = 3; // 同時実行バッチ数
+  const batches: Array<{ start: number; end: number; messages: typeof messagesToSummarize }> = [];
+  
+  // すべてのバッチを準備
   for (let start = 0; start < messagesToSummarize.length; start += windowSize) {
     const end = Math.min(start + windowSize, messagesToSummarize.length);
     const batchMessages = messagesToSummarize.slice(start, end);
+    if (batchMessages.length > 0) {
+      batches.push({ start, end, messages: batchMessages });
+    }
+  }
+  
+  // バッチを並列処理（チャンク単位で処理）
+  for (let i = 0; i < batches.length; i += maxConcurrentBatches) {
+    const batchChunk = batches.slice(i, i + maxConcurrentBatches);
     
-    if (batchMessages.length === 0) continue;
-    
-    // メッセージ範囲を計算（1-indexed）
-    const messageStartIndex = start + 1;
-    const messageEndIndex = end;
-    
-    const conversationText = batchMessages
-      .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
-      .join('\n\n');
-    
-    try {
-      console.log(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} 要約開始 (${batchMessages.length}件)`);
+    // このチャンクのバッチを並列処理（エラーが発生しても他のバッチ는続行）
+    await Promise.allSettled(batchChunk.map(async ({ start, end, messages: batchMessages }) => {
+      const messageStartIndex = start + 1;
+      const messageEndIndex = end;
       
-      const vertex_ai = new VertexAI({
-        project: process.env.GOOGLE_PROJECT_ID || '',
-        location: 'asia-northeast1',
-      });
+      const conversationText = batchMessages
+        .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
+        .join('\n\n');
+      
+      // ▼▼▼【安全対策】リトライループで各バッチを処理
+      let batchSuccess = false;
+      let retryCount = 0;
+      
+      while (!batchSuccess && retryCount < maxRetries) {
+        try {
+          if (retryCount > 0) {
+            console.log(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} リトライ ${retryCount}/${maxRetries - 1}`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay * retryCount));
+          }
+          
+          console.log(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} 要約開始 (${batchMessages.length}件)`);
+          
+          const vertex_ai = new VertexAI({
+            project: process.env.GOOGLE_PROJECT_ID || '',
+            location: 'asia-northeast1',
+          });
 
-      const generativeModel = vertex_ai.getGenerativeModel({
-        model: 'gemini-2.5-flash',
-        safetySettings,
-      });
+          const generativeModel = vertex_ai.getGenerativeModel({
+            model: 'gemini-2.5-flash',
+            safetySettings,
+          });
 
-      const prompt = `以下の会話履歴を、AIが理解しやすいように簡潔に要約してください。
+          // ▼▼▼【性能向上】フロンプトを最適化してレスポンス速度を向上（さらに簡潔に）
+          const prompt = `会話の要点のみ簡潔に要約（2000文字以内）。進行と出来事のみ。
 
-【重要】
-- 会話の進行内容と実際の出来事のみを要約してください
-- 背景設定、キャラクター説明、初期状況などの固定情報は含めないでください
-- ユーザーとAIの実際の対話と行動のみを要約してください
-- 会話の重要なポイント、イベント、感情の変化などを簡潔に含めてください
-- 冗長な描写や詳細な状況説明は省略し、核心的な内容のみを記述してください
-- 要約は簡潔に記述してください（2000文字以内、可能な限り簡潔に）
-
-会話履歴：
 ${conversationText}`;
 
-      const result = await generativeModel.generateContent(prompt);
-      const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          const result = await generativeModel.generateContent(prompt);
+          const summary = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-      if (!summary) {
-        console.error(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} 要約が空です`);
-        continue;
-      }
+          if (!summary) {
+            console.error(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} 要約が空です`);
+            retryCount++;
+            continue; // リトライ
+          }
 
-      // ▼▼▼【タイムアウト対策】再要約時はキーワード抽出をフォールバック方式に変更（AI呼び出し削減）
-      // 再要約は時間がかかるため、キーワード抽出も高速なフォールバック方式を使用
-      const extractedKeywords = extractKeywords(conversationText);
-      // ▲▲▲
-      
-      // 要約が2000文字を超える場合のみ分割、それ以外は1つのメモリとして保存
-      if (summary.length > MAX_MEMORY_LENGTH) {
-        // 2000文字を超える場合: 分割
-        let remainingSummary = summary;
-        
-        while (remainingSummary.length > 0) {
-          const memoryContent = remainingSummary.substring(0, MAX_MEMORY_LENGTH);
-          remainingSummary = remainingSummary.substring(MAX_MEMORY_LENGTH);
+          // ▼▼▼【タイムアウト対策】再要約時はキーワード抽出をフォールバック方式に変更（AI呼び出し削減）
+          const extractedKeywords = extractKeywords(conversationText);
+          // ▲▲▲
           
-          // メッセージ範囲情報をメタデータとしてkeywordsに追加
-          const metaKeywords = [`__META:start:${messageStartIndex}:end:${messageEndIndex}__`, ...extractedKeywords];
-          
-          const newMemory = await prisma.detailed_memories.create({
-            data: {
-              chatId: chatIdNum,
-              content: memoryContent,
-              keywords: metaKeywords,
-            },
-          });
-          
-          // embedding生成（非同期）
-          (async () => {
-            try {
-              const embedding = await getEmbedding(memoryContent);
-              const embeddingString = `[${embedding.join(',')}]`;
-              await prisma.$executeRawUnsafe(
-                `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
-                embeddingString,
-                newMemory.id
-              );
-            } catch (error) {
-              console.error('詳細記憶embedding生成エラー:', error);
-            }
-          })();
-          
-          // 残りが2000文字以下なら終了
-          if (remainingSummary.length <= MAX_MEMORY_LENGTH) {
-            if (remainingSummary.length > 0) {
+          // 要約が2000文字を超える場合のみ分割、それ以外は1つのメモリとして保存
+          if (summary.length > MAX_MEMORY_LENGTH) {
+            // 2000文字を超える場合: 分割
+            let remainingSummary = summary;
+            
+            while (remainingSummary.length > 0) {
+              const memoryContent = remainingSummary.substring(0, MAX_MEMORY_LENGTH);
+              remainingSummary = remainingSummary.substring(MAX_MEMORY_LENGTH);
+              
+              // メッセージ範囲情報をメタデータとしてkeywordsに追加
               const metaKeywords = [`__META:start:${messageStartIndex}:end:${messageEndIndex}__`, ...extractedKeywords];
-              const finalMemory = await prisma.detailed_memories.create({
+              
+              const newMemory = await prisma.detailed_memories.create({
                 data: {
                   chatId: chatIdNum,
-                  content: remainingSummary,
+                  content: memoryContent,
                   keywords: metaKeywords,
                 },
               });
@@ -536,60 +567,108 @@ ${conversationText}`;
               // embedding生成（非同期）
               (async () => {
                 try {
-                  const embedding = await getEmbedding(remainingSummary);
+                  const embedding = await getEmbedding(memoryContent);
                   const embeddingString = `[${embedding.join(',')}]`;
                   await prisma.$executeRawUnsafe(
                     `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
                     embeddingString,
-                    finalMemory.id
+                    newMemory.id
                   );
                 } catch (error) {
                   console.error('詳細記憶embedding生成エラー:', error);
                 }
               })();
+              
+              // 残りが2000文字以下なら終了
+              if (remainingSummary.length <= MAX_MEMORY_LENGTH) {
+                if (remainingSummary.length > 0) {
+                  const metaKeywords = [`__META:start:${messageStartIndex}:end:${messageEndIndex}__`, ...extractedKeywords];
+                  const finalMemory = await prisma.detailed_memories.create({
+                    data: {
+                      chatId: chatIdNum,
+                      content: remainingSummary,
+                      keywords: metaKeywords,
+                    },
+                  });
+                  
+                  // embedding生成（非同期）
+                  (async () => {
+                    try {
+                      const embedding = await getEmbedding(remainingSummary);
+                      const embeddingString = `[${embedding.join(',')}]`;
+                      await prisma.$executeRawUnsafe(
+                        `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+                        embeddingString,
+                        finalMemory.id
+                      );
+                    } catch (error) {
+                      console.error('詳細記憶embedding生成エラー:', error);
+                    }
+                  })();
+                }
+                break;
+              }
             }
+          } else {
+            // 2000文字以下の場合: 1つのメモリとして保存
+            // メッセージ範囲情報をメタデータとしてkeywordsに追加
+            const metaKeywords = [`__META:start:${messageStartIndex}:end:${messageEndIndex}__`, ...extractedKeywords];
+            
+            const newMemory = await prisma.detailed_memories.create({
+              data: {
+                chatId: chatIdNum,
+                content: summary,
+                keywords: metaKeywords,
+              },
+            });
+            
+            // embedding生成（非同期）
+            (async () => {
+              try {
+                const embedding = await getEmbedding(summary);
+                const embeddingString = `[${embedding.join(',')}]`;
+                await prisma.$executeRawUnsafe(
+                  `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
+                  embeddingString,
+                  newMemory.id
+                );
+              } catch (error) {
+                console.error('詳細記憶embedding生成エラー:', error);
+              }
+            })();
+          }
+          
+          // メモリ保存が完了したら成功フラグを設定
+          createdCount++;
+          console.log(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} 要約完了`);
+          batchSuccess = true; // 成功
+          
+        } catch (error) {
+          retryCount++;
+          console.error(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} 要約エラー (試行 ${retryCount}/${maxRetries}):`, error);
+          
+          // 最大リトライ回数に達した場合
+          if (retryCount >= maxRetries) {
+            console.error(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} は最大リトライ回数に達したためスキップします`);
             break;
           }
         }
-      } else {
-        // 2000文字以下の場合: 1つのメモリとして保存
-        // メッセージ範囲情報をメタデータとしてkeywordsに追加
-        const metaKeywords = [`__META:start:${messageStartIndex}:end:${messageEndIndex}__`, ...extractedKeywords];
-        
-        const newMemory = await prisma.detailed_memories.create({
-          data: {
-            chatId: chatIdNum,
-            content: summary,
-            keywords: metaKeywords,
-          },
-        });
-        
-        // embedding生成（非同期）
-        (async () => {
-          try {
-            const embedding = await getEmbedding(summary);
-            const embeddingString = `[${embedding.join(',')}]`;
-            await prisma.$executeRawUnsafe(
-              `UPDATE "detailed_memories" SET "embedding" = $1::vector WHERE "id" = $2`,
-              embeddingString,
-              newMemory.id
-            );
-          } catch (error) {
-            console.error('詳細記憶embedding生成エラー:', error);
-          }
-        })();
       }
       
-      createdCount++;
-      console.log(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} 要約完了`);
-      
-      // バッチ間の待機時間を削除（タイムアウト対策）
-    } catch (error) {
-      console.error(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} 要約エラー:`, error);
-    }
+      // バッチが成功しなかった場合の警告
+      if (!batchSuccess) {
+        console.error(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} の処理に失敗しました`);
+      }
+      // ▲▲▲
+    }));
   }
-  
-    console.log(`再要約: 全バッチ処理完了 (作成: ${createdCount}件)`);
+
+  // ▼▼▼【性能向上】並列処理完了
+  // 実際に作成されたメモリ数を確認（createdCountは並列処理で不正確になる可能性があるため）
+  const actualCreatedCount = await prisma.detailed_memories.count({
+    where: { chatId: chatIdNum },
+  });
+  console.log(`再要約: 全バッチ処理完了 (作成: ${actualCreatedCount}件, バッチ成功: ${createdCount}件)`);
     
     // ▼▼▼【修正】再要約後、作成されたメモリ数を確認して自動適用
     // 最新のメモリから適用するため、作成日時で降順ソート

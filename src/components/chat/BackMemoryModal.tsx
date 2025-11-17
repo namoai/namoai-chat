@@ -8,6 +8,10 @@ type BackMemoryModalProps = {
   initialContent?: string;
   autoSummarize?: boolean;
   onSave: (content: string, autoSummarize: boolean) => Promise<void>;
+  isSummarizing?: boolean; // ▼▼▼【安全対策】同時再要約防止
+  onSummarizeStart?: () => void;
+  onSummarizeEnd?: () => void;
+  // ▲▲▲
 };
 
 export default function BackMemoryModal({
@@ -17,6 +21,10 @@ export default function BackMemoryModal({
   initialContent = '',
   autoSummarize: initialAutoSummarize = true,
   onSave,
+  isSummarizing: externalIsSummarizing = false, // ▼▼▼【安全対策】同時再要約防止
+  onSummarizeStart,
+  onSummarizeEnd,
+  // ▲▲▲
 }: BackMemoryModalProps) {
   const [content, setContent] = useState(initialContent);
   const [autoSummarize, setAutoSummarize] = useState(initialAutoSummarize);
@@ -24,6 +32,10 @@ export default function BackMemoryModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [editContent, setEditContent] = useState(initialContent);
+  
+  // ▼▼▼【安全対策】外部フラグと内部フラグを統合
+  const isAnySummarizing = isSummarizing || externalIsSummarizing;
+  // ▲▲▲
 
   useEffect(() => {
     if (isOpen) {
@@ -59,7 +71,14 @@ export default function BackMemoryModal({
   };
 
   const handleAutoSummarize = async () => {
+    // ▼▼▼【安全対策】同時再要約防止チェック
+    if (isAnySummarizing) {
+      alert('再要約が既に実行中です（メモリブックまたは詳細記憶）。完了するまでお待ちください。');
+      return;
+    }
     setIsSummarizing(true);
+    onSummarizeStart?.();
+    // ▲▲▲
     try {
       const response = await fetch(`/api/chat/${chatId}/back-memory`, {
         method: 'POST',
@@ -73,8 +92,11 @@ export default function BackMemoryModal({
       await onSave(newContent, autoSummarize);
     } catch (error) {
       console.error('自動要約エラー:', error);
+      alert(error instanceof Error ? error.message : '自動要約に失敗しました');
     } finally {
       setIsSummarizing(false);
+      onSummarizeEnd?.(); // ▼▼▼【安全対策】
+      // ▲▲▲
     }
   };
 
@@ -212,10 +234,10 @@ export default function BackMemoryModal({
           ) : (
             <button
               onClick={handleAutoSummarize}
-              disabled={isSummarizing}
+              disabled={isAnySummarizing}
               className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold py-3 px-4 rounded-lg transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50"
             >
-              {isSummarizing ? '要約中...' : '今すぐ自動要約を実行'}
+              {isAnySummarizing ? '要約中...' : '今すぐ自動要約を実行'}
             </button>
           )}
         </div>

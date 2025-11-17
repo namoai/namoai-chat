@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, HelpCircle } from 'lucide-react';
+import HelpModal from '@/components/HelpModal';
 
 /* =============================================================================
  *  フォーム用の型定義
@@ -13,6 +14,44 @@ type PersonaData = {
   gender: '女性' | '男性' | null;
   description: string;
 };
+
+const HELP_PERSONA_TEMPLATE: PersonaData = {
+  nickname: 'ヘルプペルソナ',
+  age: 25,
+  gender: '女性',
+  description: [
+    'キャラクター目的: 新規ユーザーに入力方法を案内するサポート役。',
+    '口調/スタイル: 丁寧で段階的に説明し、要点を短くまとめる。',
+    '詳細要素:',
+    '- 性格: 落ち着いていて励ましてくれる',
+    '- 会話テーマ: ユーザー入力を読み取り、具体的な作成ヒントを提案',
+    '- 必須情報: 背景(1文)、口調、主な関心、避けるべき要素',
+    '',
+    '作成ヒント:',
+    '1) このペルソナが解決したい課題を最初に1文で宣言する。',
+    '2) 性格/口調/NG事項を箇条書きにすると混乱を防げる。',
+    '3) 実際の返答例を1〜2行入れるとモデルがトーンを揃えやすい。',
+  ].join('\n'),
+};
+
+const personaGuides: Array<{ title: string; body: string }> = [
+  {
+    title: 'ゴールから書き始める',
+    body: 'このペルソナが解決したいユーザー課題や期待する対話像を1文で宣言すると、その後の項目が決めやすくなります。',
+  },
+  {
+    title: '性格・口調・NGを分ける',
+    body: '性格（例: クール、陽気）、口調（例: 丁寧語、くだけた口調）、禁止事項を別々に箇条書きにすると誤解が減ります。',
+  },
+  {
+    title: '最初の返答例を1〜2行',
+    body: '実際にユーザーへ返す1通目の文章を短く書くと、トーン・長さ・フォーマットが一気に揃います。',
+  },
+  {
+    title: 'メモ形式が読みやすい',
+    body: '長文よりも「背景 → 性格 → 口調 → 好き/NG → 例文」の順で箇条書きにすると可読性・保守性が上がります。',
+  },
+];
 
 /* =============================================================================
  *  モーダル（props は機能変更なし）
@@ -76,6 +115,8 @@ export default function PersonaFormPage() {
   const [modalState, setModalState] = useState<Omit<ModalProps, 'onConfirm'>>({
     isOpen: false, title: '', message: ''
   });
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const applyHelpPersonaTemplate = () => setFormData(HELP_PERSONA_TEMPLATE);
 
   useEffect(() => {
     if (!isEditMode) return;
@@ -187,6 +228,35 @@ export default function PersonaFormPage() {
     );
   }
 
+  const helpContent = (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-3">ペルソナの書き方</h3>
+        <p className="text-sm text-gray-300 leading-relaxed mb-4">
+          ペルソナの書き方に迷ったら、まずこの流れで整理してみましょう。
+          ゴール → 性格/口調 → 例文 の順で書くとモデルがトーンをつかみやすくなります。
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {personaGuides.map(({ title, body }) => (
+          <div key={title} className="bg-black/30 border border-gray-800/80 rounded-xl p-4">
+            <h3 className="text-base font-semibold text-pink-300 mb-2">{title}</h3>
+            <p className="text-sm text-gray-300 leading-relaxed">{body}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4">
+        <h3 className="text-base font-semibold text-pink-400 mb-2">ヘルプペルソナを読み込む</h3>
+        <p className="text-sm text-gray-300 leading-relaxed mb-3">
+          「ヘルプペルソナを読み込む」ボタンをクリックすると、書き方の例としてヘルプペルソナの内容がフォームに自動入力されます。
+          これを参考にして、自分だけのペルソナを作成してみてください。
+        </p>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <CustomModal
@@ -194,6 +264,12 @@ export default function PersonaFormPage() {
         title={modalState.title}
         message={modalState.message}
         onConfirm={handleModalConfirm}
+      />
+      <HelpModal
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+        title="ペルソナの書き方ガイド"
+        content={helpContent}
       />
       <div className="bg-black min-h-screen text-white">
         {/* 背景装飾 */}
@@ -213,19 +289,38 @@ export default function PersonaFormPage() {
               <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
                 {isEditMode ? 'ペルソナ修正' : 'ペルソナ追加'}
               </h1>
-              <button
-                onClick={handleSave}
-                disabled={!formData.nickname || !formData.description || isSubmitting}
-                className={`font-semibold py-2 px-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                  formData.nickname && formData.description
-                    ? 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-lg shadow-pink-500/30'
-                    : 'bg-gray-800/50 text-gray-600 border border-gray-700/50'
-                }`}
-              >
-                {isSubmitting ? '保存中...' : '保存'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsHelpOpen(true)}
+                  className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+                >
+                  <HelpCircle size={20} />
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={!formData.nickname || !formData.description || isSubmitting}
+                  className={`font-semibold py-2 px-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                    formData.nickname && formData.description
+                      ? 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-lg shadow-pink-500/30'
+                      : 'bg-gray-800/50 text-gray-600 border border-gray-700/50'
+                  }`}
+                >
+                  {isSubmitting ? '保存中...' : '保存'}
+                </button>
+              </div>
             </header>
             <main className="space-y-6">
+              <div className="bg-gray-900/60 border border-gray-800/60 rounded-2xl p-4">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <p className="text-sm text-gray-300">ペルソナの書き方に迷ったら、右上の<strong className="text-pink-400">?</strong>ボタンからガイドを確認できます。</p>
+                  <button
+                    onClick={applyHelpPersonaTemplate}
+                    className="w-full md:w-auto bg-gray-800/70 border border-pink-400/40 text-pink-300 font-semibold px-4 py-2 rounded-xl hover:bg-pink-500/10 transition-all"
+                  >
+                    ヘルプペルソナを読み込む
+                  </button>
+                </div>
+              </div>
               <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
                 <label className="text-sm font-medium text-gray-300 mb-2 block">
                   ニックネーム <span className="text-red-400">*</span>

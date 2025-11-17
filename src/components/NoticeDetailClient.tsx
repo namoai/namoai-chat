@@ -2,9 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, HelpCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import HelpModal from "@/components/HelpModal";
 
 // お知らせ詳細データの型定義
 type NoticeDetail = {
@@ -74,6 +75,7 @@ export default function NoticeDetailClient({ noticeId }: NoticeDetailClientProps
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: '', message: '' });
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   useEffect(() => {
     if (noticeId) {
@@ -146,15 +148,55 @@ export default function NoticeDetailClient({ noticeId }: NoticeDetailClientProps
     }
   };
 
+  const helpContent = (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-2">お知らせ詳細ページについて</h3>
+        <p className="text-sm text-gray-300 leading-relaxed">
+          このページでは、サービスからの重要な情報やアップデート情報を確認することができます。
+        </p>
+      </div>
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-2">お知らせの種類</h3>
+        <ul className="list-disc list-inside text-sm text-gray-300 space-y-1 ml-2">
+          <li><strong>アップデート</strong>: 新機能や改善に関する情報（緑色で表示）</li>
+          <li><strong>重要</strong>: 重要な通知や注意事項（赤色で表示）</li>
+          <li><strong>イベント</strong>: イベントやキャンペーン情報（青色で表示）</li>
+        </ul>
+      </div>
+      <div>
+        <h3 className="text-lg font-semibold text-pink-400 mb-2">管理者機能</h3>
+        <p className="text-sm text-gray-300 leading-relaxed">
+          管理者（ADMIN）は、お知らせの編集や削除を行うことができます。
+          編集アイコン（鉛筆）から編集画面に移動し、削除アイコン（ゴミ箱）からお知らせを削除できます。
+        </p>
+      </div>
+    </div>
+  );
+
   return (
     <div className="bg-black min-h-screen text-white">
       <ConfirmationModal modalState={modalState} setModalState={setModalState} />
+      <HelpModal
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+        title="お知らせ詳細ページについて"
+        content={helpContent}
+      />
       <div className="mx-auto max-w-3xl">
         <header className="flex items-center justify-between p-4 sticky top-0 bg-black/80 backdrop-blur-sm z-10 border-b border-gray-800">
           <Link href="/notice" className="p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer">
             <ArrowLeft />
           </Link>
-          <h1 className="font-bold text-lg">お知らせ詳細</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="font-bold text-lg">お知らせ詳細</h1>
+            <button 
+              onClick={() => setIsHelpOpen(true)} 
+              className="p-2 rounded-full hover:bg-gray-800 hover:text-pink-400 transition-colors cursor-pointer"
+            >
+              <HelpCircle size={20} />
+            </button>
+          </div>
           {session?.user?.role === "ADMIN" ? (
             <div className="flex items-center gap-2">
               <Link href={`/notice/admin/${noticeId}`} className={`p-2 rounded-full hover:bg-gray-800 transition-colors cursor-pointer ${isProcessing ? 'opacity-50 pointer-events-none' : ''}`}>

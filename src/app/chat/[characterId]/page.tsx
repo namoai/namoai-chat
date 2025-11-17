@@ -232,62 +232,21 @@ export default function ChatPage() {
     loadCharacterInfo();
   }, [characterId, router]);
 
-  // 最下部へスクロールする関数（より強力な方法）
+  // 最下部へスクロールする関数（レイアウトの安定後に一度だけ実行）
   const scrollToBottom = useCallback(() => {
-    // 複数の方法を試行して確実にスクロール
-    const attemptScroll = () => {
-      // 方法1: main要素のscrollTopを直接設定（最優先）
-      if (mainScrollRef.current) {
-        const scrollContainer = mainScrollRef.current;
-        // 非常に大きな値を設定して確実に最下部へ移動
-        scrollContainer.scrollTop = 999999999;
-        // scrollHeightが変更される可能性があるため最新の値で計算
-        const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight;
-        scrollContainer.scrollTop = maxScroll;
-        // 追加でscrollTopを直接設定
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-        // もう一度
-        setTimeout(() => {
-          scrollContainer.scrollTop = scrollContainer.scrollHeight;
-        }, 0);
-      }
-      
-      // 方法2: window.scrollToも使用
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' });
-      
-      // 方法3: messagesEndRefを使用
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'instant', block: 'end', inline: 'nearest' });
-        // 複数回試行
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end', inline: 'nearest' });
-        }, 0);
-      }
-    };
+    // レイアウトが安定してからスクロール実行（一度だけ）
+    // 方法1: main要素のscrollTopを直接設定（最優先）
+    if (mainScrollRef.current) {
+      const scrollContainer = mainScrollRef.current;
+      // scrollHeightが変更される可能性があるため最新の値で計算
+      const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+      scrollContainer.scrollTop = maxScroll;
+    }
     
-    // 即座に試行
-    attemptScroll();
-    
-    // 複数回試行 (DOMレンダリング完了待機)
-    requestAnimationFrame(() => {
-      attemptScroll();
-      requestAnimationFrame(() => {
-        attemptScroll();
-        setTimeout(() => {
-          attemptScroll();
-          setTimeout(() => {
-            attemptScroll();
-            setTimeout(() => {
-              attemptScroll();
-              // 最終試行
-              setTimeout(() => {
-                attemptScroll();
-              }, 1000);
-            }, 500);
-          }, 300);
-        }, 100);
-      });
-    });
+    // 方法2: messagesEndRefを使用（フォールバック）
+    if (messagesEndRef.current && !mainScrollRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'instant', block: 'end', inline: 'nearest' });
+    }
   }, []);
 
   useEffect(() => {
@@ -379,16 +338,13 @@ export default function ChatPage() {
             }
             // ▲▲▲
             
-            // ▼▼▼【強制スクロール】ロード完了後、即座に最下部へスクロール ▼▼▼
-            setTimeout(() => {
-              scrollToBottom();
-              setTimeout(() => {
+            // ▼▼▼【強制スクロール】ロード完了後、レイアウトが安定してからスクロール ▼▼▼
+            // レイアウトが安定するまで待ってから一度だけスクロール
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
                 scrollToBottom();
-                setTimeout(() => {
-                  scrollToBottom();
-                }, 500);
-              }, 300);
-            }, 100);
+              });
+            });
             // ▲▲▲
         } catch (e) {
             console.error("チャット読込エラー:", e);
@@ -401,13 +357,15 @@ export default function ChatPage() {
             });
         } finally {
             setIsInitialLoading(false);
-            // ▼▼▼【強制スクロール】ローディング完了後もスクロール ▼▼▼
-            setTimeout(() => {
-              scrollToBottom();
+            // ▼▼▼【強制スクロール】ローディング完了後、一度だけスクロール ▼▼▼
+            // レイアウトが完全に安定してからスクロール
+            requestAnimationFrame(() => {
               setTimeout(() => {
-                scrollToBottom();
-              }, 500);
-            }, 200);
+                requestAnimationFrame(() => {
+                  scrollToBottom();
+                });
+              }, 100);
+            });
             // ▲▲▲
         }
     };
@@ -417,35 +375,24 @@ export default function ChatPage() {
 
   // チャットルームに入った時、メッセージ追加時、新規ロード時に確実に最下部へスクロール
   useEffect(() => {
+    // 初回ローディング中はスキップ（初回ローディング時のスクロールは別で処理）
     if (isInitialLoading || rawMessages.length === 0) return;
-    
-    const scrollAfterRender = () => {
-      // 非常に強力なスクロール試行
-      if (mainScrollRef.current) {
-        const container = mainScrollRef.current;
-        container.scrollTop = 999999999;
-        container.scrollTop = container.scrollHeight;
-      }
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'instant', block: 'end', inline: 'nearest' });
-      }
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' });
-      scrollToBottom();
-    };
     
     // 再生成中またはローディング中は自動スクロールを無効化
     if (regeneratingTurnId !== null || isLoading) return;
     
-    // 即座に試行
-    scrollAfterRender();
+    // レイアウトが安定してから一度だけスクロール（複数回の呼び出しを避ける）
+    const scrollAfterRender = () => {
+      requestAnimationFrame(() => {
+        scrollToBottom();
+      });
+    };
     
-    // 追加遅延で再試行
-    const timer1 = setTimeout(scrollAfterRender, 100);
-    const timer2 = setTimeout(scrollAfterRender, 300);
+    // 遅延を入れて一度だけ実行（レイアウト計算が完了した後）
+    const timer = setTimeout(scrollAfterRender, 50);
     
     return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
+      clearTimeout(timer);
     };
   }, [rawMessages.length, isInitialLoading, scrollToBottom, regeneratingTurnId, isLoading]);
 

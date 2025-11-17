@@ -200,6 +200,9 @@ export default function ChatSettings({
   const [isDetailedMemoryModalOpen, setIsDetailedMemoryModalOpen] = useState(false);
   const [backMemory, setBackMemory] = useState({ content: '', autoSummarize: true });
   const [detailedMemories, setDetailedMemories] = useState<Array<{ id: number; content: string; keywords: string[]; createdAt: string; index: number }>>([]);
+  // ▼▼▼【安全対策】同時再要約防止用のstate
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  // ▲▲▲
 
   const fetchBackMemory = async () => {
     if (!chatId) return;
@@ -308,6 +311,15 @@ export default function ChatSettings({
       console.error('chatIdがありません');
       return;
     }
+    
+    // ▼▼▼【安全対策】同時再要約防止チェック
+    if (isSummarizing) {
+      alert('再要約が既に実行中です（メモリブックまたは詳細記憶）。完了するまでお待ちください。');
+      return;
+    }
+    setIsSummarizing(true);
+    // ▲▲▲
+    
     try {
       console.log('API呼び出し開始:', `/api/chat/${chatId}/detailed-memories`);
       const res = await fetch(`/api/chat/${chatId}/detailed-memories`, {
@@ -316,24 +328,44 @@ export default function ChatSettings({
         body: JSON.stringify({ autoSummarize: true }),
       });
       console.log('APIレスポンス status:', res.status, res.ok);
+      
+      // ▼▼▼【安全対策】エラーハンドリング強化
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         console.error('APIエラー:', errorData);
+        
+        // 409 Conflict: 既に処理中
+        if (res.status === 409) {
+          alert('再要約が既に実行中です。完了するまでお待ちください。');
+          return;
+        }
+        
+        // 400 Bad Request: メッセージ数が多い場合の確認（現在は削除、処理は継続）
+        
         throw new Error(errorData.error || `HTTP ${res.status}: 自動要約に失敗しました`);
       }
+      // ▲▲▲
+      
       const result = await res.json();
       console.log('API成功, 結果:', result);
       
-      // ▼▼▼【修正】再要約はバックグラウンドで実行されるため、完了までポーリング
-      // 再要約完了時点でメモリが作成され、最新3個（または作成された個数）が自動適用済みの状態になる
-      // したがって、メモリ数が増加し、かつ適用済みメモリが存在することを確認すれば完了
-      const maxWaitTime = 180000; // 180秒
-      const pollInterval = 2000; // 2秒ごと
-      const startTime = Date.now();
-      const initialCount = detailedMemories.length;
+      // 再要約開始メッセージ
+      alert('再要約を開始しました。\n処理が完了するまでお待ちください。');
       
-      // ポーリングを開始（メモリが追加され、適用されるまで続ける）
+      // ▼▼▼【修正】再要約はバックグラウンドで実行されるため、完了までポーリング
+      // タイムアウト時間を短く設定（メッセージ数が少ない場合は即座に完了可能）
+      const maxWaitTime = 15000; // 15秒でタイムアウト（短縮）
+      const pollInterval = 500; // 0.5秒ごと（より頻繁にチェック）
+      const startTime = Date.now();
+      // ▼▼▼【修正】再要約前のメモリIDセットを保存（再要約後、メモリが再作成されたかを判定）
+      const initialMemoryIds = new Set(detailedMemories.map(m => m.id));
+      // ▲▲▲
+      
+      // ポーリングを開始（メモリが再作成されたら完了）
       const pollForMemories = async () => {
+        let consecutiveErrors = 0;
+        const maxConsecutiveErrors = 3; // 連続エラー許容回数（短縮）
+        
         while (Date.now() - startTime < maxWaitTime) {
           await new Promise(resolve => setTimeout(resolve, pollInterval));
           
@@ -345,25 +377,63 @@ export default function ChatSettings({
               const currentMemories = data.memories || [];
               const currentCount = currentMemories.length;
               
-              // 適用済みメモリ数をカウント（lastAppliedがあるもの）
-              const appliedMemories = currentMemories.filter((m: { lastApplied?: Date | null }) => m.lastApplied);
-              const currentAppliedCount = appliedMemories.length;
+              // ▼▼▼【修正】完了条件: メモリが存在し、かつ再要約後のメモリであることを確認
+              // 再要約では既存メモリが全て削除されてから再作成されるため、
+              // 新しいメモリIDが存在するか、またはメモリが存在する場合に完了と判断
+              if (currentCount > 0) {
+                // メモリが存在する場合、新しいメモリか確認
+                const hasNewMemories = currentMemories.some((m: { id: number }) => !initialMemoryIds.has(m.id));
+                
+                // 新しいメモリが存在するか、または初期メモリがなかった（初回要約）場合は完了
+                if (hasNewMemories || initialMemoryIds.size === 0) {
+                  console.log(`再要約: 完了 - メモリ${currentCount}件作成済み`);
+                  await fetchDetailedMemories();
+                  alert('再要約が完了しました。');
+                  return; // 完了
+                }
+              }
+              // ▲▲▲
               
-              // メモリ数が増加し、かつ適用済みメモリが存在する場合（再要約完了）
-              if (currentCount > initialCount && currentAppliedCount > 0) {
-                console.log(`再要約: 完了 - メモリ作成・適用済み (${currentCount}件作成, ${currentAppliedCount}件適用)`);
-                await fetchDetailedMemories();
-                return; // 完了
+              consecutiveErrors = 0; // エラーカウントリセット
+            } else {
+              consecutiveErrors++;
+              console.error(`再要約ポーリングエラー: HTTP ${res.status}`);
+              
+              if (consecutiveErrors >= maxConsecutiveErrors) {
+                throw new Error(`再要約の進行状況を確認できませんでした (HTTP ${res.status})。`);
               }
             }
           } catch (error) {
-            console.error('再要約ポーリングエラー:', error);
+            consecutiveErrors++;
+            console.error(`再要約ポーリングエラー (${consecutiveErrors}/${maxConsecutiveErrors}):`, error);
+            
+            // ▼▼▼【安全対策】連続エラーが多すぎる場合は処理を中断
+            if (consecutiveErrors >= maxConsecutiveErrors) {
+              console.error('再要約: 連続エラーが多すぎるため、ポーリングを中断します');
+              await fetchDetailedMemories(); // 最後にメモリを更新
+              throw new Error('再要約の進行状況を確認できませんでした。ページをリロードして結果を確認してください。');
+            }
+            // ▲▲▲
           }
         }
         
-        // タイムアウト後も最終的にメモリを更新
+        // ▼▼▼【修正】タイムアウト後、メモリ状態を確認
         await fetchDetailedMemories();
-        console.log('再要約: ポーリング完了（タイムアウト）');
+        const finalRes = await fetch(`/api/chat/${chatId}/detailed-memories`).catch(() => null);
+        const finalData = finalRes && finalRes.ok ? await finalRes.json().catch(() => ({})) : {};
+        const finalMemories = finalData.memories || [];
+        const finalCount = finalMemories.length;
+        
+        if (finalCount > 0) {
+          // メモリが作成されている場合 → 完了として扱う
+          console.log(`再要約: タイムアウト - メモリ${finalCount}件が作成されました。完了とみなします。`);
+          alert('再要約が完了しました。');
+        } else {
+          // メモリが作成されていない場合
+          console.warn('再要約: タイムアウト - メモリが作成されませんでした');
+          alert('再要約がタイムアウトしました。\n\n処理が完了しなかった可能性があります。\nしばらく待ってからページをリロードして結果を確認してください。');
+        }
+        // ▲▲▲
       };
       
       // ポーリングを実行し、完了を待つ
@@ -373,6 +443,10 @@ export default function ChatSettings({
       console.error('自動要約エラー:', error);
       alert(error instanceof Error ? error.message : '自動要約に失敗しました');
       throw error;
+    } finally {
+      // ▼▼▼【安全対策】処理完了後にフラグを解除
+      setIsSummarizing(false);
+      // ▲▲▲
     }
   };
 
@@ -444,6 +518,9 @@ export default function ChatSettings({
           initialContent={backMemory.content}
           autoSummarize={backMemory.autoSummarize}
           onSave={handleSaveBackMemory}
+          isSummarizing={isSummarizing}
+          onSummarizeStart={() => setIsSummarizing(true)}
+          onSummarizeEnd={() => setIsSummarizing(false)}
         />
       )}
       {isDetailedMemoryModalOpen && chatId && (

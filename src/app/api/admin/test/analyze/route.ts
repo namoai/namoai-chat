@@ -63,13 +63,21 @@ export async function POST(request: Request) {
       }
     }
 
+    type TestResult = {
+      category?: string;
+      name: string;
+      status: 'success' | 'error' | 'pending' | 'running';
+      message?: string;
+      duration?: number;
+    };
+
     const totalTests = results.length;
-    const passedTests = results.filter((r: any) => r.status === 'success').length;
-    const failedTests = results.filter((r: any) => r.status === 'error').length;
+    const passedTests = results.filter((r: TestResult) => r.status === 'success').length;
+    const failedTests = results.filter((r: TestResult) => r.status === 'error').length;
     const avgDuration = results
-      .filter((r: any) => r.duration !== undefined)
-      .reduce((sum: number, r: any) => sum + (r.duration || 0), 0) / 
-      results.filter((r: any) => r.duration !== undefined).length || 0;
+      .filter((r: TestResult) => r.duration !== undefined)
+      .reduce((sum: number, r: TestResult) => sum + (r.duration || 0), 0) / 
+      results.filter((r: TestResult) => r.duration !== undefined).length || 0;
 
     const prompt = `あなたはソフトウェアテストの専門家です。以下のテスト結果を分析して、問題点や改善点を指摘してください。
 
@@ -80,7 +88,7 @@ export async function POST(request: Request) {
 - 平均実行時間: ${Math.round(avgDuration)}ms
 
 ## 詳細なテスト結果
-${results.map((r: any, idx: number) => `
+${results.map((r: TestResult, idx: number) => `
 ${idx + 1}. 【${r.category}】${r.name}
    - ステータス: ${r.status === 'success' ? '✅ 成功' : r.status === 'error' ? '❌ 失敗' : '⏳ 待機中'}
    - メッセージ: ${r.message || 'なし'}
