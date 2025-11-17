@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
@@ -10,7 +10,7 @@ import { Role } from '@prisma/client';
  * 
  * テスト用のユーザー、キャラクター、チャットルームをすべて削除します。
  */
-export async function DELETE(_request: NextRequest) {
+export async function DELETE() {
   try {
     // セッション確認
     const session = await getServerSession(authOptions);
