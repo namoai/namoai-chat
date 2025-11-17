@@ -117,24 +117,8 @@ ${idx + 1}. 【${r.category}】${r.name}
     }
 
     const response = result.response;
-    let analysis: string;
-    try {
-      analysis = response.text();
-    } catch (textError) {
-      console.error('テキスト取得エラー:', textError);
-      // フォールバック: candidatesから直接取得
-      const candidates = response.candidates;
-      if (candidates && candidates.length > 0) {
-        const content = candidates[0].content;
-        if (content?.parts && content.parts.length > 0) {
-          analysis = content.parts[0].text || '分析結果を取得できませんでした。';
-        } else {
-          analysis = '分析結果を取得できませんでした。';
-        }
-      } else {
-        analysis = '分析結果を取得できませんでした。';
-      }
-    }
+    // candidatesから直接取得
+    const analysis = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
     if (!analysis || analysis.trim().length === 0) {
       return NextResponse.json(
