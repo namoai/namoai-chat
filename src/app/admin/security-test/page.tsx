@@ -328,7 +328,7 @@ export default function SecurityTestPage() {
       setEnvSecurityResult({ success: true, data: result.envTest });
     } catch (error) {
       console.error("Env security test error:", error);
-      setEnvSecurityResult({ success: false, data: { error: '環境変数セキュリティテストでエラーが発生しました。' } });
+      setEnvSecurityResult({ success: false, error: '環境変数セキュリティテストでエラーが発生しました。' });
     } finally {
       setIsEnvSecurityTesting(false);
     }
@@ -973,7 +973,7 @@ export default function SecurityTestPage() {
                   </div>
                 ) : (
                   <div className="text-red-300">
-                    {envSecurityResult.data?.error || 'エラーが発生しました。'}
+                    {envSecurityResult.error || 'エラーが発生しました。'}
                   </div>
                 )}
               </div>
