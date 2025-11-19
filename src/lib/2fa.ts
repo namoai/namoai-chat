@@ -74,8 +74,10 @@ export function verifyTotpCode(secret: string, code: string): boolean {
   // return authenticator.verify({ token: code, secret, window });
   
   logger.warn('TOTP verification: Library not implemented yet', {
-    secretLength: secret.length,
-    codeLength: code.length,
+    metadata: {
+      secretLength: secret.length,
+      codeLength: code.length,
+    },
   });
   return false;
 }
