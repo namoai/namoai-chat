@@ -13,24 +13,26 @@ export enum LogLevel {
   CRITICAL = 'CRITICAL',
 }
 
+export interface LogContext extends Record<string, unknown> {
+  userId?: string;
+  ip?: string;
+  userAgent?: string;
+  path?: string;
+  method?: string;
+  statusCode?: number;
+  error?: {
+    name: string;
+    message: string;
+    stack?: string;
+  };
+  metadata?: Record<string, unknown>;
+}
+
 export interface LogEntry {
   timestamp: string;
   level: LogLevel;
   message: string;
-  context?: {
-    userId?: string;
-    ip?: string;
-    userAgent?: string;
-    path?: string;
-    method?: string;
-    statusCode?: number;
-    error?: {
-      name: string;
-      message: string;
-      stack?: string;
-    };
-    metadata?: Record<string, unknown>;
-  };
+  context?: LogContext;
 }
 
 class Logger {
