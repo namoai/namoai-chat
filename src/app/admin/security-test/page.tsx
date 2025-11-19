@@ -343,7 +343,7 @@ export default function SecurityTestPage() {
       setPasswordPolicyResult({ success: true, data: result.passwordTestResults });
     } catch (error) {
       console.error("Password policy test error:", error);
-      setPasswordPolicyResult({ success: false, data: { error: 'パスワードポリシーテストでエラーが発生しました。' } });
+      setPasswordPolicyResult({ success: false, error: 'パスワードポリシーテストでエラーが発生しました。' });
     } finally {
       setIsPasswordPolicyTesting(false);
     }
@@ -1069,15 +1069,11 @@ export default function SecurityTestPage() {
                   </div>
                 ) : (
                   <div className="text-red-300">
-                    {passwordPolicyResult.data?.error || 'エラーが発生しました。'}
+                    {passwordPolicyResult.error || 'エラーが発生しました。'}
                   </div>
                 )}
-              </div>
-            )}
-          </div>
-
-          {/* API認証テスト */}
-          <div className="bg-gray-800/40 border border-gray-700/60 rounded-xl p-4 space-y-3">
+            </div>
+          )}
             <div className="flex items-center gap-2">
               <Server className="text-orange-400" size={20} />
               <h3 className="font-semibold">API認証テスト</h3>
