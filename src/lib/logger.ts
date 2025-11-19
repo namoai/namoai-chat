@@ -21,7 +21,7 @@ export interface LogContext extends Record<string, unknown> {
   method?: string;
   statusCode?: number;
   error?: {
-    name: string;
+    name?: string;
     message: string;
     stack?: string;
   };
