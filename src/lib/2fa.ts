@@ -111,7 +111,7 @@ export async function enable2FA(
     qrCodeUri = generateTotpUri(secret, `user_${userId}`, 'Namos Chat');
   }
   
-  logger.info('2FA enabled', { userId, method });
+  logger.info('2FA enabled', { userId: String(userId), metadata: { method } });
   
   return {
     secret: method === 'totp' ? secret : undefined,
@@ -135,7 +135,7 @@ export async function disable2FA(userId: number): Promise<void> {
   //   },
   // });
   
-  logger.info('2FA disabled', { userId });
+  logger.info('2FA disabled', { userId: String(userId) });
 }
 
 /**
