@@ -618,8 +618,12 @@ export async function PUT(
     if (chatsToInvalidate.length > 0) {
       // ▼▼▼【重要】 キャッシュキーを `chat:[chatId]:room` に修正します。
       const cacheKeys = chatsToInvalidate.map(chat => `chat:${chat.id}:room`);
-      await redis.del(...cacheKeys);
-      console.log(`キャッシュ削除完了: ${cacheKeys.join(', ')}`);
+      if (redis) {
+        await redis.del(...cacheKeys);
+        console.log(`キャッシュ削除完了: ${cacheKeys.join(', ')}`);
+      } else {
+        console.warn('Redisクライアント未初期化のためキャッシュ削除をスキップしました', cacheKeys);
+      }
     }
     // ▲▲▲ 修正完了 ▲▲▲
 
@@ -697,8 +701,12 @@ export async function DELETE(
     if (chatsToInvalidate.length > 0) {
       // ▼▼▼【重要】 キャッシュキーを `chat:[chatId]:room` に修正します。
       const cacheKeys = chatsToInvalidate.map(chat => `chat:${chat.id}:room`);
-      await redis.del(...cacheKeys);
-      console.log(`キャラクター削除に伴いキャッシュを削除: ${cacheKeys.join(', ')}`);
+      if (redis) {
+        await redis.del(...cacheKeys);
+        console.log(`キャラクター削除に伴いキャッシュを削除: ${cacheKeys.join(', ')}`);
+      } else {
+        console.warn('Redisクライアント未初期化のためキャッシュ削除をスキップしました', cacheKeys);
+      }
     }
     // ▲▲▲ 追加完了 ▲▲▲
 
