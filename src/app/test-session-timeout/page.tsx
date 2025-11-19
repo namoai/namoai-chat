@@ -13,7 +13,7 @@ const notifyTimeoutRefresh = () => {
 };
 
 export default function TestSessionTimeoutPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const [testTimeout, setTestTimeout] = useState<string>("30000");
   const [isTestModeActive, setIsTestModeActive] = useState(false);

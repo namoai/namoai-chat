@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { Role } from '@prisma/client';
-import { validateCsrfToken, getCsrfTokenFromRequest } from '@/lib/csrf';
+import { validateCsrfToken } from '@/lib/csrf';
 import { handleError, createErrorResponse, ErrorCode } from '@/lib/error-handler';
 import { logger } from '@/lib/logger';
 import { SecureEnv } from '@/lib/env-security';

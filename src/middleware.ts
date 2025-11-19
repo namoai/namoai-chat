@@ -1,7 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { applyCorsHeaders, handlePreflight, isApiRoute } from "@/lib/cors";
-import { validateCsrfToken } from "@/lib/csrf";
 import { logger } from "@/lib/logger";
 import { createErrorResponse, ErrorCode } from "@/lib/error-handler";
 

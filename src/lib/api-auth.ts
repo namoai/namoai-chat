@@ -4,7 +4,6 @@
  */
 
 import { randomBytes, createHmac } from 'crypto';
-import { prisma } from './prisma';
 import { logger } from './logger';
 
 export interface ApiKey {
@@ -78,7 +77,9 @@ export async function verifyApiKey(key: string): Promise<{ valid: boolean; userI
     // };
     
     // 暫定的な実装（実際のテーブルが存在しない場合）
-    logger.warn('API key verification: Database table not implemented yet');
+    logger.warn('API key verification: Database table not implemented yet', {
+      keyHashPreview: keyHash.substring(0, 8),
+    });
     return { valid: false };
   } catch (error) {
     logger.error('API key verification error', {
@@ -162,6 +163,7 @@ export function isTokenExpired(createdAt: Date, maxAge: number = 3600000): boole
 export function rotateToken(oldToken: string): string {
   // 古いトークンを無効化し、新しいトークンを生成
   // 実際の実装では、データベースで古いトークンを無効化する必要があります
+  logger.info('Token rotation requested', { oldTokenPreview: oldToken.slice(0, 6) });
   return generateApiKey();
 }
 

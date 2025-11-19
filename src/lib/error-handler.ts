@@ -165,7 +165,9 @@ export function handleError(
 /**
  * 非同期関数をエラーハンドラーでラップ
  */
-export function withErrorHandler<T extends (...args: any[]) => Promise<NextResponse>>(
+type AsyncHandler = (...args: unknown[]) => Promise<NextResponse>;
+
+export function withErrorHandler<T extends AsyncHandler>(
   handler: T,
   request?: NextRequest,
   userId?: string
@@ -183,9 +185,9 @@ export function withErrorHandler<T extends (...args: any[]) => Promise<NextRespo
  * APIルート用のエラーハンドラーミドルウェア
  */
 export function apiErrorHandler(
-  handler: (request: NextRequest, context?: any) => Promise<NextResponse>
+  handler: (request: NextRequest, context?: Record<string, unknown>) => Promise<NextResponse>
 ) {
-  return async (request: NextRequest, context?: any): Promise<NextResponse> => {
+  return async (request: NextRequest, context?: Record<string, unknown>): Promise<NextResponse> => {
     try {
       return await handler(request, context);
     } catch (error) {

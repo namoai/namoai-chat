@@ -5,7 +5,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes, createHmac } from 'crypto';
-import { cookies } from 'next/headers';
 
 const CSRF_TOKEN_NAME = 'csrf-token';
 const CSRF_SECRET = process.env.CSRF_SECRET || process.env.NEXTAUTH_SECRET || 'default-secret-change-in-production';

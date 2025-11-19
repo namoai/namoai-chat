@@ -3,7 +3,7 @@
  * TOTP認証の基盤実装
  */
 
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import { logger } from './logger';
 
 /**
@@ -35,8 +35,7 @@ export function generateBackupCodes(count: number = 8): string[] {
 export function hashBackupCode(code: string): string {
   // 実際の実装では、bcryptや同様のハッシュ関数を使用
   // ここでは概念実装として示します
-  const crypto = require('crypto');
-  return crypto.createHash('sha256').update(code).digest('hex');
+  return createHash('sha256').update(code).digest('hex');
 }
 
 /**
@@ -67,14 +66,17 @@ export function generateTotpUri(
  * TOTPコードを検証
  * 注意: 実際の実装では、otplibなどのライブラリを使用してください
  */
-export function verifyTotpCode(secret: string, code: string, window: number = 1): boolean {
+export function verifyTotpCode(secret: string, code: string): boolean {
   // 実際の実装では、otplibのauthenticator.verify()を使用
   // ここでは概念実装として示します
   
   // const authenticator = require('otplib').authenticator;
   // return authenticator.verify({ token: code, secret, window });
   
-  logger.warn('TOTP verification: Library not implemented yet');
+  logger.warn('TOTP verification: Library not implemented yet', {
+    secretLength: secret.length,
+    codeLength: code.length,
+  });
   return false;
 }
 
@@ -90,7 +92,6 @@ export async function enable2FA(
   // ここでは概念実装として示します
   
   const backupCodes = generateBackupCodes(8);
-  const hashedBackupCodes = backupCodes.map(code => hashBackupCode(code));
   
   // データベースに保存する処理
   // await prisma.users.update({
@@ -175,7 +176,10 @@ export async function verify2FACode(
   //   return { valid: true, usedBackupCode: true };
   // }
   
-  logger.warn('2FA verification: Database implementation not available');
+  logger.warn('2FA verification: Database implementation not available', {
+    userId,
+    codeLength: code.length,
+  });
   return { valid: false };
 }
 

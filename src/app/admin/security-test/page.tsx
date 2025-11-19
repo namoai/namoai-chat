@@ -2,11 +2,71 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck, RefreshCw, Sparkles, Terminal, AlertTriangle, ArrowLeft, Activity, Loader2, UploadCloud, Info, Lock, FileText, Server, CheckCircle, XCircle } from "lucide-react";
 import { apiPost, ApiErrorResponse } from "@/lib/api-client";
 import { ErrorCode } from "@/lib/error-handler";
+
+type JsonRecord = Record<string, unknown>;
+type SessionSecurityData = JsonRecord & { error?: string };
+
+interface PasswordPolicyTestResult {
+  password: string;
+  passwordLength: number;
+  isValid: boolean;
+  strength: "weak" | "medium" | "strong" | "very-strong";
+  strengthDescription: string;
+  score: number;
+  errors: string[];
+  warnings: string[];
+}
+
+interface ApiAuthTestResult {
+  generatedKey: string;
+  keyLength: number;
+  hashedKey: string;
+  message: string;
+}
+
+interface TwoFactorTestResult {
+  totpSecret: string;
+  backupCodesCount: number;
+  qrCodeUri: string;
+  message: string;
+}
+
+interface EnvCheckResult {
+  status: "ok" | "warning" | "error";
+  message: string;
+}
+
+interface EnvSecurityTestResult {
+  isSecure: boolean;
+  checks: Record<string, EnvCheckResult>;
+  issues: string[];
+  warnings: string[];
+  maskedValues: Record<string, string>;
+}
+
+interface EnvStatus {
+  hasNextAuthSecret: boolean;
+  hasCsrfSecret: boolean;
+  nodeEnv: string;
+  nextAuthSecretMasked: string;
+  nextAuthSecretLength: number;
+  csrfSecretLength: number;
+  hasDatabaseUrl: boolean;
+  securityIssues: string[];
+  warnings: string[];
+  isSecure: boolean;
+  timestamp: string;
+}
+
+type ApiResult<T> = {
+  success: boolean;
+  data?: T;
+  error?: string;
+};
 
 type RateLimitLog = {
   attempt: number;
@@ -17,7 +77,6 @@ type RateLimitLog = {
 
 export default function SecurityTestPage() {
   const { data: session, status } = useSession();
-  const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
@@ -39,19 +98,19 @@ export default function SecurityTestPage() {
   const [isErrorHandlingTesting, setIsErrorHandlingTesting] = useState(false);
   const [loggingResult, setLoggingResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isLoggingTesting, setIsLoggingTesting] = useState(false);
-  const [sessionSecurityResult, setSessionSecurityResult] = useState<{ success: boolean; data?: any } | null>(null);
+  const [sessionSecurityResult, setSessionSecurityResult] = useState<ApiResult<SessionSecurityData> | null>(null);
   const [isSessionSecurityTesting, setIsSessionSecurityTesting] = useState(false);
-  const [envSecurityResult, setEnvSecurityResult] = useState<{ success: boolean; data?: any } | null>(null);
+  const [envSecurityResult, setEnvSecurityResult] = useState<ApiResult<EnvSecurityTestResult> | null>(null);
   const [isEnvSecurityTesting, setIsEnvSecurityTesting] = useState(false);
-  const [envStatus, setEnvStatus] = useState<any>(null);
+  const [envStatus, setEnvStatus] = useState<EnvStatus | null>(null);
   const [isRefreshingEnvStatus, setIsRefreshingEnvStatus] = useState(false);
   
   // Phase 2 テスト用の状態
-  const [passwordPolicyResult, setPasswordPolicyResult] = useState<{ success: boolean; data?: any } | null>(null);
+  const [passwordPolicyResult, setPasswordPolicyResult] = useState<ApiResult<PasswordPolicyTestResult[]> | null>(null);
   const [isPasswordPolicyTesting, setIsPasswordPolicyTesting] = useState(false);
-  const [apiAuthResult, setApiAuthResult] = useState<{ success: boolean; data?: any } | null>(null);
+  const [apiAuthResult, setApiAuthResult] = useState<ApiResult<ApiAuthTestResult> | null>(null);
   const [isApiAuthTesting, setIsApiAuthTesting] = useState(false);
-  const [twoFactorResult, setTwoFactorResult] = useState<{ success: boolean; data?: any } | null>(null);
+  const [twoFactorResult, setTwoFactorResult] = useState<ApiResult<TwoFactorTestResult> | null>(null);
   const [isTwoFactorTesting, setIsTwoFactorTesting] = useState(false);
 
   useEffect(() => {
@@ -79,7 +138,7 @@ export default function SecurityTestPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setEnvStatus(data.envStatus);
+        setEnvStatus(data.envStatus as EnvStatus);
       } else {
         console.error('環境変数状態の取得に失敗:', res.status);
         const errorData = await res.json().catch(() => ({}));
@@ -213,7 +272,7 @@ export default function SecurityTestPage() {
     setIsErrorHandlingTesting(true);
     setErrorHandlingResult(null);
     try {
-      const result = await apiPost('/api/admin/security-test', { testType: 'error-handling' });
+      await apiPost('/api/admin/security-test', { testType: 'error-handling' });
       setErrorHandlingResult({ success: false, message: 'エラーが発生すべきでしたが、発生しませんでした。' });
     } catch (error) {
       if (error instanceof ApiErrorResponse) {
@@ -238,6 +297,7 @@ export default function SecurityTestPage() {
       const result = await apiPost('/api/admin/security-test', { testType: 'logging' });
       setLoggingResult({ success: true, message: result.message || 'ログが記録されました。サーバーログを確認してください。' });
     } catch (error) {
+      console.error("Logging test error:", error);
       setLoggingResult({ success: false, message: 'ロギングテストでエラーが発生しました。' });
     } finally {
       setIsLoggingTesting(false);
@@ -252,6 +312,7 @@ export default function SecurityTestPage() {
       const result = await apiPost('/api/admin/security-test', { testType: 'session-security' });
       setSessionSecurityResult({ success: true, data: result.session });
     } catch (error) {
+      console.error("Session security test error:", error);
       setSessionSecurityResult({ success: false, data: { error: 'セッションセキュリティテストでエラーが発生しました。' } });
     } finally {
       setIsSessionSecurityTesting(false);
@@ -266,6 +327,7 @@ export default function SecurityTestPage() {
       const result = await apiPost('/api/admin/security-test', { testType: 'env-security' });
       setEnvSecurityResult({ success: true, data: result.envTest });
     } catch (error) {
+      console.error("Env security test error:", error);
       setEnvSecurityResult({ success: false, data: { error: '環境変数セキュリティテストでエラーが発生しました。' } });
     } finally {
       setIsEnvSecurityTesting(false);
@@ -280,6 +342,7 @@ export default function SecurityTestPage() {
       const result = await apiPost('/api/admin/security-test', { testType: 'password-policy' });
       setPasswordPolicyResult({ success: true, data: result.passwordTestResults });
     } catch (error) {
+      console.error("Password policy test error:", error);
       setPasswordPolicyResult({ success: false, data: { error: 'パスワードポリシーテストでエラーが発生しました。' } });
     } finally {
       setIsPasswordPolicyTesting(false);
@@ -294,6 +357,7 @@ export default function SecurityTestPage() {
       const result = await apiPost('/api/admin/security-test', { testType: 'api-auth' });
       setApiAuthResult({ success: true, data: result.apiAuthTest });
     } catch (error) {
+      console.error("API auth test error:", error);
       setApiAuthResult({ success: false, data: { error: 'API認証テストでエラーが発生しました。' } });
     } finally {
       setIsApiAuthTesting(false);
@@ -308,6 +372,7 @@ export default function SecurityTestPage() {
       const result = await apiPost('/api/admin/security-test', { testType: '2fa' });
       setTwoFactorResult({ success: true, data: result.twoFactorTest });
     } catch (error) {
+      console.error("2FA test error:", error);
       setTwoFactorResult({ success: false, data: { error: '2FAテストでエラーが発生しました。' } });
     } finally {
       setIsTwoFactorTesting(false);
@@ -851,7 +916,7 @@ export default function SecurityTestPage() {
                     {envSecurityResult.data?.checks && (
                       <div className="space-y-2">
                         <div className="font-medium text-gray-300">各項目のチェック結果:</div>
-                        {Object.entries(envSecurityResult.data.checks).map(([key, check]: [string, any]) => (
+                        {Object.entries(envSecurityResult.data.checks).map(([key, check]: [string, EnvCheckResult]) => (
                           <div key={key} className="flex items-center justify-between text-xs bg-gray-800/50 p-2 rounded">
                             <span className="text-gray-400">{key}:</span>
                             <span className={
@@ -897,7 +962,7 @@ export default function SecurityTestPage() {
                     {envSecurityResult.data?.maskedValues && (
                       <div className="bg-gray-800/50 rounded p-2 space-y-1 text-xs">
                         <div className="font-medium text-gray-300">マスクされた値:</div>
-                        {Object.entries(envSecurityResult.data.maskedValues).map(([key, value]: [string, any]) => (
+                        {Object.entries(envSecurityResult.data.maskedValues).map(([key, value]: [string, string]) => (
                           <div key={key} className="flex justify-between">
                             <span className="text-gray-400">{key}:</span>
                             <span className="text-gray-300">{value}</span>
@@ -951,7 +1016,7 @@ export default function SecurityTestPage() {
                   <div className="space-y-3">
                     <div className="font-semibold text-emerald-300">テスト結果:</div>
                     <div className="space-y-2">
-                      {passwordPolicyResult.data?.map((result: any, idx: number) => (
+                      {passwordPolicyResult.data?.map((result: PasswordPolicyTestResult, idx: number) => (
                         <div key={idx} className="bg-gray-800/50 p-2 rounded text-xs space-y-1">
                           <div className="flex items-center justify-between">
                             <span className="text-gray-400">パスワード: {result.password}</span>

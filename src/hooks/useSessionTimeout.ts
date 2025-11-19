@@ -169,7 +169,6 @@ export function useSessionTimeout() {
         // 탭이 다시 보이면 (다른 탭에서 돌아오거나 사이트 재방문)
         if (hiddenTimeRef.current !== null) {
           // 탭이 숨겨진 시간 동안 경과한 시간 계산
-          const hiddenDuration = Date.now() - hiddenTimeRef.current;
           const timeSinceLastActivity = Date.now() - lastActivityRef.current;
           
           // 숨겨진 시간도 포함해서 타임아웃 체크

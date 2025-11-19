@@ -7,7 +7,7 @@ import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
-    const { token, response } = await generateAndSetCsrfToken();
+    const { response } = await generateAndSetCsrfToken();
     
     logger.debug('CSRF token generated', {
       ip: getClientIp(request),
