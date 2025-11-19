@@ -233,8 +233,8 @@ export default function SecurityTestPage() {
     try {
       if (testType === 'valid') {
         // 有効なトークンでテスト（apiPostを使用）
-        const result = await apiPost('/api/admin/security-test', { testType: 'csrf-valid' });
-        setCsrfTestResult({ success: true, message: result.message || 'CSRFテスト成功' });
+        const result = await apiPost<{ message?: string }>('/api/admin/security-test', { testType: 'csrf-valid' });
+        setCsrfTestResult({ success: true, message: result.message ?? 'CSRFテスト成功' });
       } else {
         // 無効なトークンでテスト（CSRFトークンなしで直接fetch）
         const res = await fetch('/api/admin/security-test', {
@@ -294,8 +294,8 @@ export default function SecurityTestPage() {
     setIsLoggingTesting(true);
     setLoggingResult(null);
     try {
-      const result = await apiPost('/api/admin/security-test', { testType: 'logging' });
-      setLoggingResult({ success: true, message: result.message || 'ログが記録されました。サーバーログを確認してください。' });
+      const result = await apiPost<{ message?: string }>('/api/admin/security-test', { testType: 'logging' });
+      setLoggingResult({ success: true, message: result.message ?? 'ログが記録されました。サーバーログを確認してください。' });
     } catch (error) {
       console.error("Logging test error:", error);
       setLoggingResult({ success: false, message: 'ロギングテストでエラーが発生しました。' });
@@ -309,7 +309,7 @@ export default function SecurityTestPage() {
     setIsSessionSecurityTesting(true);
     setSessionSecurityResult(null);
     try {
-      const result = await apiPost('/api/admin/security-test', { testType: 'session-security' });
+      const result = await apiPost<{ session: SessionSecurityData }>('/api/admin/security-test', { testType: 'session-security' });
       setSessionSecurityResult({ success: true, data: result.session });
     } catch (error) {
       console.error("Session security test error:", error);
@@ -324,7 +324,7 @@ export default function SecurityTestPage() {
     setIsEnvSecurityTesting(true);
     setEnvSecurityResult(null);
     try {
-      const result = await apiPost('/api/admin/security-test', { testType: 'env-security' });
+      const result = await apiPost<{ envTest: EnvSecurityTestResult }>('/api/admin/security-test', { testType: 'env-security' });
       setEnvSecurityResult({ success: true, data: result.envTest });
     } catch (error) {
       console.error("Env security test error:", error);
@@ -339,7 +339,7 @@ export default function SecurityTestPage() {
     setIsPasswordPolicyTesting(true);
     setPasswordPolicyResult(null);
     try {
-      const result = await apiPost('/api/admin/security-test', { testType: 'password-policy' });
+      const result = await apiPost<{ passwordTestResults: PasswordPolicyTestResult[] }>('/api/admin/security-test', { testType: 'password-policy' });
       setPasswordPolicyResult({ success: true, data: result.passwordTestResults });
     } catch (error) {
       console.error("Password policy test error:", error);
@@ -354,7 +354,7 @@ export default function SecurityTestPage() {
     setIsApiAuthTesting(true);
     setApiAuthResult(null);
     try {
-      const result = await apiPost('/api/admin/security-test', { testType: 'api-auth' });
+      const result = await apiPost<{ apiAuthTest: ApiAuthTestResult }>('/api/admin/security-test', { testType: 'api-auth' });
       setApiAuthResult({ success: true, data: result.apiAuthTest });
     } catch (error) {
       console.error("API auth test error:", error);
@@ -369,7 +369,7 @@ export default function SecurityTestPage() {
     setIsTwoFactorTesting(true);
     setTwoFactorResult(null);
     try {
-      const result = await apiPost('/api/admin/security-test', { testType: '2fa' });
+      const result = await apiPost<{ twoFactorTest: TwoFactorTestResult }>('/api/admin/security-test', { testType: '2fa' });
       setTwoFactorResult({ success: true, data: result.twoFactorTest });
     } catch (error) {
       console.error("2FA test error:", error);
