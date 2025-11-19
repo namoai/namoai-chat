@@ -102,6 +102,41 @@ export const authOptions: NextAuthOptions = {
 
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30日間 (ログイン状態保持用)
+    // セッション更新間隔を短くしてセキュリティを強化
+    updateAge: 24 * 60 * 60, // 24時間ごとに更新
+  },
+  
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true, // XSS対策: JavaScriptからアクセス不可
+        sameSite: 'strict', // CSRF対策強化: strictに変更（laxから）
+        path: '/',
+        secure: process.env.NODE_ENV === 'production', // HTTPSのみ（本番環境）
+        // maxAgeは動的に設定できないため、デフォルトで30日間
+        maxAge: 30 * 24 * 60 * 60, // 30日間
+      },
+    },
+    callbackUrl: {
+      name: `next-auth.callback-url`,
+      options: {
+        httpOnly: true,
+        sameSite: 'strict',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+    csrfToken: {
+      name: `next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'strict',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
   },
 
   callbacks: {
@@ -153,7 +188,7 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
 
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         const dbUser = await prisma.users.findUnique({
@@ -164,6 +199,8 @@ export const authOptions: NextAuthOptions = {
             token.role = dbUser.role;
         }
       }
+      // remember me 정보는 user 객체에서 전달받을 수 없으므로,
+      // 클라이언트에서 쿠키를 직접 설정하는 방식 사용
       return token;
     },
 

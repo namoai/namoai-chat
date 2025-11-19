@@ -3,8 +3,20 @@ export const runtime = 'nodejs';
 console.log("✅ /api/register ルート実行!");
 
 import { NextResponse } from "next/server";
-import { prisma } from '@/lib/prisma'
+import { prisma } from "@/lib/prisma";
 import bcrypt from "bcrypt";
+import { rateLimit, buildRateLimitHeaders } from "@/lib/rateLimit";
+import { registerSchema, sanitizeString } from "@/lib/validation";
+import { validatePassword } from "@/lib/password-policy";
+
+const getClientIp = (req: Request): string => {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  const realIp = req.headers.get("x-real-ip");
+  return realIp ?? "unknown";
+};
 
 export async function POST(req: Request) {
   try {
@@ -16,24 +28,47 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = await req.json();
-    const { email, password, name, phone, nickname } = body;
-
-    // 入力チェック
-    if (!email || !password || !name || !phone || !nickname) {
+    // Rate limiting: 1시간에 3회
+    const clientIp = getClientIp(req);
+    const rateResult = await rateLimit({
+      identifier: `register:${clientIp}`,
+      limit: 3,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (!rateResult.success) {
       return NextResponse.json(
-        { error: "すべての項目を入力してください。" },
-        { status: 400 }
+        { error: "短時間に過度のリクエストが行われました。しばらくしてから再試行してください。" },
+        {
+          status: 429,
+          headers: buildRateLimitHeaders(rateResult),
+        }
       );
     }
+
+    const body = await req.json();
+    const parsed = registerSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "入力値が不正です。", details: parsed.error.flatten() },
+        { status: 400, headers: buildRateLimitHeaders(rateResult) }
+      );
+    }
+
+    const sanitized = {
+      email: sanitizeString(parsed.data.email),
+      password: parsed.data.password,
+      name: sanitizeString(parsed.data.name),
+      phone: sanitizeString(parsed.data.phone),
+      nickname: sanitizeString(parsed.data.nickname),
+    };
 
     // ユーザー重複チェック
     const existingUser = await prisma.users.findFirst({
       where: {
         OR: [
-          { email },
-          { phone },
-          { nickname }
+          { email: sanitized.email },
+          { phone: sanitized.phone },
+          { nickname: sanitized.nickname }
         ]
       }
     });
@@ -45,17 +80,30 @@ export async function POST(req: Request) {
       );
     }
 
+    // パスワードポリシー検証
+    const passwordValidation = validatePassword(sanitized.password);
+    if (!passwordValidation.isValid) {
+      return NextResponse.json(
+        { 
+          error: "パスワードがポリシーを満たしていません。", 
+          details: passwordValidation.errors,
+          warnings: passwordValidation.warnings,
+        },
+        { status: 400, headers: buildRateLimitHeaders(rateResult) }
+      );
+    }
+    
     // パスワードをハッシュ化して保存
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(sanitized.password, 12); // bcrypt roundsを12に増加（より安全）
 
     // ✅ ユーザーとポイントレコードを同時に作成
     const newUser = await prisma.users.create({
       data: {
-        email,
+        email: sanitized.email,
         password: hashedPassword,
-        name,
-        phone,
-        nickname,
+        name: sanitized.name,
+        phone: sanitized.phone,
+        nickname: sanitized.nickname,
         // 👇 ユーザーを作成する際に、関連するpointsレコードも一緒に作成するという意味です
         points: {
           create: {
@@ -73,7 +121,10 @@ export async function POST(req: Request) {
     // 成功レスポンスをJSONで返却
     return NextResponse.json(
       { message: "会員登録が完了しました。", user: newUser },
-      { status: 201 }
+      {
+        status: 201,
+        headers: buildRateLimitHeaders(rateResult),
+      }
     );
 
   } catch (error) {

@@ -7,6 +7,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth"; 
 import { getEmbedding } from "@/lib/embeddings";
 import { searchSimilarDetailedMemories } from "@/lib/vector-search"; 
+import { rateLimit, buildRateLimitHeaders } from "@/lib/rateLimit";
 
 // VertexAIクライアントの初期化
 const vertex_ai = new VertexAI({
@@ -107,6 +108,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "認証が必要です。" }, { status: 401 });
     }
     const userId = parseInt(session.user.id);
+
+    const rateResult = await rateLimit({
+        identifier: `chat_messages:${userId}`,
+        limit: 60,
+        windowMs: 60 * 1000,
+    });
+    if (!rateResult.success) {
+        return NextResponse.json(
+            { error: "リクエストが多すぎます。しばらく待ってから再試行してください。" },
+            { status: 429, headers: buildRateLimitHeaders(rateResult) }
+        );
+    }
 
     // ▼▼▼【追加】ユーザーのセーフティフィルター設定を取得
     const user = await prisma.users.findUnique({

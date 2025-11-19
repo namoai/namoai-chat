@@ -6,7 +6,7 @@ import Link from 'next/link'; // Linkコンポーネントをインポート
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FcGoogle } from "react-icons/fc";
-import { Mail, Lock, ArrowLeft } from "lucide-react";
+import { Mail, Lock, ArrowLeft, Info } from "lucide-react";
 import { signIn } from "next-auth/react";
 
 // ▼▼▼【新規追加】汎用モーダルコンポーネント ▼▼▼
@@ -49,13 +49,32 @@ const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalSta
 function LoginComponent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false); // ログイン状態保持チェックボックス
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: '', message: '' }); // モーダル用のstateを追加
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // URLパラメータのエラーを監視してモーダル表示
+  // URLパラメータのエラーとタイムアウトを監視してモーダル表示
   useEffect(() => {
     const error = searchParams.get("error");
+    const timeout = searchParams.get("timeout");
+    
+    // セッションタイムアウトの処理
+    if (timeout === "true") {
+      setModalState({
+        isOpen: true,
+        title: "セッションタイムアウト",
+        message: "30分間の非活動によりセッションがタイムアウトしました。\nセキュリティのため、再度ログインしてください。",
+        isAlert: true,
+        confirmText: "OK",
+        onConfirm: () => {
+          // URLからタイムアウトパラメータを削除
+          router.replace('/login', { scroll: false });
+        }
+      });
+      return;
+    }
+    
     if (error) {
       let errorMessage = "ログインに失敗しました。後でもう一度お試しください。";
       
@@ -106,6 +125,7 @@ function LoginComponent() {
         redirect: false, // 手動でリダイレクトを制御
         email,
         password,
+        callbackUrl: "/MyPage",
       });
 
       if (result?.error) {
@@ -141,6 +161,13 @@ function LoginComponent() {
           }
         });
       } else if (result?.ok) {
+        // ログイン状態保持の設定をlocalStorageに保存
+        if (rememberMe) {
+          localStorage.setItem('rememberMe', 'true');
+        } else {
+          localStorage.removeItem('rememberMe');
+        }
+        
         // 認証成功の場合、マイページへリダイレクト（replaceで履歴を残さない）
         router.replace("/MyPage");
       }
@@ -214,10 +241,37 @@ function LoginComponent() {
             />
           </div>
 
-          <div className="text-right">
-            <button className="text-sm text-pink-400 hover:text-pink-300 transition-colors">
-              パスワード再設定
-            </button>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-pink-500 focus:ring-2 focus:ring-pink-500/50 focus:ring-offset-0 cursor-pointer"
+                />
+                <span className="text-sm text-gray-300 group-hover:text-gray-200 transition-colors">
+                  ログイン状態を保持する
+                </span>
+              </label>
+              <button className="text-sm text-pink-400 hover:text-pink-300 transition-colors">
+                パスワード再設定
+              </button>
+            </div>
+            {rememberMe && (
+              <div className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <Info size={16} className="text-blue-400 mt-0.5 flex-shrink-0" />
+                <div className="text-xs text-blue-300/90 leading-relaxed">
+                  <p className="font-medium mb-1">ログイン状態が30日間保持されます</p>
+                  <p className="text-blue-400/80 mb-1">
+                    ブラウザを閉じてもログイン状態が維持されます。共有のコンピューターでは使用しないでください。
+                  </p>
+                  <p className="text-yellow-400/80 text-[11px] mt-1">
+                    ⚠️ セキュリティのため、30分間の非活動により自動的にログアウトされます。
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <Button

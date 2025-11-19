@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/nextauth';
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { createClient } from '@supabase/supabase-js';
+import { validateImageFile } from '@/lib/upload/validateImage';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 
 // ▼▼▼【追加】 キャラクター作成APIと同様のヘルパー関数をここに追加します。 ▼▼▼
@@ -138,6 +139,13 @@ export async function PUT(リクエスト: Request) {
     let 画像URL: string | undefined = undefined;
 
     if (画像ファイル && 画像ファイル.size > 0) {
+      let validatedImage;
+      try {
+        validatedImage = await validateImageFile(画像ファイル, { maxSizeBytes: 3 * 1024 * 1024 });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '画像検証中にエラーが発生しました。';
+        return NextResponse.json({ message }, { status: 400 });
+      }
       const supabaseUrl = process.env.SUPABASE_URL!;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
       const バケット名 = 'usersImage';
@@ -149,17 +157,12 @@ export async function PUT(リクエスト: Request) {
 
       const supabaseクライアント = createClient(supabaseUrl, serviceRoleKey);
       
-      // 元のファイル名から英数字、ドット、ハイフン、アンダースコア以外を全てアンダースコア(_)に置換
-      const 安全なファイル名 = 画像ファイル.name.replace(/[^\w.\-]/g, '_');
-      const ファイル名 = `${Date.now()}-${安全なファイル名}`;
-      const オブジェクトキー = `avatars/${ファイル名}`;
-      
-      const バッファ = Buffer.from(await 画像ファイル.arrayBuffer());
+      const オブジェクトキー = `avatars/${validatedImage.safeFileName}`;
 
       const { error: アップロードエラー } = await supabaseクライアント.storage
         .from(バケット名)
-        .upload(オブジェクトキー, バッファ, {
-          contentType: 画像ファイル.type || 'application/octet-stream',
+        .upload(オブジェクトキー, validatedImage.buffer, {
+          contentType: validatedImage.mimeType,
           upsert: false,
         });
 

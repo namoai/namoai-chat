@@ -9,9 +9,9 @@ import { authOptions } from '@/lib/nextauth';
 import { checkFieldsForSexualContent } from '@/lib/content-filter';
 import { createClient } from '@supabase/supabase-js';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
-import { randomUUID } from 'crypto';
 import OpenAI from 'openai'; // ★ OpenAIクライアントをインポート
 import { notifyFollowersOnCharacterCreation } from '@/lib/notifications'; // ★ 通知関数をインポート
+import { validateImageFile } from '@/lib/upload/validateImage';
 
 // =================================================================================
 //  型定義 (Type Definitions)
@@ -596,25 +596,20 @@ export async function POST(request: Request) {
 
             console.log(`[POST] 画像 ${i} アップロード開始: ${file.name} (${file.size} bytes, ${file.type})`);
 
-            // ▼▼▼【ファイルサイズチェック】10MBを超える場合はエラー ▼▼▼
-            if (file.size > 10 * 1024 * 1024) {
-                console.error(`[POST] 画像 ${i}: ファイルサイズが大きすぎます (${file.size} bytes)`);
-                return NextResponse.json({ 
-                    message: `画像ファイルが大きすぎます（最大10MB）。現在: ${Math.round(file.size / 1024 / 1024)}MB` 
-                }, { status: 400 });
+            let validatedFile;
+            try {
+                validatedFile = await validateImageFile(file, { maxSizeBytes: 5 * 1024 * 1024 });
+            } catch (err) {
+                const message = err instanceof Error ? err.message : '画像検証中にエラーが発生しました。';
+                return NextResponse.json({ message: `画像${i + 1}: ${message}` }, { status: 400 });
             }
-            // ▲▲▲
 
-            const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'png';
-            const safeFileName = `${randomUUID()}.${fileExtension}`;
-            const objectKey = `uploads/${safeFileName}`;
-
-            const arrayBuffer = await file.arrayBuffer();
+            const objectKey = `uploads/${validatedFile.safeFileName}`;
 
             const { error: uploadErr } = await sb.storage
                 .from(bucket)
-                .upload(objectKey, Buffer.from(arrayBuffer), {
-                    contentType: file.type || 'application/octet-stream',
+                .upload(objectKey, validatedFile.buffer, {
+                    contentType: validatedFile.mimeType,
                     upsert: false,
                 });
 

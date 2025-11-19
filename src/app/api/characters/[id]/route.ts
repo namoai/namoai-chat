@@ -15,7 +15,7 @@ import { checkFieldsForSexualContent } from '@/lib/content-filter';
 // ▼▼▼【Supabase】追加インポート
 import { createClient } from '@supabase/supabase-js';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
-import { randomUUID } from 'crypto';
+import { validateImageFile } from '@/lib/upload/validateImage';
 
 // =================================================================================
 //  型定義 (Type Definitions)
@@ -497,15 +497,19 @@ export async function PUT(
       const file = formData.get(`new_image_${i}`) as File | null;
       const keyword = formData.get(`new_keyword_${i}`) as string || '';
       if (file && file.size > 0) {
-        const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'png';
-        const safeFileName = `${randomUUID()}.${fileExtension}`;
-        const objectKey = `uploads/${safeFileName}`;
+        let validatedFile;
+        try {
+          validatedFile = await validateImageFile(file, { maxSizeBytes: 5 * 1024 * 1024 });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : '画像検証中にエラーが発生しました。';
+          return NextResponse.json({ message: `画像${i + 1}: ${message}` }, { status: 400 });
+        }
+        const objectKey = `uploads/${validatedFile.safeFileName}`;
         
-        const arrayBuffer = await file.arrayBuffer();
         const { error: uploadErr } = await sb.storage
           .from(bucket)
-          .upload(objectKey, Buffer.from(arrayBuffer), {
-            contentType: file.type || 'application/octet-stream',
+          .upload(objectKey, validatedFile.buffer, {
+            contentType: validatedFile.mimeType,
             upsert: false,
           });
 
