@@ -179,8 +179,8 @@ export async function verify2FACode(
   // }
   
   logger.warn('2FA verification: Database implementation not available', {
-    userId,
-    codeLength: code.length,
+    userId: String(userId),
+    metadata: { codeLength: code.length },
   });
   return { valid: false };
 }
