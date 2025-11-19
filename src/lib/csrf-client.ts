@@ -25,7 +25,10 @@ export async function getCsrfToken(): Promise<string> {
       if (!response.ok) {
         throw new Error('CSRFトークンの取得に失敗しました');
       }
-      const data = await response.json();
+      const data: { csrfToken?: string } = await response.json();
+      if (!data.csrfToken) {
+        throw new Error('CSRFトークンがレスポンスに含まれていません');
+      }
       csrfToken = data.csrfToken;
       return csrfToken;
     })
