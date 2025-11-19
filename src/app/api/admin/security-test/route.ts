@@ -141,15 +141,15 @@ export async function POST(request: NextRequest) {
         // ロギング機能のテスト
         logger.info('セキュリティテスト: 情報ログ', {
           userId: session.user.id,
-          testType: 'logging',
+          metadata: { testType: 'logging' },
         });
         logger.warn('セキュリティテスト: 警告ログ', {
           userId: session.user.id,
-          testType: 'logging',
+          metadata: { testType: 'logging' },
         });
         logger.error('セキュリティテスト: エラーログ', {
           userId: session.user.id,
-          testType: 'logging',
+          metadata: { testType: 'logging' },
         });
         return NextResponse.json({
           success: true,
