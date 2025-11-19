@@ -313,7 +313,7 @@ export default function SecurityTestPage() {
       setSessionSecurityResult({ success: true, data: result.session });
     } catch (error) {
       console.error("Session security test error:", error);
-      setSessionSecurityResult({ success: false, data: { error: 'セッションセキュリティテストでエラーが発生しました。' } });
+    setSessionSecurityResult({ success: false, error: 'セッションセキュリティテストでエラーが発生しました。' });
     } finally {
       setIsSessionSecurityTesting(false);
     }
@@ -358,7 +358,7 @@ export default function SecurityTestPage() {
       setApiAuthResult({ success: true, data: result.apiAuthTest });
     } catch (error) {
       console.error("API auth test error:", error);
-      setApiAuthResult({ success: false, data: { error: 'API認証テストでエラーが発生しました。' } });
+    setApiAuthResult({ success: false, error: 'API認証テストでエラーが発生しました。' });
     } finally {
       setIsApiAuthTesting(false);
     }
@@ -373,7 +373,7 @@ export default function SecurityTestPage() {
       setTwoFactorResult({ success: true, data: result.twoFactorTest });
     } catch (error) {
       console.error("2FA test error:", error);
-      setTwoFactorResult({ success: false, data: { error: '2FAテストでエラーが発生しました。' } });
+    setTwoFactorResult({ success: false, error: '2FAテストでエラーが発生しました。' });
     } finally {
       setIsTwoFactorTesting(false);
     }
@@ -758,7 +758,7 @@ export default function SecurityTestPage() {
                   </div>
                 ) : (
                   <div className="text-red-300">
-                    {sessionSecurityResult.data?.error || 'エラーが発生しました。'}
+                    {sessionSecurityResult.error || 'エラーが発生しました。'}
                   </div>
                 )}
               </div>
@@ -1113,7 +1113,7 @@ export default function SecurityTestPage() {
                   </div>
                 ) : (
                   <div className="text-red-300">
-                    {apiAuthResult.data?.error || 'エラーが発生しました。'}
+                    {apiAuthResult.error || 'エラーが発生しました。'}
                   </div>
                 )}
               </div>
@@ -1161,7 +1161,7 @@ export default function SecurityTestPage() {
                   </div>
                 ) : (
                   <div className="text-red-300">
-                    {twoFactorResult.data?.error || 'エラーが発生しました。'}
+                    {twoFactorResult.error || 'エラーが発生しました。'}
                   </div>
                 )}
               </div>
