@@ -16,10 +16,16 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error) {
     logger.error('Failed to generate CSRF token', {
-      error: error instanceof Error ? {
-        name: error.name,
-        message: error.message,
-      } : { message: String(error) },
+      error: error instanceof Error
+        ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          }
+        : {
+            name: 'UnknownError',
+            message: String(error),
+          },
     });
     
     return NextResponse.json(
