@@ -82,6 +82,6 @@ export async function PUT(request: Request) {
     });
 
   } catch (error) {
-    return handleError(error, request, session.user.id);
+    return handleError(error, request as NextRequest, session.user.id);
   }
 }
