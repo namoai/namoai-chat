@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 const REQUIRED_ENV_VARS = ["NEXTAUTH_SECRET", "DATABASE_URL"] as const;
 
 const isEdgeRuntime = () =>
