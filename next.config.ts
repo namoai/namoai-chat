@@ -98,7 +98,6 @@ const nextConfig: NextConfig = {
 
     return config;
   },
-  serverComponentsExternalPackages: [...serverOnlyPackages],
   images: {
     remotePatterns: [
       {

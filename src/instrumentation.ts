@@ -1,8 +1,16 @@
 const REQUIRED_ENV_VARS = ["NEXTAUTH_SECRET", "DATABASE_URL"] as const;
 
+const isEdgeRuntime = () =>
+  typeof process !== "undefined" && process.env.NEXT_RUNTIME === "edge";
+
 export async function register() {
   // サーバ環境でのみ実行（Edge/クライアントでは実行しない）
   if (typeof window !== "undefined") {
+    return;
+  }
+
+  if (isEdgeRuntime()) {
+    console.log("[instrumentation] Skipping server-only setup on Edge runtime");
     return;
   }
 
