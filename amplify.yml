@@ -12,7 +12,8 @@ frontend:
         - echo "Generating Prisma client..."
         - npx prisma generate
         - echo "Building Next.js app..."
-        - npm run build
+        - rm -rf .next
+        - next build
   artifacts:
     baseDirectory: .next
     files:

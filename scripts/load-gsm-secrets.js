@@ -74,6 +74,15 @@ async function loadSecrets() {
     const projectId = process.env.GOOGLE_PROJECT_ID;
 
     if (!projectId) {
+      // ▼▼▼【AWS Amplify対応】GOOGLE_PROJECT_ID가 없어도 환경変数があれば続行 ▼▼▼
+      console.warn('⚠️ GOOGLE_PROJECT_ID environment variable is not set. Skipping GSM secret loading.');
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        console.log('✅ Environment variables already set, skipping GSM');
+        const envContent = `NEXT_PUBLIC_SUPABASE_URL=${process.env.NEXT_PUBLIC_SUPABASE_URL}\nNEXT_PUBLIC_SUPABASE_ANON_KEY=${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}\n`;
+        fs.writeFileSync('.env.local', envContent);
+        return; // GSMスキップして続行
+      }
+      // ▲▲▲
       throw new Error('GOOGLE_PROJECT_ID environment variable is not set');
     }
 
