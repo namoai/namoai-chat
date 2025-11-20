@@ -71,8 +71,11 @@ const nodeCoreFallbacks: Record<string, false> = {
 };
 
 const nextConfig: NextConfig = {
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
+  webpack: (config, { isServer, nextRuntime }) => {
+    const isEdgeRuntime = nextRuntime === "edge";
+    const shouldExternalize = !isServer || isEdgeRuntime;
+
+    if (shouldExternalize) {
       config.resolve = config.resolve ?? {};
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -87,13 +90,17 @@ const nextConfig: NextConfig = {
         {}
       );
 
-      if (Array.isArray(config.externals)) {
-        config.externals.push(externalsMap);
-      } else if (config.externals) {
-        config.externals = [config.externals, externalsMap];
-      } else {
-        config.externals = [externalsMap];
-      }
+      const applyExternal = (entry: typeof externalsMap) => {
+        if (Array.isArray(config.externals)) {
+          config.externals.push(entry);
+        } else if (config.externals) {
+          config.externals = [config.externals, entry];
+        } else {
+          config.externals = [entry];
+        }
+      };
+
+      applyExternal(externalsMap);
     }
 
     return config;
