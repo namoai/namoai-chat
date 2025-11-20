@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+﻿import type { NextConfig } from "next";
 
 const csp = [
   "default-src 'self';",
@@ -42,11 +42,21 @@ const securityHeaders = [
   },
 ];
 
+const serverOnlyPackages = [
+  "@google-cloud/secret-manager",
+  "@google-cloud/vertexai",
+  "@google/generative-ai",
+  "google-gax",
+  "google-auth-library",
+  "gaxios",
+  "agent-base",
+  "https-proxy-agent",
+];
+
 const nextConfig: NextConfig = {
-  // ▼▼▼【AWS Amplify対応】サーバ専用パッケージをクライアントバンドルから除外 ▼▼▼
-  webpack: (config, { isServer, webpack }) => {
+  // ?쇄뼹?쇈륚WS Amplify野얍퓶?묆궢?쇈깘弱귞뵪?묆긿?긱꺖?멥굮??꺀?ㅳ궋?녈깉?먦꺍?됥꺂?뗣굢?ㅵ쨼 ?쇄뼹??  webpack: (config, { isServer, webpack }) => {
     if (!isServer) {
-      // クライアントバンドルからNode.js専用モジュールを除外
+      // ??꺀?ㅳ궋?녈깉?먦꺍?됥꺂?뗣굢Node.js弱귞뵪?㏂궦?γ꺖?ャ굮?ㅵ쨼
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
@@ -62,8 +72,7 @@ const nextConfig: NextConfig = {
         util: false,
       };
       
-      // @google-cloud/secret-manager とその依存関係を外部化
-      config.externals = config.externals || [];
+      // @google-cloud/secret-manager ?ⓦ걹??풚耶섌뼟岳귙굮鸚뽭깿??      config.externals = config.externals || [];
       config.externals.push({
         '@google-cloud/secret-manager': 'commonjs @google-cloud/secret-manager',
         '@google-cloud/vertexai': 'commonjs @google-cloud/vertexai',
@@ -77,8 +86,7 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
-  // ▲▲▲
-  images: {
+  // ?꿎뼯??  images: {
     remotePatterns: [
       {
         protocol: "https",
@@ -105,3 +113,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
