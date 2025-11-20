@@ -43,6 +43,33 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // ▼▼▼【AWS Amplify対応】サーバ専用パッケージをクライアントバンドルから除外 ▼▼▼
+  serverComponentsExternalPackages: [
+    '@google-cloud/secret-manager',
+    '@google-cloud/vertexai',
+    '@google/generative-ai',
+    'pg',
+    '@prisma/client',
+    'bcrypt',
+  ],
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // クライアントバンドルからNode.js専用モジュールを除外
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        path: false,
+        http: false,
+        https: false,
+        stream: false,
+        crypto: false,
+      };
+    }
+    return config;
+  },
+  // ▲▲▲
   images: {
     remotePatterns: [
       {

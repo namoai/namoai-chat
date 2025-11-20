@@ -118,6 +118,12 @@ export class SecureEnv {
 export async function initializeEnvSecurity(): Promise<void> {
   try {
     // ▼▼▼【AWS Amplify対応】GSMから環境変数をロード ▼▼▼
+    // サーバ環境でのみ実行（クライアントバンドルから除外）
+    if (typeof window !== 'undefined') {
+      // クライアントサイドでは実行しない
+      return;
+    }
+
     try {
       // ensureGcpCredsをロード（utilsから）
       const { ensureGcpCreds } = await import('../utils/ensureGcpCreds');
@@ -126,6 +132,7 @@ export async function initializeEnvSecurity(): Promise<void> {
       // DATABASE_URLをロード
       if (!process.env.DATABASE_URL) {
         try {
+          // 動的importでサーバ専用パッケージをロード
           const { SecretManagerServiceClient } = await import('@google-cloud/secret-manager');
           const projectId = process.env.GOOGLE_PROJECT_ID;
           if (projectId) {
@@ -147,6 +154,7 @@ export async function initializeEnvSecurity(): Promise<void> {
       // NEXTAUTH_SECRETをロード
       if (!process.env.NEXTAUTH_SECRET) {
         try {
+          // 動的importでサーバ専用パッケージをロード
           const { SecretManagerServiceClient } = await import('@google-cloud/secret-manager');
           const projectId = process.env.GOOGLE_PROJECT_ID;
           if (projectId) {
