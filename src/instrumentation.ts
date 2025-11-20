@@ -1,4 +1,3 @@
-// Next.js がサーバ起動時に実行されるフック
 const REQUIRED_ENV_VARS = ["NEXTAUTH_SECRET", "DATABASE_URL"] as const;
 
 export async function register() {
@@ -7,18 +6,34 @@ export async function register() {
     return;
   }
 
+  await prepareGcpCredentials();
+  await runEnvSecurityChecks();
+  verifyEnvVars();
+}
+
+async function prepareGcpCredentials() {
   try {
     // ensureGcpCreds 自体も動的 import（クライアントバンドルから完全に除外）
     const mod = await import("./utils/ensureGcpCreds");
     await mod.ensureGcpCreds();
   } catch (error) {
-    console.error("GCP認証情報のセットアップに失敗しました:", error);
+    console.error("[instrumentation] Failed to prepare GCP credentials:", error);
     if (process.env.NODE_ENV === "production") {
       throw error;
     }
   }
+}
 
-  verifyEnvVars();
+async function runEnvSecurityChecks() {
+  try {
+    const { initializeEnvSecurity } = await import("./lib/env-security");
+    await initializeEnvSecurity();
+  } catch (error) {
+    console.error("[instrumentation] Environment validation failed:", error);
+    if (process.env.NODE_ENV === "production") {
+      throw error;
+    }
+  }
 }
 
 function verifyEnvVars(): void {

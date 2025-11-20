@@ -51,42 +51,55 @@ const serverOnlyPackages = [
   "gaxios",
   "agent-base",
   "https-proxy-agent",
-];
+  "pg",
+  "@prisma/client",
+  "bcrypt",
+] as const;
+
+const nodeCoreFallbacks: Record<string, false> = {
+  fs: false,
+  net: false,
+  tls: false,
+  path: false,
+  http: false,
+  https: false,
+  stream: false,
+  crypto: false,
+  child_process: false,
+  os: false,
+  util: false,
+};
 
 const nextConfig: NextConfig = {
-  // ?쇄뼹?쇈륚WS Amplify野얍퓶?묆궢?쇈깘弱귞뵪?묆긿?긱꺖?멥굮??꺀?ㅳ궋?녈깉?먦꺍?됥꺂?뗣굢?ㅵ쨼 ?쇄뼹??  webpack: (config, { isServer, webpack }) => {
+  webpack: (config, { isServer }) => {
     if (!isServer) {
-      // ??꺀?ㅳ궋?녈깉?먦꺍?됥꺂?뗣굢Node.js弱귞뵪?㏂궦?γ꺖?ャ굮?ㅵ쨼
+      config.resolve = config.resolve ?? {};
       config.resolve.fallback = {
         ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-        path: false,
-        http: false,
-        https: false,
-        stream: false,
-        crypto: false,
-        child_process: false,
-        os: false,
-        util: false,
+        ...nodeCoreFallbacks,
       };
-      
-      // @google-cloud/secret-manager ?ⓦ걹??풚耶섌뼟岳귙굮鸚뽭깿??      config.externals = config.externals || [];
-      config.externals.push({
-        '@google-cloud/secret-manager': 'commonjs @google-cloud/secret-manager',
-        '@google-cloud/vertexai': 'commonjs @google-cloud/vertexai',
-        '@google/generative-ai': 'commonjs @google/generative-ai',
-        'google-gax': 'commonjs google-gax',
-        'google-auth-library': 'commonjs google-auth-library',
-        'gaxios': 'commonjs gaxios',
-        'agent-base': 'commonjs agent-base',
-        'https-proxy-agent': 'commonjs https-proxy-agent',
-      });
+
+      const externalsMap = serverOnlyPackages.reduce<Record<string, string>>(
+        (acc, pkg) => {
+          acc[pkg] = `commonjs ${pkg}`;
+          return acc;
+        },
+        {}
+      );
+
+      if (Array.isArray(config.externals)) {
+        config.externals.push(externalsMap);
+      } else if (config.externals) {
+        config.externals = [config.externals, externalsMap];
+      } else {
+        config.externals = [externalsMap];
+      }
     }
+
     return config;
   },
-  // ?꿎뼯??  images: {
+  serverComponentsExternalPackages: [...serverOnlyPackages],
+  images: {
     remotePatterns: [
       {
         protocol: "https",
