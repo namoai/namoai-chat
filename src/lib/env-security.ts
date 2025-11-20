@@ -1,7 +1,16 @@
 /**
  * セキュリティ強化: 環境変数のセキュリティ向上
  * 環境変数の暗号化・安全管理、アクセス権限の最小化
+ * 
+ * 【重要】このファイルはサーバサイドでのみ実行されます
+ * クライアントバンドルには含まれません
  */
+
+// ▼▼▼【AWS Amplify対応】サーバサイドでのみ実行されることを保証 ▼▼▼
+if (typeof window !== 'undefined') {
+  throw new Error('env-security.ts should only be imported on the server side');
+}
+// ▲▲▲
 
 import { logger } from './logger';
 

@@ -44,15 +44,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   // ▼▼▼【AWS Amplify対応】サーバ専用パッケージをクライアントバンドルから除外 ▼▼▼
-  serverComponentsExternalPackages: [
-    '@google-cloud/secret-manager',
-    '@google-cloud/vertexai',
-    '@google/generative-ai',
-    'pg',
-    '@prisma/client',
-    'bcrypt',
-  ],
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, webpack }) => {
     if (!isServer) {
       // クライアントバンドルからNode.js専用モジュールを除外
       config.resolve.fallback = {
@@ -65,7 +57,23 @@ const nextConfig: NextConfig = {
         https: false,
         stream: false,
         crypto: false,
+        child_process: false,
+        os: false,
+        util: false,
       };
+      
+      // @google-cloud/secret-manager とその依存関係を外部化
+      config.externals = config.externals || [];
+      config.externals.push({
+        '@google-cloud/secret-manager': 'commonjs @google-cloud/secret-manager',
+        '@google-cloud/vertexai': 'commonjs @google-cloud/vertexai',
+        '@google/generative-ai': 'commonjs @google/generative-ai',
+        'google-gax': 'commonjs google-gax',
+        'google-auth-library': 'commonjs google-auth-library',
+        'gaxios': 'commonjs gaxios',
+        'agent-base': 'commonjs agent-base',
+        'https-proxy-agent': 'commonjs https-proxy-agent',
+      });
     }
     return config;
   },
