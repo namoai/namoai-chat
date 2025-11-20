@@ -13,7 +13,7 @@ frontend:
         - npx prisma generate
         - echo "Building Next.js app..."
         - rm -rf .next
-        - next build
+        - npx next build
   artifacts:
     baseDirectory: .next
     files:
