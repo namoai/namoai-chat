@@ -19,6 +19,13 @@ async function setupGcpCredentials() {
       return;
     }
     
+    // ▼▼▼【AWS Amplify対応】GCP credentialsがなくても環境変数があれば続行可能 ▼▼▼
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.log('⚠️  GCP credentials not found, but environment variables are available. Skipping GSM.');
+      return; // エラーを投げずに続行
+    }
+    // ▲▲▲
+    
     throw new Error('GCP credentials not found. Set GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64 or GOOGLE_APPLICATION_CREDENTIALS_JSON');
   }
 
@@ -50,6 +57,18 @@ async function loadSecrets() {
   try {
     // 1. GCP認証を設定
     await setupGcpCredentials();
+
+    // ▼▼▼【AWS Amplify対応】環境変数があればGSMスキップ可能 ▼▼▼
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.log('✅ Environment variables already set, skipping GSM');
+      console.log('✅ NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL.substring(0, 30) + '...');
+      console.log('✅ NEXT_PUBLIC_SUPABASE_ANON_KEY:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.substring(0, 30) + '...');
+      // .env.localにも書き込み（念のため）
+      const envContent = `NEXT_PUBLIC_SUPABASE_URL=${process.env.NEXT_PUBLIC_SUPABASE_URL}\nNEXT_PUBLIC_SUPABASE_ANON_KEY=${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}\n`;
+      fs.writeFileSync('.env.local', envContent);
+      return; // GSMスキップして続行
+    }
+    // ▲▲▲
 
     const client = new SecretManagerServiceClient({ fallback: true });
     const projectId = process.env.GOOGLE_PROJECT_ID;
@@ -83,6 +102,19 @@ async function loadSecrets() {
   } catch (error) {
     console.error('❌ GSMロード失敗:', error.message);
     console.error('詳細:', error);
+    // ▼▼▼【AWS Amplify対応】GSM失敗でも環境変数があれば続行 ▼▼▼
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.log('⚠️ GSM失敗しましたが、環境変数から直接読み込みます');
+      console.log('✅ NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL.substring(0, 30) + '...');
+      console.log('✅ NEXT_PUBLIC_SUPABASE_ANON_KEY:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.substring(0, 30) + '...');
+      // .env.localにも書き込み（念のため）
+      const envContent = `NEXT_PUBLIC_SUPABASE_URL=${process.env.NEXT_PUBLIC_SUPABASE_URL}\nNEXT_PUBLIC_SUPABASE_ANON_KEY=${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}\n`;
+      fs.writeFileSync('.env.local', envContent);
+      return; // エラー終了せずに続行
+    }
+    // ▲▲▲
+    // 環境変数もない場合はエラー
+    console.error('❌ GSM失敗かつ環境変数も設定されていません');
     process.exit(1);
   }
 }

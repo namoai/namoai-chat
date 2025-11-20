@@ -5,8 +5,8 @@ frontend:
       commands:
         - echo "Installing dependencies..."
         - npm ci
-        - echo "Loading secrets from GCP Secret Manager..."
-        - node scripts/load-gsm-secrets.js
+        - echo "Loading secrets from GCP Secret Manager (optional, will use env vars if GSM fails)..."
+        - node scripts/load-gsm-secrets.js || echo "GSM failed, continuing with environment variables..."
     build:
       commands:
         - echo "Generating Prisma client..."

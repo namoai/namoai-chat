@@ -49,27 +49,39 @@ function buildDatabaseUrlSecretName(): string | undefined {
  * 2) GSM: projects/{GOOGLE_PROJECT_ID}/secrets/DATABASE_URL/versions/latest から取得
  */
 async function resolveDatabaseUrl(): Promise<string> {
+  // ▼▼▼【AWS Amplify対応】環境変数を最優先で使用 ▼▼▼
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
   if (global.__dbUrl) return global.__dbUrl;
+  // ▲▲▲
 
   // Secret Manager を使うためのADC設定
-  await ensureGcpCredsFile();
+  try {
+    await ensureGcpCredsFile();
 
-  const name = buildDatabaseUrlSecretName();
-  if (!name) {
-    throw new Error(
-      "GOOGLE_PROJECT_ID が未設定です。ENVの DATABASE_URL を直接設定するか、GOOGLE_PROJECT_ID とサービスアカウントJSONを設定してください。"
-    );
+    const name = buildDatabaseUrlSecretName();
+    if (!name) {
+      throw new Error(
+        "GOOGLE_PROJECT_ID が未設定です。ENVの DATABASE_URL を直接設定するか、GOOGLE_PROJECT_ID とサービスアカウントJSONを設定してください。"
+      );
+    }
+
+    const client = new SecretManagerServiceClient({ fallback: true }); // gRPC→RESTフォールバックで安定化
+    const [version] = await client.accessSecretVersion({ name });
+    const payload = version.payload?.data?.toString();
+    if (!payload)
+      throw new Error("GSM: DATABASE_URL シークレットのpayloadが空です。");
+
+    global.__dbUrl = payload;
+    return payload;
+  } catch (error) {
+    // ▼▼▼【AWS Amplify対応】GSM失敗時は環境変数チェック ▼▼▼
+    if (process.env.DATABASE_URL) {
+      console.warn('[prisma] GSM failed, using DATABASE_URL from environment variables');
+      return process.env.DATABASE_URL;
+    }
+    // ▲▲▲
+    throw error;
   }
-
-  const client = new SecretManagerServiceClient({ fallback: true }); // gRPC→RESTフォールバックで安定化
-  const [version] = await client.accessSecretVersion({ name });
-  const payload = version.payload?.data?.toString();
-  if (!payload)
-    throw new Error("GSM: DATABASE_URL シークレットのpayloadが空です。");
-
-  global.__dbUrl = payload;
-  return payload;
 }
 
 /**
