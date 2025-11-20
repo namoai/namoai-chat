@@ -58,12 +58,20 @@ async function ensureGcpCredsFile() {
 
 /**
  * Secret Managerからシークレットを取得
+ * GSM失敗時は環境変数から読み込む
  */
 async function loadSecret(name: string, version = 'latest'): Promise<string | null> {
+  // ▼▼▼【AWS Amplify対応】環境変数があれば優先使用 ▼▼▼
+  if (process.env[name]) {
+    return process.env[name].trim();
+  }
+  // ▲▲▲
+  
   try {
     await ensureGcpCredsFile();
     const projectId = process.env.GOOGLE_PROJECT_ID;
     if (!projectId) {
+      // 환경 변수도 없으면 null 반환
       return null;
     }
     const client = new SecretManagerServiceClient({ fallback: true });
@@ -72,6 +80,12 @@ async function loadSecret(name: string, version = 'latest'): Promise<string | nu
     const payload = versionData.payload?.data?.toString();
     return payload?.trim() || null;
   } catch (error) {
+    // ▼▼▼【AWS Amplify対応】GSM失敗時は 환경 변수에서 읽기 ▼▼▼
+    if (process.env[name]) {
+      console.warn(`[embeddings] GSM failed for ${name}, using environment variable`);
+      return process.env[name].trim();
+    }
+    // ▲▲▲
     console.warn(`[embeddings] Failed to load secret ${name}:`, error);
     return null;
   }

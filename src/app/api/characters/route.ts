@@ -132,25 +132,53 @@ async function resolveGcpProjectId(): Promise<string> {
 
 /**
  * Secret Manager からシークレットを取得
+ * GSM失敗時は環境変数から読み込む
  */
-async function loadSecret(name: string, version = 'latest') {
-    const projectId = await resolveGcpProjectId();
-    const client = new SecretManagerServiceClient({ fallback: true });
-    const [acc] = await client.accessSecretVersion({
-        name: `projects/${projectId}/secrets/${name}/versions/${version}`,
-    });
-    const value = acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
-    return value.trim(); // ▼▼▼【重要】前後の空白・改行を削除
+async function loadSecret(name: string, version = 'latest'): Promise<string> {
+    // ▼▼▼【AWS Amplify対応】環境変数があれば優先使用 ▼▼▼
+    if (process.env[name]) {
+        return process.env[name].trim();
+    }
+    // ▲▲▲
+    
+    try {
+        const projectId = await resolveGcpProjectId();
+        const client = new SecretManagerServiceClient({ fallback: true });
+        const [acc] = await client.accessSecretVersion({
+            name: `projects/${projectId}/secrets/${name}/versions/${version}`,
+        });
+        const value = acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
+        return value.trim(); // ▼▼▼【重要】前後の空白・改行を削除
+    } catch (error) {
+        // ▼▼▼【AWS Amplify対応】GSM失敗時は環境変数から読み込み ▼▼▼
+        if (process.env[name]) {
+            console.warn(`[loadSecret] GSM failed for ${name}, using environment variable`);
+            return process.env[name].trim();
+        }
+        // ▲▲▲
+        throw error;
+    }
 }
 
 /**
  * Supabase 接続に必要な環境変数を準備
  */
 async function ensureSupabaseEnv() {
-    // ▼▼▼【Netlify対応】Secret Manager接続失敗でも環境変数があればOK ▼▼▼
+    // ▼▼▼【Netlify/AWS Amplify対応】Secret Manager接続失敗でも環境変数があればOK ▼▼▼
     try {
         await ensureGcpCredsFile();
+    } catch (error) {
+        // ▼▼▼【AWS Amplify対応】GCP credentials 없어도 환경 변수가 있으면 계속 진행 ▼▼▼
+        if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            console.warn('[ensureSupabaseEnv] GCP credentials not found, but environment variables are available');
+        } else {
+            // 환경 변수도 없으면 에러
+            throw error;
+        }
+        // ▲▲▲
+    }
 
+    try {
         if (!process.env.SUPABASE_URL) {
             process.env.SUPABASE_URL = await loadSecret('SUPABASE_URL');
         }

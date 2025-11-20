@@ -59,15 +59,32 @@ async function resolveGcpProjectId(): Promise<string> {
 
 // ───────────────────────────────────────────────────────────────
 //  Secret Manager からシークレットを取得
+//  GSM失敗時は環境変数から読み込む
 // ───────────────────────────────────────────────────────────────
-async function loadSecret(name: string, version = 'latest') {
-  const projectId = await resolveGcpProjectId();
-  const client = new SecretManagerServiceClient({ fallback: true });
-  const [acc] = await client.accessSecretVersion({
-    name: `projects/${projectId}/secrets/${name}/versions/${version}`,
-  });
-  const value = acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
-  return value.trim(); // ▼▼▼【重要】前後の空白・改行を削除
+async function loadSecret(name: string, version = 'latest'): Promise<string> {
+  // ▼▼▼【AWS Amplify対応】環境変数があれば優先使用 ▼▼▼
+  if (process.env[name]) {
+    return process.env[name].trim();
+  }
+  // ▲▲▲
+  
+  try {
+    const projectId = await resolveGcpProjectId();
+    const client = new SecretManagerServiceClient({ fallback: true });
+    const [acc] = await client.accessSecretVersion({
+      name: `projects/${projectId}/secrets/${name}/versions/${version}`,
+    });
+    const value = acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
+    return value.trim(); // ▼▼▼【重要】前後の空白・改行を削除
+  } catch (error) {
+    // ▼▼▼【AWS Amplify対応】GSM失敗時は環境変数から読み込み ▼▼▼
+    if (process.env[name]) {
+      console.warn(`[loadSecret] GSM failed for ${name}, using environment variable`);
+      return process.env[name].trim();
+    }
+    // ▲▲▲
+    throw error;
+  }
 }
 
 // ───────────────────────────────────────────────────────────────
