@@ -119,16 +119,16 @@ export async function initializeEnvSecurity(): Promise<void> {
   try {
     // ▼▼▼【AWS Amplify対応】GSMから環境変数をロード ▼▼▼
     try {
-      // DATABASE_URLをロード（prisma.tsと同じロジック）
+      // ensureGcpCredsをロード（utilsから）
+      const { ensureGcpCreds } = await import('../utils/ensureGcpCreds');
+      await ensureGcpCreds();
+
+      // DATABASE_URLをロード
       if (!process.env.DATABASE_URL) {
-        const { ensureGcpCredsFile } = await import('./prisma');
-        // prisma.tsのresolveDatabaseUrlを直接呼び出すのは循環参照になる可能性があるため、
-        // ここでは環境変수가 없으면 GSMからロード 시도
         try {
           const { SecretManagerServiceClient } = await import('@google-cloud/secret-manager');
           const projectId = process.env.GOOGLE_PROJECT_ID;
           if (projectId) {
-            await ensureGcpCredsFile();
             const client = new SecretManagerServiceClient({ fallback: true });
             const [version] = await client.accessSecretVersion({
               name: `projects/${projectId}/secrets/DATABASE_URL/versions/latest`
@@ -150,7 +150,6 @@ export async function initializeEnvSecurity(): Promise<void> {
           const { SecretManagerServiceClient } = await import('@google-cloud/secret-manager');
           const projectId = process.env.GOOGLE_PROJECT_ID;
           if (projectId) {
-            await ensureGcpCredsFile();
             const client = new SecretManagerServiceClient({ fallback: true });
             const [version] = await client.accessSecretVersion({
               name: `projects/${projectId}/secrets/NEXTAUTH_SECRET/versions/latest`
@@ -210,4 +209,3 @@ export async function initializeEnvSecurity(): Promise<void> {
     throw error;
   }
 }
-
