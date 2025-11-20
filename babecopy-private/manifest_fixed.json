@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Better Babechat",
+  "version": "1.1.1",
+  "description": "Babechat 캐릭터 복사/붙여넣기 기능",
+  "icons": {
+    "128": "/icons/icon-128x128.png"
+  },
+  "permissions": [
+    "clipboardRead",
+    "clipboardWrite"
+  ],
+  "host_permissions": [
+    "https://www.babechat.ai/*",
+    "https://babechat.ai/*"
+  ],
+  "content_scripts": [
+    {
+      "js": ["./index.js"],
+      "matches": [
+        "https://www.babechat.ai/*",
+        "https://babechat.ai/*"
+      ],
+      "run_at": "document_end",
+      "all_frames": false
+    }
+  ]
+}
+
