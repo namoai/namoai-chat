@@ -9,7 +9,7 @@ export async function register() {
     // セキュリティ強化: 環境変数の検証
     try {
       const { initializeEnvSecurity } = await import("./lib/env-security");
-      initializeEnvSecurity();
+      await initializeEnvSecurity(); // ▼▼▼【AWS Amplify対応】非同期関数に変更 ▼▼▼
     } catch (error) {
       console.error("環境変数の検証に失敗しました:", error);
       // 本番環境では起動を停止することを推奨

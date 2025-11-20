@@ -113,18 +113,91 @@ export class SecureEnv {
 
 /**
  * 起動時に環境変数を検証
+ * AWS Amplify対応: GSMから環境変数をロードしてから検証
  */
-export function initializeEnvSecurity(): void {
+export async function initializeEnvSecurity(): Promise<void> {
   try {
+    // ▼▼▼【AWS Amplify対応】GSMから環境変数をロード ▼▼▼
+    try {
+      // DATABASE_URLをロード（prisma.tsと同じロジック）
+      if (!process.env.DATABASE_URL) {
+        const { ensureGcpCredsFile } = await import('./prisma');
+        // prisma.tsのresolveDatabaseUrlを直接呼び出すのは循環参照になる可能性があるため、
+        // ここでは環境変수가 없으면 GSMからロード 시도
+        try {
+          const { SecretManagerServiceClient } = await import('@google-cloud/secret-manager');
+          const projectId = process.env.GOOGLE_PROJECT_ID;
+          if (projectId) {
+            await ensureGcpCredsFile();
+            const client = new SecretManagerServiceClient({ fallback: true });
+            const [version] = await client.accessSecretVersion({
+              name: `projects/${projectId}/secrets/DATABASE_URL/versions/latest`
+            });
+            const payload = version.payload?.data?.toString();
+            if (payload) {
+              process.env.DATABASE_URL = payload.trim();
+              console.log('[initializeEnvSecurity] DATABASE_URL loaded from GSM');
+            }
+          }
+        } catch (e) {
+          console.warn('[initializeEnvSecurity] Failed to load DATABASE_URL from GSM:', e);
+        }
+      }
+
+      // NEXTAUTH_SECRETをロード
+      if (!process.env.NEXTAUTH_SECRET) {
+        try {
+          const { SecretManagerServiceClient } = await import('@google-cloud/secret-manager');
+          const projectId = process.env.GOOGLE_PROJECT_ID;
+          if (projectId) {
+            await ensureGcpCredsFile();
+            const client = new SecretManagerServiceClient({ fallback: true });
+            const [version] = await client.accessSecretVersion({
+              name: `projects/${projectId}/secrets/NEXTAUTH_SECRET/versions/latest`
+            });
+            const payload = version.payload?.data?.toString();
+            if (payload) {
+              process.env.NEXTAUTH_SECRET = payload.trim();
+              console.log('[initializeEnvSecurity] NEXTAUTH_SECRET loaded from GSM');
+            }
+          }
+        } catch (e) {
+          console.warn('[initializeEnvSecurity] Failed to load NEXTAUTH_SECRET from GSM:', e);
+        }
+      }
+    } catch (error) {
+      // GSMロード失敗は警告のみ（環境変数があればOK）
+      console.warn('[initializeEnvSecurity] GSM access failed, checking environment variables:', error);
+    }
+    // ▲▲▲
+
     validateProductionEnv();
     
     // 必須環境変数のチェック（アプリケーション固有）
+    // ▼▼▼【AWS Amplify対応】GSMロード後にも環境変数がない場合のみエラー ▼▼▼
     const requiredVars = [
       'NEXTAUTH_SECRET',
       'DATABASE_URL',
     ];
 
-    validateRequiredEnvVars(requiredVars);
+    // 環境変数がない場合のみエラー（GSMからロード済みの可能性があるため）
+    const missing: string[] = [];
+    for (const varName of requiredVars) {
+      if (!process.env[varName]) {
+        missing.push(varName);
+      }
+    }
+
+    if (missing.length > 0) {
+      const error = new Error(
+        `必須の環境変数が設定されていません: ${missing.join(', ')}`
+      );
+      logger.critical('Missing required environment variables', {
+        metadata: { missing },
+      });
+      throw error;
+    }
+    // ▲▲▲
     
     logger.info('Environment variables validated successfully');
   } catch (error) {
