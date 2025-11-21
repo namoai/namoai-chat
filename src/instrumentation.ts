@@ -38,7 +38,13 @@ async function loadSecretsFromSSM() {
     const branch = process.env.AWS_BRANCH || "main";
     const path = `/amplify/${appId}/${branch}/`;
 
-    const client = new SSMClient({ region: process.env.AWS_REGION || "ap-northeast-1" });
+    // Lambda環境では自動的にIAMロールの認証情報を使用（credentialsを指定しない）
+    const region = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "ap-northeast-1";
+    const client = new SSMClient({ 
+      region,
+      // Lambda環境ではデフォルトでIAMロールの認証情報を自動使用
+    });
+    
     const command = new GetParametersByPathCommand({
       Path: path,
       WithDecryption: true,
