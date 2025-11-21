@@ -16,8 +16,9 @@ export async function register() {
     return;
   }
 
-  // AWS SSM Parameter Storeから環境変数を読み込む（Amplify Secretsが自動注入されない場合のフォールバック）
-  await loadSecretsFromSSM();
+  // SSM 접근은 자격 증명 문제로 실패하므로 제거
+  // Amplify Secrets가 자동으로 주입되어야 함
+  // await loadSecretsFromSSM();
 
   await prepareGcpCredentials();
   await runEnvSecurityChecks();
