@@ -16,9 +16,50 @@ export async function register() {
     return;
   }
 
+  // AWS SSM Parameter Storeから環境変数を読み込む（Amplify Secretsが自動注入されない場合のフォールバック）
+  await loadSecretsFromSSM();
+
   await prepareGcpCredentials();
   await runEnvSecurityChecks();
   verifyEnvVars();
+}
+
+async function loadSecretsFromSSM() {
+  // 既に環境変数が設定されている場合はスキップ
+  if (process.env.NEXTAUTH_SECRET && process.env.DATABASE_URL) {
+    return;
+  }
+
+  try {
+    // AWS SDK v3を使用してSSMから読み込む
+    const { SSMClient, GetParametersByPathCommand } = await import("@aws-sdk/client-ssm");
+    
+    const appId = process.env.AWS_APP_ID || "duvg1mvqbm4y4";
+    const branch = process.env.AWS_BRANCH || "main";
+    const path = `/amplify/${appId}/${branch}/`;
+
+    const client = new SSMClient({ region: process.env.AWS_REGION || "ap-northeast-1" });
+    const command = new GetParametersByPathCommand({
+      Path: path,
+      WithDecryption: true,
+      Recursive: true,
+    });
+
+    const response = await client.send(command);
+    
+    if (response.Parameters) {
+      for (const param of response.Parameters) {
+        const key = param.Name?.replace(path, "").replace(/\/$/, "");
+        if (key && param.Value && !process.env[key]) {
+          process.env[key] = param.Value;
+          console.log(`[instrumentation] Loaded ${key} from SSM`);
+        }
+      }
+    }
+  } catch (error) {
+    console.warn("[instrumentation] Failed to load secrets from SSM:", error);
+    // SSM読み込み失敗は警告のみ（環境変数があればOK）
+  }
 }
 
 async function prepareGcpCredentials() {
