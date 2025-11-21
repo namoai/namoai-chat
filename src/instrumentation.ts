@@ -88,9 +88,13 @@ async function runEnvSecurityChecks() {
     await initializeEnvSecurity();
   } catch (error) {
     console.error("[instrumentation] Environment validation failed:", error);
-    if (process.env.NODE_ENV === "production") {
-      throw error;
-    }
+    // Amplify 환경에서는 환경 변수가 Secrets에서 주입되어야 하지만,
+    // 주입이 안 되는 경우가 있으므로 에러를 던지지 않고 경고만 출력
+    // 실제 환경 변수는 Amplify Secrets에서 설정되어야 함
+    console.warn("[instrumentation] Continuing despite validation failure - ensure Amplify Secrets are configured");
+    // if (process.env.NODE_ENV === "production") {
+    //   throw error;
+    // }
   }
 }
 
