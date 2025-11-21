@@ -18,55 +18,10 @@ export async function register() {
 
   // SSM 접근은 자격 증명 문제로 실패하므로 제거
   // Amplify Secrets가 자동으로 주입되어야 함
-  // await loadSecretsFromSSM();
 
   await prepareGcpCredentials();
   await runEnvSecurityChecks();
   verifyEnvVars();
-}
-
-async function loadSecretsFromSSM() {
-  // 既に環境変数が設定されている場合はスキップ
-  if (process.env.NEXTAUTH_SECRET && process.env.DATABASE_URL) {
-    return;
-  }
-
-  try {
-    // AWS SDK v3を使用してSSMから読み込む
-    const { SSMClient, GetParametersByPathCommand } = await import("@aws-sdk/client-ssm");
-    
-    const appId = process.env.AWS_APP_ID || "duvg1mvqbm4y4";
-    const branch = process.env.AWS_BRANCH || "main";
-    const path = `/amplify/${appId}/${branch}/`;
-
-    // Lambda環境では自動的にIAMロールの認証情報を使用（credentialsを指定しない）
-    const region = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "ap-northeast-1";
-    const client = new SSMClient({ 
-      region,
-      // Lambda環境ではデフォルトでIAMロールの認証情報を自動使用
-    });
-    
-    const command = new GetParametersByPathCommand({
-      Path: path,
-      WithDecryption: true,
-      Recursive: true,
-    });
-
-    const response = await client.send(command);
-    
-    if (response.Parameters) {
-      for (const param of response.Parameters) {
-        const key = param.Name?.replace(path, "").replace(/\/$/, "");
-        if (key && param.Value && !process.env[key]) {
-          process.env[key] = param.Value;
-          console.log(`[instrumentation] Loaded ${key} from SSM`);
-        }
-      }
-    }
-  } catch (error) {
-    console.warn("[instrumentation] Failed to load secrets from SSM:", error);
-    // SSM読み込み失敗は警告のみ（環境変数があればOK）
-  }
 }
 
 async function prepareGcpCredentials() {
