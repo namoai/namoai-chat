@@ -98,10 +98,12 @@ function verifyEnvVars(): void {
 
   if (missing.length > 0) {
     const message = `[instrumentation] Missing environment variables: ${missing.join(", ")}`;
-    if (process.env.NODE_ENV === "production") {
-      throw new Error(message);
-    }
+    // Amplify環境では環境変数がSSMから読み込めない場合があるため、警告のみ
     console.warn(message);
+    // TODO: Amplify Secretsが正しく設定されたらエラーに戻す
+    // if (process.env.NODE_ENV === "production") {
+    //   throw new Error(message);
+    // }
   } else {
     console.log("[instrumentation] Environment variables verified");
   }
