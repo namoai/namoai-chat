@@ -88,11 +88,13 @@ export async function GET() {
             20
         );
 
-        const trendingCharacters = await getCharactersWithMainImage(baseWhere, [{ chat: { _count: 'desc' } }, { favorites: { _count: 'desc' } }], 10);
+        // chat 관계가 없으므로 favorites만 사용
+        const trendingCharacters = await getCharactersWithMainImage(baseWhere, [{ favorites: { _count: 'desc' } }], 10);
         
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const newTopCharacters = await getCharactersWithMainImage({ ...baseWhere, createdAt: { gte: sevenDaysAgo } }, { chat: { _count: 'desc' } }, 10);
+        // chat 관계가 없으므로 createdAt으로 정렬
+        const newTopCharacters = await getCharactersWithMainImage({ ...baseWhere, createdAt: { gte: sevenDaysAgo } }, { createdAt: 'desc' }, 10);
 
         const filteredCharacterIds = await prisma.characters.findMany({ where: baseWhere, select: { id: true } });
         const shuffled = filteredCharacterIds.sort(() => 0.5 - Math.random());
