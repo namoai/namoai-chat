@@ -1,10 +1,16 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
 import { prisma } from "@/lib/prisma";
+import { isBuildTime, buildTimeResponse, safeJsonParse } from "@/lib/api-helpers";
 
 // 通知一覧取得 (GET)
 export async function GET(req: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -64,6 +70,8 @@ export async function GET(req: NextRequest) {
 
 // 通知作成 (POST) - 主にサーバーサイドで使用
 export async function POST(req: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -73,7 +81,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
+    const parseResult = await safeJsonParse<{ userId: number; type: string; title?: string; content?: string; link?: string; actorId?: number; characterId?: number; commentId?: number; reportId?: number }>(req);
+    if (!parseResult.success) return parseResult.error;
+    const body = parseResult.data;
     const { userId, type, title, content, link, actorId, characterId, commentId, reportId } = body;
 
     // 自分自身への通知は作成しない
