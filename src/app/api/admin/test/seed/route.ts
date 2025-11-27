@@ -16,7 +16,8 @@ const SEED_TITLE_PREFIX = '[AutoSeed]';
 
 const isAdminRole = (role?: Role | string | null): boolean => {
   if (!role) return false;
-  return [Role.SUPER_ADMIN, Role.MODERATOR, Role.CHAR_MANAGER].includes(role as Role);
+  const roleValue = role as Role;
+  return roleValue === Role.SUPER_ADMIN || roleValue === Role.MODERATOR || roleValue === Role.CHAR_MANAGER;
 };
 
 export async function POST() {
