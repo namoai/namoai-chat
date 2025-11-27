@@ -213,11 +213,14 @@ async function ensureSupabaseEnv() {
  * GET: キャラクターリストを取得
  */
 export async function GET(request: Request) {
+    if (isBuildTime()) return buildTimeResponse();
+    
     console.log('[GET] キャラクター一覧取得開始');
     const session = await getServerSession(authOptions);
     const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
 
     try {
+        const prisma = await getPrisma();
         const { searchParams } = new URL(request.url);
         const mode = searchParams.get('mode');
 
