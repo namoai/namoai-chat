@@ -3,11 +3,12 @@ export const runtime = 'nodejs';
 console.log("✅ /api/register ルート実行!");
 
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import bcrypt from "bcrypt";
 import { rateLimit, buildRateLimitHeaders } from "@/lib/rateLimit";
 import { registerSchema, sanitizeString } from "@/lib/validation";
 import { validatePassword } from "@/lib/password-policy";
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 const getClientIp = (req: Request): string => {
   const forwarded = req.headers.get("x-forwarded-for");
@@ -19,6 +20,8 @@ const getClientIp = (req: Request): string => {
 };
 
 export async function POST(req: Request) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
     const contentType = req.headers.get("content-type") || "";
     if (!contentType.includes("application/json")) {
@@ -62,6 +65,7 @@ export async function POST(req: Request) {
       nickname: sanitizeString(parsed.data.nickname),
     };
 
+    const prisma = await getPrisma();
     // ユーザー重複チェック
     const existingUser = await prisma.users.findFirst({
       where: {

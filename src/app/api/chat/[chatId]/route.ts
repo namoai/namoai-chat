@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic"; // ▼▼▼【重要】キャッシュを無効化して常に最新データを取得 ▼▼▼
 
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import {
   VertexAI,
   Content,
@@ -15,6 +15,7 @@ import { getSafetySettings } from "@/lib/chat/safety-settings";
 import { addImageTagIfKeywordMatched } from "@/lib/chat/image-selection";
 import { createDetailedMemories, updateMemoriesWithAIKeywords } from "@/lib/chat/memory-management";
 import { ensureGcpCreds } from "@/utils/ensureGcpCreds";
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // VertexAIクライアントの初期化（遅延初期化）
 let vertex_ai: VertexAI | null = null;
@@ -30,6 +31,8 @@ function getVertexAI(): VertexAI {
 }
 
 export async function POST(request: Request, context: { params: Promise<{ chatId: string }> }) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   console.log("チャットAPIリクエスト受信");
   console.time("⏱️ 全体API処理時間"); // 全体時間測定開始
   const { chatId: chatIdStr } = await context.params;
@@ -47,6 +50,7 @@ export async function POST(request: Request, context: { params: Promise<{ chatId
   }
   const userId = parseInt(String(session.user.id), 10);
 
+  const prisma = await getPrisma();
   // ▼▼▼【追加】ユーザーのセーフティフィルター設定を取得
   const user = await prisma.users.findUnique({
     where: { id: userId },

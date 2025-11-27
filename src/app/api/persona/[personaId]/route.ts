@@ -3,9 +3,10 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 /* =============================================================================
  *  URL から ID を抽出（末尾スラッシュ等にも耐性）
@@ -23,7 +24,10 @@ function extractPersonaIdFromRequest(request: Request): number | null {
  *  GET: 特定のペルソナ詳細
  * ========================================================================== */
 export async function GET(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
+    const prisma = await getPrisma();
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ ok: false, error: '認証されていません。' }, { status: 401 });
@@ -67,7 +71,10 @@ export async function GET(request: NextRequest) {
  *  PUT: ペルソナ更新
  * ========================================================================== */
 export async function PUT(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
+    const prisma = await getPrisma();
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ ok: false, error: '認証されていません。' }, { status: 401 });

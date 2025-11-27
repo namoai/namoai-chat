@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic"; // ★ キャッシュを無効化
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
 import { notifyOnComment } from '@/lib/notifications'; // ★ 通知関数をインポート
 import { isBuildTime, buildTimeResponse, safeJsonParse } from '@/lib/api-helpers';
 
@@ -43,6 +43,7 @@ export async function GET(
   const take = Number.isFinite(takeNum) && takeNum > 0 ? takeNum : 20;
 
   try {
+    const prisma = await getPrisma();
     const comments = await prisma.comments.findMany({
       where: { characterId },
       take,
@@ -91,6 +92,7 @@ export async function POST(
   }
 
   try {
+    const prisma = await getPrisma();
     const created = await prisma.comments.create({
       data: {
         content: raw.content.trim(),

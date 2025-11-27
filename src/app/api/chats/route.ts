@@ -1,12 +1,15 @@
 export const runtime = 'nodejs';
 
 import { NextResponse } from "next/server";
-import { prisma } from '@/lib/prisma'
+import { getPrisma } from '@/lib/prisma'
 import { getServerSession } from "next-auth/next";
 import { authOptions } from '@/lib/nextauth';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(_request: Request) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   // セッションからユーザーIDを取得
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -15,6 +18,7 @@ export async function GET(_request: Request) {
   const userId = parseInt(session.user.id, 10);
 
   try {
+    const prisma = await getPrisma();
     // ユーザーのすべてのチャットルームを照会
     const chats = await prisma.chat.findMany({
       where: {

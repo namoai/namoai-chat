@@ -26,6 +26,8 @@ type RouteContext = {
  *   → where は followerId_followingId を用いる。
  */
 export async function POST(req: NextRequest, context: unknown) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   // --- params の安全な取り出し（Next.js 15対応: paramsをawait） ---
   const { params } = await (context ?? {}) as { params?: Promise<RouteContext['params']> | RouteContext['params'] };
   const resolvedParams = params instanceof Promise ? await params : params;
@@ -47,6 +49,8 @@ export async function POST(req: NextRequest, context: unknown) {
   if (targetUserId === currentUserId) {
     return NextResponse.json({ error: '自分自身はフォローできません。' }, { status: 400 });
   }
+
+  const prisma = await getPrisma();
 
   try {
     // --- 既存レコード確認（複合キーでユニーク検索） ---

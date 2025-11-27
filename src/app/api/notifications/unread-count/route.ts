@@ -5,7 +5,10 @@ import { prisma } from "@/lib/prisma";
 
 // 未読通知数取得 (GET) - ポーリング用の軽量エンドポイント
 export async function GET() {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
+    const prisma = await getPrisma();
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ unreadCount: 0 });

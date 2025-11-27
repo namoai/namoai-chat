@@ -3,7 +3,8 @@ export const runtime = 'nodejs';
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 /**
  * 【修正】常に新しいチャットセッションを開始する (POST)
@@ -11,7 +12,10 @@ import { prisma } from '@/lib/prisma';
  * - Body: { characterId: number }
  */
 export async function POST(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
+    const prisma = await getPrisma();
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });

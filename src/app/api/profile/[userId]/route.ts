@@ -4,9 +4,10 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 /* =============================================================================
  *  URL から userId を抽出（末尾スラッシュや可変セグメントに耐性）
@@ -27,7 +28,10 @@ function extractUserIdFromRequest(request: Request): number | null {
  *  - いかなる場合でも JSON 本文を返却（空レスポンス禁止）
  * ============================================================================= */
 export async function GET(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
+    const prisma = await getPrisma();
     // クエリ取得（followers / following）
     const { searchParams } = new URL(request.url);
     const listType = searchParams.get('list'); // 'followers' または 'following'

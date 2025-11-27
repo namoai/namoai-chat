@@ -3,7 +3,8 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/nextauth";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // ▼▼▼【追加】リクエストボディの型を定義します ▼▼▼
 type RequestBody = {
@@ -30,7 +31,10 @@ type RequestBody = {
  * - chat_message は asc 固定
  */
 export async function POST(req: Request) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
+    const prisma = await getPrisma();
     // --- 認証チェック ---
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {

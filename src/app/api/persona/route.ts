@@ -3,20 +3,24 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 /* =============================================================================
  *  GET: ログイン中ユーザーのペルソナ一覧
  * ========================================================================== */
 export async function GET() {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
   }
 
   try {
+    const prisma = await getPrisma();
     const userId = Number(session.user.id);
     const userWithPersonas = await prisma.users.findUnique({
       where: { id: userId },
@@ -44,12 +48,15 @@ export async function GET() {
  *  POST: ペルソナ作成（age は number/string/null すべて許容）
  * ========================================================================== */
 export async function POST(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
   }
 
   try {
+    const prisma = await getPrisma();
     const userId = Number(session.user.id);
     const body = await request.json();
     const { nickname, age, gender, description } = body ?? {};

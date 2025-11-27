@@ -4,8 +4,9 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
 import type { guides as GuideRow } from '@prisma/client';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 /* ============================================================================
  *  /api/guides - ガイド一覧（階層構造）API
@@ -13,7 +14,10 @@ import type { guides as GuideRow } from '@prisma/client';
  *  - どんな異常時でも必ず JSON を返却（空レスポンス禁止）
  * ==========================================================================*/
 export async function GET() {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
+    const prisma = await getPrisma();
     const rows = await prisma.guides.findMany({
       orderBy: [
         { mainCategory: 'asc' },
