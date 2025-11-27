@@ -83,6 +83,7 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: "ユーザーIDが必要です。" }, { status: 400 });
         }
 
+        const prisma = await getPrisma();
         // 停止を解除
         const updatedUser = await prisma.users.update({
             where: { id: userId },
