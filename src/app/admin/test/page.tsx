@@ -105,7 +105,11 @@ export default function TestToolPage() {
       if (first.author_id) {
         const fallbackInfo = { email: '', password: '', userId: first.author_id };
         setTestUserInfo(prev => prev ?? fallbackInfo);
-        testUserInfoRef.current = { ...(testUserInfoRef.current ?? {}), userId: first.author_id };
+        testUserInfoRef.current = { 
+          email: testUserInfoRef.current?.email ?? '', 
+          password: testUserInfoRef.current?.password ?? '', 
+          userId: first.author_id 
+        };
       }
     }
     return first;
