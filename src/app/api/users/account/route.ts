@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
@@ -12,6 +15,11 @@ import { prisma } from '@/lib/prisma';
  */
 export async function DELETE() {
   try {
+    // ビルド時の静的生成を回避
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      return NextResponse.json({ error: 'Not available during build' }, { status: 503 });
+    }
+
     // セッション確認
     const session = await getServerSession(authOptions);
     
