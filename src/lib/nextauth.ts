@@ -29,12 +29,17 @@ async function getAdapter(): Promise<ReturnType<typeof PrismaAdapter>> {
       // 작동 원리:
       // - PrismaAdapter가 adapterPrisma.user.findUnique()를 호출하면
       // - 실제로는 prisma.users.findUnique()가 실행됩니다 (JavaScript 객체 속성 매핑)
+      // Prisma Client는 모델명을 camelCase로 변환합니다:
+      // - model Account → prisma.account (소문자)
+      // - model Session → prisma.session (소문자)
+      // - model VerificationToken → prisma.verificationToken (camelCase)
+      // - model users → prisma.users (그대로)
       const adapterPrisma = {
         ...prisma,
         user: prisma.users,                    // ✅ users (스키마) → user (PrismaAdapter 기대)
-        account: prisma.Account,               // ✅ Account (스키마) → account (PrismaAdapter 기대)
-        session: prisma.Session,               // ✅ Session (스키마) → session (PrismaAdapter 기대)
-        verificationToken: prisma.VerificationToken, // ✅ VerificationToken (스키마) → verificationToken (PrismaAdapter 기대)
+        account: prisma.account,               // ✅ account (Prisma Client) → account (PrismaAdapter 기대)
+        session: prisma.session,              // ✅ session (Prisma Client) → session (PrismaAdapter 기대)
+        verificationToken: prisma.verificationToken, // ✅ verificationToken (Prisma Client) → verificationToken (PrismaAdapter 기대)
       } as unknown as PrismaClient;
       return PrismaAdapter(adapterPrisma);
     })();
