@@ -92,6 +92,12 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
+  // NextAuth 호환성을 위한 설정
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+  },
 };
 
 export default nextConfig;

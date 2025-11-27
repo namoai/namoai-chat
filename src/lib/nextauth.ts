@@ -208,8 +208,9 @@ export const authOptions: NextAuthOptions = {
             const now = new Date();
             if (dbUser.suspendedUntil > now) {
               console.log(`OAuth認証失敗: ユーザー ${dbUser.email} は停止中です (期限: ${dbUser.suspendedUntil})`);
-              // 停止情報をURLパラメータとして返す
-              return `/suspended?reason=${encodeURIComponent(dbUser.suspensionReason || '不明な理由')}&until=${dbUser.suspendedUntil.toISOString()}`;
+              // 停止中の場合は false を返してログインを拒否
+              // URL リダイレクトは NextAuth のエラーハンドリングで処理
+              return false;
             }
           }
           // ▲▲▲ 停止チェック完了 ▲▲▲
@@ -275,5 +276,7 @@ export const authOptions: NextAuthOptions = {
   },
   
   secret: process.env.NEXTAUTH_SECRET,
+  // Next.js 15 호환성을 위한 설정
+  trustHost: true,
 };
 
