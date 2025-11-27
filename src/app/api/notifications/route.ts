@@ -91,18 +91,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, skipped: true });
     }
 
+    // データを条件付きで構築
+    const notificationData: {
+      userId: number;
+      type: string;
+      title?: string | null;
+      content?: string | null;
+      link?: string | null;
+      actorId?: number | null;
+      characterId?: number | null;
+      commentId?: number | null;
+      reportId?: number | null;
+    } = {
+      userId,
+      type,
+    };
+
+    if (title !== undefined) notificationData.title = title || null;
+    if (content !== undefined) notificationData.content = content || null;
+    if (link !== undefined) notificationData.link = link || null;
+    if (actorId !== undefined) notificationData.actorId = actorId || null;
+    if (characterId !== undefined) notificationData.characterId = characterId || null;
+    if (commentId !== undefined) notificationData.commentId = commentId || null;
+    if (reportId !== undefined) notificationData.reportId = reportId || null;
+
     const notification = await prisma.notifications.create({
-      data: {
-        userId,
-        type,
-        title,
-        content,
-        link,
-        actorId,
-        characterId,
-        commentId,
-        reportId,
-      },
+      data: notificationData,
     });
 
     return NextResponse.json({ success: true, notification });
