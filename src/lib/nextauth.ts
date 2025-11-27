@@ -32,21 +32,25 @@ async function getAdapter() {
   return adapterInstance;
 }
 
+// Adapterの型定義
+type Adapter = ReturnType<typeof PrismaAdapter>;
+
 // NextAuthの設定をオブジェクトとして定義し、エクスポートします。
 export const authOptions: NextAuthOptions = {
   // Adapterをlazyに初期化するためのProxy
-  adapter: new Proxy({} as ReturnType<typeof PrismaAdapter>, {
-    get(_target, prop) {
-      return async (...args: any[]) => {
+  adapter: new Proxy({} as Adapter, {
+    get(_target, prop: string | symbol) {
+      return async (...args: unknown[]) => {
         const adapter = await getAdapter();
-        const method = (adapter as any)[prop];
+        const method = (adapter as Record<string | symbol, unknown>)[prop];
         if (typeof method === 'function') {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
           return method.apply(adapter, args);
         }
         throw new Error(`Adapter method ${String(prop)} not found`);
       };
     },
-  }) as any,
+  }) as Adapter,
 
   providers: [
     GoogleProvider({
@@ -250,8 +254,7 @@ export const authOptions: NextAuthOptions = {
           if (!dbUser) {
             console.log(`セッションエラー: ユーザー ID ${token.id} が存在しません（削除済み）`);
             // ユーザーが存在しない場合、セッションを無効化
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return {} as any;
+            return null as unknown as typeof session;
           }
 
           // 最新のユーザー情報でセッションを更新
