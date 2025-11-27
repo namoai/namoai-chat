@@ -15,7 +15,11 @@ if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !proce
 const handler = NextAuth(authOptions);
 
 // Next.js 15 App Router compatibility with error handling
-export async function GET(req: NextRequest, context: { params?: Promise<{ nextauth?: string[] }> }) {
+// Next.js 15 requires params to be a Promise (not optional)
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ nextauth?: string[] }> }
+) {
   try {
     return await handler(req, context);
   } catch (error) {
@@ -28,7 +32,10 @@ export async function GET(req: NextRequest, context: { params?: Promise<{ nextau
   }
 }
 
-export async function POST(req: NextRequest, context: { params?: Promise<{ nextauth?: string[] }> }) {
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ nextauth?: string[] }> }
+) {
   try {
     return await handler(req, context);
   } catch (error) {
