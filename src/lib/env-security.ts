@@ -119,10 +119,16 @@ export function initializeEnvSecurity(): void {
     validateProductionEnv();
     
     // 必須環境変数のチェック（アプリケーション固有）
+    // DATABASE_URLはSecret Managerから動的にロードされる可能性があるため、条件付きでチェック
     const requiredVars = [
       'NEXTAUTH_SECRET',
-      'DATABASE_URL',
     ];
+
+    // DATABASE_URLは環境変数に直接設定されている場合のみ必須としてチェック
+    // NetlifyなどSecret Managerを使用する環境では、後で動的にロードされるためスキップ
+    if (process.env.DATABASE_URL || !process.env.GOOGLE_PROJECT_ID) {
+      requiredVars.push('DATABASE_URL');
+    }
 
     validateRequiredEnvVars(requiredVars);
     
