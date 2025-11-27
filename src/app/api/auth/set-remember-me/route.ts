@@ -1,3 +1,5 @@
+export const runtime = 'nodejs'; // Node.js runtime 필요
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
