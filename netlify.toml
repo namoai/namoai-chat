@@ -12,6 +12,12 @@
 
 # Next.js App Router API routesのタイムアウト設定
 # Next.js 15のサーバーレス関数は別途設定が必要な場合があります
+[functions."app/api/main-page/route"]
+  max_duration = 30
+
+[functions."app/api/auth/*"]
+  max_duration = 30
+
 [functions."app/api/chat/*/route"]
   max_duration = 30
 
