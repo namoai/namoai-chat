@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // セッションとユーザーIDを検証する共通関数
 async function getAndVerifySession(request: Request) {
@@ -29,6 +30,8 @@ async function getAndVerifySession(request: Request) {
 }
 
 export async function POST(request: Request) {
+    if (isBuildTime()) return buildTimeResponse();
+    
     const { error, status, userIds } = await getAndVerifySession(request);
     if (error || !userIds) {
         return NextResponse.json({ error }, { status });
@@ -36,6 +39,7 @@ export async function POST(request: Request) {
     const { currentUserId, targetUserId } = userIds;
 
     try {
+        const prisma = await getPrisma();
         const existingBlock = await prisma.block.findUnique({
             where: {
                 blockerId_blockingId: {

@@ -1,7 +1,8 @@
 // src/app/api/profile/[userId]/following/route.ts
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 /**
  * RouteContext（自前定義）
@@ -20,6 +21,8 @@ type RouteContext = {
  * - 注意: 第二引数に具体的な型注釈を付けない（unknown で受けて as で最小限に絞る）
  */
 export async function GET(_req: NextRequest, context: unknown) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const { userId } = (context as RouteContext).params;
 
   const targetUserId = Number(userId);
@@ -28,6 +31,7 @@ export async function GET(_req: NextRequest, context: unknown) {
   }
 
   try {
+    const prisma = await getPrisma();
     // 「対象がフォローしている人」= where: { followerId: targetUserId }
     const items = await prisma.follows.findMany({
       where: { followerId: targetUserId },

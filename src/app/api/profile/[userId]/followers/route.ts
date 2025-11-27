@@ -1,10 +1,13 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 type RouteContext = { params: { userId: string; }; };
 
 export async function GET(_req: NextRequest, context: unknown) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const { userId } = (context as RouteContext).params;
   const targetUserId = Number(userId);
 
@@ -13,6 +16,7 @@ export async function GET(_req: NextRequest, context: unknown) {
   }
 
   try {
+    const prisma = await getPrisma();
     const items = await prisma.follows.findMany({
       where: { followingId: targetUserId },
       include: {

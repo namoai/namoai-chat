@@ -140,7 +140,10 @@ export async function PUT(request: NextRequest) {
  *  DELETE: ペルソナ削除
  * ========================================================================== */
 export async function DELETE(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
+    const prisma = await getPrisma();
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ ok: false, error: '認証されていません。' }, { status: 401 });

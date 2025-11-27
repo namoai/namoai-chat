@@ -3,11 +3,12 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { createClient } from '@supabase/supabase-js';
 import { validateImageFile } from '@/lib/upload/validateImage';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // ▼▼▼【追加】 キャラクター作成APIと同様のヘルパー関数をここに追加します。 ▼▼▼
 // ───────────────────────────────────────────────────────────────
@@ -99,6 +100,9 @@ async function ensureSupabaseEnv() {
 
 // GET: 現在ログインしているユーザーのプロフィール情報を取得します
 export async function GET() {
+  if (isBuildTime()) return buildTimeResponse();
+  
+  const prisma = await getPrisma();
   const セッション = await getServerSession(authOptions);
   if (!セッション?.user?.id) {
     return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
@@ -122,8 +126,11 @@ export async function GET() {
 
 // PUT: ユーザーのプロフィール情報を更新します
 export async function PUT(リクエスト: Request) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   await ensureSupabaseEnv();
 
+  const prisma = await getPrisma();
   const セッション = await getServerSession(authOptions);
   if (!セッション?.user?.id) {
     return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });

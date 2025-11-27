@@ -1,7 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/nextauth";
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // URLからチャットIDを抽出するヘルパー関数
 function extractChatId(url: string): number | null {
@@ -17,6 +18,8 @@ function extractChatId(url: string): number | null {
 
 // PATCH: 特定のチャットのユーザーノートを更新します
 export async function PATCH(request: NextRequest) {
+    if (isBuildTime()) return buildTimeResponse();
+    
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
         return NextResponse.json({ error: "認証されていません。" }, { status: 401 });
@@ -29,6 +32,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     try {
+        const prisma = await getPrisma();
         const { userNote } = await request.json();
         
         // userNoteが文字列であるかを確認

@@ -4,8 +4,9 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 // プロジェクト構成に合わせてパスを調整してください（authOptionsの所在）
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
 import { notifyOnFollow } from '@/lib/notifications'; // ★ 通知関数をインポート
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 /**
  * RouteContext（自前定義）

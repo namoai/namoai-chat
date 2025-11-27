@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
 import { VertexAI, HarmCategory, HarmBlockThreshold } from '@google-cloud/vertexai';
 import { getEmbedding } from '@/lib/embeddings';
 import { ensureGcpCreds } from '@/utils/ensureGcpCreds';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // ▼▼▼【安全対策】同時再要約防止用のMap
 const summarizingChats = new Map<number, boolean>();
@@ -39,6 +40,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
     return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
@@ -49,6 +52,8 @@ export async function GET(
   if (isNaN(chatIdNum)) {
     return NextResponse.json({ error: '無効なチャットIDです。' }, { status: 400 });
   }
+
+  const prisma = await getPrisma();
 
   try {
     const chat = await prisma.chat.findUnique({
@@ -118,6 +123,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   console.log('詳細記憶 POST API 開始');
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
@@ -133,6 +140,7 @@ export async function POST(
   }
 
   try {
+    const prisma = await getPrisma();
     const body = await request.json();
     const { content, keywords, autoSummarize } = body;
     console.log('リクエストボディ:', { content: content ? 'あり' : 'なし', keywords, autoSummarize });
@@ -287,7 +295,10 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
+    const prisma = await getPrisma();
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
@@ -403,7 +414,10 @@ export async function PUT(
 export async function DELETE(
   request: Request
 ) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
+    const prisma = await getPrisma();
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });

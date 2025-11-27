@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // 生成中にページを離脱した場合のメッセージ削除とポイント返金
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
     return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
@@ -33,6 +36,7 @@ export async function POST(
   }
 
   try {
+    const prisma = await getPrisma();
     // チャットの所有者確認
     const chat = await prisma.chat.findUnique({
       where: { id: chatIdNum },

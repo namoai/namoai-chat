@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // 未読通知数取得 (GET) - ポーリング用の軽量エンドポイント
 export async function GET() {

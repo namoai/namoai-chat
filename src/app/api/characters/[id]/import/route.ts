@@ -3,10 +3,11 @@ export const runtime = 'nodejs';
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { createClient } from '@supabase/supabase-js';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { randomUUID } from 'crypto';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // --- ▼▼▼【修正】データ型を明確に定義します ▼▼▼ ---
 type SourceImageData = {
@@ -127,8 +128,11 @@ function getCharacterId(request: NextRequest): number | null {
 }
 
 export async function POST(request: NextRequest) {
+    if (isBuildTime()) return buildTimeResponse();
+    
     console.log('[POST] /api/characters/[id]/import - 同期インポート処理開始');
 
+    const prisma = await getPrisma();
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
         return NextResponse.json({ error: '認証されていません。' }, { status: 401 });

@@ -1,14 +1,17 @@
 export const runtime = 'nodejs';
 
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/nextauth";
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 /**
  * GET: ログインユーザーがブロックしたユーザーのリストを取得します
  */
 export async function GET() {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "認証されていません。" }, { status: 401 });
@@ -16,6 +19,7 @@ export async function GET() {
   const currentUserId = parseInt(session.user.id, 10);
 
   try {
+    const prisma = await getPrisma();
     const blockedRelations = await prisma.block.findMany({
       where: { blockerId: currentUserId },
       // ▼▼▼【修正】Prismaスキーマの実際のリレーション名に合わせて修正します ▼▼▼

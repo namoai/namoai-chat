@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
 import { VertexAI, HarmCategory, HarmBlockThreshold } from '@google-cloud/vertexai';
 import { getEmbedding } from '@/lib/embeddings';
 import { ensureGcpCreds } from '@/utils/ensureGcpCreds';
@@ -32,6 +32,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
     return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
@@ -44,6 +46,7 @@ export async function GET(
   }
 
   try {
+    const prisma = await getPrisma();
     const chat = await prisma.chat.findUnique({
       where: { id: chatIdNum },
       select: { backMemory: true, autoSummarize: true, userId: true },
@@ -84,6 +87,7 @@ export async function PUT(
   }
 
   try {
+    const prisma = await getPrisma();
     const { content, autoSummarize } = await request.json();
 
     if (content && content.length > 3000) {
@@ -150,6 +154,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
     return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
@@ -162,6 +168,7 @@ export async function POST(
   }
 
   try {
+    const prisma = await getPrisma();
     const chat = await prisma.chat.findUnique({
       where: { id: chatIdNum },
       select: { userId: true },

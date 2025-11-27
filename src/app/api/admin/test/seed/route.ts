@@ -4,9 +4,10 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
 import { Prisma, Role } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 type Tx = Prisma.TransactionClient;
 
@@ -21,6 +22,8 @@ const isAdminRole = (role?: Role | string | null): boolean => {
 };
 
 export async function POST() {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
@@ -32,6 +35,7 @@ export async function POST() {
   const targetUserId = Number(session.user.id);
 
   try {
+    const prisma = await getPrisma();
     const result = await prisma.$transaction(async (tx) => {
       const partnerUser = await ensurePartnerUser(tx);
       const partnerCharacter = await ensureCharacter(tx, partnerUser.id, {

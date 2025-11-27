@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // 自分の通報・要望・お問い合わせ一覧取得 (GET)
 export async function GET(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
   }
 
   try {
+    const prisma = await getPrisma();
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type'); // 'CHARACTER_REPORT', 'SUGGESTION', 'INQUIRY'
     const status = searchParams.get('status'); // 'PENDING', 'REVIEWED', 'RESOLVED', 'REJECTED'
