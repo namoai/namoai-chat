@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // ✅ 未使用のrequestパラメータを削除し、警告を解消します
@@ -23,6 +23,7 @@ export async function GET() {
     // セッションから取得したユーザーIDを数値に変換
     const userId = parseInt(session.user.id, 10);
 
+    const prisma = await getPrisma();
     // データベースからユーザーのポイント情報を検索
     const userPoints = await prisma.points.findUnique({
       where: {

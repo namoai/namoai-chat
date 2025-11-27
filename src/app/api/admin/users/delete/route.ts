@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { isBuildTime, buildTimeResponse, safeJsonParse } from "@/lib/api-helpers";
 
 // ユーザー削除 API (会員退会APIと同じロジック)
@@ -27,6 +27,7 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: "ユーザーIDが必要です。" }, { status: 400 });
         }
 
+        const prisma = await getPrisma();
         // トランザクションで全てのユーザー関連データを削除
         await prisma.$transaction(async (tx) => {
             // 1. ユーザーが作成したキャラクターの作成者を匿名化（キャラクターは残す）

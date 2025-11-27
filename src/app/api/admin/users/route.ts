@@ -2,7 +2,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 // ▼▼▼ 変更点: Prismaの型とEnumを `@prisma/client` から正しくインポートします ▼▼▼
 import { Prisma, Role } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
   const query = searchParams.get('query');
 
   try {
+    const prisma = await getPrisma();
     const whereClause: Prisma.usersWhereInput = query ? {
       OR: [
         { name: { contains: query, mode: 'insensitive' } },
@@ -74,6 +75,7 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: '無効なデータです。役割が存在しません。' }, { status: 400 });
         }
 
+        const prisma = await getPrisma();
         const updatedUser = await prisma.users.update({
             where: { id: userId },
             data: { role: newRole }, // newRoleは既にRole型として検証済み

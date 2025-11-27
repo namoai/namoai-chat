@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { isBuildTime, buildTimeResponse, safeJsonParse } from '@/lib/api-helpers';
 
@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
 
     const userId = parseInt(session.user.id, 10);
     
+    const prisma = await getPrisma();
     // 通報作成
     const report = await prisma.reports.create({
       data: {

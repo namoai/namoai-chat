@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { isBuildTime, buildTimeResponse, safeJsonParse } from "@/lib/api-helpers";
 
 // ユーザー停止 API
@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
             suspendedUntil.setDate(suspendedUntil.getDate() + days);
         }
 
+        const prisma = await getPrisma();
         // ユーザーを停止
         const updatedUser = await prisma.users.update({
             where: { id: userId },

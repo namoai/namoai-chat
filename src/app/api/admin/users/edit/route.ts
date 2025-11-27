@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
 import { isBuildTime, buildTimeResponse, safeJsonParse } from "@/lib/api-helpers";
 
@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "ユーザーIDが必要です。" }, { status: 400 });
         }
 
+        const prisma = await getPrisma();
         const user = await prisma.users.findUnique({
             where: { id: parseInt(userId) },
             include: {
@@ -78,6 +79,7 @@ export async function PUT(request: NextRequest) {
             roleValue = role as Role;
         }
 
+        const prisma = await getPrisma();
         // トランザクションで更新
         await prisma.$transaction(async (tx) => {
             // ユーザー情報を更新

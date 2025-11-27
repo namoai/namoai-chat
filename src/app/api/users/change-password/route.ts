@@ -1,7 +1,7 @@
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { NextResponse, type NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
@@ -37,6 +37,7 @@ export async function PUT(request: Request) {
 
     const { currentPassword, newPassword } = parsed.data;
 
+    const prisma = await getPrisma();
     const user = await prisma.users.findUnique({ where: { id: userId } });
     if (!user) {
       return NextResponse.json({ error: 'ユーザーが見つかりません。' }, { status: 404 });

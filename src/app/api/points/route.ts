@@ -2,7 +2,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { isBuildTime, buildTimeResponse, safeJsonParse } from '@/lib/api-helpers';
@@ -18,6 +18,7 @@ export async function GET() {
   const userId = parseInt(session.user.id, 10);
 
   try {
+    const prisma = await getPrisma();
     let userPoints = await prisma.points.findUnique({
       where: { user_id: userId },
     });
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
   const { action, amount } = parseResult.data;
 
   try {
+    const prisma = await getPrisma();
     // 出席チェックの処理
     if (action === 'attend') {
       const today = new Date();

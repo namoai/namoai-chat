@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { isBuildTime, buildTimeResponse, safeJsonParse } from "@/lib/api-helpers";
 
 // 通知一覧取得 (GET)
@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
       where.isRead = isRead === "true";
     }
 
+    const prisma = await getPrisma();
     // 通知取得
     const notifications = await prisma.notifications.findMany({
       where,
@@ -123,6 +124,7 @@ export async function POST(req: NextRequest) {
     if (commentId !== undefined) notificationData.commentId = commentId || null;
     if (reportId !== undefined) notificationData.reportId = reportId || null;
 
+    const prisma = await getPrisma();
     const notification = await prisma.notifications.create({
       data: notificationData,
     });

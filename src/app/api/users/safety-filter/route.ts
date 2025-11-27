@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic"; // ▼▼▼【重要】キャッシュ�
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { isBuildTime, buildTimeResponse, safeJsonParse } from '@/lib/api-helpers';
 
 // GET: 現在のユーザーのセーフティフィルター設定を取得します
@@ -18,6 +18,7 @@ export async function GET() {
   const userId = parseInt(session.user.id, 10);
 
   try {
+    const prisma = await getPrisma();
     const user = await prisma.users.findUnique({
       where: { id: userId },
       select: { safetyFilter: true },
@@ -55,6 +56,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: '無効な値です。' }, { status: 400 });
     }
 
+    const prisma = await getPrisma();
     await prisma.users.update({
       where: { id: userId },
       data: { safetyFilter: safetyFilter },

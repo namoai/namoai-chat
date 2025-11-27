@@ -2,7 +2,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { Prisma, Role } from "@prisma/client"; // ▼▼▼ 変更点: Role Enumをインポートします ▼▼▼
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
     }
 
+    const prisma = await getPrisma();
     const notice = await prisma.notices.findUnique({
       where: { id: noticeId },
     });
@@ -77,6 +78,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'すべてのフィールドは必須です。' }, { status: 400 });
     }
 
+    const prisma = await getPrisma();
     const updatedNotice = await prisma.notices.update({
       where: { id: noticeId },
       data: { title, category, content },
@@ -109,6 +111,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
     }
 
+    const prisma = await getPrisma();
     await prisma.notices.delete({
       where: { id: noticeId },
     });
