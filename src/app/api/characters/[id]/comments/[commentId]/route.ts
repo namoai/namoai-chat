@@ -1,7 +1,10 @@
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // ./src/app/api/characters/[id]/comments/[commentId]/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 /**
  * コメント取得（GET）
@@ -12,6 +15,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string; commentId: string }> }
 ): Promise<Response> {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const { id, commentId } = await params; // ← await で展開
   const characterId = Number.parseInt(id, 10);
   const commentIdNum = Number.parseInt(commentId, 10);
