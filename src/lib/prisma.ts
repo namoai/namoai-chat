@@ -202,7 +202,7 @@ export async function getPrisma(): Promise<PrismaClient> {
 // 注意: このexportはgetPrisma()を使用することを推奨
 // ビルド時や初期化失敗時はダミーオブジェクトを返す
 export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
-  get(_target, prop) {
+  get(_target, prop: string | symbol) {
     if (isBuildTime()) {
       throw new Error('Prisma is not available during build time. Use getPrisma() instead.');
     }
@@ -212,6 +212,7 @@ export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
         `Attempted to access: ${String(prop)}`
       );
     }
-    return (prismaInstance as any)[prop];
+    const value = (prismaInstance as Record<string | symbol, unknown>)[prop];
+    return typeof value === 'function' ? value.bind(prismaInstance) : value;
   },
 });
