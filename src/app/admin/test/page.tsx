@@ -869,13 +869,13 @@ export default function TestToolPage() {
             let characterIdToUse = partnerInfoRef.current?.characterId ?? currentTestCharacterId ?? null;
             if (!characterIdToUse) {
               const charsRes = await fetch('/api/charlist');
-              const charsData = await charsRes.json() as { characters?: { id: number }[] } | { id: number }[];
+              const charsData = await charsRes.json() as { characters?: Array<{ id: number; name?: string; [key: string]: unknown }> } | Array<{ id: number; name?: string; [key: string]: unknown }>;
               const chars = Array.isArray(charsData) ? charsData : (charsData.characters || []);
               if (chars.length > 0) {
                 characterIdToUse = chars[0].id;
                 setTestCharacterId(chars[0].id);
                 testCharacterIdRef.current = chars[0].id;
-                if (chars[0].name) {
+                if (chars[0].name && typeof chars[0].name === 'string') {
                   setTestCharacterName(chars[0].name);
                   testCharacterNameRef.current = chars[0].name;
                 }
@@ -901,13 +901,13 @@ export default function TestToolPage() {
             let characterIdToUse = partnerInfoRef.current?.characterId ?? currentTestCharacterId ?? null;
             if (!characterIdToUse) {
               const charsRes = await fetch('/api/charlist');
-              const charsData = await charsRes.json() as { characters?: { id: number }[] } | { id: number }[];
+              const charsData = await charsRes.json() as { characters?: Array<{ id: number; name?: string; [key: string]: unknown }> } | Array<{ id: number; name?: string; [key: string]: unknown }>;
               const chars = Array.isArray(charsData) ? charsData : (charsData.characters || []);
               if (chars.length > 0) {
                 characterIdToUse = chars[0].id;
                 setTestCharacterId(chars[0].id);
                 testCharacterIdRef.current = chars[0].id;
-                if (chars[0].name) {
+                if (chars[0].name && typeof chars[0].name === 'string') {
                   setTestCharacterName(chars[0].name);
                   testCharacterNameRef.current = chars[0].name;
                 }
