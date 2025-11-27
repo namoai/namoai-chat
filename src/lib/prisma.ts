@@ -198,13 +198,24 @@ export async function getPrisma(): Promise<PrismaClient> {
   return initPromise;
 }
 
+// ビルド時用のダミーProxy（再帰的にダミーオブジェクトを返す）
+function createDummyProxy(): unknown {
+  return new Proxy({}, {
+    get(_target, _prop: string | symbol) {
+      // すべてのプロパティアクセスに対してダミー関数を返す
+      return () => Promise.resolve(null);
+    },
+  });
+}
+
 // 互換性のため、prisma exportも提供（lazy getterとして実装）
 // 注意: このexportはgetPrisma()を使用することを推奨
 // ビルド時や初期化失敗時はダミーオブジェクトを返す
 export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
   get(_target, prop: string | symbol) {
+    // ビルド時にはダミーオブジェクトを返す（エラーをスローしない）
     if (isBuildTime()) {
-      throw new Error('Prisma is not available during build time. Use getPrisma() instead.');
+      return createDummyProxy();
     }
     if (!prismaInstance) {
       throw new Error(
