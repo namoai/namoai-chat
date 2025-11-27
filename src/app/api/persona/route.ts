@@ -91,12 +91,15 @@ export async function POST(request: NextRequest) {
  *  PATCH: 基本ペルソナ設定（所有権チェックあり）
  * ========================================================================== */
 export async function PATCH(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
   }
 
   try {
+    const prisma = await getPrisma();
     const userId = Number(session.user.id);
     const { personaId } = await request.json();
 
