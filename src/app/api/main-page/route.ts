@@ -18,6 +18,11 @@ const getCharactersWithMainImage = async (
     take: number
 ) => {
 // ▲▲▲【修正】ここまで ▲▲▲
+    // ビルド時には空配列を返す
+    if (isBuildTime()) {
+        return [];
+    }
+    
     const prisma = await getPrisma();
     const charactersRaw = await prisma.characters.findMany({
         where,
@@ -54,7 +59,16 @@ const getCharactersWithMainImage = async (
 export async function GET() {
     if (isBuildTime()) return buildTimeResponse();
     
-    const prisma = await getPrisma();
+    let prisma;
+    try {
+        prisma = await getPrisma();
+    } catch (error) {
+        // ビルド時エラーをキャッチ
+        if (error instanceof Error && error.message.includes('Prisma is not available during build time')) {
+            return buildTimeResponse();
+        }
+        throw error;
+    }
     const session = await getServerSession(authOptions);
     const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
 
