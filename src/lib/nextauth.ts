@@ -35,6 +35,35 @@ async function getAdapter() {
 // Adapterの型定義
 type Adapter = ReturnType<typeof PrismaAdapter>;
 
+// ▼▼▼【環境変数検証】▼▼▼
+function validateAuthEnv() {
+  const required = {
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+  };
+
+  const missing: string[] = [];
+  for (const [key, value] of Object.entries(required)) {
+    if (!value || value.trim() === '') {
+      missing.push(key);
+    }
+  }
+
+  if (missing.length > 0) {
+    console.error('❌ NextAuth 환경 변수 누락:', missing.join(', '));
+    console.error('❌ 다음 환경 변수를 설정하세요:');
+    missing.forEach(key => {
+      console.error(`   - ${key}`);
+    });
+    // 개발 환경에서는 경고만, 프로덕션에서는 에러
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+    }
+  }
+}
+// ▲▲▲
+
 // NextAuthの設定をオブジェクトとして定義し、エクスポートします。
 export const authOptions: NextAuthOptions = {
   // Adapterをlazyに初期化するためのProxy
@@ -54,8 +83,8 @@ export const authOptions: NextAuthOptions = {
 
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
       // 既に同じメールアドレスを持つアカウントが存在する場合でも、Googleアカウントとのリンクを許可します。
       allowDangerousEmailAccountLinking: true,
     }),
@@ -275,8 +304,17 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login",
   },
   
-  secret: process.env.NEXTAUTH_SECRET,
-  // Next.js 15 호환성을 위한 설정
-  trustHost: true,
+  secret: process.env.NEXTAUTH_SECRET || '',
 };
+
+// 환경 변수 검증 실행
+try {
+  validateAuthEnv();
+} catch (error) {
+  console.error('❌ NextAuth 환경 변수 검증 실패:', error);
+  // 프로덕션에서는 에러를 throw하지만, 개발 환경에서는 경고만
+  if (process.env.NODE_ENV === 'production') {
+    throw error;
+  }
+}
 
