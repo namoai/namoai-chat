@@ -1,7 +1,7 @@
 export const runtime = 'nodejs';
 export const dynamic = "force-dynamic"; // ▼▼▼【重要】キャッシュを無効化して常に最新データを取得 ▼▼▼
 
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from "@/lib/prisma";
@@ -37,7 +37,7 @@ export async function GET() {
 }
 
 // PUT: ユーザーのセーフティフィルター設定を更新します
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   if (isBuildTime()) return buildTimeResponse();
   
   const session = await getServerSession(authOptions);
@@ -47,7 +47,7 @@ export async function PUT(request: Request) {
   const userId = parseInt(session.user.id, 10);
 
   try {
-    const parseResult = await safeJsonParse<{ safetyFilter: boolean }>(request as any);
+    const parseResult = await safeJsonParse<{ safetyFilter: boolean }>(request);
     if (!parseResult.success) return parseResult.error;
     const { safetyFilter } = parseResult.data;
     
