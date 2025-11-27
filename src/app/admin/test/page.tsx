@@ -89,7 +89,7 @@ export default function TestToolPage() {
 
   const adoptExistingCharacter = async () => {
     const charsRes = await fetch('/api/charlist');
-    const charsData = await charsRes.json() as { characters?: Array<{ id: number; [key: string]: unknown }> } | Array<{ id: number; [key: string]: unknown }>;
+    const charsData = await charsRes.json() as { characters?: Array<{ id: number; name?: string; author_id?: number; [key: string]: unknown }> } | Array<{ id: number; name?: string; author_id?: number; [key: string]: unknown }>;
     const chars = Array.isArray(charsData) ? charsData : (charsData.characters || []);
     if (!Array.isArray(chars) || chars.length === 0) {
       return null;
@@ -98,7 +98,7 @@ export default function TestToolPage() {
     if (first?.id) {
       setTestCharacterId(first.id);
       testCharacterIdRef.current = first.id;
-      if (first.name) {
+      if (first.name && typeof first.name === 'string') {
         setTestCharacterName(first.name);
         testCharacterNameRef.current = first.name;
       }
