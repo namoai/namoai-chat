@@ -85,11 +85,11 @@ async function resolveDatabaseUrl(): Promise<string> {
   
   if (process.env.DATABASE_URL) {
     console.log('[Prisma] Using DATABASE_URL from environment variable');
-    return process.env.DATABASE_URL;
+    return ensurePreparedStatementsDisabled(process.env.DATABASE_URL);
   }
   if (global.__dbUrl) {
     console.log('[Prisma] Using DATABASE_URL from global cache');
-    return global.__dbUrl;
+    return ensurePreparedStatementsDisabled(global.__dbUrl);
   }
 
   // ビルド時には Secret Manager を呼び出さない
@@ -126,8 +126,33 @@ async function resolveDatabaseUrl(): Promise<string> {
   }
 
   console.log('[Prisma] Successfully fetched DATABASE_URL from Secret Manager');
-  global.__dbUrl = payload;
-  return payload;
+  const finalUrl = ensurePreparedStatementsDisabled(payload);
+  global.__dbUrl = finalUrl;
+  return finalUrl;
+}
+
+/**
+ * Connection Pooling을 사용할 때 prepared statements를 비활성화
+ * Supabase Connection Pooling (포트 6543) 또는 pgbouncer를 사용하는 경우 필요
+ */
+function ensurePreparedStatementsDisabled(url: string): string {
+  // 이미 prepared_statements 파라미터가 있으면 그대로 반환
+  if (url.includes('prepared_statements=')) {
+    return url;
+  }
+  
+  // Connection Pooling을 사용하는지 확인 (포트 6543 또는 pgbouncer=true)
+  const isConnectionPooling = url.includes(':6543') || url.includes('pgbouncer=true');
+  
+  if (isConnectionPooling) {
+    // Connection Pooling을 사용하는 경우 prepared_statements=false 추가
+    const separator = url.includes('?') ? '&' : '?';
+    const newUrl = `${url}${separator}prepared_statements=false`;
+    console.log('[Prisma] Added prepared_statements=false for Connection Pooling');
+    return newUrl;
+  }
+  
+  return url;
 }
 
 /**
@@ -167,11 +192,27 @@ async function createPrisma(): Promise<PrismaClient> {
   // 연결 테스트 (서버리스 환경에서 연결이 실제로 작동하는지 확인)
   try {
     console.log('[Prisma] Testing database connection...');
-    await instance.$connect();
+    // 타임아웃 설정 (5초)
+    const connectPromise = instance.$connect();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Connection timeout after 5 seconds')), 5000)
+    );
+    await Promise.race([connectPromise, timeoutPromise]);
     console.log('[Prisma] Database connection test successful');
   } catch (connectError) {
     console.error('[Prisma] Database connection test failed:', connectError);
-    await instance.$disconnect();
+    
+    // P1001 에러인 경우 Connection Pooling 사용을 권장
+    if (connectError instanceof Error && 
+        (connectError as any).code === 'P1001' || 
+        connectError.message.includes("Can't reach database server")) {
+      const dbUrl = url.includes('@') ? url.split('@')[1] : url;
+      console.error('[Prisma] ⚠️ Connection failed to:', dbUrl);
+      console.error('[Prisma] 💡 Recommendation: Use Connection Pooling (port 6543) instead of direct connection (port 5432)');
+      console.error('[Prisma] 💡 Get Connection Pooling URL from Supabase Dashboard → Settings → Database → Connection string → Connection pooling');
+    }
+    
+    await instance.$disconnect().catch(() => {}); // 에러 무시
     throw connectError;
   }
 
