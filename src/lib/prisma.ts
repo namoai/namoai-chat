@@ -136,23 +136,23 @@ async function resolveDatabaseUrl(): Promise<string> {
 }
 
 /**
- * Connection Pooling을 사용할 때 prepared statements를 비활성화
- * Supabase를 사용하는 경우 항상 prepared_statements=false를 추가 (안전한 방법)
+ * Connection Poolingを使用する際にprepared statementsを無効化
+ * Supabaseを使用する場合は常にprepared_statements=falseを追加（安全な方法）
  */
 function ensurePreparedStatementsDisabled(url: string): string {
   console.log('[Prisma] ensurePreparedStatementsDisabled called');
   console.log('[Prisma] Input URL preview:', url.substring(0, 100) + '...');
   
-  // 이미 prepared_statements 파라미터가 있으면 그대로 반환
+  // 既にprepared_statementsパラメータがあればそのまま返す
   if (url.includes('prepared_statements=')) {
     console.log('[Prisma] ✅ prepared_statements parameter already exists in URL');
     return url;
   }
   
-  // Supabase를 사용하는지 확인 (.supabase.co 도메인)
+  // Supabaseを使用しているか確認（.supabase.coドメイン）
   const isSupabase = url.includes('.supabase.co');
   
-  // Connection Pooling을 사용하는지 확인 (포트 6543 또는 pgbouncer=true)
+  // Connection Poolingを使用しているか確認（ポート6543またはpgbouncer=true）
   const isConnectionPooling = url.includes(':6543') || url.includes('pgbouncer=true');
   
   console.log('[Prisma] Checking database connection:', {
@@ -165,21 +165,21 @@ function ensurePreparedStatementsDisabled(url: string): string {
     willAddPreparedStatements: isSupabase || isConnectionPooling
   });
   
-  // Supabase를 사용하거나 Connection Pooling을 사용하는 경우 설정 추가
+  // Supabaseを使用するかConnection Poolingを使用する場合、設定を追加
   if (isSupabase || isConnectionPooling) {
     let newUrl = url;
     const separator = newUrl.includes('?') ? '&' : '?';
     
-    // Session mode를 사용 (Prisma는 쓰기 작업이 필요하므로 Session mode 필수)
-    // Transaction mode는 읽기 전용이므로 사용하지 않음
-    // pgbouncer=true는 Session mode를 명시적으로 지정
+    // Session modeを使用（Prismaは書き込み作業が必要なためSession mode必須）
+    // Transaction modeは読み取り専用のため使用しない
+    // pgbouncer=trueはSession modeを明示的に指定
     if (!newUrl.includes('pgbouncer=')) {
       newUrl = `${newUrl}${separator}pgbouncer=true`;
       console.log('[Prisma] Added pgbouncer=true (Session mode)');
     }
     
-    // Session mode에서도 prepared_statements 문제가 발생할 수 있으므로 비활성화
-    // (Connection Pooling 환경에서 안전하게 작동하도록)
+    // Session modeでもprepared_statementsの問題が発生する可能性があるため無効化
+    // （Connection Pooling環境で安全に動作するように）
     const nextSeparator = newUrl.includes('?') ? '&' : '?';
     newUrl = `${newUrl}${nextSeparator}prepared_statements=false`;
     console.log('[Prisma] ✅ Added prepared_statements=false for Session mode');
@@ -199,20 +199,20 @@ function ensurePreparedStatementsDisabled(url: string): string {
 async function createPrisma(): Promise<PrismaClient> {
   const url = await resolveDatabaseUrl();
   
-  // ▼▼▼【로컬 환경 디버깅】실제 사용 중인 DATABASE_URL 로그 출력 ▼▼▼
+  // ▼▼▼【ローカル環境デバッグ】実際に使用中のDATABASE_URLログ出力 ▼▼▼
   if (process.env.NODE_ENV === "development") {
     console.log('[prisma] DATABASE_URL:', url.substring(0, 50) + '...');
     console.log('[prisma] DATABASE_URL from env:', process.env.DATABASE_URL?.substring(0, 50) + '...');
   }
   // ▲▲▲
 
-  // 기존 인스턴스가 있고 같은 URL을 사용하는 경우 재사용
+  // 既存インスタンスがあり同じURLを使用する場合、再利用
   if (global.__prisma) {
     const currentUrl = await resolveDatabaseUrl();
     if (currentUrl === url) {
       return global.__prisma;
     }
-    // URL이 변경된 경우 기존 인스턴스 종료
+    // URLが変更された場合、既存インスタンスを終了
     await global.__prisma.$disconnect();
     global.__prisma = undefined;
   }
@@ -231,10 +231,10 @@ async function createPrisma(): Promise<PrismaClient> {
         : ["error"],
   });
 
-  // 연결 테스트 (서버리스 환경에서 연결이 실제로 작동하는지 확인)
+  // 接続テスト（サーバーレス環境で接続が実際に動作するか確認）
   try {
     console.log('[Prisma] Testing database connection...');
-    // 타임아웃 설정 (5초)
+    // タイムアウト設定（5秒）
     const connectPromise = instance.$connect();
     const timeoutPromise = new Promise((_, reject) => 
       setTimeout(() => reject(new Error('Connection timeout after 5 seconds')), 5000)
@@ -244,7 +244,7 @@ async function createPrisma(): Promise<PrismaClient> {
   } catch (connectError) {
     console.error('[Prisma] Database connection test failed:', connectError);
     
-    // P1001 에러인 경우 Connection Pooling 사용을 권장
+    // P1001エラーの場合、Connection Poolingの使用を推奨
     const isP1001Error = connectError instanceof Error && 
         ('code' in connectError && connectError.code === 'P1001');
     
@@ -257,7 +257,7 @@ async function createPrisma(): Promise<PrismaClient> {
       console.error('[Prisma] 💡 Get Connection Pooling URL from Supabase Dashboard → Settings → Database → Connection string → Connection pooling');
     }
     
-    await instance.$disconnect().catch(() => {}); // 에러 무시
+    await instance.$disconnect().catch(() => {}); // エラーを無視
     throw connectError;
   }
 
