@@ -17,7 +17,12 @@ export async function ensureGcpCreds() {
     await import("fs/promises");
   } catch (e) {
     // Edge Runtime では fs モジュールが利用できない
-    if (e instanceof Error && (e.message.includes("Cannot find module") || e.code === "MODULE_NOT_FOUND")) {
+    const isModuleNotFoundError = 
+      e instanceof Error && 
+      (e.message.includes("Cannot find module") || 
+       ('code' in e && e.code === "MODULE_NOT_FOUND"));
+    
+    if (isModuleNotFoundError) {
       return;
     }
     throw e;
@@ -61,7 +66,12 @@ export async function ensureGcpCreds() {
     } catch {}
   } catch (e) {
     // Edge Runtime でのエラーは無視（既にチェック済みだが念のため）
-    if (e instanceof Error && (e.message.includes("Cannot find module") || e.code === "MODULE_NOT_FOUND")) {
+    const isModuleNotFoundError = 
+      e instanceof Error && 
+      (e.message.includes("Cannot find module") || 
+       ('code' in e && e.code === "MODULE_NOT_FOUND"));
+    
+    if (isModuleNotFoundError) {
       return;
     }
     console.error("[creds] write failed:", e);
