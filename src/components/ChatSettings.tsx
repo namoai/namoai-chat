@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { X, ChevronRight, Image as ImageIcon, Film, MessageSquare, BookUser, FileText, Trash2, Palette, Type, BookOpen, Brain } from 'lucide-react';
 import BackMemoryModal from '@/components/chat/BackMemoryModal';
 import DetailedMemoryModal from '@/components/chat/DetailedMemoryModal';
+import { fetchWithCsrf } from "@/lib/csrf-client";
 
 /**
  * AIによる応答生成に関する設定の型定義。
@@ -276,7 +277,7 @@ export default function ChatSettings({
   const handleUpdateDetailedMemory = async (id: number, content: string) => {
     if (!chatId) return;
     try {
-      const res = await fetch(`/api/chat/${chatId}/detailed-memories`, {
+      const res = await fetchWithCsrf(`/api/chat/${chatId}/detailed-memories`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ memoryId: id, content }),
@@ -293,7 +294,7 @@ export default function ChatSettings({
   const handleDeleteDetailedMemory = async (id: number) => {
     if (!chatId) return;
     try {
-      const res = await fetch(`/api/chat/${chatId}/detailed-memories?memoryId=${id}`, {
+      const res = await fetchWithCsrf(`/api/chat/${chatId}/detailed-memories?memoryId=${id}`, {
         method: 'DELETE',
       });
       if (res.ok) {
@@ -322,7 +323,7 @@ export default function ChatSettings({
     
     try {
       console.log('API呼び出し開始:', `/api/chat/${chatId}/detailed-memories`);
-      const res = await fetch(`/api/chat/${chatId}/detailed-memories`, {
+      const res = await fetchWithCsrf(`/api/chat/${chatId}/detailed-memories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ autoSummarize: true }),

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, HelpCircle } from 'lucide-react';
 import HelpModal from '@/components/HelpModal';
+import { fetchWithCsrf } from "@/lib/csrf-client";
 
 /* =============================================================================
  *  フォーム用の型定義
@@ -174,7 +175,7 @@ export default function PersonaFormPage() {
     const method = isEditMode ? 'PUT' : 'POST';
 
     try {
-      const response = await fetch(url, {
+      const response = await fetchWithCsrf(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

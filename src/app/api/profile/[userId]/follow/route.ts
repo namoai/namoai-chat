@@ -26,8 +26,10 @@ type RouteContext = {
  *   → where は followerId_followingId を用いる。
  */
 export async function POST(req: NextRequest, context: unknown) {
-  // --- params の安全な取り出し（最小限の型アサーション） ---
-  const { userId } = (context as RouteContext).params;
+  // --- params の安全な取り出し（Next.js 15対応: paramsをawait） ---
+  const { params } = await (context ?? {}) as { params?: Promise<RouteContext['params']> | RouteContext['params'] };
+  const resolvedParams = params instanceof Promise ? await params : params;
+  const userId = resolvedParams?.userId;
 
   // --- 認証チェック ---
   const session = await getServerSession(authOptions);

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
 import { VertexAI, HarmCategory, HarmBlockThreshold } from '@google-cloud/vertexai';
 import { getEmbedding } from '@/lib/embeddings';
+import { ensureGcpCreds } from '@/utils/ensureGcpCreds';
 
 // ▼▼▼【安全対策】同時再要約防止用のMap
 const summarizingChats = new Map<number, boolean>();
@@ -515,6 +516,9 @@ async function performReSummarization(
           }
           
           console.log(`再要約: バッチ ${messageStartIndex}-${messageEndIndex} 要約開始 (${batchMessages.length}件)`);
+          
+          // GCP認証情報を確保
+          await ensureGcpCreds();
           
           const vertex_ai = new VertexAI({
             project: process.env.GOOGLE_PROJECT_ID || '',

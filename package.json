@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "prebuild": "cross-env NODE_ENV=production node scripts/gsm-fetch.mjs",
-    "build": "rm -rf .next && prisma generate && next build",
+    "build": "rimraf .next && prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "node scripts/test-runner.mjs",
@@ -61,6 +61,7 @@
     "pptxgenjs": "^4.0.1",
     "prisma": "^6.11.1",
     "puppeteer": "^24.28.0",
+    "rimraf": "^6.1.2",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.4",
     "typescript": "^5.8.3"

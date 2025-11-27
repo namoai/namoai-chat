@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { X, Plus, Trash2, GripVertical, ArrowLeft } from "lucide-react";
 import { uploadImageToStorage } from "@/lib/supabase-client";
+import { fetchWithCsrf } from "@/lib/csrf-client";
 
 // --- 定数と型定義（共通） ---
 const CATEGORIES = [
@@ -346,7 +347,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
   const handleGenerateProfile = async () => {
     setIsGeneratingProfile(true);
     try {
-      const response = await fetch('/api/characters/generate-profile', {
+      const response = await fetchWithCsrf('/api/characters/generate-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -396,7 +397,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
 
     setIsGeneratingDetail(true);
     try {
-      const response = await fetch('/api/characters/generate-detail', {
+      const response = await fetchWithCsrf('/api/characters/generate-detail', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -445,7 +446,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
 
     setIsGeneratingSituation(true);
     try {
-      const response = await fetch('/api/characters/generate-situation', {
+      const response = await fetchWithCsrf('/api/characters/generate-situation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -496,7 +497,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
 
     setIsGeneratingDatePlace(true);
     try {
-      const response = await fetch('/api/characters/generate-date-place', {
+      const response = await fetchWithCsrf('/api/characters/generate-date-place', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -747,7 +748,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       const url = isEditMode ? `/api/characters/${initialData?.id}` : "/api/characters";
       const method = isEditMode ? "PUT" : "POST";
 
-      const response = await fetch(url, {
+      const response = await fetchWithCsrf(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestData),

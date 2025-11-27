@@ -17,6 +17,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import HelpModal from "@/components/HelpModal";
+import { fetchWithCsrf } from "@/lib/csrf-client";
 
 // Buttonの仮コンポーネント
 const Button = ({ children, onClick, className, disabled }: { children: React.ReactNode, onClick: () => void, className?: string, disabled?: boolean }) => (
@@ -154,6 +155,16 @@ const KebabMenu = ({
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const MENU_WIDTH = 160;
+
+  const updateMenuPosition = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    setMenuPosition({
+      top: rect.bottom + window.scrollY + 8,
+      left: rect.right + window.scrollX - MENU_WIDTH,
+    });
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -165,16 +176,18 @@ const KebabMenu = ({
       }
       setIsOpen(false);
     };
-    if (isOpen && buttonRef.current) {
+    if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-      const rect = buttonRef.current.getBoundingClientRect();
-      setMenuPosition({
-        top: rect.bottom + window.scrollY + 8,
-        left: rect.right + window.scrollX - 160, // メニュー幅160px
-      });
+      updateMenuPosition();
+      window.addEventListener("scroll", updateMenuPosition, true);
+      window.addEventListener("resize", updateMenuPosition);
     }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen]);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", updateMenuPosition, true);
+      window.removeEventListener("resize", updateMenuPosition);
+    };
+  }, [isOpen, updateMenuPosition]);
 
   const menuItems = [
     { label: "修正", icon: Edit, action: "edit" },
@@ -197,7 +210,7 @@ const KebabMenu = ({
         createPortal(
           <div
             ref={menuRef}
-            className="fixed w-40 bg-gray-800/95 backdrop-blur-xl border border-gray-700 rounded-xl shadow-2xl z-[9999] text-sm py-2"
+            className="absolute w-40 bg-gray-800/95 backdrop-blur-xl border border-gray-700 rounded-xl shadow-2xl z-[9999] text-sm py-2"
             style={{
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`,
@@ -313,7 +326,7 @@ export default function CharacterManagementPage() {
           message: `「${char.name}」を本当に削除しますか？\nこの操作は元に戻せません。`,
           onConfirm: async () => {
             try {
-              const response = await fetch(`/api/characters/${char.id}`, {
+              const response = await fetchWithCsrf(`/api/characters/${char.id}`, {
                 method: "DELETE",
               });
               if (!response.ok) throw new Error("削除に失敗しました。");
@@ -359,7 +372,7 @@ export default function CharacterManagementPage() {
             setConfirmModal({ ...confirmModal, isOpen: false });
             setIsImporting(true); // ローディング開始
             try {
-              const response = await fetch(
+              const response = await fetchWithCsrf(
                 `/api/characters/${char.id}/import`,
                 {
                   method: "POST",
@@ -576,7 +589,7 @@ export default function CharacterManagementPage() {
               style={{ overflow: 'visible' }}
             >
               <div className="flex items-center gap-4">
-                <a href={`/chat/${char.id}`} className="flex-grow flex items-center gap-4 min-w-0">
+                <a href={`/characters/${char.id}`} className="flex-grow flex items-center gap-4 min-w-0">
                   <div className="relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-xl overflow-hidden ring-2 ring-pink-500/20 group-hover:ring-pink-500/40 transition-all">
                     <Image
                       src={
@@ -610,7 +623,7 @@ export default function CharacterManagementPage() {
                 </a>
                 
                 <button 
-                  onClick={() => window.location.href = `/characters/${char.id}`}
+                  onClick={() => window.location.href = `/chat/${char.id}`}
                   className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-sm font-semibold py-2 px-4 rounded-xl transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50 flex-shrink-0"
                 >
                   チャット

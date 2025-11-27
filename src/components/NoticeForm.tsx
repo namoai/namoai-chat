@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { notices as Notice } from '@prisma/client';
+import { fetchWithCsrf } from "@/lib/csrf-client";
 
 // ▼▼▼【新規追加】汎用モーダルコンポーネント ▼▼▼
 type ModalState = {
@@ -73,7 +74,7 @@ export default function NoticeForm({ initialData = null, noticeId = null }: Noti
     const method = isEditMode ? 'PUT' : 'POST';
 
     try {
-      const response = await fetch(apiUrl, {
+      const response = await fetchWithCsrf(apiUrl, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, category, content }),

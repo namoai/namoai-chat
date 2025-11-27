@@ -8,6 +8,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import HelpModal from '@/components/HelpModal';
+import { fetchWithCsrf } from "@/lib/csrf-client";
 
 // 型定義
 type FollowUser = {
@@ -243,7 +244,7 @@ export default function UserProfilePage() {
     setProfile(prev => prev ? { ...prev, isFollowing: !originalFollowingState, _count: { ...prev._count, followers: originalFollowingState ? originalFollowerCount - 1 : originalFollowerCount + 1 } } : null);
 
     try {
-      const response = await fetch(`/api/profile/${userId}/follow`, { method: 'POST' });
+      const response = await fetchWithCsrf(`/api/profile/${userId}/follow`, { method: 'POST' });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'フォロー状態の更新に失敗しました。');
       setProfile(prev => prev ? { ...prev, isFollowing: data.isFollowing, _count: { ...prev._count, followers: data.newFollowerCount } } : null);
@@ -263,7 +264,7 @@ export default function UserProfilePage() {
         const originalBlockedState = profile.isBlocked;
         setProfile(prev => prev ? { ...prev, isBlocked: !originalBlockedState } : null);
         try {
-          const response = await fetch(`/api/profile/${targetUserId}/block`, { method: 'POST' });
+          const response = await fetchWithCsrf(`/api/profile/${targetUserId}/block`, { method: 'POST' });
           const data = await response.json();
           if (!response.ok) throw new Error(data.error || 'ブロック状態の更新に失敗しました。');
           setProfile(prev => prev ? { ...prev, isBlocked: data.isBlocked } : null);
@@ -276,7 +277,7 @@ export default function UserProfilePage() {
     } 
     else {
         try {
-            const response = await fetch(`/api/profile/${targetUserId}/block`, { method: 'POST' });
+            const response = await fetchWithCsrf(`/api/profile/${targetUserId}/block`, { method: 'POST' });
             if (!response.ok) throw new Error((await response.json()).error || 'ブロック解除に失敗しました。');
             setModalState(prev => {
                 if (!prev) return null;
@@ -325,7 +326,7 @@ export default function UserProfilePage() {
   // 会員退会処理
   const handleAccountDelete = async () => {
     try {
-      const response = await fetch('/api/users/account', {
+      const response = await fetchWithCsrf('/api/users/account', {
         method: 'DELETE',
       });
 

@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Gift, CheckCircle, HelpCircle } from 'lucide-react';
 import HelpModal from '@/components/HelpModal';
+import { fetchWithCsrf } from "@/lib/csrf-client";
 
 // ポイントデータの型定義
 type PointsData = {
@@ -87,7 +88,7 @@ export default function PointPage() {
   const handleAttendance = async () => {
     if (pointsData?.attendedToday) return;
     try {
-      const response = await fetch('/api/points', {
+      const response = await fetchWithCsrf('/api/points', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'attend' }),
@@ -105,7 +106,7 @@ export default function PointPage() {
   
   const handleCharge = async (amount: number) => {
     try {
-      const response = await fetch('/api/points', {
+      const response = await fetchWithCsrf('/api/points', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'charge', amount: amount }),

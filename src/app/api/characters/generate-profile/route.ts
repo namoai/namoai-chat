@@ -3,12 +3,20 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse, NextRequest } from 'next/server';
 import { VertexAI, HarmCategory, HarmBlockThreshold } from "@google-cloud/vertexai";
+import { ensureGcpCreds } from "@/utils/ensureGcpCreds";
 
-// VertexAIクライアントの初期化
-const vertex_ai = new VertexAI({
-  project: process.env.GOOGLE_PROJECT_ID,
-  location: "asia-northeast1",
-});
+// VertexAIクライアントの初期化（遅延初期化）
+let vertex_ai: VertexAI | null = null;
+
+function getVertexAI(): VertexAI {
+  if (!vertex_ai) {
+    vertex_ai = new VertexAI({
+      project: process.env.GOOGLE_PROJECT_ID,
+      location: "asia-northeast1",
+    });
+  }
+  return vertex_ai;
+}
 
 const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
@@ -19,9 +27,12 @@ const safetySettings = [
 
 export async function POST(request: NextRequest) {
   try {
+    // GCP認証情報を確保
+    await ensureGcpCreds();
+    
     const { genre, characterType } = await request.json();
 
-    const model = vertex_ai.getGenerativeModel({
+    const model = getVertexAI().getGenerativeModel({
       model: "gemini-2.5-flash",
       safetySettings,
     });

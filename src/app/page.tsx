@@ -25,7 +25,10 @@ type MainPageData = {
 
 // ヒーローセクション用のフィーチャードキャラクターカード
 const FeaturedCharacterCard = ({ character }: { character: Character }) => {
-  const src = character.characterImages[0]?.imageUrl || "https://placehold.co/600x800/1a1a1a/ffffff?text=?";
+  const [imageError, setImageError] = useState(false);
+  const originalSrc = character.characterImages[0]?.imageUrl;
+  const placeholderSrc = "https://placehold.co/600x800/1a1a1a/ffffff?text=?";
+  const src = imageError || !originalSrc ? placeholderSrc : originalSrc;
   
   return (
     <a
@@ -42,6 +45,7 @@ const FeaturedCharacterCard = ({ character }: { character: Character }) => {
           className="object-contain group-hover:scale-105 transition-transform duration-700"
           sizes="100vw"
           priority
+          onError={() => setImageError(true)}
         />
         {/* グラデーションオーバーレイ */}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
@@ -71,7 +75,10 @@ const FeaturedCharacterCard = ({ character }: { character: Character }) => {
 
 // 改善されたキャラクターカード
 const CharacterCard = ({ character }: { character: Character }) => {
-  const src = character.characterImages[0]?.imageUrl || "https://placehold.co/300x300/1a1a1a/ffffff?text=?";
+  const [imageError, setImageError] = useState(false);
+  const originalSrc = character.characterImages[0]?.imageUrl;
+  const placeholderSrc = "https://placehold.co/300x300/1a1a1a/ffffff?text=?";
+  const src = imageError || !originalSrc ? placeholderSrc : originalSrc;
 
   return (
     <a
@@ -85,6 +92,7 @@ const CharacterCard = ({ character }: { character: Character }) => {
           fill
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
           className="object-cover group-hover:scale-110 transition-transform duration-500"
+          onError={() => setImageError(true)}
         />
         {/* ホバー時のグラデーションオーバーレイ */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />

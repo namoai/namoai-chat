@@ -666,8 +666,15 @@ export async function DELETE(
       return NextResponse.json({ error: 'キャラクターが見つかりません。' }, { status: 404 });
     }
 
-    const isOwner = characterToDelete.author_id === parseInt(currentUser.id, 10);
-    const hasAdminPermission = currentUser.role === Role.CHAR_MANAGER || currentUser.role === Role.SUPER_ADMIN;
+    const currentUserId = Number.parseInt(currentUser.id, 10);
+    console.log('[Character Delete] session user', currentUser);
+
+    const normalizedRole = (currentUser.role || '').toString().toUpperCase();
+    const isOwner = characterToDelete.author_id === currentUserId;
+    const hasAdminPermission =
+      normalizedRole === Role.CHAR_MANAGER ||
+      normalizedRole === Role.MODERATOR ||
+      normalizedRole === Role.SUPER_ADMIN;
 
     if (!isOwner && !hasAdminPermission) {
       return NextResponse.json({ error: 'このキャラクターを削除する権限がありません。' }, { status: 403 });

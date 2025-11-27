@@ -378,27 +378,37 @@ export async function POST(request: Request) {
                 }
                 // ▲▲▲
                 
+                console.log('[POST] 데이터베이스 쓰기 시도 시작...');
+                console.log('[POST] DATABASE_URL from env:', process.env.DATABASE_URL?.substring(0, 50) + '...');
+                // Prisma가 실제로 사용하는 URL 확인
+                const prismaUrl = (prisma as any).$connect ? 'Prisma connected' : 'Prisma not connected';
+                console.log('[POST] Prisma connection status:', prismaUrl);
+                
                 const newCharacter = await prisma.$transaction(async (tx) => {
-                    const character = await tx.characters.create({
-                        data: {
-                            name: formFields.name,
-                            description: formFields.description ?? null,
-                            systemTemplate: formFields.systemTemplate ?? null,
-                            firstSituation: formFields.firstSituation ?? null,
-                            firstMessage: formFields.firstMessage ?? null,
-                            visibility: formFields.visibility || 'public',
-                            safetyFilter: formFields.safetyFilter !== false,
-                            category: formFields.category ?? null,
-                            hashtags: formFields.hashtags ?? [],
-                            detailSetting: formFields.detailSetting ?? null,
-                            statusWindowPrompt: formFields.statusWindowPrompt ?? null,
-                            statusWindowDescription: formFields.statusWindowDescription ?? null,
-                            author: { connect: { id: userIdNum } },
-                        }
-                    });
+                    try {
+                        console.log('[POST] characters.create 시도...');
+                        const character = await tx.characters.create({
+                            data: {
+                                name: formFields.name,
+                                description: formFields.description ?? null,
+                                systemTemplate: formFields.systemTemplate ?? null,
+                                firstSituation: formFields.firstSituation ?? null,
+                                firstMessage: formFields.firstMessage ?? null,
+                                visibility: formFields.visibility || 'public',
+                                safetyFilter: formFields.safetyFilter !== false,
+                                category: formFields.category ?? null,
+                                hashtags: formFields.hashtags ?? [],
+                                detailSetting: formFields.detailSetting ?? null,
+                                statusWindowPrompt: formFields.statusWindowPrompt ?? null,
+                                statusWindowDescription: formFields.statusWindowDescription ?? null,
+                                author: { connect: { id: userIdNum } },
+                            }
+                        });
+                        console.log('[POST] characters.create 성공:', character.id);
                     
                     // 画像登録（既にSupabaseにアップロード済みのURL）
                     if (images && images.length > 0) {
+                        console.log('[POST] character_images.createMany 시도...');
                         await tx.character_images.createMany({
                             data: images.map((img: { imageUrl: string; keyword: string }, index: number) => ({
                                 characterId: character.id,
@@ -408,6 +418,7 @@ export async function POST(request: Request) {
                                 displayOrder: index,
                             }))
                         });
+                        console.log('[POST] character_images.createMany 성공');
                     }
                     
                     // ロアブック保存
@@ -423,6 +434,21 @@ export async function POST(request: Request) {
                     }
                     
                     return character;
+                    } catch (dbError) {
+                        console.error('[POST] 데이터베이스 쓰기 에러 상세:');
+                        console.error('[POST] 에러 타입:', typeof dbError);
+                        console.error('[POST] 에러 객체:', dbError);
+                        if (dbError instanceof Error) {
+                            console.error('[POST] 에러 메시지:', dbError.message);
+                            console.error('[POST] 에러 스택:', dbError.stack);
+                        }
+                        if (typeof dbError === 'object' && dbError !== null) {
+                            const prismaError = dbError as { code?: string; meta?: any; message?: string };
+                            console.error('[POST] Prisma 에러 코드:', prismaError.code);
+                            console.error('[POST] Prisma 에러 메타:', prismaError.meta);
+                        }
+                        throw dbError;
+                    }
                 });
                 
                 // ★ フォロワーに通知

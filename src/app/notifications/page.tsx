@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Bell, Check, Trash2, Filter, ArrowLeft, HelpCircle } from "lucide-react";
 import HelpModal from "@/components/HelpModal";
+import { fetchWithCsrf } from "@/lib/csrf-client";
 
 type Notification = {
   id: number;
@@ -93,7 +94,7 @@ export default function NotificationsPage() {
 
   const markAsRead = async (notificationIds: number[]) => {
     try {
-      await fetch("/api/notifications/read", {
+      await fetchWithCsrf("/api/notifications/read", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notificationIds }),
@@ -106,7 +107,7 @@ export default function NotificationsPage() {
 
   const markAllAsRead = async () => {
     try {
-      await fetch("/api/notifications/read", {
+      await fetchWithCsrf("/api/notifications/read", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ markAllAsRead: true }),

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ShieldCheck, RefreshCw, Sparkles, Terminal, AlertTriangle, ArrowLeft, Activity, Loader2, UploadCloud, Info, Lock, FileText, Server, CheckCircle, XCircle } from "lucide-react";
 import { apiPost, ApiErrorResponse } from "@/lib/api-client";
 import { ErrorCode } from "@/lib/error-handler";
+import { fetchWithCsrf } from "@/lib/csrf-client";
 
 type JsonRecord = Record<string, unknown>;
 type SessionSecurityData = JsonRecord & { error?: string };
@@ -157,7 +158,7 @@ export default function SecurityTestPage() {
     setRateError(null);
     try {
       for (let i = 1; i <= 6; i++) {
-        const res = await fetch("/api/security-tests/rate-limit", { method: "POST" });
+        const res = await fetchWithCsrf("/api/security-tests/rate-limit", { method: "POST" });
         const data = await res.json().catch(() => ({}));
         setRateLogs((prev) => [
           ...prev,
@@ -182,7 +183,7 @@ export default function SecurityTestPage() {
     setIsSanitizing(true);
     setSanitizeError(null);
     setSanitizeResult(null);
-    const res = await fetch("/api/security-tests/sanitize", {
+    const res = await fetchWithCsrf("/api/security-tests/sanitize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ input: inputSample }),
@@ -212,7 +213,7 @@ export default function SecurityTestPage() {
     const payload = new FormData();
     payload.append("file", selectedFile);
     try {
-      const res = await fetch("/api/security-tests/upload", {
+      const res = await fetchWithCsrf("/api/security-tests/upload", {
         method: "POST",
         body: payload,
       });

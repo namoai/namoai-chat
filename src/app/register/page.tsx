@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Mail, Lock, User, Phone, Smile, ArrowLeft } from "lucide-react"; // ✅ ボタンアイコンを追加
+import { fetchWithCsrf } from "@/lib/csrf-client";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -65,7 +66,7 @@ export default function SignUpPage() {
     if (!validate()) return;
 
     try {
-      const response = await fetch("/api/register", {
+      const response = await fetchWithCsrf("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),

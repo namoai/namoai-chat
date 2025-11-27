@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 // ▼▼▼【修正点】未使用の 'X' アイコンを削除しました ▼▼▼
 import { Search, MoreVertical, Edit, Trash2, Eye, EyeOff, ArrowLeft, Star, StarOff } from 'lucide-react';
+import { fetchWithCsrf } from '@/lib/csrf-client';
 
 // 型定義
 type Character = {
@@ -67,6 +68,16 @@ const KebabMenu = ({ character, onAction }: { character: Character, onAction: (a
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const MENU_WIDTH = 192;
+
+  const updateMenuPosition = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    setMenuPosition({
+      top: rect.bottom + window.scrollY + 8,
+      left: rect.right + window.scrollX - MENU_WIDTH,
+    });
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -78,16 +89,18 @@ const KebabMenu = ({ character, onAction }: { character: Character, onAction: (a
       }
       setIsOpen(false);
     };
-    if (isOpen && buttonRef.current) {
+    if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-      const rect = buttonRef.current.getBoundingClientRect();
-      setMenuPosition({
-        top: rect.bottom + window.scrollY + 8,
-        left: rect.right + window.scrollX - 192, // メニュー幅192px
-      });
+      updateMenuPosition();
+      window.addEventListener("scroll", updateMenuPosition, true);
+      window.addEventListener("resize", updateMenuPosition);
     }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen]);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", updateMenuPosition, true);
+      window.removeEventListener("resize", updateMenuPosition);
+    };
+  }, [isOpen, updateMenuPosition]);
 
   const handleAction = (action: string) => {
     setIsOpen(false);
@@ -104,7 +117,7 @@ const KebabMenu = ({ character, onAction }: { character: Character, onAction: (a
         createPortal(
           <div
             ref={menuRef}
-            className="fixed w-48 bg-gray-800/95 backdrop-blur-xl rounded-xl shadow-2xl z-[9999] text-sm border border-gray-700/50 py-2"
+            className="absolute w-48 bg-gray-800/95 backdrop-blur-xl rounded-xl shadow-2xl z-[9999] text-sm border border-gray-700/50 py-2"
             style={{
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`,
@@ -202,7 +215,7 @@ export default function AdminCharactersPage() {
           message: `このキャラクターを${newOfficialStatus ? 'ナモアイフレンズに登録' : 'ナモアイフレンズから削除'}しますか？`,
           confirmText: newOfficialStatus ? '登録' : '削除',
           onConfirm: async () => {
-            const res = await fetch('/api/admin/characters', {
+            const res = await fetchWithCsrf('/api/admin/characters', {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ id: char.id, isOfficial: newOfficialStatus }),
@@ -224,7 +237,7 @@ export default function AdminCharactersPage() {
           message: `このキャラクターを「${newVisibility === 'public' ? '公開' : '非公開'}」に切り替えますか？`,
           confirmText: '切り替え',
           onConfirm: async () => {
-            const res = await fetch('/api/admin/characters', {
+            const res = await fetchWithCsrf('/api/admin/characters', {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ id: char.id, visibility: newVisibility }),
@@ -248,7 +261,7 @@ export default function AdminCharactersPage() {
           message: `「${char.name}」を本当に削除しますか？この操作は元に戻せません。`,
           confirmText: '削除',
           onConfirm: async () => {
-             const res = await fetch('/api/admin/characters', {
+             const res = await fetchWithCsrf('/api/admin/characters', {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ id: char.id }),

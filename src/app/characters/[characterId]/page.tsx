@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Heart, MoreVertical, ArrowLeft, Send, Edit, Trash2, ShieldBan, Flag, HelpCircle } from 'lucide-react';
 import HelpModal from '@/components/HelpModal';
+import { fetchWithCsrf } from "@/lib/csrf-client";
 
 // --- 型定義 (変更なし) ---
 type ManualSession = {
@@ -136,7 +137,7 @@ function Comments({ characterId, characterAuthorId, session, setModalState }: Co
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/characters/${characterId}/comments`, {
+      const res = await fetchWithCsrf(`/api/characters/${characterId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: newComment }),
@@ -162,7 +163,7 @@ function Comments({ characterId, characterAuthorId, session, setModalState }: Co
         confirmText: '削除',
         onConfirm: async () => {
             try {
-              const res = await fetch(`/api/characters/${characterId}/comments/${commentId}`, {
+              const res = await fetchWithCsrf(`/api/characters/${characterId}/comments/${commentId}`, {
                 method: 'DELETE',
               });
               if (!res.ok) {
@@ -189,7 +190,7 @@ function Comments({ characterId, characterAuthorId, session, setModalState }: Co
     
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/characters/${characterId}/comments/${editingCommentId}`, {
+      const res = await fetchWithCsrf(`/api/characters/${characterId}/comments/${editingCommentId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: editedContent }),
@@ -421,11 +422,17 @@ export default function CharacterDetailPage({
       confirmText: '削除',
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/characters/${characterId}`, {
+          const res = await fetchWithCsrf(`/api/characters/${characterId}`, {
             method: 'DELETE',
           });
           if (!res.ok) throw new Error('削除に失敗しました。');
-          router.push('/character-management');
+          setModalState({
+            isOpen: true,
+            title: '削除完了',
+            message: 'キャラクターを削除しました。',
+            isAlert: true,
+            onConfirm: () => router.push('/character-management'),
+          });
         } catch (err) {
           setModalState({
             isOpen: true,
@@ -536,7 +543,7 @@ export default function CharacterDetailPage({
     
     try {
       const method = character.isFavorited ? 'DELETE' : 'POST';
-      const res = await fetch(`/api/characters/${character.id}/favorite`, { method });
+      const res = await fetchWithCsrf(`/api/characters/${character.id}/favorite`, { method });
       if (!res.ok) throw new Error('お気に入り登録に失敗しました。');
     } catch (e) {
       // ★ エラーが発生したら元に戻す
@@ -549,7 +556,7 @@ export default function CharacterDetailPage({
       if (!characterId) return;
       setIsCreatingChat(true);
       try {
-          const res = await fetch('/api/chat/new', {
+          const res = await fetchWithCsrf('/api/chat/new', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ characterId: parseInt(characterId, 10) }),

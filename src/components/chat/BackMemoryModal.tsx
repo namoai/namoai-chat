@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Edit2, Save, XCircle } from 'lucide-react';
+import { fetchWithCsrf } from "@/lib/csrf-client";
 
 type BackMemoryModalProps = {
   isOpen: boolean;
@@ -80,7 +81,7 @@ export default function BackMemoryModal({
     onSummarizeStart?.();
     // ▲▲▲
     try {
-      const response = await fetch(`/api/chat/${chatId}/back-memory`, {
+      const response = await fetchWithCsrf(`/api/chat/${chatId}/back-memory`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });

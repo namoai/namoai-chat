@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Check, Trash2, Pencil, ArrowLeft, HelpCircle } from 'lucide-react';
 import HelpModal from '@/components/HelpModal';
+import { fetchWithCsrf } from "@/lib/csrf-client";
 
 type Persona = {
   id: number;
@@ -99,7 +100,7 @@ function PersonaListComponent() {
     setSelectedId(id);
 
     try {
-      const response = await fetch('/api/persona', {
+      const response = await fetchWithCsrf('/api/persona', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ personaId: id }),
@@ -131,7 +132,7 @@ function PersonaListComponent() {
 
   const handleDeletePersona = async (id: number) => {
     try {
-      const response = await fetch(`/api/persona/${id}`, { method: 'DELETE' });
+      const response = await fetchWithCsrf(`/api/persona/${id}`, { method: 'DELETE' });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || '削除に失敗しました。');

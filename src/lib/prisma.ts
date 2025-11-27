@@ -76,9 +76,25 @@ async function resolveDatabaseUrl(): Promise<string> {
  * PrismaClient を生成（開発はグローバルにキャッシュ）
  */
 async function createPrisma(): Promise<PrismaClient> {
-  if (global.__prisma) return global.__prisma;
-
   const url = await resolveDatabaseUrl();
+  
+  // ▼▼▼【로컬 환경 디버깅】실제 사용 중인 DATABASE_URL 로그 출력 ▼▼▼
+  if (process.env.NODE_ENV === "development") {
+    console.log('[prisma] DATABASE_URL:', url.substring(0, 50) + '...');
+    console.log('[prisma] DATABASE_URL from env:', process.env.DATABASE_URL?.substring(0, 50) + '...');
+  }
+  // ▲▲▲
+
+  // 기존 인스턴스가 있고 같은 URL을 사용하는 경우 재사용
+  if (global.__prisma) {
+    const currentUrl = await resolveDatabaseUrl();
+    if (currentUrl === url) {
+      return global.__prisma;
+    }
+    // URL이 변경된 경우 기존 인스턴스 종료
+    await global.__prisma.$disconnect();
+    global.__prisma = undefined;
+  }
 
   const instance = new PrismaClient({
     datasourceUrl: url,

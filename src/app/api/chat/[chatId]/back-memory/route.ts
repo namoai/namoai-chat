@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
 import { VertexAI, HarmCategory, HarmBlockThreshold } from '@google-cloud/vertexai';
 import { getEmbedding } from '@/lib/embeddings';
+import { ensureGcpCreds } from '@/utils/ensureGcpCreds';
 
 // 安全性設定（ユーザー設定に基づいて動的に変更される）
 const getSafetySettings = (safetyFilterEnabled: boolean) => {
@@ -214,6 +215,9 @@ export async function POST(
     const conversationText = messages
       .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
       .join('\n\n');
+
+    // GCP認証情報を確保
+    await ensureGcpCreds();
 
     // Vertex AIで要約
     const vertex_ai = new VertexAI({

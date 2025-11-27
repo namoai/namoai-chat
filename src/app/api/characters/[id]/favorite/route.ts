@@ -12,11 +12,10 @@ import { notifyOnFavorite } from '@/lib/notifications'; // ★ 通知関数を�
  */
 export async function POST(
   request: NextRequest,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  context: any
+  context: { params: Promise<{ id: string }> }
 ) {
   // URLからキャラクターIDを取得
-  const { id } = (context?.params ?? {}) as { id?: string };
+  const { id } = await context.params;
   const characterId = Number.parseInt(id ?? '', 10);
 
   // IDのバリデーション
@@ -71,11 +70,10 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  context: any
+  context: { params: Promise<{ id: string }> }
 ) {
   // URLからキャラクターIDを取得
-  const { id } = (context?.params ?? {}) as { id?: string };
+  const { id } = await context.params;
   const characterId = Number.parseInt(id ?? '', 10);
 
   // IDのバリデーション

@@ -44,6 +44,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   images: {
+    // SVG placeholders (e.g. https://placehold.co) are used across character pages.
+    // Allow them explicitly while remote optimizer remains enabled.
+    dangerouslyAllowSVG: true,
     remotePatterns: [
       {
         protocol: "https",

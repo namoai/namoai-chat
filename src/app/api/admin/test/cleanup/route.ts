@@ -148,6 +148,14 @@ export async function DELETE() {
         });
       }
 
+      // 3-追加. ハッシュタグが「テスト」を含む孤立キャラクターの削除
+      await tx.characters.deleteMany({
+        where: {
+          hashtags: { has: 'テスト' },
+          author_id: null,
+        },
+      });
+
       // 4. テスト用ユーザー関連データを削除
       if (testUserIds.length > 0) {
         // ユーザーのコメントを削除

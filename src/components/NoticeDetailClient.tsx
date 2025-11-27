@@ -6,6 +6,7 @@ import { ArrowLeft, Edit, Trash2, HelpCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import HelpModal from "@/components/HelpModal";
+import { fetchWithCsrf } from "@/lib/csrf-client";
 
 // お知らせ詳細データの型定義
 type NoticeDetail = {
@@ -107,7 +108,7 @@ export default function NoticeDetailClient({ noticeId }: NoticeDetailClientProps
       onConfirm: async () => {
         setIsProcessing(true);
         try {
-          const response = await fetch(`/api/notice/${noticeId}`, { method: "DELETE" });
+          const response = await fetchWithCsrf(`/api/notice/${noticeId}`, { method: "DELETE" });
           if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.error || "削除に失敗しました。");

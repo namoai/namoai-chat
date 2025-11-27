@@ -31,6 +31,8 @@ let baseUrl = process.env.API_URL || 'http://localhost:3000';
 let cookies = '';
 let testCharacterId = null;
 let testUserId = null;
+let initialPointSnapshot = null;
+let lastCreatedPersonaId = null;
 let globalOptions = { autoCreate: false };
 
 function parseExistingCookies() {
@@ -195,7 +197,7 @@ async function createTestCharacter(session) {
 // 테스트용 계정 생성
 async function createTestUser() {
   const testEmail = `test_${Date.now()}@test.com`;
-  const testPassword = 'Test1234!';
+  const testPassword = 'Test1234!QA99';
   const testNickname = `テストユーザー_${Date.now()}`;
   
   const registerRes = await fetch(`${baseUrl}/api/register`, {
@@ -305,6 +307,44 @@ async function createCharacterWithAI(testUserId) {
   return characterData.character.id;
 }
 
+async function createSimpleTestCharacter() {
+  if (!testUserId) {
+    throw new Error('テストユーザーIDが不明です');
+  }
+
+  const timestamp = Date.now();
+  const payload = {
+    userId: testUserId,
+    name: `テスト検証キャラ_${timestamp}`,
+    description: '自動テスト用に生成される安全なキャラクターです。検索用に #テスト ハッシュタグを付与します。',
+    detailSetting: 'QA機能テスト専用キャラクター。危険な応答を返さず、チャット/検索動作の検証に使用します。',
+    firstSituation: '品質保証チームがシステム検証を開始します。#テスト ハッシュタグでこのキャラクターを検索できます。',
+    firstMessage: 'こんにちは、テスト用キャラクターです。正常に作成できたか確認してください。',
+    visibility: 'public',
+    safetyFilter: true,
+    category: 'テスト',
+    hashtags: ['テスト', '自動テスト'],
+    images: [],
+  };
+
+  const res = await fetchWithAuth(`${baseUrl}/api/characters`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await res.json();
+  if (!res.ok || !result?.character?.id) {
+    throw new Error(result?.message || result?.error || 'キャラクター作成に失敗');
+  }
+
+  testCharacterId = result.character.id;
+  return {
+    id: result.character.id,
+    name: result.character.name,
+  };
+}
+
 // 캐릭터 찾기 또는 생성
 async function ensureTestCharacter(session, requireOtherUser = false) {
   // 먼저 기존 캐릭터 확인
@@ -387,8 +427,15 @@ const testCategories = [
           const res = await fetchWithAuth(`${baseUrl}/api/points`);
           const result = await res.json();
           if (res.ok) {
-            const total = (result.free_points || 0) + (result.paid_points || 0);
-            return { total };
+            const snapshot = {
+              free: result.free_points || 0,
+              paid: result.paid_points || 0,
+            };
+            snapshot.total = snapshot.free + snapshot.paid;
+            if (!initialPointSnapshot) {
+              initialPointSnapshot = { ...snapshot };
+            }
+            return { total: snapshot.total };
           }
           throw new Error(result.error || 'ポイント取得に失敗');
         }
@@ -427,6 +474,30 @@ const testCategories = [
           // その他のエラーの場合
           return { message: result.message || '出席エラー', isError: true };
         }
+      },
+      {
+        name: 'ポイント最終確認',
+        description: '全てのポイント操作後に最終残高を検証します',
+        run: async () => {
+          const res = await fetchWithAuth(`${baseUrl}/api/points`);
+          const result = await res.json();
+          if (!res.ok) {
+            throw new Error(result.error || 'ポイント取得に失敗');
+          }
+
+          const free = result.free_points || 0;
+          const paid = result.paid_points || 0;
+          const total = free + paid;
+          if (total < 0) {
+            throw new Error('ポイント残高が負の値です');
+          }
+
+          const response = { total, free, paid };
+          if (initialPointSnapshot) {
+            response.diffFromInitial = total - initialPointSnapshot.total;
+          }
+          return response;
+        }
       }
     ]
   },
@@ -462,6 +533,17 @@ const testCategories = [
             return { name: result.name };
           }
           throw new Error('キャラクター詳細取得に失敗');
+        }
+      },
+      {
+        name: 'キャラクター作成',
+        description: 'テスト用キャラクターを新規作成します',
+        run: async () => {
+          const created = await createSimpleTestCharacter();
+          if (created?.id) {
+            return { characterId: created.id };
+          }
+          throw new Error('キャラクター作成に失敗');
         }
       },
       {
@@ -542,54 +624,6 @@ const testCategories = [
     ]
   },
   {
-    name: '通知機能',
-    tests: [
-      {
-        name: '通知一覧取得',
-        description: 'ユーザーが受け取った通知の一覧を取得します',
-        run: async () => {
-          const res = await fetchWithAuth(`${baseUrl}/api/notifications`);
-          const result = await res.json();
-          if (res.ok) {
-            return { count: result.notifications?.length || 0 };
-          }
-          throw new Error('通知取得に失敗');
-        }
-      },
-      {
-        name: '未読通知数取得',
-        description: '未読通知の数を取得します',
-        run: async () => {
-          const res = await fetchWithAuth(`${baseUrl}/api/notifications/unread-count`);
-          const result = await res.json();
-          if (res.ok) {
-            return { unreadCount: result.unreadCount || 0 };
-          }
-          throw new Error('未読通知数取得に失敗');
-        }
-      },
-      {
-        name: '通知既読処理',
-        description: '通知を既読にマークします',
-        run: async () => {
-          const notifRes = await fetchWithAuth(`${baseUrl}/api/notifications`);
-          const notifs = await notifRes.json();
-          if (notifs.notifications?.length > 0) {
-            const res = await fetchWithAuth(`${baseUrl}/api/notifications/read`, {
-              method: 'PUT',
-              body: JSON.stringify({ notificationIds: [notifs.notifications[0].id] }),
-            });
-            if (res.ok) {
-              return { message: '既読処理成功' };
-            }
-            throw new Error('既読処理に失敗');
-          }
-          return { message: '通知がありません', isError: true };
-        }
-      }
-    ]
-  },
-  {
     name: 'ソーシャル機能',
     tests: [
       {
@@ -613,12 +647,10 @@ const testCategories = [
         name: 'フォロー/アンフォロー',
         description: '他のユーザーをフォロー/アンフォローします',
         run: async () => {
-          // 다른 사용자가 만든 캐릭터 찾기
           const charsRes = await fetchWithAuth(`${baseUrl}/api/charlist`);
           const chars = await charsRes.json();
           
           if (Array.isArray(chars) && chars.length > 0) {
-            // 다른 사용자가 만든 캐릭터 찾기
             const otherUserChar = chars.find(char => char.author_id && char.author_id !== testUserId);
             if (otherUserChar && otherUserChar.author_id) {
               const authorId = otherUserChar.author_id;
@@ -688,6 +720,54 @@ const testCategories = [
     ]
   },
   {
+    name: '通知機能',
+    tests: [
+      {
+        name: '通知一覧取得',
+        description: 'ユーザーが受け取った通知の一覧を取得します',
+        run: async () => {
+          const res = await fetchWithAuth(`${baseUrl}/api/notifications`);
+          const result = await res.json();
+          if (res.ok) {
+            return { count: result.notifications?.length || 0 };
+          }
+          throw new Error('通知取得に失敗');
+        }
+      },
+      {
+        name: '未読通知数取得',
+        description: '未読通知の数を取得します',
+        run: async () => {
+          const res = await fetchWithAuth(`${baseUrl}/api/notifications/unread-count`);
+          const result = await res.json();
+          if (res.ok) {
+            return { unreadCount: result.unreadCount || 0 };
+          }
+          throw new Error('未読通知数取得に失敗');
+        }
+      },
+      {
+        name: '通知既読処理',
+        description: '通知を既読にマークします',
+        run: async () => {
+          const notifRes = await fetchWithAuth(`${baseUrl}/api/notifications`);
+          const notifs = await notifRes.json();
+          if (notifs.notifications?.length > 0) {
+            const res = await fetchWithAuth(`${baseUrl}/api/notifications/read`, {
+              method: 'PUT',
+              body: JSON.stringify({ notificationIds: [notifs.notifications[0].id] }),
+            });
+            if (res.ok) {
+              return { message: '既読処理成功' };
+            }
+            throw new Error('既読処理に失敗');
+          }
+          return { message: '通知がありません', isError: true };
+        }
+      }
+    ]
+  },
+  {
     name: 'その他機能',
     tests: [
       {
@@ -714,7 +794,7 @@ const testCategories = [
         }
       },
       {
-        name: 'ペルソナ機能',
+        name: 'ペルソナ一覧取得',
         description: 'ユーザーのペルソナ情報を取得します',
         run: async () => {
           const res = await fetchWithAuth(`${baseUrl}/api/persona`);
@@ -723,6 +803,48 @@ const testCategories = [
             return { count: result.personas?.length || 0 };
           }
           throw new Error('ペルソナ取得に失敗');
+        }
+      },
+      {
+        name: 'ペルソナ作成',
+        description: 'サンプルペルソナを新規作成します',
+        run: async () => {
+          const timestamp = Date.now();
+          const payload = {
+            nickname: `テストペルソナ_${timestamp}`,
+            age: 25,
+            gender: 'female',
+            description: 'テストランナー経由で自動作成されたペルソナです。',
+          };
+          const res = await fetchWithAuth(`${baseUrl}/api/persona`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+          const result = await res.json();
+          if (res.ok) {
+            lastCreatedPersonaId = result.id;
+            return { personaId: result.id };
+          }
+          throw new Error(result.error || 'ペルソナ作成に失敗');
+        }
+      },
+      {
+        name: 'ペルソナ削除',
+        description: '直前に作成したペルソナを削除します',
+        run: async () => {
+          if (!lastCreatedPersonaId) {
+            return { message: '削除対象のペルソナがありません', isSkipped: true };
+          }
+          const res = await fetchWithAuth(`${baseUrl}/api/persona/${lastCreatedPersonaId}`, {
+            method: 'DELETE',
+          });
+          const result = await res.json();
+          if (res.ok) {
+            const deletedId = lastCreatedPersonaId;
+            lastCreatedPersonaId = null;
+            return { deletedId, message: result.message || '削除成功' };
+          }
+          throw new Error(result.error || 'ペルソナ削除に失敗');
         }
       }
     ]
@@ -815,6 +937,27 @@ async function analyzeWithAI(results, baseUrl) {
     throw new Error('AI分析に失敗しました');
   } catch (error) {
     return `AI分析中にエラーが発生しました: ${error.message}`;
+  }
+}
+
+async function prepareServerFixtures() {
+  try {
+    const res = await fetchWithAuth(`${baseUrl}/api/admin/test/seed`, {
+      method: 'POST',
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'テスト用ソーシャルデータの準備に失敗しました');
+    }
+    if (!globalOptions.json) {
+      console.log(
+        `🧩 ソーシャル/通知データ準備: 通知 ${data.notificationsCreated || 0}件`
+      );
+    }
+  } catch (error) {
+    if (!globalOptions.json) {
+      console.warn(`⚠️  ソーシャルデータ準備に失敗しました: ${error.message || error}`);
+    }
   }
 }
 
@@ -976,6 +1119,8 @@ async function main() {
           }
         }
       }
+
+      await prepareServerFixtures();
       
       if (!options.json) {
         console.log('🚀 テストを開始します...\n');

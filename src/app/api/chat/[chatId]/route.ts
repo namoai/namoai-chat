@@ -14,20 +14,26 @@ import { searchSimilarMessages, searchSimilarDetailedMemories } from "@/lib/vect
 import { getSafetySettings } from "@/lib/chat/safety-settings";
 import { addImageTagIfKeywordMatched } from "@/lib/chat/image-selection";
 import { createDetailedMemories, updateMemoriesWithAIKeywords } from "@/lib/chat/memory-management";
+import { ensureGcpCreds } from "@/utils/ensureGcpCreds";
 
-// VertexAIクライアントの初期化
-const vertex_ai = new VertexAI({
-  project: process.env.GOOGLE_PROJECT_ID,
-  location: "asia-northeast1",
-});
+// VertexAIクライアントの初期化（遅延初期化）
+let vertex_ai: VertexAI | null = null;
+
+function getVertexAI(): VertexAI {
+  if (!vertex_ai) {
+    vertex_ai = new VertexAI({
+      project: process.env.GOOGLE_PROJECT_ID,
+      location: "asia-northeast1",
+    });
+  }
+  return vertex_ai;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function POST(request: Request, context: any) {
+export async function POST(request: Request, context: { params: Promise<{ chatId: string }> }) {
   console.log("チャットAPIリクエスト受信");
   console.time("⏱️ 全体API処理時間"); // 全体時間測定開始
-  const { params } = (context ?? {}) as { params?: Record<string, string | string[]> };
-  const rawChatId = params?.chatId;
-  const chatIdStr = Array.isArray(rawChatId) ? rawChatId[0] : rawChatId;
+  const { chatId: chatIdStr } = await context.params;
 
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
@@ -693,13 +699,16 @@ ${statusWindowInstruction}${userDirectiveInstruction}
           console.log(`  - システムプロンプト先頭: ${systemInstructionText.substring(0, 500)}${systemInstructionText.length > 500 ? '...' : ''}`);
           // ▲▲▲
 
+          // GCP認証情報を確保
+          await ensureGcpCreds();
+          
           const safetySettings = getSafetySettings(userSafetyFilter);
           if (userSafetyFilter) {
             console.log(`  - 安全性設定: BLOCK_ONLY_HIGH (すべてのカテゴリー、高レベルだけブロック、ロマンチック/感情的な内容は許可)`);
           } else {
             console.log(`  - 安全性設定: BLOCK_NONE (すべて許可)`);
           }
-          const generativeModel = vertex_ai.getGenerativeModel({ model: modelToUse, safetySettings });
+          const generativeModel = getVertexAI().getGenerativeModel({ model: modelToUse, safetySettings });
 
           // チャットセッションを開始（履歴とシステム指示を渡す）
           // ▼▼▼【重要デバッグ】システム指示が正しく渡されているか確認
@@ -853,6 +862,9 @@ ${statusWindowInstruction}${userDirectiveInstruction}
                       .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
                       .join('\n\n');
 
+                    // GCP認証情報を確保
+                    await ensureGcpCreds();
+                    
                     // Vertex AIで要約
                     const summaryVertexAI = new VertexAI({
                       project: process.env.GOOGLE_PROJECT_ID || '',
@@ -1015,6 +1027,9 @@ ${conversationText}`;
                       .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'キャラクター'}: ${msg.content}`)
                       .join('\n\n');
 
+                    // GCP認証情報を確保
+                    await ensureGcpCreds();
+                    
                     // Vertex AIで要約
                     const summaryVertexAI = new VertexAI({
                       project: process.env.GOOGLE_PROJECT_ID || '',

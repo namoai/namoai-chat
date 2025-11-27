@@ -16,6 +16,7 @@ import ImageLightbox from "@/components/chat/ImageLightbox";
 // 型定義のインポート
 // ▼▼▼【Stale State修正】`Turn`型は`switchModelMessage`のために引き続き必要です。▼▼▼
 import type { CharacterInfo, Message, Turn, ModalState, DbMessage, CharacterImageInfo } from '@/types/chat';
+import { fetchWithCsrf } from "@/lib/csrf-client";
 
 // --- ユーティリティ関数 ---
 
@@ -256,7 +257,7 @@ export default function ChatPage() {
     const loadChatSession = async () => {
         setIsInitialLoading(true);
         try {
-            const res = await fetch("/api/chats/find-or-create", {
+            const res = await fetchWithCsrf("/api/chats/find-or-create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -319,12 +320,12 @@ export default function ChatPage() {
               (async () => {
                 try {
                   // バックメモリ自動要約
-                  await fetch(`/api/chat/${data.id}/back-memory`, {
+                  await fetchWithCsrf(`/api/chat/${data.id}/back-memory`, {
                     method: 'POST',
                   }).catch(err => console.error('バックメモリ自動要約エラー:', err));
                   
                   // 詳細記憶自動要約（再要約）
-                  await fetch(`/api/chat/${data.id}/detailed-memories`, {
+                  await fetchWithCsrf(`/api/chat/${data.id}/detailed-memories`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ autoSummarize: true }),
@@ -472,7 +473,7 @@ export default function ChatPage() {
     // ▲▲▲
 
     try {
-        const response = await fetch(`/api/chat/${chatId}`, {
+        const response = await fetchWithCsrf(`/api/chat/${chatId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -633,7 +634,7 @@ export default function ChatPage() {
           // 応答が開始されていない場合はメッセージ削除とポイント返金
           if (!hasReceivedResponseRef.current && tempUserMessageIdRef.current) {
             try {
-              await fetch(`/api/chat/${chatId}/cancel?turnId=${tempUserMessageIdRef.current}&refund=true`, {
+              await fetchWithCsrf(`/api/chat/${chatId}/cancel?turnId=${tempUserMessageIdRef.current}&refund=true`, {
                 method: 'POST',
               });
             } catch (cancelError) {
@@ -668,7 +669,7 @@ export default function ChatPage() {
     setEditingMessageId(null);
 
     try {
-        await fetch('/api/chat/messages', {
+        await fetchWithCsrf('/api/chat/messages', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ messageId: editingMessageId, newContent }),
@@ -707,7 +708,7 @@ export default function ChatPage() {
             }
 
             try {
-                await fetch('/api/chat/messages', {
+                await fetchWithCsrf('/api/chat/messages', {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ messageId }),
@@ -742,7 +743,7 @@ export default function ChatPage() {
         });
         // ▲▲▲
         
-        const res = await fetch('/api/chat/messages', {
+        const res = await fetchWithCsrf('/api/chat/messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chatId, turnId: turnId, settings: generationSettings, activeVersions }),
@@ -887,7 +888,7 @@ export default function ChatPage() {
         return m;
     }));
 
-    fetch('/api/chat/messages', {
+    fetchWithCsrf('/api/chat/messages', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ turnId, activeMessageId: newActiveId }),

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef, useEffect } from 'react';
 import { signIn, useSession } from 'next-auth/react';
@@ -8,6 +8,7 @@ import {
   Users, BookOpen, Settings, AlertCircle, Sparkles, Info, Trash2
 } from 'lucide-react';
 import Link from 'next/link';
+import { fetchWithCsrf } from '@/lib/csrf-client';
 
 type TestResult = {
   name: string;
@@ -20,6 +21,16 @@ type TestCategory = {
   name: string;
   icon: React.ReactNode;
   tests: TestResult[];
+};
+
+type GeneratedCharacterSpec = {
+  name: string;
+  description: string;
+  detailSetting: string;
+  firstSituation: string;
+  firstMessage: string;
+  category: string;
+  hashtags: string[];
 };
 
 export default function TestToolPage() {
@@ -40,16 +51,153 @@ export default function TestToolPage() {
   const [isSettingUp, setIsSettingUp] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<{ message: string; deleted: { users: number; characters: number; chats: number } } | null>(null);
+  const [isPreparingSocial, setIsPreparingSocial] = useState(false);
+  const [socialSeedResult, setSocialSeedResult] = useState<{ message: string; details: string } | null>(null);
 
+  const hasInitializedRef = useRef(false);
   const testUserInfoRef = useRef<{ email: string; password: string; userId?: number } | null>(null);
   const testCharacterIdRef = useRef<number | null>(null);
   const testCharacterNameRef = useRef<string | null>(null);
+  const pointSnapshotRef = useRef<{ free: number; paid: number; total: number } | null>(null);
+  const personaCreatedIdRef = useRef<number | null>(null);
+  const partnerInfoRef = useRef<{ userId: number | null; characterId: number | null } | null>(null);
+  const nativeFetch = globalThis.fetch.bind(globalThis);
 
-  // ▼▼▼【追加】既にログインされている場合はログイン状態を設定
+  const secureFetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
+    const method = (init.method || 'GET').toUpperCase();
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+      return fetchWithCsrf(input.toString(), init);
+    }
+    return nativeFetch(input, init);
+  };
+  const fetch = secureFetch;
+
+  const extractErrorMessage = (payload: unknown, fallback: string) => {
+    if (!payload) return fallback;
+    if (typeof payload === 'string') return payload;
+    if (typeof payload === 'object') {
+      const message = (payload as { message?: unknown; error?: unknown }).message ?? (payload as { message?: unknown; error?: unknown }).error;
+      if (typeof message === 'string') return message;
+      try {
+        return JSON.stringify(payload);
+      } catch {
+        return fallback;
+      }
+    }
+    return fallback;
+  };
+
+  const adoptExistingCharacter = async () => {
+    const charsRes = await fetch('/api/charlist');
+    const charsData = await charsRes.json() as { characters?: any[] } | any[];
+    const chars = Array.isArray(charsData) ? charsData : (charsData.characters || []);
+    if (!Array.isArray(chars) || chars.length === 0) {
+      return null;
+    }
+    const first = chars[0] || null;
+    if (first?.id) {
+      setTestCharacterId(first.id);
+      testCharacterIdRef.current = first.id;
+      if (first.name) {
+        setTestCharacterName(first.name);
+        testCharacterNameRef.current = first.name;
+      }
+      if (first.author_id) {
+        const fallbackInfo = { email: '', password: '', userId: first.author_id };
+        setTestUserInfo(prev => prev ?? fallbackInfo);
+        testUserInfoRef.current = { ...(testUserInfoRef.current ?? {}), userId: first.author_id };
+      }
+    }
+    return first;
+  };
+
+  const buildFallbackCharacterSpec = (categoryLabel: string): GeneratedCharacterSpec => {
+    const normalizedCategory = categoryLabel?.trim() || 'テスト';
+    const fallbackHashtags = Array.from(new Set(['テスト', 'テスト検証', normalizedCategory]));
+    return {
+      name: 'テスト検証キャラクター',
+      description: 'プラットフォームの機能テスト用に自動生成される安全なキャラクターです。#テスト ハッシュタグを必ず含み、検索機能の回帰テストに使用されます。',
+      detailSetting:
+        'このキャラクターはQA自動テスト専用です。ユーザーに危険な応答を返さず、プラットフォームの安定性を検証する目的のみで存在します。',
+      firstSituation:
+        'あなたは品質保証チームの一員としてシステム検証を行います。#テスト ハッシュタグでこのキャラクターを検索し、チャットを開始してください。',
+      firstMessage: 'こんにちは、テスト検証キャラクターです。#テスト のタグでいつでも私を見つけられます！',
+      category: normalizedCategory,
+      hashtags: fallbackHashtags,
+    };
+  };
+
+  const generateTestCharacterSpec = async (categoryLabel: string): Promise<GeneratedCharacterSpec> => {
+    const category = categoryLabel?.trim() || 'テスト';
+    try {
+      const profileRes = await fetch('/api/characters/generate-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          genre: category,
+          characterType: 'テスト用キャラクター',
+        }),
+      });
+      const profilePayload = await profileRes.json().catch(() => null);
+      if (!profileRes.ok || !profilePayload?.name) {
+        throw new Error(extractErrorMessage(profilePayload, 'プロフィール生成に失敗しました'));
+      }
+
+      const detailRes = await fetch('/api/characters/generate-detail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: profilePayload.name,
+          description: profilePayload.description,
+        }),
+      });
+      const detailPayload = await detailRes.json().catch(() => null);
+      if (!detailRes.ok || !detailPayload?.detailSetting) {
+        throw new Error(extractErrorMessage(detailPayload, '詳細設定生成に失敗しました'));
+      }
+
+      const situationRes = await fetch('/api/characters/generate-situation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: profilePayload.name,
+          description: profilePayload.description,
+          detailSetting: detailPayload.detailSetting,
+        }),
+      });
+      const situationPayload = await situationRes.json().catch(() => null);
+      if (
+        !situationRes.ok ||
+        !situationPayload?.firstSituation ||
+        !situationPayload?.firstMessage
+      ) {
+        throw new Error(extractErrorMessage(situationPayload, '開始状況生成に失敗しました'));
+      }
+
+      return {
+        name: profilePayload.name,
+        description: profilePayload.description ?? 'テスト用途で自動生成されたキャラクターです。',
+        detailSetting: detailPayload.detailSetting,
+        firstSituation: situationPayload.firstSituation,
+        firstMessage: situationPayload.firstMessage,
+        category,
+        hashtags: Array.from(new Set(['テスト', category])),
+      };
+    } catch (error) {
+      console.warn('テストキャラクター自動生成に失敗したためフォールバックに切り替えます:', error);
+      return buildFallbackCharacterSpec(category);
+    }
+  };
+
+  // ▼▼▼【追加】ログイン済みの場合でも一度だけ初期화
   useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
+    if (status === 'authenticated' && session?.user && !hasInitializedRef.current) {
       setIsLoggedIn(true);
       setTestCategories(initializeTests());
+      hasInitializedRef.current = true;
+    } else if (status === 'unauthenticated') {
+      hasInitializedRef.current = false;
+      setIsLoggedIn(false);
     }
   }, [status, session]);
   // ▲▲▲
@@ -75,6 +223,7 @@ export default function TestToolPage() {
     '出席チェック': '毎日出席イベントに参加して、30ポイントが正しく付与されるかテストします（既に出席済みの場合はエラーになります）。',
     'キャラクター一覧取得': '公開されているキャラクターの一覧が正しく取得できるかテストします。',
     'キャラクター詳細取得': '特定のキャラクターの詳細情報（名前、説明、画像など）が正しく取得できるかテストします。',
+    'キャラクター作成': 'テスト用キャラクターを新規作成できるかテストします。',
     'キャラクター検索': '検索機能が正常に動作し、キーワードでキャラクターを検索できるかテストします。',
     'チャットリスト取得': 'ユーザーが作成したチャットルームの一覧が正しく取得できるかテストします。',
     '新規チャット作成': '新しいチャットルームを作成して、正しく作成されるかテストします。',
@@ -86,9 +235,12 @@ export default function TestToolPage() {
     'フォロー/アンフォロー': '他のユーザーをフォロー/アンフォローして、状態が正しく更新されるかテストします。',
     'いいね機能': 'キャラクターにいいねを付けて、状態が正しく更新されるかテストします。',
     'コメント機能': 'キャラクターにコメントを投稿して、正しく保存されるかテストします。',
+    'ポイント最終確認': '一連の操作後に最終的なポイント残高を検証します。',
     'ランキング取得': 'キャラクターのランキング情報が正しく取得できるかテストします。',
     '検索機能': '検索APIが正常に動作し、結果が返されるかテストします。',
-    'ペルソナ機能': 'ユーザーのペルソナ情報が正しく取得できるかテストします。',
+    'ペルソナ一覧取得': 'ユーザーのペルソナ情報が正しく取得できるかテストします。',
+    'ペルソナ作成': '新しいペルソナを追加してAPI動作を確認します。',
+    'ペルソナ削除': '直前に作成したペルソナを削除して完了まで検証します。',
   };
 
   // テストカテゴリーの初期化
@@ -108,6 +260,7 @@ export default function TestToolPage() {
         { name: 'ポイント情報取得', status: 'pending' },
         { name: 'ポイントチャージ', status: 'pending' },
         { name: '出席チェック', status: 'pending' },
+        { name: 'ポイント最終確認', status: 'pending' },
       ]
     },
     {
@@ -116,6 +269,7 @@ export default function TestToolPage() {
       tests: [
         { name: 'キャラクター一覧取得', status: 'pending' },
         { name: 'キャラクター詳細取得', status: 'pending' },
+        { name: 'キャラクター作成', status: 'pending' },
         { name: 'キャラクター検索', status: 'pending' },
       ]
     },
@@ -129,15 +283,6 @@ export default function TestToolPage() {
       ]
     },
     {
-      name: '通知機能',
-      icon: <Bell size={20} className="text-red-400" />,
-      tests: [
-        { name: '通知一覧取得', status: 'pending' },
-        { name: '未読通知数取得', status: 'pending' },
-        { name: '通知既読処理', status: 'pending' },
-      ]
-    },
-    {
       name: 'ソーシャル機能',
       icon: <Users size={20} className="text-green-400" />,
       tests: [
@@ -148,12 +293,23 @@ export default function TestToolPage() {
       ]
     },
     {
+      name: '通知機能',
+      icon: <Bell size={20} className="text-red-400" />,
+      tests: [
+        { name: '通知一覧取得', status: 'pending' },
+        { name: '未読通知数取得', status: 'pending' },
+        { name: '通知既読処理', status: 'pending' },
+      ]
+    },
+    {
       name: 'その他機能',
       icon: <Settings size={20} className="text-gray-400" />,
       tests: [
         { name: 'ランキング取得', status: 'pending' },
         { name: '検索機能', status: 'pending' },
-        { name: 'ペルソナ機能', status: 'pending' },
+        { name: 'ペルソナ一覧取得', status: 'pending' },
+        { name: 'ペルソナ作成', status: 'pending' },
+        { name: 'ペルソナ削除', status: 'pending' },
       ]
     },
   ];
@@ -164,7 +320,7 @@ export default function TestToolPage() {
     try {
       // 1. テスト用ユーザー作成
       const testEmail = `test_${Date.now()}@test.com`;
-      const testPassword = 'Test1234!';
+      const testPassword = 'Test1234!QA99';
       const testNickname = `テストユーザー_${Date.now()}`;
       
       const registerRes = await fetch('/api/register', {
@@ -187,58 +343,14 @@ export default function TestToolPage() {
       const registerData = await registerRes.json();
       const testUserId = registerData.user.id;
 
-      // 2. テスト用キャラクター作成（AI自動生成機能を使用）
+      // 2. テスト用キャラクター作成（AI生成 + フォールバック）
       const categories = [
         "シミュレーション", "ロマンス", "ファンタジー/SF", "ドラマ", "武侠/時代劇", 
         "GL", "BL", "ホラー/ミステリー", "アクション", "コメディ/日常", 
         "スポーツ/学園", "その他"
       ];
       const randomCategory = categories[Math.floor(Math.random() * categories.length)];
-
-      // プロフィール生成
-      const profileRes = await fetch('/api/characters/generate-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          genre: randomCategory,
-          characterType: 'テスト用キャラクター',
-        }),
-      });
-
-      if (!profileRes.ok) {
-        throw new Error('プロフィール生成に失敗');
-      }
-
-      const profileData = await profileRes.json();
-      const { name, description } = profileData;
-
-      // 詳細設定生成
-      const detailRes = await fetch('/api/characters/generate-detail', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description }),
-      });
-
-      if (!detailRes.ok) {
-        throw new Error('詳細設定生成に失敗');
-      }
-
-      const detailData = await detailRes.json();
-      const detailSetting = detailData.detailSetting;
-
-      // 開始状況生成
-      const situationRes = await fetch('/api/characters/generate-situation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description, detailSetting }),
-      });
-
-      if (!situationRes.ok) {
-        throw new Error('開始状況生成に失敗');
-      }
-
-      const situationData = await situationRes.json();
-      const { firstSituation, firstMessage } = situationData;
+      const characterSpec = await generateTestCharacterSpec(randomCategory);
 
       // キャラクター作成（テスト用なので公開にする）
       const characterRes = await fetch('/api/characters', {
@@ -246,15 +358,15 @@ export default function TestToolPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: testUserId,
-          name,
-          description,
-          detailSetting,
-          firstSituation,
-          firstMessage,
+          name: characterSpec.name,
+          description: characterSpec.description,
+          detailSetting: characterSpec.detailSetting,
+          firstSituation: characterSpec.firstSituation,
+          firstMessage: characterSpec.firstMessage,
           visibility: 'public', // テスト用なので公開にする
           safetyFilter: true,
-          category: randomCategory,
-          hashtags: ['テスト', randomCategory],
+          category: characterSpec.category || randomCategory,
+          hashtags: characterSpec.hashtags,
           images: [], // 画像なし
         }),
       });
@@ -265,6 +377,9 @@ export default function TestToolPage() {
       }
 
       const characterData = await characterRes.json();
+      if (!characterRes.ok || !characterData?.character?.id) {
+        throw new Error(extractErrorMessage(characterData, 'キャラクター作成に失敗'));
+      }
       const characterId = characterData.character.id;
 
       const userInfo = { email: testEmail, password: testPassword, userId: testUserId };
@@ -274,8 +389,9 @@ export default function TestToolPage() {
       setTestCharacterId(characterId);
       testCharacterIdRef.current = characterId;
 
-      setTestCharacterName(name);
-      testCharacterNameRef.current = name;
+      const createdName = characterData.character.name ?? characterSpec.name;
+      setTestCharacterName(createdName);
+      testCharacterNameRef.current = createdName;
 
       return { testUserId, characterId, testEmail, testPassword };
     } catch (error) {
@@ -339,8 +455,9 @@ export default function TestToolPage() {
       const categoryName = testCategories[categoryIndex].name;
       
       // 現在のtestCharacterIdとtestUserInfoを取得（最新の状態を使用）
-      const currentTestCharacterId = testCharacterIdRef.current;
+      let currentTestCharacterId = testCharacterIdRef.current;
       const currentTestUserInfo = testUserInfoRef.current;
+      let currentTestCharacterName = testCharacterNameRef.current;
 
       switch (categoryName) {
         case '認証・セッション':
@@ -368,17 +485,22 @@ export default function TestToolPage() {
         case 'ポイント機能':
           if (testIndex === 0) {
             // ポイント情報取得
-            const pointsRes = await fetch('/api/points');
+            const pointsRes = await secureFetch('/api/points');
             const pointsResult = await pointsRes.json() as { free_points?: number; paid_points?: number; error?: string };
             if (pointsRes.ok) {
               const total = (pointsResult.free_points || 0) + (pointsResult.paid_points || 0);
+              pointSnapshotRef.current = {
+                free: pointsResult.free_points || 0,
+                paid: pointsResult.paid_points || 0,
+                total,
+              };
               updateTestResult(categoryIndex, testIndex, 'success', `総ポイント: ${total}`, Date.now() - startTime);
             } else {
               throw new Error(pointsResult.error || 'ポイント取得に失敗');
             }
           } else if (testIndex === 1) {
             // ポイントチャージ
-            const chargeRes = await fetch('/api/points', {
+            const chargeRes = await secureFetch('/api/points', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ action: 'charge', amount: 100 }),
@@ -387,11 +509,11 @@ export default function TestToolPage() {
             if (chargeRes.ok) {
               updateTestResult(categoryIndex, testIndex, 'success', chargeResult.message || 'チャージ成功', Date.now() - startTime);
             } else {
-              throw new Error(chargeResult.error || 'チャージに失敗');
+              throw new Error(extractErrorMessage(chargeResult, 'チャージに失敗'));
             }
           } else if (testIndex === 2) {
             // 出席チェック
-            const attendRes = await fetch('/api/points', {
+            const attendRes = await secureFetch('/api/points', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ action: 'attend' }),
@@ -404,9 +526,30 @@ export default function TestToolPage() {
               if (attendResult.message && attendResult.message.includes('既に出席済み')) {
                 updateTestResult(categoryIndex, testIndex, 'success', attendResult.message || '既に出席済み（正常）', Date.now() - startTime);
               } else {
-                updateTestResult(categoryIndex, testIndex, 'error', attendResult.message || '出席エラー', Date.now() - startTime);
+                updateTestResult(categoryIndex, testIndex, 'error', extractErrorMessage(attendResult, '出席エラー'), Date.now() - startTime);
               }
             }
+          } else if (testIndex === 3) {
+            const pointsRes = await secureFetch('/api/points');
+            const pointsResult = await pointsRes.json() as { free_points?: number; paid_points?: number; error?: string };
+            if (!pointsRes.ok) {
+              throw new Error(pointsResult.error || 'ポイント取得に失敗');
+            }
+            const free = pointsResult.free_points || 0;
+            const paid = pointsResult.paid_points || 0;
+            const total = free + paid;
+            if (total < 0) {
+              throw new Error('ポイント残高が0未満です');
+            }
+            const snapshot = pointSnapshotRef.current;
+            const diff = snapshot ? total - snapshot.total : 0;
+            updateTestResult(
+              categoryIndex,
+              testIndex,
+              'success',
+              `残高: ${total}（差分: ${diff >= 0 ? '+' : ''}${diff}）`,
+              Date.now() - startTime
+            );
           }
           break;
 
@@ -451,12 +594,74 @@ export default function TestToolPage() {
               }
             }
           } else if (testIndex === 2) {
+            // キャラクター作成（現在ログイン中のユーザーでテストキャラクターを作成）
+            const sessionRes = await fetch('/api/auth/session');
+            const sessionData = await sessionRes.json() as { user?: { id?: string | number } };
+            if (!sessionRes.ok || !sessionData?.user?.id) {
+              throw new Error('セッションが取得できません');
+            }
+            const sessionUserId = Number(sessionData.user.id);
+            if (!Number.isFinite(sessionUserId)) {
+              throw new Error('ユーザーIDが不正です');
+            }
+
+            const spec = await generateTestCharacterSpec('テスト');
+            const createRes = await fetch('/api/characters', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: sessionUserId,
+                name: spec.name,
+                description: spec.description,
+                detailSetting: spec.detailSetting,
+                firstSituation: spec.firstSituation,
+                firstMessage: spec.firstMessage,
+                visibility: 'public',
+                safetyFilter: true,
+                category: spec.category,
+                hashtags: spec.hashtags,
+                images: [],
+              }),
+            });
+            const createResult = await createRes.json() as { character?: { id?: number; name?: string }; error?: string; message?: string };
+            if (!createRes.ok || !createResult?.character?.id) {
+              throw new Error(extractErrorMessage(createResult, 'キャラクター作成に失敗しました'));
+            }
+
+            currentTestCharacterId = createResult.character.id;
+            currentTestCharacterName = createResult.character.name ?? spec.name;
+            testCharacterIdRef.current = currentTestCharacterId;
+            testCharacterNameRef.current = currentTestCharacterName;
+            setTestCharacterId(currentTestCharacterId);
+            setTestCharacterName(currentTestCharacterName);
+
+            updateTestResult(
+              categoryIndex,
+              testIndex,
+              'success',
+              `ID ${currentTestCharacterId} を作成`,
+              Date.now() - startTime
+            );
+          } else if (testIndex === 3) {
             // キャラクター検索（テストキャラクターのハッシュタグ「テスト」で検索し、作成したキャラクターが含まれるか確認）
-            const currentTestCharacterId = testCharacterIdRef.current;
-            const currentTestCharacterName = testCharacterNameRef.current;
+            if (!currentTestCharacterId) {
+              currentTestCharacterId = partnerInfoRef.current?.characterId ?? null;
+              if (currentTestCharacterId) {
+                testCharacterIdRef.current = currentTestCharacterId;
+                if (!currentTestCharacterName && partnerInfoRef.current?.characterId === currentTestCharacterId) {
+                  // character name might already be set via seed; keep existing ref
+                }
+              }
+            }
             
             if (!currentTestCharacterId) {
-              throw new Error('テストキャラクターが作成されていません。先にテスト環境をセットアップしてください。');
+              const adopted = await adoptExistingCharacter();
+              currentTestCharacterId = adopted?.id ?? null;
+              currentTestCharacterName = adopted?.name ?? currentTestCharacterName;
+            }
+
+            if (!currentTestCharacterId) {
+              throw new Error('テストキャラクターが存在しません。先にテスト環境をセットアップしてください。');
             }
             
             // ハッシュタグ「テスト」で検索
@@ -622,10 +827,11 @@ export default function TestToolPage() {
           } else if (testIndex === 1) {
             // フォロー/アンフォロー
             // テスト用ユーザーが作成されている場合はそれを使用
-            let authorIdToUse = null;
-            if (currentTestUserInfo?.userId) {
+            let authorIdToUse = partnerInfoRef.current?.userId ?? null;
+            if (!authorIdToUse && currentTestUserInfo?.userId) {
               authorIdToUse = currentTestUserInfo.userId;
-            } else {
+            }
+            if (!authorIdToUse) {
               const charsRes = await fetch('/api/charlist');
               const charsData = await charsRes.json() as { characters?: { author_id?: number }[] } | { author_id?: number }[];
               const chars = Array.isArray(charsData) ? charsData : (charsData.characters || []);
@@ -656,15 +862,19 @@ export default function TestToolPage() {
           } else if (testIndex === 2) {
             // いいね機能
             // テスト用キャラクターが作成されている場合はそれを使用
-            let characterIdToUse = null;
-            if (currentTestCharacterId) {
-              characterIdToUse = currentTestCharacterId;
-            } else {
+            let characterIdToUse = partnerInfoRef.current?.characterId ?? currentTestCharacterId ?? null;
+            if (!characterIdToUse) {
               const charsRes = await fetch('/api/charlist');
               const charsData = await charsRes.json() as { characters?: { id: number }[] } | { id: number }[];
               const chars = Array.isArray(charsData) ? charsData : (charsData.characters || []);
               if (chars.length > 0) {
                 characterIdToUse = chars[0].id;
+                setTestCharacterId(chars[0].id);
+                testCharacterIdRef.current = chars[0].id;
+                if (chars[0].name) {
+                  setTestCharacterName(chars[0].name);
+                  testCharacterNameRef.current = chars[0].name;
+                }
               }
             }
             
@@ -684,15 +894,19 @@ export default function TestToolPage() {
           } else if (testIndex === 3) {
             // コメント機能
             // テスト用キャラクターが作成されている場合はそれを使用
-            let characterIdToUse = null;
-            if (currentTestCharacterId) {
-              characterIdToUse = currentTestCharacterId;
-            } else {
+            let characterIdToUse = partnerInfoRef.current?.characterId ?? currentTestCharacterId ?? null;
+            if (!characterIdToUse) {
               const charsRes = await fetch('/api/charlist');
               const charsData = await charsRes.json() as { characters?: { id: number }[] } | { id: number }[];
               const chars = Array.isArray(charsData) ? charsData : (charsData.characters || []);
               if (chars.length > 0) {
                 characterIdToUse = chars[0].id;
+                setTestCharacterId(chars[0].id);
+                testCharacterIdRef.current = chars[0].id;
+                if (chars[0].name) {
+                  setTestCharacterName(chars[0].name);
+                  testCharacterNameRef.current = chars[0].name;
+                }
               }
             }
             
@@ -726,11 +940,24 @@ export default function TestToolPage() {
             }
           } else if (testIndex === 1) {
             // 検索機能（テストキャラクターのハッシュタグ「テスト」で検索し、作成したキャラクターが含まれるか確認）
-            const currentTestCharacterId = testCharacterIdRef.current;
-            const currentTestCharacterName = testCharacterNameRef.current;
+            if (!currentTestCharacterId) {
+              currentTestCharacterId = partnerInfoRef.current?.characterId ?? null;
+              if (currentTestCharacterId) {
+                testCharacterIdRef.current = currentTestCharacterId;
+                if (!currentTestCharacterName && partnerInfoRef.current?.characterId === currentTestCharacterId) {
+                  // keep existing name reference if any
+                }
+              }
+            }
             
             if (!currentTestCharacterId) {
-              throw new Error('テストキャラクターが作成されていません。先にテスト環境をセットアップしてください。');
+              const adopted = await adoptExistingCharacter();
+              currentTestCharacterId = adopted?.id ?? null;
+              currentTestCharacterName = adopted?.name ?? currentTestCharacterName;
+            }
+            
+            if (!currentTestCharacterId) {
+              throw new Error('テストキャラクターが存在しません。先にテスト環境をセットアップしてください。');
             }
             
             // ハッシュタグ「テスト」で検索
@@ -768,7 +995,7 @@ export default function TestToolPage() {
               throw new Error('検索に失敗');
             }
           } else if (testIndex === 2) {
-            // ペルソナ機能
+            // ペルソナ一覧取得
             const personaRes = await fetch('/api/persona');
             const personaResult = await personaRes.json() as { personas?: unknown[] };
             if (personaRes.ok) {
@@ -776,6 +1003,52 @@ export default function TestToolPage() {
             } else {
               throw new Error('ペルソナ取得に失敗');
             }
+          } else if (testIndex === 3) {
+            // ペルソナ作成
+            const timestamp = Date.now();
+            const nicknameSuffix = (timestamp % 100000000).toString().padStart(8, '0');
+            const payload = {
+              nickname: `TP_${nicknameSuffix}`,
+              age: 25,
+              gender: 'female',
+              description: 'テストツールで自動生成されたペルソナです。',
+            };
+            const createRes = await fetch('/api/persona', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            const createResult = await createRes.json() as { id?: number; message?: string; error?: string };
+            if (!createRes.ok || !createResult.id) {
+              throw new Error(extractErrorMessage(createResult, 'ペルソナ作成に失敗しました'));
+            }
+            personaCreatedIdRef.current = createResult.id;
+            updateTestResult(
+              categoryIndex,
+              testIndex,
+              'success',
+              `ID ${createResult.id} を作成`,
+              Date.now() - startTime
+            );
+          } else if (testIndex === 4) {
+            // ペルソナ削除
+            const personaId = personaCreatedIdRef.current;
+            if (!personaId) {
+              throw new Error('削除対象のペルソナがありません。先にペルソナ作成テストを実行してください。');
+            }
+            const deleteRes = await fetch(`/api/persona/${personaId}`, { method: 'DELETE' });
+            const deleteResult = await deleteRes.json() as { message?: string; error?: string };
+            if (!deleteRes.ok) {
+              throw new Error(extractErrorMessage(deleteResult, 'ペルソナ削除に失敗しました'));
+            }
+            personaCreatedIdRef.current = null;
+            updateTestResult(
+              categoryIndex,
+              testIndex,
+              'success',
+              deleteResult.message || `ID ${personaId} を削除`,
+              Date.now() - startTime
+            );
           }
           break;
       }
@@ -808,9 +1081,18 @@ export default function TestToolPage() {
         }
       }
 
+      try {
+        await prepareSocialFixtures({ silent: true });
+      } catch (error) {
+        // 既存データで続行
+      }
+
       // すべてのテストをリセット
       const initialized = initializeTests();
       setTestCategories(initialized);
+      pointSnapshotRef.current = null;
+      personaCreatedIdRef.current = null;
+      hasInitializedRef.current = true;
 
       for (let categoryIndex = 0; categoryIndex < initialized.length; categoryIndex++) {
         for (let testIndex = 0; testIndex < initialized[categoryIndex].tests.length; testIndex++) {
@@ -886,6 +1168,9 @@ export default function TestToolPage() {
 
   const resetTests = () => {
     setTestCategories(initializeTests());
+    pointSnapshotRef.current = null;
+    personaCreatedIdRef.current = null;
+    hasInitializedRef.current = true;
   };
 
   const cleanupTestData = async () => {
@@ -896,14 +1181,21 @@ export default function TestToolPage() {
     setIsCleaning(true);
     setCleanupResult(null);
     try {
-      const response = await fetch('/api/admin/test/cleanup', {
+      const response = await fetchWithCsrf('/api/admin/test/cleanup', {
         method: 'DELETE',
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'テストデータの削除に失敗しました。');
+        const errorMessage =
+          typeof data.error === 'string'
+            ? data.error
+            : data?.error?.message ||
+              data?.message ||
+              (data.error ? JSON.stringify(data.error) : null) ||
+              'テストデータの削除に失敗しました。';
+        throw new Error(errorMessage);
       }
 
       setCleanupResult(data);
@@ -912,6 +1204,7 @@ export default function TestToolPage() {
       setTestCharacterId(null);
       testUserInfoRef.current = null;
       testCharacterIdRef.current = null;
+      partnerInfoRef.current = null;
       // テスト結果もリセット
       setTestCategories(initializeTests());
       setAiAnalysis(null);
@@ -919,6 +1212,61 @@ export default function TestToolPage() {
       alert('エラー: ' + (error instanceof Error ? error.message : '不明なエラー'));
     } finally {
       setIsCleaning(false);
+    }
+  };
+
+  const prepareSocialFixtures = async (options: { silent?: boolean } = {}) => {
+    const { silent = false } = options;
+    if (!silent) {
+      setIsPreparingSocial(true);
+      setSocialSeedResult(null);
+    }
+    try {
+      const response = await fetchWithCsrf('/api/admin/test/seed', {
+        method: 'POST',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'ソーシャルテストデータの準備に失敗しました。');
+      }
+      if (data?.partnerUser) {
+        partnerInfoRef.current = {
+          userId: data.partnerUser.id ?? null,
+          characterId: data.partnerCharacterId ?? null,
+        };
+      }
+      if (data?.targetCharacterId && !testCharacterIdRef.current) {
+        testCharacterIdRef.current = data.targetCharacterId;
+        setTestCharacterId(data.targetCharacterId);
+        try {
+          const charDetailRes = await fetch(`/api/characters/${data.targetCharacterId}`);
+          const detail = await charDetailRes.json();
+          if (detail?.name) {
+            setTestCharacterName(detail.name);
+            testCharacterNameRef.current = detail.name;
+          }
+        } catch {
+          // ignore detail fetch errors
+        }
+      }
+      if (!silent) {
+        setSocialSeedResult({
+          message: data.message || 'ソーシャルデータを準備しました。',
+          details: `通知 ${data.notificationsCreated || 0}件 / フォロー ${data.followCreated ? '作成' : '既存'} / いいね ${data.favoriteCreated ? '作成' : '既存'}`,
+        });
+      }
+      return data;
+    } catch (error) {
+      if (silent) {
+        console.warn('ソーシャルデータ準備に失敗しましたが既存データでテストを続行します:', error);
+      } else {
+        alert('エラー: ' + (error instanceof Error ? error.message : '不明なエラー'));
+      }
+      throw error;
+    } finally {
+      if (!silent) {
+        setIsPreparingSocial(false);
+      }
     }
   };
 
@@ -1045,9 +1393,9 @@ export default function TestToolPage() {
             <>
               {/* テスト統計 */}
               <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl p-6 mb-6 border border-gray-800/50">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
                   <h2 className="text-xl font-bold">テスト統計</h2>
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 flex-wrap justify-end">
                     <button
                       onClick={runAllTests}
                       disabled={isRunning || isAnalyzing || isSettingUp || isCleaning}
@@ -1064,6 +1412,14 @@ export default function TestToolPage() {
                       リセット
                     </button>
                     <button
+                      onClick={() => prepareSocialFixtures()}
+                      disabled={isRunning || isAnalyzing || isSettingUp || isCleaning || isPreparingSocial}
+                      className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-4 rounded-xl transition-all shadow-lg shadow-emerald-500/30 disabled:opacity-50"
+                    >
+                      <Users size={18} />
+                      {isPreparingSocial ? '準備中...' : 'ソーシャル準備'}
+                    </button>
+                    <button
                       onClick={cleanupTestData}
                       disabled={isRunning || isAnalyzing || isSettingUp || isCleaning}
                       className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-xl transition-all shadow-lg shadow-red-500/30 disabled:opacity-50"
@@ -1072,26 +1428,34 @@ export default function TestToolPage() {
                       {isCleaning ? '削除中...' : 'テストデータ削除'}
                     </button>
                   </div>
-                  {testUserInfo && testCharacterId && (
-                    <div className="mt-4 p-3 bg-blue-900/30 border border-blue-500/30 rounded-xl">
-                      <p className="text-sm text-blue-300">
-                        ✅ テスト環境: ユーザーID {testUserInfo.userId}, キャラクターID {testCharacterId}
-                      </p>
-                    </div>
-                  )}
-                  {cleanupResult && (
-                    <div className="mt-4 p-3 bg-green-900/30 border border-green-500/30 rounded-xl">
-                      <p className="text-sm text-green-300 font-semibold mb-2">
-                        ✅ {cleanupResult.message}
-                      </p>
-                      <p className="text-xs text-green-400">
-                        削除されたデータ: ユーザー {cleanupResult.deleted.users}件, 
-                        キャラクター {cleanupResult.deleted.characters}件, 
-                        チャット {cleanupResult.deleted.chats}件
-                      </p>
-                    </div>
-                  )}
                 </div>
+                {testUserInfo && testCharacterId && (
+                  <div className="mb-4 p-3 bg-blue-900/30 border border-blue-500/30 rounded-xl">
+                    <p className="text-sm text-blue-300">
+                      ✅ テスト環境: ユーザーID {testUserInfo.userId}, キャラクターID {testCharacterId}
+                    </p>
+                  </div>
+                )}
+                {cleanupResult && (
+                  <div className="mb-4 p-3 bg-green-900/30 border border-green-500/30 rounded-xl">
+                    <p className="text-sm text-green-300 font-semibold mb-2">
+                      ✅ {cleanupResult.message}
+                    </p>
+                    <p className="text-xs text-green-400">
+                      削除されたデータ: ユーザー {cleanupResult.deleted.users}件, 
+                      キャラクター {cleanupResult.deleted.characters}件, 
+                      チャット {cleanupResult.deleted.chats}件
+                    </p>
+                  </div>
+                )}
+                {socialSeedResult && (
+                  <div className="mb-4 p-3 bg-emerald-900/30 border border-emerald-500/30 rounded-xl">
+                    <p className="text-sm text-emerald-300 font-semibold mb-2">
+                      ✅ {socialSeedResult.message}
+                    </p>
+                    <p className="text-xs text-emerald-400">{socialSeedResult.details}</p>
+                  </div>
+                )}
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-gray-800/50 rounded-xl p-4">
                     <p className="text-sm text-gray-400 mb-1">総テスト数</p>

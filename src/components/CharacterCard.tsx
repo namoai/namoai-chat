@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -13,7 +16,10 @@ type CharacterCardProps = {
 };
 
 export default function CharacterCard({ character }: CharacterCardProps) {
-  const src = character.characterImages[0]?.imageUrl || 'https://placehold.co/300x400/1a1a1a/ffffff?text=?';
+  const [imageError, setImageError] = useState(false);
+  const originalSrc = character.characterImages[0]?.imageUrl;
+  const placeholderSrc = 'https://placehold.co/300x400/1a1a1a/ffffff?text=?';
+  const src = imageError || !originalSrc ? placeholderSrc : originalSrc;
   
   return (
     <Link href={`/characters/${character.id}`} className="group">
@@ -24,6 +30,7 @@ export default function CharacterCard({ character }: CharacterCardProps) {
             alt={character.name}
             fill
             className="object-cover group-hover:scale-110 transition-transform duration-500"
+            onError={() => setImageError(true)}
           />
           {/* ホバー時のグラデーションオーバーレイ */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
