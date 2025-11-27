@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
 import { prisma } from "@/lib/prisma";
+import { Role } from "@prisma/client";
 import { isBuildTime, buildTimeResponse, safeJsonParse } from "@/lib/api-helpers";
 
 // ユーザー情報取得 API
@@ -68,19 +69,37 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: "ユーザーIDが必要です。" }, { status: 400 });
         }
 
+        // roleのバリデーション
+        let roleValue: Role | undefined = undefined;
+        if (role) {
+            if (!Object.values(Role).includes(role as Role)) {
+                return NextResponse.json({ error: "無効な役割です。" }, { status: 400 });
+            }
+            roleValue = role as Role;
+        }
+
         // トランザクションで更新
         await prisma.$transaction(async (tx) => {
             // ユーザー情報を更新
+            const updateData: {
+                name?: string;
+                nickname?: string;
+                email?: string;
+                phone?: string | null;
+                bio?: string | null;
+                role?: Role;
+            } = {};
+            
+            if (name !== undefined) updateData.name = name;
+            if (nickname !== undefined) updateData.nickname = nickname;
+            if (email !== undefined) updateData.email = email;
+            if (phone !== undefined) updateData.phone = phone || null;
+            if (bio !== undefined) updateData.bio = bio || null;
+            if (roleValue !== undefined) updateData.role = roleValue;
+
             await tx.users.update({
                 where: { id: userId },
-                data: {
-                    name,
-                    nickname,
-                    email,
-                    phone: phone || null,
-                    bio: bio || null,
-                    role,
-                },
+                data: updateData,
             });
 
             // ポイント情報を更新 (指定された場合のみ)
