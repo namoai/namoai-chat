@@ -55,8 +55,13 @@ export async function POST(req: NextRequest) {
 
   let body: unknown;
   try {
-    body = await req.json();
-  } catch {
+    const text = await req.text();
+    if (!text || text.trim() === '') {
+      return badRequest('リクエストボディが空です。');
+    }
+    body = JSON.parse(text);
+  } catch (parseError) {
+    console.error("JSON解析エラー:", parseError);
     return badRequest('無効なJSON形式です。');
   }
   if (!body || typeof body !== 'object') return badRequest('無効なJSON形式です。');
@@ -86,8 +91,13 @@ export async function PUT(req: NextRequest) {
 
   let body: unknown;
   try {
-    body = await req.json();
-  } catch {
+    const text = await req.text();
+    if (!text || text.trim() === '') {
+      return badRequest('リクエストボディが空です。');
+    }
+    body = JSON.parse(text);
+  } catch (parseError) {
+    console.error("JSON解析エラー:", parseError);
     return badRequest('無効なJSON形式です。');
   }
   if (!body || typeof body !== 'object') return badRequest('無効なJSON形式です。');
@@ -126,8 +136,13 @@ export async function DELETE(req: NextRequest) {
 
   let body: unknown;
   try {
-    body = await req.json();
-  } catch {
+    const text = await req.text();
+    if (!text || text.trim() === '') {
+      return badRequest('リクエストボディが空です。');
+    }
+    body = JSON.parse(text);
+  } catch (parseError) {
+    console.error("JSON解析エラー:", parseError);
     return badRequest('無効なJSON形式です。');
   }
 
