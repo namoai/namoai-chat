@@ -76,6 +76,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
     return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
