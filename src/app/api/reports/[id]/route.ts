@@ -88,6 +88,7 @@ export async function DELETE(
   }
 
   try {
+    const prisma = await getPrisma();
     const { id } = await context.params;
     const reportId = parseInt(id, 10);
 
