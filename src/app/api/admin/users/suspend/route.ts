@@ -5,13 +5,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
 import { prisma } from "@/lib/prisma";
+import { isBuildTime, buildTimeResponse, safeJsonParse } from "@/lib/api-helpers";
 
 // ユーザー停止 API
 export async function POST(request: NextRequest) {
-    // ビルド時の静的生成を回避
-    if (process.env.NEXT_PHASE === 'phase-production-build') {
-        return NextResponse.json({ error: 'Not available during build' }, { status: 503 });
-    }
+    if (isBuildTime()) return buildTimeResponse();
 
     try {
         const session = await getServerSession(authOptions);
@@ -21,19 +19,9 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "権限がありません。" }, { status: 403 });
         }
 
-        let body;
-        try {
-            const text = await request.text();
-            if (!text || text.trim() === '') {
-                return NextResponse.json({ error: 'リクエストボディが空です。' }, { status: 400 });
-            }
-            body = JSON.parse(text);
-        } catch (parseError) {
-            console.error("JSON解析エラー:", parseError);
-            return NextResponse.json({ error: '無効なJSON形式です。' }, { status: 400 });
-        }
-
-        const { userId, days, reason } = body;
+        const parseResult = await safeJsonParse<{ userId: number; days: number; reason: string }>(request);
+        if (!parseResult.success) return parseResult.error;
+        const { userId, days, reason } = parseResult.data;
 
         if (!userId || days === undefined || !reason) {
             return NextResponse.json({ error: "必須パラメータが不足しています。" }, { status: 400 });
@@ -76,10 +64,7 @@ export async function POST(request: NextRequest) {
 
 // ユーザー停止解除 API
 export async function DELETE(request: NextRequest) {
-    // ビルド時の静的生成を回避
-    if (process.env.NEXT_PHASE === 'phase-production-build') {
-        return NextResponse.json({ error: 'Not available during build' }, { status: 503 });
-    }
+    if (isBuildTime()) return buildTimeResponse();
 
     try {
         const session = await getServerSession(authOptions);
@@ -89,19 +74,9 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: "権限がありません。" }, { status: 403 });
         }
 
-        let body;
-        try {
-            const text = await request.text();
-            if (!text || text.trim() === '') {
-                return NextResponse.json({ error: 'リクエストボディが空です。' }, { status: 400 });
-            }
-            body = JSON.parse(text);
-        } catch (parseError) {
-            console.error("JSON解析エラー:", parseError);
-            return NextResponse.json({ error: '無効なJSON形式です。' }, { status: 400 });
-        }
-
-        const { userId } = body;
+        const parseResult = await safeJsonParse<{ userId: number }>(request);
+        if (!parseResult.success) return parseResult.error;
+        const { userId } = parseResult.data;
 
         if (!userId) {
             return NextResponse.json({ error: "ユーザーIDが必要です。" }, { status: 400 });
