@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const prisma = await getPrisma();
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type'); // 'CHARACTER_REPORT', 'SUGGESTION', 'INQUIRY'
     const status = searchParams.get('status'); // 'PENDING', 'REVIEWED', 'RESOLVED', 'REJECTED'
