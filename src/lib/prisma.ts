@@ -15,8 +15,14 @@ declare global {
  * - GOOGLE_APPLICATION_CREDENTIALS が既にあれば何もしない
  * - GOOGLE_APPLICATION_CREDENTIALS_JSON（平文） or
  *   GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64（Base64）をサポート
+ * - Edge Function では実行しない（Node.js runtime でのみ実行）
  */
 async function ensureGcpCredsFile() {
+  // Edge Function では実行しない（Node.js runtime でのみ実行）
+  if (typeof process === 'undefined' || !process.versions?.node) {
+    return;
+  }
+
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS) return;
 
   const jsonRaw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
@@ -24,12 +30,25 @@ async function ensureGcpCredsFile() {
 
   if (!jsonRaw && !jsonB64) return;
 
-  const fs = await import("node:fs/promises");
-  const path = await import("node:path");
-  const credPath = path.join("/tmp", "gcp-sa.json");
-  const json = jsonRaw ?? Buffer.from(jsonB64!, "base64").toString("utf8");
-  await fs.writeFile(credPath, json, "utf8");
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = credPath;
+  try {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const credPath = path.join("/tmp", "gcp-sa.json");
+    const json = jsonRaw ?? Buffer.from(jsonB64!, "base64").toString("utf8");
+    await fs.writeFile(credPath, json, "utf8");
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = credPath;
+  } catch (error) {
+    // Edge Function では node:fs が使用できないため、エラーを無視
+    if (error instanceof Error && (
+      error.message.includes('require is not defined') ||
+      error.message.includes('Cannot find module') ||
+      error.name === 'ReferenceError'
+    )) {
+      console.warn('[Prisma] Skipping GCP creds file creation in Edge runtime');
+      return;
+    }
+    throw error;
+  }
 }
 
 /**
@@ -47,10 +66,23 @@ function buildDatabaseUrlSecretName(): string | undefined {
  * 実行時またはビルド時に DB URL を取得
  * 1) ENV: DATABASE_URL（存在すれば最優先で使用）
  * 2) GSM: projects/{GOOGLE_PROJECT_ID}/secrets/DATABASE_URL/versions/latest から取得
+ * 
+ * ビルド時には Secret Manager を呼び出さない（環境変数からのみ取得）
  */
 async function resolveDatabaseUrl(): Promise<string> {
+  // ビルド時には環境変数からのみ取得（Secret Manager を呼び出さない）
+  const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || 
+                      process.env.NODE_ENV === 'production' && !process.env.NETLIFY_FUNCTION;
+  
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
   if (global.__dbUrl) return global.__dbUrl;
+
+  // ビルド時には Secret Manager を呼び出さない
+  if (isBuildTime) {
+    throw new Error(
+      "ビルド時には DATABASE_URL 環境変数が必要です。Secret Manager は使用できません。"
+    );
+  }
 
   // Secret Manager を使うためのADC設定
   await ensureGcpCredsFile();
@@ -114,8 +146,72 @@ async function createPrisma(): Promise<PrismaClient> {
  * 互換エクスポート:
  * - 既存コードの `import { prisma } from "@/lib/prisma"` をそのまま利用可能
  * - 併用用に getPrisma も提供
+ * - ビルド時には初期化をスキップ（環境変数 DATABASE_URL が 없으면エラーを避ける）
  */
-export const prisma: PrismaClient = await createPrisma();
-export async function getPrisma(): Promise<PrismaClient> {
-  return prisma;
+let prismaInstance: PrismaClient | null = null;
+let initError: Error | null = null;
+let initPromise: Promise<PrismaClient> | null = null;
+
+// ビルド時かどうかを判定する関数
+function isBuildTime(): boolean {
+  return process.env.NEXT_PHASE === 'phase-production-build' || 
+         (process.env.NODE_ENV === 'production' && !process.env.NETLIFY_FUNCTION && !process.env.DATABASE_URL);
 }
+
+// Lazy initialization: getPrisma()が最初に呼ばれたときだけ初期化
+// Top-level awaitを避けるため、初期化はgetPrisma()内で行う
+export async function getPrisma(): Promise<PrismaClient> {
+  // ビルド時にはエラーをスロー
+  if (isBuildTime()) {
+    throw new Error('Prisma is not available during build time');
+  }
+
+  if (prismaInstance) {
+    return prismaInstance;
+  }
+  
+  // 既に初期化中の場合、そのPromiseを待つ
+  if (initPromise) {
+    return initPromise;
+  }
+  
+  // 初期化に失敗していた場合は再試行
+  if (initError) {
+    console.log('[Prisma] Retrying initialization...');
+    initError = null;
+  }
+  
+  // 初期化を開始
+  initPromise = (async () => {
+    try {
+      prismaInstance = await createPrisma();
+      initPromise = null;
+      return prismaInstance;
+    } catch (error) {
+      initError = error instanceof Error ? error : new Error(String(error));
+      initPromise = null;
+      console.error('[Prisma] Initialization failed:', error);
+      throw error;
+    }
+  })();
+  
+  return initPromise;
+}
+
+// 互換性のため、prisma exportも提供（lazy getterとして実装）
+// 注意: このexportはgetPrisma()を使用することを推奨
+// ビルド時や初期化失敗時はダミーオブジェクトを返す
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, prop) {
+    if (isBuildTime()) {
+      throw new Error('Prisma is not available during build time. Use getPrisma() instead.');
+    }
+    if (!prismaInstance) {
+      throw new Error(
+        `Prisma is not initialized. Use getPrisma() instead. ` +
+        `Attempted to access: ${String(prop)}`
+      );
+    }
+    return (prismaInstance as any)[prop];
+  },
+});
