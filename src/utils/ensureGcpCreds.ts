@@ -6,8 +6,21 @@
  */
 export async function ensureGcpCreds() {
   // Edge Function では実行しない（Node.js runtime でのみ実行）
+  // Netlify Edge Runtime では fs モジュールが利用できない
   if (typeof process === 'undefined' || !process.versions?.node) {
     return;
+  }
+
+  // fs モジュールが利用可能かどうかを先にチェック
+  try {
+    // 動的 import を試みて、失敗した場合は Edge Runtime と判断
+    await import("fs/promises");
+  } catch (e) {
+    // Edge Runtime では fs モジュールが利用できない
+    if (e instanceof Error && (e.message.includes("Cannot find module") || e.code === "MODULE_NOT_FOUND")) {
+      return;
+    }
+    throw e;
   }
 
   const b64 =
@@ -47,6 +60,10 @@ export async function ensureGcpCreds() {
       console.log("[creds] wrote", credPath, "size:", stats.size);
     } catch {}
   } catch (e) {
+    // Edge Runtime でのエラーは無視（既にチェック済みだが念のため）
+    if (e instanceof Error && (e.message.includes("Cannot find module") || e.code === "MODULE_NOT_FOUND")) {
+      return;
+    }
     console.error("[creds] write failed:", e);
   }
 }
