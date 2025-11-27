@@ -3,25 +3,50 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { type NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
 import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
 import { randomBytes } from 'crypto';
 
 // PrismaAdapterが期待するモデル名(user, accountなど)と、
 // 実際のスキーマのモデル名(users, sessionsなど)の不一致を解決するためのプロキシオブジェクトを作成します。
-const adapterPrisma = {
-  ...prisma,
-  user: prisma.users,
-  account: prisma.account,
-  session: prisma.session,
-  verificationToken: prisma.verificationToken,
-} as unknown as PrismaClient;
+// 遅延初期化: adapterは実際に使用されるまで初期化しない
+let adapterInstance: ReturnType<typeof PrismaAdapter> | null = null;
 
+async function getAdapterPrisma(): Promise<PrismaClient> {
+  const prisma = await getPrisma();
+  return {
+    ...prisma,
+    user: prisma.users,
+    account: prisma.account,
+    session: prisma.session,
+    verificationToken: prisma.verificationToken,
+  } as unknown as PrismaClient;
+}
+
+async function getAdapter() {
+  if (!adapterInstance) {
+    const adapterPrisma = await getAdapterPrisma();
+    adapterInstance = PrismaAdapter(adapterPrisma);
+  }
+  return adapterInstance;
+}
 
 // NextAuthの設定をオブジェクトとして定義し、エクスポートします。
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(adapterPrisma),
+  // Adapterをlazyに初期化するためのProxy
+  adapter: new Proxy({} as ReturnType<typeof PrismaAdapter>, {
+    get(_target, prop) {
+      return async (...args: any[]) => {
+        const adapter = await getAdapter();
+        const method = (adapter as any)[prop];
+        if (typeof method === 'function') {
+          return method.apply(adapter, args);
+        }
+        throw new Error(`Adapter method ${String(prop)} not found`);
+      };
+    },
+  }) as any,
 
   providers: [
     GoogleProvider({
@@ -45,6 +70,7 @@ export const authOptions: NextAuthOptions = {
 
         try {
           // ユーザーをデータベースから検索
+          const prisma = await getPrisma();
           const user = await prisma.users.findUnique({
             where: { email: credentials.email },
           });
@@ -149,6 +175,7 @@ export const authOptions: NextAuthOptions = {
         }
         
         // 修正2: 'let' を 'const' に変更しました (ESLint prefer-constルール対応)
+        const prisma = await getPrisma();
         const dbUser = await prisma.users.findUnique({ 
           where: { email } 
         });
@@ -191,6 +218,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        const prisma = await getPrisma();
         const dbUser = await prisma.users.findUnique({
           where: { id: parseInt(user.id, 10) },
         });
@@ -214,6 +242,7 @@ export const authOptions: NextAuthOptions = {
 
         // ユーザーがまだデータベースに存在するか確認（削除済みアカウント対策）
         try {
+          const prisma = await getPrisma();
           const dbUser = await prisma.users.findUnique({
             where: { id: parseInt(token.id as string, 10) },
           });

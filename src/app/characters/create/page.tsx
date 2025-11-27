@@ -1,10 +1,35 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import CharacterForm from "@/components/CharacterForm";
-import { useSession } from "next-auth/react";
+import type { Session } from "next-auth";
 
 export default function CharacterCreatePage() {
-  const { data: session, status } = useSession();
+  const [session, setSession] = useState<Session | null>(null);
+  const [status, setStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
+
+  useEffect(() => {
+    const fetchSession = async () => {
+      try {
+        const response = await fetch("/api/auth/session");
+        if (response.ok) {
+          const data = await response.json();
+          if (data && Object.keys(data).length > 0) {
+            setSession(data);
+            setStatus("authenticated");
+          } else {
+            setStatus("unauthenticated");
+          }
+        } else {
+          setStatus("unauthenticated");
+        }
+      } catch (error) {
+        console.error("セッションの取得に失敗しました:", error);
+        setStatus("unauthenticated");
+      }
+    };
+    fetchSession();
+  }, []);
 
   if (status === "loading") {
     return (
