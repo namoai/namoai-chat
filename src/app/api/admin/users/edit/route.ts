@@ -1,10 +1,16 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
 import { prisma } from "@/lib/prisma";
+import { isBuildTime, buildTimeResponse, safeJsonParse } from "@/lib/api-helpers";
 
 // ユーザー情報取得 API
 export async function GET(request: NextRequest) {
+    if (isBuildTime()) return buildTimeResponse();
+    
     try {
         const session = await getServerSession(authOptions);
         
@@ -44,6 +50,8 @@ export async function GET(request: NextRequest) {
 
 // ユーザー情報更新 API
 export async function PUT(request: NextRequest) {
+    if (isBuildTime()) return buildTimeResponse();
+    
     try {
         const session = await getServerSession(authOptions);
         
@@ -52,7 +60,9 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: "権限がありません。" }, { status: 403 });
         }
 
-        const { userId, name, nickname, email, phone, bio, role, freePoints, paidPoints } = await request.json();
+        const parseResult = await safeJsonParse<{ userId: number; name?: string; nickname?: string; email?: string; phone?: string; bio?: string; role?: string; freePoints?: number; paidPoints?: number }>(request);
+        if (!parseResult.success) return parseResult.error;
+        const { userId, name, nickname, email, phone, bio, role, freePoints, paidPoints } = parseResult.data;
 
         if (!userId) {
             return NextResponse.json({ error: "ユーザーIDが必要です。" }, { status: 400 });

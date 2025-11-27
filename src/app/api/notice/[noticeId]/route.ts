@@ -1,10 +1,12 @@
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from "@/lib/prisma";
 import { Prisma, Role } from "@prisma/client"; // ▼▼▼ 変更点: Role Enumをインポートします ▼▼▼
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
+import { isBuildTime, buildTimeResponse, safeJsonParse } from '@/lib/api-helpers';
 
 // ✅ Vercelビルドエラーを回避するため、URLから直接IDを解析するヘルパー関数
 function extractNoticeIdFromRequest(request: Request): number | null {
@@ -19,6 +21,8 @@ function extractNoticeIdFromRequest(request: Request): number | null {
  * GET: 特定のお知らせの詳細情報をIDで取得します
  */
 export async function GET(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
     const noticeId = extractNoticeIdFromRequest(request);
 
@@ -51,6 +55,8 @@ export async function GET(request: NextRequest) {
  * PUT: 特定のお知らせを更新します (管理者のみ)
  */
 export async function PUT(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   // ▼▼▼ 変更点: 権限チェックを MODERATOR と SUPER_ADMIN に変更します ▼▼▼
   const userRole = session?.user?.role;
@@ -64,7 +70,9 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
     }
 
-    const { title, category, content } = await request.json();
+    const parseResult = await safeJsonParse<{ title: string; category: string; content: string }>(request);
+    if (!parseResult.success) return parseResult.error;
+    const { title, category, content } = parseResult.data;
     if (!title || !category || !content) {
       return NextResponse.json({ error: 'すべてのフィールドは必須です。' }, { status: 400 });
     }
@@ -86,6 +94,8 @@ export async function PUT(request: NextRequest) {
  * DELETE: 特定のお知らせを削除します (管理者のみ)
  */
 export async function DELETE(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   // ▼▼▼ 変更点: 権限チェックを MODERATOR と SUPER_ADMIN に変更します ▼▼▼
   const userRole = session?.user?.role;

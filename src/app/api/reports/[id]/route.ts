@@ -1,14 +1,20 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
 import { notifyOnInquiryResponse } from '@/lib/notifications'; // ★ 通知関数をインポート
+import { isBuildTime, buildTimeResponse, safeJsonParse } from '@/lib/api-helpers';
 
 // 通報状態更新 (PUT) - 管理者用
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
@@ -22,7 +28,9 @@ export async function PUT(
   try {
     const { id } = await context.params;
     const reportId = parseInt(id, 10);
-    const body = await request.json();
+    const parseResult = await safeJsonParse<{ status: string; adminNotes?: string }>(request);
+    if (!parseResult.success) return parseResult.error;
+    const body = parseResult.data;
     const { status, adminNotes } = body;
 
     if (!status) {
@@ -66,6 +74,8 @@ export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });

@@ -1,4 +1,5 @@
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from "@/lib/prisma";
@@ -6,9 +7,12 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, Role } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
+import { isBuildTime, buildTimeResponse, safeJsonParse } from "@/lib/api-helpers";
 
 // GET: ユーザーリストを取得します。検索クエリがあればフィルタリングします。
 export async function GET(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   // ▼▼▼ 変更点: SUPER_ADMIN のみアクセスを許可します ▼▼▼
   if (session?.user?.role !== Role.SUPER_ADMIN) {
@@ -52,6 +56,8 @@ export async function GET(request: NextRequest) {
 
 // PUT: ユーザーの役割を更新します
 export async function PUT(request: NextRequest) {
+    if (isBuildTime()) return buildTimeResponse();
+    
     const session = await getServerSession(authOptions);
     // ▼▼▼ 変更点: SUPER_ADMIN のみアクセスを許可します ▼▼▼
     if (session?.user?.role !== Role.SUPER_ADMIN) {
@@ -59,7 +65,9 @@ export async function PUT(request: NextRequest) {
     }
 
     try {
-        const { userId, newRole }: { userId: number, newRole: Role } = await request.json();
+        const parseResult = await safeJsonParse<{ userId: number; newRole: Role }>(request);
+        if (!parseResult.success) return parseResult.error;
+        const { userId, newRole } = parseResult.data;
 
         // ▼▼▼ 変更点: 新しい役割がRole Enumに存在するか動的に検証します ▼▼▼
         if (!userId || !newRole || !Object.values(Role).includes(newRole)) {

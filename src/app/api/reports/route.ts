@@ -1,18 +1,26 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { isBuildTime, buildTimeResponse, safeJsonParse } from '@/lib/api-helpers';
 
 // 通報作成 (POST)
 export async function POST(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
   }
 
   try {
-    const body = await request.json();
+    const parseResult = await safeJsonParse<{ type: string; characterId?: string; reason: string; title?: string; content?: string }>(request);
+    if (!parseResult.success) return parseResult.error;
+    const body = parseResult.data;
     const { type, characterId, reason, title, content } = body;
 
     if (!type || !reason) {
@@ -46,6 +54,8 @@ export async function POST(request: NextRequest) {
 
 // 通報一覧取得 (GET) - 管理者用
 export async function GET(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
