@@ -81,22 +81,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const parseResult = await safeJsonParse<{ userId: number; type: string; title?: string; content?: string; link?: string; actorId?: number; characterId?: number; commentId?: number; reportId?: number }>(req);
+    const parseResult = await safeJsonParse<{ userId: number; type: string; title: string; content: string; link?: string; actorId?: number; characterId?: number; commentId?: number; reportId?: number }>(req);
     if (!parseResult.success) return parseResult.error;
     const body = parseResult.data;
     const { userId, type, title, content, link, actorId, characterId, commentId, reportId } = body;
+
+    // 必須フィールドのバリデーション
+    if (!title || !content) {
+      return NextResponse.json(
+        { error: "titleとcontentは必須です" },
+        { status: 400 }
+      );
+    }
 
     // 自分自身への通知は作成しない
     if (userId === actorId) {
       return NextResponse.json({ success: true, skipped: true });
     }
 
-    // データを条件付きで構築
+    // データを構築
     const notificationData: {
       userId: number;
       type: string;
-      title?: string | null;
-      content?: string | null;
+      title: string;
+      content: string;
       link?: string | null;
       actorId?: number | null;
       characterId?: number | null;
@@ -105,10 +113,10 @@ export async function POST(req: NextRequest) {
     } = {
       userId,
       type,
+      title,
+      content,
     };
 
-    if (title !== undefined) notificationData.title = title || null;
-    if (content !== undefined) notificationData.content = content || null;
     if (link !== undefined) notificationData.link = link || null;
     if (actorId !== undefined) notificationData.actorId = actorId || null;
     if (characterId !== undefined) notificationData.characterId = characterId || null;
