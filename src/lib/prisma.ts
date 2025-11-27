@@ -111,57 +111,32 @@ async function createPrisma(): Promise<PrismaClient> {
 }
 
 /**
- * PrismaClient の遅延初期化
- * - Netlify Functions での初期化エラーを防ぐため、最上位レベルの await を避ける
+ * 互換エクスポート:
+ * - 既存コードの `import { prisma } from "@/lib/prisma"` をそのまま利用可能
+ * - エラーハンドリング付きで初期化
  */
 let prismaInstance: PrismaClient | null = null;
-let initPromise: Promise<PrismaClient> | null = null;
 
-async function initializePrisma(): Promise<PrismaClient> {
+try {
+  // 初期化を試みる（エラーが発生しても続行）
+  prismaInstance = await createPrisma();
+} catch (error) {
+  console.error('[Prisma] Initialization failed at top level:', error);
+  // エラーを記録するが、後で再試行できるようにする
+}
+
+export const prisma: PrismaClient = prismaInstance || ({} as PrismaClient);
+
+export async function getPrisma(): Promise<PrismaClient> {
   if (prismaInstance) {
     return prismaInstance;
   }
   
-  if (initPromise) {
-    return initPromise;
-  }
-  
-  initPromise = createPrisma().then(instance => {
-    prismaInstance = instance;
-    if (process.env.NODE_ENV !== "production") {
-      global.__prisma = instance;
-    }
-    initPromise = null;
-    return instance;
-  }).catch(error => {
-    initPromise = null;
-    console.error('[Prisma] Initialization failed:', error);
+  try {
+    prismaInstance = await createPrisma();
+    return prismaInstance;
+  } catch (error) {
+    console.error('[Prisma] getPrisma initialization failed:', error);
     throw error;
-  });
-  
-  return initPromise;
-}
-
-// 非ブロッキング初期化を試みる
-let _prisma: PrismaClient | null = null;
-initializePrisma().then(instance => {
-  _prisma = instance;
-}).catch(error => {
-  console.error('[Prisma] Top-level initialization failed, will retry on first use:', error);
-});
-
-/**
- * 互換エクスポート:
- * - 既存コードの `import { prisma } from "@/lib/prisma"` をそのまま利用可能
- * - 初回使用時に初期化される（遅延初期化）
- * 
- * 注意: この実装では、prisma オブジェクトへの直接アクセスは
- * 初期化が完了するまでエラーになる可能性があります。
- * 安全に使用するには、getPrisma() を使用してください。
- */
-export const prisma = _prisma || ({} as PrismaClient);
-
-export async function getPrisma(): Promise<PrismaClient> {
-  if (_prisma) return _prisma;
-  return initializePrisma();
+  }
 }
