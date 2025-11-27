@@ -4,7 +4,8 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 /**
  * アカウント削除API (会員退会)
@@ -14,12 +15,10 @@ import { prisma } from '@/lib/prisma';
  * ※ キャラクターは保持され、作成者が匿名化されます。
  */
 export async function DELETE() {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
-    // ビルド時の静的生成を回避
-    if (process.env.NEXT_PHASE === 'phase-production-build') {
-      return NextResponse.json({ error: 'Not available during build' }, { status: 503 });
-    }
-
+    const prisma = await getPrisma();
     // セッション確認
     const session = await getServerSession(authOptions);
     

@@ -3,8 +3,9 @@ export const runtime = 'nodejs';
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
 import { Role } from '@prisma/client'; // Role Enumをインポート
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // --- ヘルパー関数 ---
 
@@ -39,9 +40,12 @@ async function requireGuideManagementPermission() {
 
 // ── GET /api/admin/guides ───────────────────────────────────────────────
 export async function GET() {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const auth = await requireGuideManagementPermission();
   if (!auth.ok) return auth.res;
 
+  const prisma = await getPrisma();
   const guides = await prisma.guides.findMany({
     orderBy: [{ mainCategory: 'asc' }, { subCategory: 'asc' }, { displayOrder: 'asc' }],
   });
@@ -50,6 +54,8 @@ export async function GET() {
 
 // ── POST /api/admin/guides ──────────────────────────────────────────────
 export async function POST(req: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const auth = await requireGuideManagementPermission();
   if (!auth.ok) return auth.res;
 
@@ -78,6 +84,7 @@ export async function POST(req: NextRequest) {
     return badRequest('「表示順」は0以上の整数である必要があります。');
   }
 
+  const prisma = await getPrisma();
   const created = await prisma.guides.create({
     data: { mainCategory, subCategory, title, content, displayOrder: displayOrderInt },
   });
@@ -86,6 +93,8 @@ export async function POST(req: NextRequest) {
 
 // ── PUT /api/admin/guides ───────────────────────────────────────────────
 export async function PUT(req: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const auth = await requireGuideManagementPermission();
   if (!auth.ok) return auth.res;
 
@@ -118,6 +127,7 @@ export async function PUT(req: NextRequest) {
   }
 
   try {
+    const prisma = await getPrisma();
     const updated = await prisma.guides.update({
       where: { id: idInt },
       data: { mainCategory, subCategory, title, content, displayOrder: displayOrderInt },
@@ -131,6 +141,8 @@ export async function PUT(req: NextRequest) {
 
 // ── DELETE /api/admin/guides ────────────────────────────────────────────
 export async function DELETE(req: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const auth = await requireGuideManagementPermission();
   if (!auth.ok) return auth.res;
 
@@ -150,6 +162,7 @@ export async function DELETE(req: NextRequest) {
   if (idInt === null || idInt <= 0) return badRequest('IDは正の整数である必要があります。');
 
   try {
+    const prisma = await getPrisma();
     await prisma.guides.delete({ where: { id: idInt } });
     return NextResponse.json({ message: 'ガイドが正常に削除されました。' });
   } catch (error) {

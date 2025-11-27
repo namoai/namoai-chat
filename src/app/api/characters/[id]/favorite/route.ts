@@ -4,8 +4,9 @@ export const dynamic = 'force-dynamic';
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
 import { notifyOnFavorite } from '@/lib/notifications'; // ★ 通知関数をインポート
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 /**
  * キャラクターに「いいね」を付与（POST）
@@ -17,10 +18,7 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  // ビルド時の静的生成を回避
-  if (process.env.NEXT_PHASE === 'phase-production-build') {
-    return NextResponse.json({ error: 'Not available during build' }, { status: 503 });
-  }
+  if (isBuildTime()) return buildTimeResponse();
 
   // URLからキャラクターIDを取得
   const { id } = await context.params;
@@ -39,6 +37,7 @@ export async function POST(
   const userId = Number.parseInt(String(session.user.id), 10);
 
   try {
+    const prisma = await getPrisma();
     // 既にいいねしているか確認
     const existing = await prisma.favorites.findUnique({
       where: { user_id_character_id: { user_id: userId, character_id: characterId } },
@@ -80,10 +79,7 @@ export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  // ビルド時の静的生成を回避
-  if (process.env.NEXT_PHASE === 'phase-production-build') {
-    return NextResponse.json({ error: 'Not available during build' }, { status: 503 });
-  }
+  if (isBuildTime()) return buildTimeResponse();
 
   // URLからキャラクターIDを取得
   const { id } = await context.params;
@@ -102,6 +98,7 @@ export async function DELETE(
   const userId = Number.parseInt(String(session.user.id), 10);
 
   try {
+    const prisma = await getPrisma();
     // データベースからいいねを削除
     await prisma.favorites.delete({
       where: {
