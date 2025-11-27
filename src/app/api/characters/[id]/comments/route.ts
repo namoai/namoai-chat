@@ -2,11 +2,12 @@ export const runtime = 'nodejs';
 export const dynamic = "force-dynamic"; // ★ キャッシュを無効化
 
 // ./src/app/api/characters/[id]/comments/route.ts
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
 import { notifyOnComment } from '@/lib/notifications'; // ★ 通知関数をインポート
+import { isBuildTime, buildTimeResponse, safeJsonParse } from '@/lib/api-helpers';
 
 /** Body 型: { content: string } を満たすか判定（作成用） */
 function hasValidContent(body: unknown): body is { content: string } {
@@ -27,6 +28,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> } // ← ここを Promise に
 ): Promise<Response> {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const { id } = await params; // ← await で展開
   const characterId = Number.parseInt(id, 10);
   if (!Number.isFinite(characterId)) {
@@ -63,9 +66,11 @@ export async function GET(
  * - ✅ Next.js 15 では params は Promise 扱い
  */
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> } // ← ここを Promise に
 ): Promise<Response> {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const { id } = await params; // ← await で展開
   const characterId = Number.parseInt(id, 10);
   if (!Number.isFinite(characterId)) {
@@ -78,7 +83,9 @@ export async function POST(
     return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
   }
 
-  const raw = (await request.json().catch(() => null)) as unknown;
+  const parseResult = await safeJsonParse<{ content?: string }>(request);
+  if (!parseResult.success) return parseResult.error;
+  const raw = parseResult.data;
   if (!hasValidContent(raw)) {
     return NextResponse.json({ error: 'content は必須です。' }, { status: 400 });
   }
