@@ -1,3 +1,6 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
@@ -14,6 +17,11 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  // ビルド時の静的生成を回避
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return NextResponse.json({ error: 'Not available during build' }, { status: 503 });
+  }
+
   // URLからキャラクターIDを取得
   const { id } = await context.params;
   const characterId = Number.parseInt(id ?? '', 10);
@@ -72,6 +80,11 @@ export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  // ビルド時の静的生成を回避
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return NextResponse.json({ error: 'Not available during build' }, { status: 503 });
+  }
+
   // URLからキャラクターIDを取得
   const { id } = await context.params;
   const characterId = Number.parseInt(id ?? '', 10);
