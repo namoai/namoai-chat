@@ -60,7 +60,7 @@ function createAdapterMethod(prop: string | symbol) {
       const adapter = await getAdapter();
       const method = (adapter as Record<string | symbol, unknown>)[prop];
       if (typeof method === 'function') {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument
         return method.apply(adapter, args);
       }
       throw new Error(`Adapter method ${String(prop)} is not a function`);
@@ -115,10 +115,12 @@ export const authOptions: NextAuthOptions = {
       // createAdapterMethod는 동기 함수를 반환하지만, 내부에서 비동기 작업을 수행합니다.
       return createAdapterMethod(prop);
     },
-    has(_target, prop: string | symbol) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    has(_target, _prop: string | symbol) {
       // NextAuth가 메서드 존재 여부를 확인할 때 true를 반환
       return true;
     },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     ownKeys(_target) {
       // NextAuth가 adapter의 속성을 열거할 때 필요한 메서드 목록 반환
       return [
