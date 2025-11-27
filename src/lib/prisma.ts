@@ -215,8 +215,8 @@ function createDummyProxy(): unknown {
 // 注意: このexportはgetPrisma()を使用することを推奨
 // ビルド時にはgetPrisma()を呼び出すようにラップ
 export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  get(_target: unknown, prop: string | symbol) { // _target is unused but required by Proxy handler signature
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- _target is unused but required by Proxy handler signature
+  get(_target: unknown, prop: string | symbol) {
     // ビルド時にはgetPrisma()を呼び出さない（エラーをスローしない）
     if (isBuildTime()) {
       // ビルド時には型チェックを通過させるため、ダミー関数を返す

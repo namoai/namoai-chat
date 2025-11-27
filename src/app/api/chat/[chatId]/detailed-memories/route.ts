@@ -456,6 +456,7 @@ async function performReSummarization(
   console.log(`再要約: バックグラウンド処理開始 (メッセージ数: ${totalMessageCount}件, バッチ数: ${Math.ceil(totalMessageCount / windowSize)}件)`);
   
   try {
+    const prisma = await getPrisma();
     // ▼▼▼【注意】再要約: ユーザーが明示的に再要約を要求した場合のみ全削除
     // 通常の自動要約とは異なり、既存の要約を全て削除して最初から再生成します
     const existingMemories = await prisma.detailed_memories.findMany({
