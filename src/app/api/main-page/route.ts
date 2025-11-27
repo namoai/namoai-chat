@@ -57,17 +57,37 @@ const getCharactersWithMainImage = async (
 
 
 export async function GET() {
-    if (isBuildTime()) return buildTimeResponse();
+    // デバッグ用ログ
+    console.log('[main-page] Environment check:', {
+        NEXT_PHASE: process.env.NEXT_PHASE,
+        NODE_ENV: process.env.NODE_ENV,
+        NETLIFY_FUNCTION: process.env.NETLIFY_FUNCTION,
+        DATABASE_URL: process.env.DATABASE_URL ? 'set' : 'not set',
+        isBuildTime: isBuildTime()
+    });
+    
+    if (isBuildTime()) {
+        console.log('[main-page] Build time detected, returning 503');
+        return buildTimeResponse();
+    }
     
     let prisma;
     try {
+        console.log('[main-page] Attempting to get Prisma client...');
         prisma = await getPrisma();
+        console.log('[main-page] Prisma client obtained successfully');
     } catch (error) {
+        console.error('[main-page] Prisma initialization error:', error);
         // ビルド時エラーをキャッチ
         if (error instanceof Error && error.message.includes('Prisma is not available during build time')) {
+            console.log('[main-page] Build time error detected, returning 503');
             return buildTimeResponse();
         }
-        throw error;
+        // その他のエラーは詳細を返す
+        return NextResponse.json({ 
+            error: 'Database connection failed', 
+            details: error instanceof Error ? error.message : String(error)
+        }, { status: 500 });
     }
     const session = await getServerSession(authOptions);
     const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
@@ -129,7 +149,13 @@ export async function GET() {
         });
 
     } catch (error) {
-        console.error("メインページデータの取得エラー:", error);
-        return NextResponse.json({ error: "データの取得に失敗しました。" }, { status: 500 });
+        console.error("[main-page] データ取得エラー:", error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        console.error("[main-page] エラー詳細:", { errorMessage, errorStack });
+        return NextResponse.json({ 
+            error: "データの取得に失敗しました。",
+            details: errorMessage
+        }, { status: 500 });
     }
 }

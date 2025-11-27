@@ -74,34 +74,58 @@ async function resolveDatabaseUrl(): Promise<string> {
   const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || 
                       process.env.NODE_ENV === 'production' && !process.env.NETLIFY_FUNCTION;
   
-  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  if (global.__dbUrl) return global.__dbUrl;
+  console.log('[Prisma] Resolving DATABASE_URL:', {
+    hasEnvVar: !!process.env.DATABASE_URL,
+    hasGlobalCache: !!global.__dbUrl,
+    isBuildTime,
+    NEXT_PHASE: process.env.NEXT_PHASE,
+    NODE_ENV: process.env.NODE_ENV,
+    NETLIFY_FUNCTION: process.env.NETLIFY_FUNCTION
+  });
+  
+  if (process.env.DATABASE_URL) {
+    console.log('[Prisma] Using DATABASE_URL from environment variable');
+    return process.env.DATABASE_URL;
+  }
+  if (global.__dbUrl) {
+    console.log('[Prisma] Using DATABASE_URL from global cache');
+    return global.__dbUrl;
+  }
 
   // ビルド時には Secret Manager を呼び出さない
   if (isBuildTime) {
+    console.error('[Prisma] Build time detected, DATABASE_URL required but not found');
     throw new Error(
       "ビルド時には DATABASE_URL 環境変数が必要です。Secret Manager は使用できません。"
     );
   }
 
+  console.log('[Prisma] Attempting to fetch DATABASE_URL from Secret Manager...');
+  
   // Secret Manager を使うためのADC設定
   await ensureGcpCredsFile();
 
   const name = buildDatabaseUrlSecretName();
   if (!name) {
+    console.error('[Prisma] GOOGLE_PROJECT_ID not set');
     throw new Error(
       "GOOGLE_PROJECT_ID が未設定です。ENVの DATABASE_URL を直接設定するか、GOOGLE_PROJECT_ID とサービスアカウントJSONを設定してください。"
     );
   }
+
+  console.log('[Prisma] Secret name:', name);
 
   // 動的にインポート（ビルド時の問題を回避）
   const { SecretManagerServiceClient } = await import("@google-cloud/secret-manager");
   const client = new SecretManagerServiceClient({ fallback: true }); // gRPC→RESTフォールバックで安定化
   const [version] = await client.accessSecretVersion({ name });
   const payload = version.payload?.data?.toString();
-  if (!payload)
+  if (!payload) {
+    console.error('[Prisma] Secret payload is empty');
     throw new Error("GSM: DATABASE_URL シークレットのpayloadが空です。");
+  }
 
+  console.log('[Prisma] Successfully fetched DATABASE_URL from Secret Manager');
   global.__dbUrl = payload;
   return payload;
 }
@@ -164,7 +188,14 @@ function isBuildTime(): boolean {
 // Top-level awaitを避けるため、初期化はgetPrisma()内で行う
 export async function getPrisma(): Promise<PrismaClient> {
   // ビルド時にはエラーをスロー
-  if (isBuildTime()) {
+  const buildTimeCheck = isBuildTime();
+  if (buildTimeCheck) {
+    console.error('[Prisma] Build time detected:', {
+      NEXT_PHASE: process.env.NEXT_PHASE,
+      NODE_ENV: process.env.NODE_ENV,
+      NETLIFY_FUNCTION: process.env.NETLIFY_FUNCTION,
+      DATABASE_URL: process.env.DATABASE_URL ? 'set' : 'not set'
+    });
     throw new Error('Prisma is not available during build time');
   }
 
@@ -186,13 +217,19 @@ export async function getPrisma(): Promise<PrismaClient> {
   // 初期化を開始
   initPromise = (async () => {
     try {
+      console.log('[Prisma] Starting initialization...');
       prismaInstance = await createPrisma();
       initPromise = null;
+      console.log('[Prisma] Initialization successful');
       return prismaInstance;
     } catch (error) {
       initError = error instanceof Error ? error : new Error(String(error));
       initPromise = null;
       console.error('[Prisma] Initialization failed:', error);
+      if (error instanceof Error) {
+        console.error('[Prisma] Error message:', error.message);
+        console.error('[Prisma] Error stack:', error.stack);
+      }
       throw error;
     }
   })();
