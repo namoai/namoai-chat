@@ -113,30 +113,9 @@ async function createPrisma(): Promise<PrismaClient> {
 /**
  * 互換エクスポート:
  * - 既存コードの `import { prisma } from "@/lib/prisma"` をそのまま利用可能
- * - エラーハンドリング付きで初期化
+ * - 併用用に getPrisma も提供
  */
-let prismaInstance: PrismaClient | null = null;
-
-try {
-  // 初期化を試みる（エラーが発生しても続行）
-  prismaInstance = await createPrisma();
-} catch (error) {
-  console.error('[Prisma] Initialization failed at top level:', error);
-  // エラーを記録するが、後で再試行できるようにする
-}
-
-export const prisma: PrismaClient = prismaInstance || ({} as PrismaClient);
-
+export const prisma: PrismaClient = await createPrisma();
 export async function getPrisma(): Promise<PrismaClient> {
-  if (prismaInstance) {
-    return prismaInstance;
-  }
-  
-  try {
-    prismaInstance = await createPrisma();
-    return prismaInstance;
-  } catch (error) {
-    console.error('[Prisma] getPrisma initialization failed:', error);
-    throw error;
-  }
+  return prisma;
 }
