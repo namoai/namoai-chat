@@ -165,21 +165,24 @@ function ensurePreparedStatementsDisabled(url: string): string {
     willAddPreparedStatements: isSupabase || isConnectionPooling
   });
   
-  // Supabase를 사용하거나 Connection Pooling을 사용하는 경우 prepared_statements=false 추가
+  // Supabase를 사용하거나 Connection Pooling을 사용하는 경우 설정 추가
   if (isSupabase || isConnectionPooling) {
     let newUrl = url;
     const separator = newUrl.includes('?') ? '&' : '?';
     
-    // pgbouncer=true가 없으면 추가 (Supabase Connection Pooler에 필요)
+    // Session mode를 사용 (Prisma는 쓰기 작업이 필요하므로 Session mode 필수)
+    // Transaction mode는 읽기 전용이므로 사용하지 않음
+    // pgbouncer=true는 Session mode를 명시적으로 지정
     if (!newUrl.includes('pgbouncer=')) {
       newUrl = `${newUrl}${separator}pgbouncer=true`;
-      console.log('[Prisma] Added pgbouncer=true');
+      console.log('[Prisma] Added pgbouncer=true (Session mode)');
     }
     
-    // prepared_statements=false 추가
+    // Session mode에서도 prepared_statements 문제가 발생할 수 있으므로 비활성화
+    // (Connection Pooling 환경에서 안전하게 작동하도록)
     const nextSeparator = newUrl.includes('?') ? '&' : '?';
     newUrl = `${newUrl}${nextSeparator}prepared_statements=false`;
-    console.log('[Prisma] ✅ Added prepared_statements=false');
+    console.log('[Prisma] ✅ Added prepared_statements=false for Session mode');
     console.log('[Prisma] Modified URL preview:', newUrl.substring(0, 100) + '...');
     console.log('[Prisma] Modified URL has pgbouncer:', newUrl.includes('pgbouncer=true'));
     console.log('[Prisma] Modified URL has prepared_statements:', newUrl.includes('prepared_statements=false'));
