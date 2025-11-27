@@ -74,6 +74,8 @@ export async function GET() {
 }
 
 export async function DELETE(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "認証されていません。" }, { status: 401 });
@@ -81,6 +83,7 @@ export async function DELETE(request: NextRequest) {
   const userId = parseInt(session.user.id, 10);
 
   try {
+    const prisma = await getPrisma();
     const { chatIds } = await request.json();
 
     if (!Array.isArray(chatIds) || chatIds.length === 0 || !chatIds.every(id => typeof id === 'number')) {
