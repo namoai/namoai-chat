@@ -203,9 +203,12 @@ async function createPrisma(): Promise<PrismaClient> {
     console.error('[Prisma] Database connection test failed:', connectError);
     
     // P1001 에러인 경우 Connection Pooling 사용을 권장
+    const isP1001Error = connectError instanceof Error && 
+        ('code' in connectError && connectError.code === 'P1001');
+    
     if (connectError instanceof Error && 
-        (connectError as any).code === 'P1001' || 
-        connectError.message.includes("Can't reach database server")) {
+        (isP1001Error || 
+         connectError.message.includes("Can't reach database server"))) {
       const dbUrl = url.includes('@') ? url.split('@')[1] : url;
       console.error('[Prisma] ⚠️ Connection failed to:', dbUrl);
       console.error('[Prisma] 💡 Recommendation: Use Connection Pooling (port 6543) instead of direct connection (port 5432)');
