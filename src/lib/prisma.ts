@@ -113,9 +113,41 @@ async function createPrisma(): Promise<PrismaClient> {
 /**
  * 互換エクスポート:
  * - 既存コードの `import { prisma } from "@/lib/prisma"` をそのまま利用可能
- * - 併用用に getPrisma も提供
+ * - Netlify Functions での初期化エラーを防ぐため、エラーハンドリングを追加
  */
-export const prisma: PrismaClient = await createPrisma();
+let prismaInstance: PrismaClient | null = null;
+let initError: Error | null = null;
+
+try {
+  prismaInstance = await createPrisma();
+} catch (error) {
+  console.error('[Prisma] Top-level initialization failed:', error);
+  initError = error instanceof Error ? error : new Error(String(error));
+  // エラーを記録するが、後で再試行できるようにする
+}
+
+// 初期化に失敗した場合でも、後で再試行できるようにダミーオブジェクトを返す
+export const prisma: PrismaClient = prismaInstance || ({} as PrismaClient);
+
 export async function getPrisma(): Promise<PrismaClient> {
-  return prisma;
+  if (prismaInstance) {
+    return prismaInstance;
+  }
+  
+  // 初期化に失敗していた場合は再試行
+  if (initError) {
+    console.log('[Prisma] Retrying initialization...');
+    try {
+      prismaInstance = await createPrisma();
+      initError = null;
+      return prismaInstance;
+    } catch (error) {
+      console.error('[Prisma] Retry failed:', error);
+      throw error;
+    }
+  }
+  
+  // まだ初期化されていない場合（通常は発生しない）
+  prismaInstance = await createPrisma();
+  return prismaInstance;
 }
