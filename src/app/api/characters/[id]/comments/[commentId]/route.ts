@@ -15,16 +15,19 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string; commentId: string }> }
 ): Promise<Response> {
-  if (isBuildTime()) return buildTimeResponse();
-  
-  const { id, commentId } = await params; // ← await で展開
-  const characterId = Number.parseInt(id, 10);
-  const commentIdNum = Number.parseInt(commentId, 10);
-  if (!Number.isFinite(characterId) || !Number.isFinite(commentIdNum)) {
-    return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
+  // ビルド時の静的生成を回避（最優先）
+  if (isBuildTime()) {
+    return buildTimeResponse();
   }
 
   try {
+    const { id, commentId } = await params; // ← await で展開
+    const characterId = Number.parseInt(id, 10);
+    const commentIdNum = Number.parseInt(commentId, 10);
+    if (!Number.isFinite(characterId) || !Number.isFinite(commentIdNum)) {
+      return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
+    }
+
     const comment = await prisma.comments.findFirst({
       where: { id: commentIdNum, characterId },
       include: {
@@ -36,6 +39,10 @@ export async function GET(
     }
     return NextResponse.json(comment);
   } catch (error) {
+    // ビルド時のエラーを無視
+    if (isBuildTime()) {
+      return buildTimeResponse();
+    }
     console.error('コメント取得エラー:', error);
     return NextResponse.json({ error: 'コメントの取得に失敗しました。' }, { status: 500 });
   }
