@@ -167,10 +167,21 @@ function ensurePreparedStatementsDisabled(url: string): string {
   
   // Supabase를 사용하거나 Connection Pooling을 사용하는 경우 prepared_statements=false 추가
   if (isSupabase || isConnectionPooling) {
-    const separator = url.includes('?') ? '&' : '?';
-    const newUrl = `${url}${separator}prepared_statements=false`;
+    let newUrl = url;
+    const separator = newUrl.includes('?') ? '&' : '?';
+    
+    // pgbouncer=true가 없으면 추가 (Supabase Connection Pooler에 필요)
+    if (!newUrl.includes('pgbouncer=')) {
+      newUrl = `${newUrl}${separator}pgbouncer=true`;
+      console.log('[Prisma] Added pgbouncer=true');
+    }
+    
+    // prepared_statements=false 추가
+    const nextSeparator = newUrl.includes('?') ? '&' : '?';
+    newUrl = `${newUrl}${nextSeparator}prepared_statements=false`;
     console.log('[Prisma] ✅ Added prepared_statements=false');
     console.log('[Prisma] Modified URL preview:', newUrl.substring(0, 100) + '...');
+    console.log('[Prisma] Modified URL has pgbouncer:', newUrl.includes('pgbouncer=true'));
     console.log('[Prisma] Modified URL has prepared_statements:', newUrl.includes('prepared_statements=false'));
     return newUrl;
   }
