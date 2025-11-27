@@ -1,8 +1,12 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 /**
  * テストデータの一括削除API
@@ -11,6 +15,8 @@ import { Role } from '@prisma/client';
  * テスト用のユーザー、キャラクター、チャットルームをすべて削除します。
  */
 export async function DELETE() {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
     // セッション確認
     const session = await getServerSession(authOptions);
@@ -31,6 +37,8 @@ export async function DELETE() {
       );
     }
 
+    const prisma = await getPrisma();
+    
     // テスト用ユーザーを検索（メールアドレスまたはニックネームで判定）
     const testUsers = await prisma.users.findMany({
       where: {
