@@ -1,12 +1,16 @@
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { prisma } from "@/lib/prisma";
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // ✅ 未使用のrequestパラメータを削除し、警告を解消します
 export async function GET() {
+  if (isBuildTime()) return buildTimeResponse();
+  
   // サーバーサイドでセッション情報を取得
   const session = await getServerSession(authOptions);
 

@@ -1,4 +1,5 @@
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 import { prisma } from "@/lib/prisma";
 import { NextResponse, type NextRequest } from 'next/server';
@@ -8,8 +9,11 @@ import bcrypt from 'bcrypt';
 import { validatePassword } from '@/lib/password-policy';
 import { changePasswordSchema } from '@/lib/validation';
 import { handleError } from '@/lib/error-handler';
+import { isBuildTime, buildTimeResponse, safeJsonParse } from '@/lib/api-helpers';
 
 export async function PUT(request: Request) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -17,7 +21,9 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const body = await request.json();
+    const parseResult = await safeJsonParse<{ currentPassword: string; newPassword: string }>(request as NextRequest);
+    if (!parseResult.success) return parseResult.error;
+    const body = parseResult.data;
     const userId = parseInt(session.user.id, 10);
 
     // バリデーション
