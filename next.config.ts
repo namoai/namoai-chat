@@ -82,14 +82,20 @@ const nextConfig: NextConfig = {
         'node:fs/promises': false,
         'node:path': false,
       };
+      // ensureGcpCreds.ts를 클라이언트 번들에서 완전히 제외
+      // ignore-loader를 사용하거나, externals로 제외
+      config.resolve.alias = {
+        ...config.resolve.alias,
+      };
+    } else {
+      // 서버 사이드에서는 node: 프리픽스를 처리하기 위한 설정
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'node:fs': 'fs',
+        'node:fs/promises': 'fs/promises',
+        'node:path': 'path',
+      };
     }
-    // node: 프리픽스를 처리하기 위한 설정
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      'node:fs': 'fs',
-      'node:fs/promises': 'fs/promises',
-      'node:path': 'path',
-    };
     return config;
   },
   // NextAuth 호환성을 위한 설정

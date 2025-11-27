@@ -10,30 +10,63 @@ import { randomBytes } from 'crypto';
 
 // PrismaAdapterが期待するモデル名(user, accountなど)と、
 // 実際のスキーマのモデル名(users, sessionsなど)の不一致を解決するためのプロキシオブジェクトを作成します。
-// 遅延初期化: adapterは実際に使用されるまで初期化しない
+// PrismaAdapter를 lazy하게 초기화하되, Proxy를 사용하여 실제 메서드를 반환합니다.
 let adapterInstance: ReturnType<typeof PrismaAdapter> | null = null;
+let adapterPromise: Promise<ReturnType<typeof PrismaAdapter>> | null = null;
 
-async function getAdapterPrisma(): Promise<PrismaClient> {
-  const prisma = await getPrisma();
-  return {
-    ...prisma,
-    user: prisma.users,
-    account: prisma.account,
-    session: prisma.session,
-    verificationToken: prisma.verificationToken,
-  } as unknown as PrismaClient;
-}
-
-async function getAdapter() {
-  if (!adapterInstance) {
-    const adapterPrisma = await getAdapterPrisma();
-    adapterInstance = PrismaAdapter(adapterPrisma);
+async function getAdapter(): Promise<ReturnType<typeof PrismaAdapter>> {
+  if (adapterInstance) {
+    return adapterInstance;
   }
+  
+  if (!adapterPromise) {
+    adapterPromise = (async () => {
+      const prisma = await getPrisma();
+      // PrismaAdapter가 기대하는 모델명과 실제 스키마의 모델명을 매핑
+      // PrismaAdapter는 prisma.user, prisma.account 등을 사용하지만,
+      // 우리 스키마는 users, Account 등을 사용하므로 매핑이 필요합니다.
+      // 
+      // 작동 원리:
+      // - PrismaAdapter가 adapterPrisma.user.findUnique()를 호출하면
+      // - 실제로는 prisma.users.findUnique()가 실행됩니다 (JavaScript 객체 속성 매핑)
+      const adapterPrisma = {
+        ...prisma,
+        user: prisma.users,                    // ✅ users (스키마) → user (PrismaAdapter 기대)
+        account: prisma.Account,               // ✅ Account (스키마) → account (PrismaAdapter 기대)
+        session: prisma.Session,               // ✅ Session (스키마) → session (PrismaAdapter 기대)
+        verificationToken: prisma.VerificationToken, // ✅ VerificationToken (스키마) → verificationToken (PrismaAdapter 기대)
+      } as unknown as PrismaClient;
+      return PrismaAdapter(adapterPrisma);
+    })();
+  }
+  
+  adapterInstance = await adapterPromise;
   return adapterInstance;
 }
 
 // Adapterの型定義
 type Adapter = ReturnType<typeof PrismaAdapter>;
+
+// Helper function to get prisma instance
+async function getPrismaInstance() {
+  return await getPrisma();
+}
+
+// Adapter 메서드를 동기적으로 접근할 수 있도록 래퍼 함수 생성
+function createAdapterMethod(prop: string | symbol) {
+  return function(...args: unknown[]) {
+    // 비동기 함수를 반환하되, NextAuth가 이를 함수로 인식할 수 있도록 함
+    return (async () => {
+      const adapter = await getAdapter();
+      const method = (adapter as Record<string | symbol, unknown>)[prop];
+      if (typeof method === 'function') {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
+        return method.apply(adapter, args);
+      }
+      throw new Error(`Adapter method ${String(prop)} is not a function`);
+    })();
+  };
+}
 
 // ▼▼▼【環境変数検証】▼▼▼
 function validateAuthEnv() {
@@ -69,18 +102,47 @@ function validateAuthEnv() {
 // ▲▲▲
 
 // NextAuthの設定をオブジェクトとして定義し、エクスポートします。
+// adapter는 lazy하게 초기화되지만, Proxy를 사용하여 실제 메서드를 반환합니다.
 export const authOptions: NextAuthOptions = {
-  // Adapterをlazyに初期化するためのProxy
+  // Adapter를 lazy하게 초기화하기 위한 Proxy
+  // NextAuth는 adapter.getUserByAccount를 직접 호출하므로,
+  // Proxy는 실제 메서드를 반환해야 합니다.
+  // NextAuth v4는 adapter 메서드를 직접 호출하기 전에 메서드가 함수인지 확인하므로,
+  // Proxy의 get이 실제 함수를 반환하도록 개선했습니다.
   adapter: new Proxy({} as Adapter, {
     get(_target, prop: string | symbol) {
-      return async (...args: unknown[]) => {
-        const adapter = await getAdapter();
-        const method = (adapter as Record<string | symbol, unknown>)[prop];
-        if (typeof method === 'function') {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
-          return method.apply(adapter, args);
-        }
-        throw new Error(`Adapter method ${String(prop)} not found`);
+      // NextAuth가 메서드를 확인할 때 함수를 반환해야 합니다.
+      // createAdapterMethod는 동기 함수를 반환하지만, 내부에서 비동기 작업을 수행합니다.
+      return createAdapterMethod(prop);
+    },
+    has(_target, prop: string | symbol) {
+      // NextAuth가 메서드 존재 여부를 확인할 때 true를 반환
+      return true;
+    },
+    ownKeys(_target) {
+      // NextAuth가 adapter의 속성을 열거할 때 필요한 메서드 목록 반환
+      return [
+        'createUser',
+        'getUser',
+        'getUserByEmail',
+        'getUserByAccount',
+        'updateUser',
+        'linkAccount',
+        'createSession',
+        'getSessionAndUser',
+        'updateSession',
+        'deleteSession',
+        'createVerificationToken',
+        'useVerificationToken',
+        'deleteVerificationToken',
+      ];
+    },
+    getOwnPropertyDescriptor(_target, prop) {
+      // NextAuth가 속성 디스크립터를 요청할 때 함수임을 명시
+      return {
+        enumerable: true,
+        configurable: true,
+        value: createAdapterMethod(prop),
       };
     },
   }) as Adapter,
@@ -107,7 +169,7 @@ export const authOptions: NextAuthOptions = {
 
         try {
           // ユーザーをデータベースから検索
-          const prisma = await getPrisma();
+          const prisma = await getPrismaInstance();
           const user = await prisma.users.findUnique({
             where: { email: credentials.email },
           });
@@ -212,11 +274,11 @@ export const authOptions: NextAuthOptions = {
         }
         
         // 修正2: 'let' を 'const' に変更しました (ESLint prefer-constルール対応)
-        const prisma = await getPrisma();
+        const prisma = await getPrismaInstance();
         const dbUser = await prisma.users.findUnique({ 
           where: { email } 
         });
-  
+
         if (!dbUser) {
           let newNickname = name || `user_${randomBytes(4).toString('hex')}`;
           
@@ -256,7 +318,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        const prisma = await getPrisma();
+        const prisma = await getPrismaInstance();
         const dbUser = await prisma.users.findUnique({
           where: { id: parseInt(user.id, 10) },
         });
@@ -280,7 +342,7 @@ export const authOptions: NextAuthOptions = {
 
         // ユーザーがまだデータベースに存在するか確認（削除済みアカウント対策）
         try {
-          const prisma = await getPrisma();
+          const prisma = await getPrismaInstance();
           const dbUser = await prisma.users.findUnique({
             where: { id: parseInt(token.id as string, 10) },
           });
@@ -308,9 +370,8 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login",
   },
   
-  secret: process.env.NEXTAUTH_SECRET!,
+  secret: process.env.NEXTAUTH_SECRET,
 };
 
 // 환경 변수 검증 실행 (모듈 로드 시 즉시 실행)
 validateAuthEnv();
-
