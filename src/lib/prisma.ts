@@ -212,7 +212,7 @@ export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
         `Attempted to access: ${String(prop)}`
       );
     }
-    const value = (prismaInstance as Record<string | symbol, unknown>)[prop];
+    const value = (prismaInstance as unknown as Record<string | symbol, unknown>)[prop];
     return typeof value === 'function' ? value.bind(prismaInstance) : value;
   },
 });
