@@ -68,14 +68,14 @@ async function loadSecrets() {
       console.log(`   - type: ${saJson.type || 'N/A'}`);
       
       // ▼▼▼【重要】서비스 계정 이메일 확인 ▼▼▼
-      const expectedServiceAccount = 'netlify-builder@namoai-chat.iam.gserviceaccount.com';
+      const expectedServiceAccount = 'namoai-vertex-ai@namoai-chat.iam.gserviceaccount.com';
       if (saJson.client_email !== expectedServiceAccount) {
         console.error('❌ ⚠️ ⚠️ ⚠️ 서비스 계정 불일치 ⚠️ ⚠️ ⚠️');
         console.error(`   현재 사용 중: ${saJson.client_email}`);
         console.error(`   예상 계정: ${expectedServiceAccount}`);
         console.error('❌ Netlify 환경 변수 GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64에');
         console.error(`   ${expectedServiceAccount} 서비스 계정의 JSON을 설정해야 합니다.`);
-        console.error('❌ GCP Console에서 netlify-builder 서비스 계정을 찾아 키를 생성하고');
+        console.error('❌ GCP Console에서 namoai-vertex-ai 서비스 계정을 찾아 키를 생성하고');
         console.error('   Netlify 환경 변수에 설정하세요.');
       } else {
         console.log(`✅ 올바른 서비스 계정 사용 중: ${saJson.client_email}`);

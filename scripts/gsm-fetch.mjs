@@ -110,6 +110,27 @@ if (saParsed.type !== 'service_account') {
   process.exit(1);
 }
 
+// ▼▼▼【デバッグ】サービスアカウント情報をログ出力 ▼▼▼
+log('📋 サービスアカウント情報:');
+log(`   - project_id: ${saParsed.project_id || 'N/A'}`);
+log(`   - client_email: ${saParsed.client_email || 'N/A'}`);
+log(`   - type: ${saParsed.type || 'N/A'}`);
+
+// ▼▼▼【重要】서비스 계정 이메일 확인 ▼▼▼
+const expectedServiceAccount = 'namoai-vertex-ai@namoai-chat.iam.gserviceaccount.com';
+if (saParsed.client_email !== expectedServiceAccount) {
+  warn('⚠️ ⚠️ ⚠️ 서비스 계정 불일치 ⚠️ ⚠️ ⚠️');
+  warn(`   현재 사용 중: ${saParsed.client_email}`);
+  warn(`   예상 계정: ${expectedServiceAccount}`);
+  warn('⚠️ Netlify 환경 변수 GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64에');
+  warn(`   ${expectedServiceAccount} 서비스 계정의 JSON을 설정해야 합니다.`);
+  warn('⚠️ GCP Console에서 namoai-vertex-ai 서비스 계정의 키를 생성하고');
+  warn('   Netlify 환경 변수에 설정하세요.');
+} else {
+  log(`✅ 올바른 서비스 계정 사용 중: ${saParsed.client_email}`);
+}
+// ▲▲▲
+
 // SA を二箇所に出力（相対/絶対 の両対応）
 await writeText(saRepoPath, saJson);
 await writeText(saTmpPath,  saJson);
