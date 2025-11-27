@@ -154,6 +154,8 @@ async function createPrisma(): Promise<PrismaClient> {
     global.__prisma = undefined;
   }
 
+  console.log('[Prisma] Creating PrismaClient...');
+
   const instance = new PrismaClient({
     datasourceUrl: url,
     log:
@@ -161,6 +163,17 @@ async function createPrisma(): Promise<PrismaClient> {
         ? ["query", "error", "warn"]
         : ["error"],
   });
+
+  // 연결 테스트 (서버리스 환경에서 연결이 실제로 작동하는지 확인)
+  try {
+    console.log('[Prisma] Testing database connection...');
+    await instance.$connect();
+    console.log('[Prisma] Database connection test successful');
+  } catch (connectError) {
+    console.error('[Prisma] Database connection test failed:', connectError);
+    await instance.$disconnect();
+    throw connectError;
+  }
 
   if (process.env.NODE_ENV !== "production") {
     global.__prisma = instance;
