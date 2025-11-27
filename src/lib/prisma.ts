@@ -1,6 +1,6 @@
 // src/lib/prisma.ts
 import { PrismaClient } from "@prisma/client";
-import { SecretManagerServiceClient } from "@google-cloud/secret-manager";
+// SecretManagerServiceClientは動的にインポート（ビルド時の問題を回避）
 
 /**
  * グローバルキャッシュ（開発環境のHot Reload対策）
@@ -94,6 +94,8 @@ async function resolveDatabaseUrl(): Promise<string> {
     );
   }
 
+  // 動的にインポート（ビルド時の問題を回避）
+  const { SecretManagerServiceClient } = await import("@google-cloud/secret-manager");
   const client = new SecretManagerServiceClient({ fallback: true }); // gRPC→RESTフォールバックで安定化
   const [version] = await client.accessSecretVersion({ name });
   const payload = version.payload?.data?.toString();
@@ -210,16 +212,22 @@ function createDummyProxy(): unknown {
 
 // 互換性のため、prisma exportも提供（lazy getterとして実装）
 // 注意: このexportはgetPrisma()を使用することを推奨
-// ビルド時や初期化失敗時はダミーオブジェクトを返す
+// ビルド時にはgetPrisma()を呼び出すようにラップ
 export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
   get(_target, prop: string | symbol) {
-    // ビルド時にはダミーオブジェクトを返す（エラーをスローしない）
+    // ビルド時にはgetPrisma()を呼び出さない（エラーをスローしない）
     if (isBuildTime()) {
+      // ビルド時には型チェックを通過させるため、ダミー関数を返す
+      // ただし、実際の使用時にはgetPrisma()を使用する必要がある
       return createDummyProxy();
     }
+    
+    // ランタイムではgetPrisma()を使用して初期化
+    // ただし、これは非同期なので、実際にはgetPrisma()を直接使用することを推奨
     if (!prismaInstance) {
+      // 初期化されていない場合は、getPrisma()を使用するようにエラーをスロー
       throw new Error(
-        `Prisma is not initialized. Use getPrisma() instead. ` +
+        `Prisma is not initialized. Call await getPrisma() first, or use getPrisma() directly. ` +
         `Attempted to access: ${String(prop)}`
       );
     }
