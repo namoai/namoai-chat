@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 // ./src/app/api/characters/[id]/comments/[commentId]/route.ts
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getPrisma } from '@/lib/prisma';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 /**
@@ -28,6 +28,12 @@ export async function GET(
       return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
     }
 
+    // ビルド時には getPrisma を呼び出さない
+    if (isBuildTime()) {
+      return buildTimeResponse();
+    }
+
+    const prisma = await getPrisma();
     const comment = await prisma.comments.findFirst({
       where: { id: commentIdNum, characterId },
       include: {
