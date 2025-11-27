@@ -85,11 +85,15 @@ async function resolveDatabaseUrl(): Promise<string> {
   
   if (process.env.DATABASE_URL) {
     console.log('[Prisma] Using DATABASE_URL from environment variable');
-    return ensurePreparedStatementsDisabled(process.env.DATABASE_URL);
+    const processedUrl = ensurePreparedStatementsDisabled(process.env.DATABASE_URL);
+    console.log('[Prisma] After ensurePreparedStatementsDisabled, URL has prepared_statements:', processedUrl.includes('prepared_statements='));
+    return processedUrl;
   }
   if (global.__dbUrl) {
     console.log('[Prisma] Using DATABASE_URL from global cache');
-    return ensurePreparedStatementsDisabled(global.__dbUrl);
+    const processedUrl = ensurePreparedStatementsDisabled(global.__dbUrl);
+    console.log('[Prisma] After ensurePreparedStatementsDisabled, URL has prepared_statements:', processedUrl.includes('prepared_statements='));
+    return processedUrl;
   }
 
   // ビルド時には Secret Manager を呼び出さない
@@ -136,9 +140,12 @@ async function resolveDatabaseUrl(): Promise<string> {
  * Supabase를 사용하는 경우 항상 prepared_statements=false를 추가 (안전한 방법)
  */
 function ensurePreparedStatementsDisabled(url: string): string {
+  console.log('[Prisma] ensurePreparedStatementsDisabled called');
+  console.log('[Prisma] Input URL preview:', url.substring(0, 100) + '...');
+  
   // 이미 prepared_statements 파라미터가 있으면 그대로 반환
   if (url.includes('prepared_statements=')) {
-    console.log('[Prisma] prepared_statements parameter already exists in URL');
+    console.log('[Prisma] ✅ prepared_statements parameter already exists in URL');
     return url;
   }
   
@@ -149,12 +156,13 @@ function ensurePreparedStatementsDisabled(url: string): string {
   const isConnectionPooling = url.includes(':6543') || url.includes('pgbouncer=true');
   
   console.log('[Prisma] Checking database connection:', {
-    urlPreview: url.substring(0, 80) + '...',
+    urlPreview: url.substring(0, 100) + '...',
     isSupabase,
     hasPort6543: url.includes(':6543'),
     hasPort5432: url.includes(':5432'),
     hasPgbouncer: url.includes('pgbouncer=true'),
-    isConnectionPooling
+    isConnectionPooling,
+    willAddPreparedStatements: isSupabase || isConnectionPooling
   });
   
   // Supabase를 사용하거나 Connection Pooling을 사용하는 경우 prepared_statements=false 추가
@@ -162,11 +170,12 @@ function ensurePreparedStatementsDisabled(url: string): string {
     const separator = url.includes('?') ? '&' : '?';
     const newUrl = `${url}${separator}prepared_statements=false`;
     console.log('[Prisma] ✅ Added prepared_statements=false');
-    console.log('[Prisma] Modified URL preview:', newUrl.substring(0, 80) + '...');
+    console.log('[Prisma] Modified URL preview:', newUrl.substring(0, 100) + '...');
+    console.log('[Prisma] Modified URL has prepared_statements:', newUrl.includes('prepared_statements=false'));
     return newUrl;
   }
   
-  console.log('[Prisma] Not Supabase or Connection Pooling, prepared_statements not modified');
+  console.log('[Prisma] ⚠️ Not Supabase or Connection Pooling, prepared_statements not modified');
   return url;
 }
 
