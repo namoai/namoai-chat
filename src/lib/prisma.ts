@@ -203,7 +203,8 @@ export async function getPrisma(): Promise<PrismaClient> {
 // ビルド時用のダミーProxy（再帰的にダミーオブジェクトを返す）
 function createDummyProxy(): unknown {
   return new Proxy({}, {
-    get() {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    get(_target: unknown, _prop: string | symbol) {
       // すべてのプロパティアクセスに対してダミー関数を返す
       return () => Promise.resolve(null);
     },
