@@ -5,6 +5,7 @@ import { getPrisma } from '@/lib/prisma';
 import { VertexAI, HarmCategory, HarmBlockThreshold } from '@google-cloud/vertexai';
 import { getEmbedding } from '@/lib/embeddings';
 import { ensureGcpCreds } from '@/utils/ensureGcpCreds';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // 安全性設定（ユーザー設定に基づいて動的に変更される）
 const getSafetySettings = (safetyFilterEnabled: boolean) => {
