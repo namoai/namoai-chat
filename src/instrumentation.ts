@@ -9,9 +9,14 @@ export async function register() {
       await mod.ensureGcpCreds();
     } catch (error) {
       // Edge Runtime で実行された場合はエラーを無視
+      const isModuleNotFoundError = 
+        error instanceof Error && 
+        (error.message.includes("Cannot find module") || 
+         ('code' in error && error.code === "MODULE_NOT_FOUND"));
+      
       if (
         (error instanceof ReferenceError && error.message.includes("require")) ||
-        (error instanceof Error && (error.message.includes("Cannot find module") || (error as any).code === "MODULE_NOT_FOUND"))
+        isModuleNotFoundError
       ) {
         console.warn("[instrumentation] Skipping ensureGcpCreds in Edge Runtime");
         return;
