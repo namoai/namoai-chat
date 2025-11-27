@@ -133,25 +133,40 @@ async function resolveDatabaseUrl(): Promise<string> {
 
 /**
  * Connection Pooling을 사용할 때 prepared statements를 비활성화
- * Supabase Connection Pooling (포트 6543) 또는 pgbouncer를 사용하는 경우 필요
+ * Supabase를 사용하는 경우 항상 prepared_statements=false를 추가 (안전한 방법)
  */
 function ensurePreparedStatementsDisabled(url: string): string {
   // 이미 prepared_statements 파라미터가 있으면 그대로 반환
   if (url.includes('prepared_statements=')) {
+    console.log('[Prisma] prepared_statements parameter already exists in URL');
     return url;
   }
+  
+  // Supabase를 사용하는지 확인 (.supabase.co 도메인)
+  const isSupabase = url.includes('.supabase.co');
   
   // Connection Pooling을 사용하는지 확인 (포트 6543 또는 pgbouncer=true)
   const isConnectionPooling = url.includes(':6543') || url.includes('pgbouncer=true');
   
-  if (isConnectionPooling) {
-    // Connection Pooling을 사용하는 경우 prepared_statements=false 추가
+  console.log('[Prisma] Checking database connection:', {
+    urlPreview: url.substring(0, 80) + '...',
+    isSupabase,
+    hasPort6543: url.includes(':6543'),
+    hasPort5432: url.includes(':5432'),
+    hasPgbouncer: url.includes('pgbouncer=true'),
+    isConnectionPooling
+  });
+  
+  // Supabase를 사용하거나 Connection Pooling을 사용하는 경우 prepared_statements=false 추가
+  if (isSupabase || isConnectionPooling) {
     const separator = url.includes('?') ? '&' : '?';
     const newUrl = `${url}${separator}prepared_statements=false`;
-    console.log('[Prisma] Added prepared_statements=false for Connection Pooling');
+    console.log('[Prisma] ✅ Added prepared_statements=false');
+    console.log('[Prisma] Modified URL preview:', newUrl.substring(0, 80) + '...');
     return newUrl;
   }
   
+  console.log('[Prisma] Not Supabase or Connection Pooling, prepared_statements not modified');
   return url;
 }
 
@@ -180,6 +195,10 @@ async function createPrisma(): Promise<PrismaClient> {
   }
 
   console.log('[Prisma] Creating PrismaClient...');
+  console.log('[Prisma] Final DATABASE_URL preview:', url.substring(0, 80) + '...');
+  console.log('[Prisma] URL has prepared_statements:', url.includes('prepared_statements='));
+  console.log('[Prisma] URL has port 6543:', url.includes(':6543'));
+  console.log('[Prisma] URL has pgbouncer:', url.includes('pgbouncer='));
 
   const instance = new PrismaClient({
     datasourceUrl: url,
