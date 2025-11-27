@@ -76,7 +76,18 @@ export async function PUT(request: NextRequest) {
     if (!auth.ok) return auth.res;
 
     try {
-        const body = await request.json();
+        let body;
+        try {
+            const text = await request.text();
+            if (!text || text.trim() === '') {
+                return NextResponse.json({ error: 'リクエストボディが空です。' }, { status: 400 });
+            }
+            body = JSON.parse(text);
+        } catch (parseError) {
+            console.error("JSON解析エラー:", parseError);
+            return NextResponse.json({ error: '無効なJSON形式です。' }, { status: 400 });
+        }
+
         const { id, visibility, isOfficial } = body;
         
         if (typeof id !== 'number') {
@@ -114,7 +125,19 @@ export async function DELETE(request: NextRequest) {
     if (!auth.ok) return auth.res;
 
     try {
-        const { id } = await request.json();
+        let body;
+        try {
+            const text = await request.text();
+            if (!text || text.trim() === '') {
+                return NextResponse.json({ error: 'リクエストボディが空です。' }, { status: 400 });
+            }
+            body = JSON.parse(text);
+        } catch (parseError) {
+            console.error("JSON解析エラー:", parseError);
+            return NextResponse.json({ error: '無効なJSON形式です。' }, { status: 400 });
+        }
+
+        const { id } = body;
         if (typeof id !== 'number') {
             return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
         }
