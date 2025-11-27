@@ -1,3 +1,4 @@
+export const runtime = 'nodejs';
 export const dynamic = "force-dynamic"; // ▼▼▼【重要】キャッシュを無効化して常に最新データを取得 ▼▼▼
 
 import { NextResponse } from 'next/server';
