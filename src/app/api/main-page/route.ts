@@ -3,11 +3,12 @@ export const dynamic = "force-dynamic"; // ▼▼▼【重要】キャッシュ�
 
 import { NextResponse } from 'next/server';
 // ▼▼▼【修正】Prismaクライアントと型定義のインポート元を分離します ▼▼▼
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 // ▲▲▲【修正】ここまで ▲▲▲
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // 代表画像を取得する共通ヘルパー関数
 // ▼▼▼【修正】orderByの型名を、Prismaが生成する正しい型名に修正します ▼▼▼
@@ -17,6 +18,7 @@ const getCharactersWithMainImage = async (
     take: number
 ) => {
 // ▲▲▲【修正】ここまで ▲▲▲
+    const prisma = await getPrisma();
     const charactersRaw = await prisma.characters.findMany({
         where,
         orderBy,
@@ -50,6 +52,9 @@ const getCharactersWithMainImage = async (
 
 
 export async function GET() {
+    if (isBuildTime()) return buildTimeResponse();
+    
+    const prisma = await getPrisma();
     const session = await getServerSession(authOptions);
     const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
 

@@ -2,7 +2,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 // ▼▼▼ 変更点: 型安全性のためにRole Enumをインポートします ▼▼▼
@@ -17,6 +17,7 @@ export async function GET(): Promise<NextResponse> {
   if (isBuildTime()) return buildTimeResponse();
   
   try {
+    const prisma = await getPrisma();
     const notices = await prisma.notices.findMany({
       orderBy: {
         createdAt: 'desc',
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    const prisma = await getPrisma();
     const newNotice = await prisma.notices.create({
       data: {
         title,

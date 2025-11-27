@@ -2,11 +2,14 @@ export const runtime = 'nodejs';
 export const dynamic = "force-dynamic"; // ▼▼▼【重要】キャッシュを無効化して常に最新データを取得 ▼▼▼
 
 import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 export async function GET(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const { searchParams } = new URL(request.url);
   const period = searchParams.get('period') || 'realtime';
   let startDate: Date | undefined = undefined;
@@ -28,6 +31,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const prisma = await getPrisma();
     const session = await getServerSession(authOptions);
     const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
     

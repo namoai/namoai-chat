@@ -70,15 +70,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // API routes를 빌드 시 분석하지 않도록 설정（ビルド時の問題を回避）
-  experimental: {
-    outputFileTracingExcludes: {
-      '*': [
-        'node_modules/@google-cloud/secret-manager/**',
-        'node_modules/@google-cloud/**',
-      ],
-    },
-  },
 };
 
 export default nextConfig;

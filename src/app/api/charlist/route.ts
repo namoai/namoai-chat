@@ -2,10 +2,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic"; // ▼▼▼【重要】キャッシュを無効化して常に最新データを取得 ▼▼▼
 
 import { NextResponse, NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 type CharacterItem = {
   id: number;
@@ -23,7 +24,10 @@ type CharacterItem = {
 type SortParam = "newest" | "popular" | "likes";
 
 export async function GET(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
+    const prisma = await getPrisma();
     const { searchParams } = new URL(request.url);
     const tagParam = searchParams.get("tag");
     const sortParam = (searchParams.get("sort") ?? "newest") as SortParam;

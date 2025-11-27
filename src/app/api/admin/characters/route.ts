@@ -1,10 +1,11 @@
 export const runtime = 'nodejs';
 
 import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { Role, Prisma } from '@prisma/client';
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 /**
  * 管理者権限（CHAR_MANAGER または SUPER_ADMIN）があるか確認します。
@@ -26,6 +27,8 @@ async function requireCharManagementPermission() {
  * GET: 管理者用のキャラクターリストを取得します（検索・ページネーション対応）
  */
 export async function GET(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const auth = await requireCharManagementPermission();
   if (!auth.ok) return auth.res;
 
@@ -36,6 +39,7 @@ export async function GET(request: NextRequest) {
   const skip = (page - 1) * limit;
 
   try {
+    const prisma = await getPrisma();
     const whereClause: Prisma.charactersWhereInput = query ? {
       OR: [
         { name: { contains: query, mode: 'insensitive' } },
@@ -72,10 +76,13 @@ export async function GET(request: NextRequest) {
  * PUT: キャラクターの公開状態または公式キャラクター状態を切り替えます
  */
 export async function PUT(request: NextRequest) {
+    if (isBuildTime()) return buildTimeResponse();
+    
     const auth = await requireCharManagementPermission();
     if (!auth.ok) return auth.res;
 
     try {
+        const prisma = await getPrisma();
         let body;
         try {
             const text = await request.text();
@@ -121,10 +128,13 @@ export async function PUT(request: NextRequest) {
  * DELETE: キャラクターを削除します
  */
 export async function DELETE(request: NextRequest) {
+    if (isBuildTime()) return buildTimeResponse();
+    
     const auth = await requireCharManagementPermission();
     if (!auth.ok) return auth.res;
 
     try {
+        const prisma = await getPrisma();
         let body;
         try {
             const text = await request.text();

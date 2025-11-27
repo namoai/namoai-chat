@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic"; // ▼▼▼【重要】キャッシュを無効化して常に最新データを取得 ▼▼▼
 
 import { NextResponse, NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 import { VertexAI, HarmCategory, HarmBlockThreshold, Content } from "@google-cloud/vertexai";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth"; 
@@ -103,6 +104,9 @@ const addImageTagIfKeywordMatched = (
 
 // --- 新規メッセージ作成または再生成 (POST) ---
 export async function POST(request: NextRequest) {
+    if (isBuildTime()) return buildTimeResponse();
+    
+    const prisma = await getPrisma();
     const session = await getServerSession(authOptions);
     if (!session || !session.user?.id) {
         return NextResponse.json({ error: "認証が必要です。" }, { status: 401 });
@@ -775,6 +779,9 @@ ${statusWindowInstruction}${userDirectiveInstruction}
 
 // --- メッセージの編集または表示バージョンの切り替え (PUT) ---
 export async function PUT(request: NextRequest) {
+    if (isBuildTime()) return buildTimeResponse();
+    
+    const prisma = await getPrisma();
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "認証が必要です。" }, { status: 401 });
 
@@ -814,6 +821,9 @@ export async function PUT(request: NextRequest) {
 
 // --- メッセージの削除 (DELETE) ---
 export async function DELETE(request: NextRequest) {
+    if (isBuildTime()) return buildTimeResponse();
+    
+    const prisma = await getPrisma();
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "認証が必要です。" }, { status: 401 });
 

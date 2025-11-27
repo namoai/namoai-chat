@@ -2,7 +2,8 @@ export const runtime = 'nodejs';
 export const dynamic = "force-dynamic"; // ▼▼▼【重要】キャッシュを無効化して常に最新データを取得 ▼▼▼
 
 import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 import fs from 'fs/promises';
 import path from 'path';
 import { getServerSession } from 'next-auth/next';
@@ -192,6 +193,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const { id } = await params;
   const characterId = Number.parseInt(id, 10);
   if (isNaN(characterId)) {
@@ -201,6 +204,7 @@ export async function GET(
   console.log(`[GET /api/characters/${characterId}] 詳細情報取得リクエストを受信`);
 
   try {
+    const prisma = await getPrisma();
     const session = await getServerSession(authOptions);
     const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
 
@@ -312,6 +316,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const { id } = await params;
   const characterIdToUpdate = Number.parseInt(id, 10);
 
@@ -327,6 +333,7 @@ export async function PUT(
   }
 
   try {
+    const prisma = await getPrisma();
     const characterToUpdate = await prisma.characters.findUnique({
       where: { id: characterIdToUpdate },
       select: { author_id: true }
@@ -642,6 +649,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   const { id } = await params;
   const characterIdToDelete = Number.parseInt(id, 10);
 
@@ -657,6 +666,7 @@ export async function DELETE(
   }
 
   try {
+    const prisma = await getPrisma();
     const characterToDelete = await prisma.characters.findUnique({
       where: { id: characterIdToDelete },
       include: { characterImages: true }

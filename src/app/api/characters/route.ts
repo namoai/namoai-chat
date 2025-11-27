@@ -2,7 +2,8 @@ export const runtime = 'nodejs';
 export const dynamic = "force-dynamic"; // ▼▼▼【重要】キャッシュを無効化して常に最新データを取得 ▼▼▼
 
 import { NextResponse } from 'next/server';
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 import { Prisma } from "@prisma/client";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
@@ -325,8 +326,11 @@ export async function GET(request: Request) {
  * POST: 新しいキャラクターを作成（JSONインポート or FormData）
  */
 export async function POST(request: Request) {
+    if (isBuildTime()) return buildTimeResponse();
+    
     console.log('[POST] キャラクター作成処理開始');
     try {
+        const prisma = await getPrisma();
         await ensureSupabaseEnv();
 
         const contentType = request.headers.get("content-type") || "";
