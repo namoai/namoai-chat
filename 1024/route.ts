@@ -70,7 +70,7 @@ async function ensureGcpCredsFile() {
     const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
     if (!raw && !b64) return;
 
-    const fs = await import('node:fs/promises');
+    const fs = await import('fs/promises');
     const path = '/tmp/gcp-sa.json';
     const content = raw ?? Buffer.from(b64!, 'base64').toString('utf8');
     await fs.writeFile(path, content, { encoding: 'utf8' });
@@ -100,7 +100,7 @@ async function resolveGcpProjectId(): Promise<string> {
     } catch { }
 
     try {
-        const fs = await import('node:fs/promises');
+        const fs = await import('fs/promises');
         const path = process.env.GOOGLE_APPLICATION_CREDENTIALS || '/tmp/gcp-sa.json';
         const buf = await fs.readFile(path, { encoding: 'utf8' });
         const parsed = JSON.parse(buf);

@@ -130,7 +130,29 @@ export function initializeEnvSecurity(): void {
       requiredVars.push('DATABASE_URL');
     }
 
-    validateRequiredEnvVars(requiredVars);
+    // 開発環境では 경고만 하고 계속 진행
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    const missing: string[] = [];
+
+    for (const varName of requiredVars) {
+      if (!process.env[varName]) {
+        missing.push(varName);
+      }
+    }
+
+    if (missing.length > 0) {
+      if (isDevelopment) {
+        // 開発環境では 경고만 하고 계속 진행
+        logger.warn('Missing environment variables in development', {
+          metadata: { missing },
+        });
+        logger.warn('Please set these variables in .env.local for full functionality');
+        return; // 開発環境ではエラーを投げない
+      } else {
+        // 本番環境ではエラーを投げる
+        validateRequiredEnvVars(requiredVars);
+      }
+    }
     
     logger.info('Environment variables validated successfully');
   } catch (error) {
@@ -140,7 +162,12 @@ export function initializeEnvSecurity(): void {
         message: error.message,
       } : { message: String(error) },
     });
-    throw error;
+    // 開発環境ではエラーを投げない
+    if (process.env.NODE_ENV === 'production') {
+      throw error;
+    } else {
+      logger.warn('Continuing in development mode despite validation errors');
+    }
   }
 }
 

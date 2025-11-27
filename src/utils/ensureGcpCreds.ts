@@ -35,7 +35,7 @@ export async function ensureGcpCreds() {
 
   try {
     // Node.js の ESM import を使用（Edge Runtime では利用不可）
-    // node: プレフィックスは webpack で問題を起こす可能性があるため削除
+    // node: プレフィックスは webpack で問題を起こすため削除
     const fs = await import("fs/promises");
     const path = await import("path");
     // Netlify では /tmp が標準の一時ディレクトリ

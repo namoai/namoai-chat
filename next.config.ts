@@ -70,6 +70,28 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  webpack: (config, { isServer }) => {
+    // ensureGcpCreds.ts는 서버 전용이므로 클라이언트 번들에서 제외
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        'fs/promises': false,
+        path: false,
+        'node:fs': false,
+        'node:fs/promises': false,
+        'node:path': false,
+      };
+    }
+    // node: 프리픽스를 처리하기 위한 설정
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'node:fs': 'fs',
+      'node:fs/promises': 'fs/promises',
+      'node:path': 'path',
+    };
+    return config;
+  },
 };
 
 export default nextConfig;

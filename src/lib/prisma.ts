@@ -31,8 +31,8 @@ async function ensureGcpCredsFile() {
   if (!jsonRaw && !jsonB64) return;
 
   try {
-    const fs = await import("node:fs/promises");
-    const path = await import("node:path");
+    const fs = await import("fs/promises");
+    const path = await import("path");
     const credPath = path.join("/tmp", "gcp-sa.json");
     const json = jsonRaw ?? Buffer.from(jsonB64!, "base64").toString("utf8");
     await fs.writeFile(credPath, json, "utf8");

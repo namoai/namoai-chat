@@ -3,12 +3,18 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse, NextRequest } from 'next/server';
 import { VertexAI, HarmCategory, HarmBlockThreshold } from "@google-cloud/vertexai";
+import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
-// VertexAIクライアントの初期化
-const vertex_ai = new VertexAI({
-  project: process.env.GOOGLE_PROJECT_ID,
-  location: "asia-northeast1",
-});
+// VertexAIクライアントの初期化（遅延初期化）
+function getVertexAI(): VertexAI {
+  if (!process.env.GOOGLE_PROJECT_ID) {
+    throw new Error('GOOGLE_PROJECT_ID is not set');
+  }
+  return new VertexAI({
+    project: process.env.GOOGLE_PROJECT_ID,
+    location: "asia-northeast1",
+  });
+}
 
 const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
@@ -18,6 +24,8 @@ const safetySettings = [
 ];
 
 export async function POST(request: NextRequest) {
+  if (isBuildTime()) return buildTimeResponse();
+  
   try {
     const { name, description } = await request.json();
 
@@ -28,6 +36,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const vertex_ai = getVertexAI();
     const model = vertex_ai.getGenerativeModel({
       model: "gemini-2.5-flash",
       safetySettings,
