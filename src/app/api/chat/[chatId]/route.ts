@@ -29,7 +29,6 @@ function getVertexAI(): VertexAI {
   return vertex_ai;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function POST(request: Request, context: { params: Promise<{ chatId: string }> }) {
   console.log("チャットAPIリクエスト受信");
   console.time("⏱️ 全体API処理時間"); // 全体時間測定開始

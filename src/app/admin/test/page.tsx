@@ -89,7 +89,7 @@ export default function TestToolPage() {
 
   const adoptExistingCharacter = async () => {
     const charsRes = await fetch('/api/charlist');
-    const charsData = await charsRes.json() as { characters?: any[] } | any[];
+    const charsData = await charsRes.json() as { characters?: Array<{ id: number; [key: string]: unknown }> } | Array<{ id: number; [key: string]: unknown }>;
     const chars = Array.isArray(charsData) ? charsData : (charsData.characters || []);
     if (!Array.isArray(chars) || chars.length === 0) {
       return null;
@@ -1083,7 +1083,7 @@ export default function TestToolPage() {
 
       try {
         await prepareSocialFixtures({ silent: true });
-      } catch (error) {
+      } catch {
         // 既存データで続行
       }
 

@@ -381,7 +381,7 @@ export async function POST(request: Request) {
                 console.log('[POST] 데이터베이스 쓰기 시도 시작...');
                 console.log('[POST] DATABASE_URL from env:', process.env.DATABASE_URL?.substring(0, 50) + '...');
                 // Prisma가 실제로 사용하는 URL 확인
-                const prismaUrl = (prisma as any).$connect ? 'Prisma connected' : 'Prisma not connected';
+                const prismaUrl = typeof prisma.$connect === 'function' ? 'Prisma connected' : 'Prisma not connected';
                 console.log('[POST] Prisma connection status:', prismaUrl);
                 
                 const newCharacter = await prisma.$transaction(async (tx) => {
@@ -443,7 +443,7 @@ export async function POST(request: Request) {
                             console.error('[POST] 에러 스택:', dbError.stack);
                         }
                         if (typeof dbError === 'object' && dbError !== null) {
-                            const prismaError = dbError as { code?: string; meta?: any; message?: string };
+                            const prismaError = dbError as { code?: string; meta?: unknown; message?: string };
                             console.error('[POST] Prisma 에러 코드:', prismaError.code);
                             console.error('[POST] Prisma 에러 메타:', prismaError.meta);
                         }
