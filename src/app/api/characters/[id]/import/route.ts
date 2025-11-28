@@ -4,7 +4,6 @@ import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { getPrisma } from "@/lib/prisma";
-import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { randomUUID } from 'crypto';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 import { uploadImageBufferToCloudflare } from '@/lib/cloudflare-images';
@@ -29,55 +28,6 @@ type LorebookData = {
     keywords: string[];
 };
 // --- ▲▲▲ 修正ここまで ▲▲▲ ---
-
-
-// --- Google Secret Manager関連のコード ---
-async function ensureGcpCredsFile() {
-    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) return;
-    const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-    const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
-    if (!raw && !b64) return;
-
-    const fs = await import('fs/promises');
-    const path = '/tmp/gcp-sa.json';
-    const content = raw ?? Buffer.from(b64!, 'base64').toString('utf8');
-    await fs.writeFile(path, content, { encoding: 'utf8' });
-    process.env.GOOGLE_APPLICATION_CREDENTIALS = path;
-}
-
-async function resolveGcpProjectId(): Promise<string> {
-    const envProject =
-        process.env.GCP_PROJECT_ID ||
-        process.env.GOOGLE_CLOUD_PROJECT ||
-        process.env.GOOGLE_PROJECT_ID;
-    if (envProject && envProject.trim().length > 0) return envProject.trim();
-
-    const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-    const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
-    try {
-        if (raw || b64) {
-            const jsonStr = raw ?? Buffer.from(b64!, 'base64').toString('utf8');
-            const parsed = JSON.parse(jsonStr);
-            if (typeof parsed?.project_id === 'string' && parsed.project_id) {
-                return parsed.project_id;
-            }
-        }
-    } catch { }
-
-    try {
-        const fs = await import('fs/promises');
-        const path = process.env.GOOGLE_APPLICATION_CREDENTIALS || '/tmp/gcp-sa.json';
-        const buf = await fs.readFile(path, { encoding: 'utf8' });
-        const parsed = JSON.parse(buf);
-        if (typeof parsed?.project_id === 'string' && parsed.project_id) {
-            return parsed.project_id;
-        }
-    } catch { }
-
-    throw new Error('GCP project id が存在しません');
-}
-
-// --- Google Secret Manager関連のコードここまで ---
 
 
 function getCharacterId(request: NextRequest): number | null {
