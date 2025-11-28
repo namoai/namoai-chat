@@ -14,6 +14,8 @@ export async function register() {
 
       if (isLambda) {
         console.log('[instrumentation] Lambda environment detected, loading environment variables from .env.production.local...');
+        console.log('[instrumentation] Current working directory:', process.cwd());
+        console.log('[instrumentation] LAMBDA_TASK_ROOT:', process.env.LAMBDA_TASK_ROOT);
         
         // 동적 import로 fs와 path 로드 (서버 사이드에서만 사용)
         const fs = await import('fs');
@@ -27,13 +29,23 @@ export async function register() {
           path.join('/var/task', '.env.production.local'),
           path.join('/var/task', '.next', '.env.production.local'),
           path.join('/var/task', '.next', 'standalone', '.env.production.local'),
+          ...(process.env.LAMBDA_TASK_ROOT ? [
+            path.join(process.env.LAMBDA_TASK_ROOT, '.env.production.local'),
+            path.join(process.env.LAMBDA_TASK_ROOT, '.next', '.env.production.local'),
+            path.join(process.env.LAMBDA_TASK_ROOT, '.next', 'standalone', '.env.production.local'),
+          ] : []),
         ];
+
+        console.log('[instrumentation] Searching for .env.production.local in paths:', possiblePaths);
 
         let loaded = false;
         for (const filePath of possiblePaths) {
-          if (fs.existsSync(filePath)) {
-            try {
+          try {
+            if (fs.existsSync(filePath)) {
+              console.log(`[instrumentation] Found .env.production.local at: ${filePath}`);
               const content = fs.readFileSync(filePath, 'utf8');
+              console.log(`[instrumentation] File content length: ${content.length} bytes`);
+              
               const lines = content.split('\n');
               
               let loadedCount = 0;
@@ -50,6 +62,8 @@ export async function register() {
                     process.env[key] = value;
                     loadedCount++;
                     console.log(`[instrumentation] Loaded ${key} from ${filePath}`);
+                  } else {
+                    console.log(`[instrumentation] Skipped ${key} (already set)`);
                   }
                 }
               }
@@ -57,14 +71,26 @@ export async function register() {
               console.log(`[instrumentation] ✅ Loaded ${loadedCount} environment variables from ${filePath}`);
               loaded = true;
               break;
-            } catch (error) {
-              console.warn(`[instrumentation] Failed to load ${filePath}:`, error);
+            } else {
+              console.log(`[instrumentation] File not found: ${filePath}`);
             }
+          } catch (error) {
+            console.warn(`[instrumentation] Failed to check/load ${filePath}:`, error);
           }
         }
 
         if (!loaded) {
           console.warn('[instrumentation] ⚠️ .env.production.local file not found in any of the expected paths');
+          console.warn('[instrumentation] This may indicate that the file was not included in the Lambda deployment');
+        } else {
+          // 로드된 환경 변수 확인
+          const requiredVars = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'NEXTAUTH_SECRET', 'DATABASE_URL'];
+          const loadedVars = requiredVars.filter(v => process.env[v]);
+          console.log(`[instrumentation] ✅ Loaded environment variables: ${loadedVars.join(', ')}`);
+          const missingVars = requiredVars.filter(v => !process.env[v]);
+          if (missingVars.length > 0) {
+            console.warn(`[instrumentation] ⚠️ Still missing: ${missingVars.join(', ')}`);
+          }
         }
       }
     } catch (error) {

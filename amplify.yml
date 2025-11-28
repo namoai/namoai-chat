@@ -43,7 +43,14 @@ frontend:
             # standalone 모드인 경우 standalone 디렉토리에도 복사
             if [ -d .next/standalone ]; then
               cp .env.production.local .next/standalone/.env.production.local || true
+              # standalone의 루트에도 복사 (Lambda 실행 디렉토리)
+              cp .env.production.local .next/standalone/.env.production.local || true
               echo "✅ Copied to .next/standalone/.env.production.local"
+              # 파일이 제대로 복사되었는지 확인
+              if [ -f .next/standalone/.env.production.local ]; then
+                echo "✅ Verified: .next/standalone/.env.production.local exists"
+                echo "File size: $(wc -c < .next/standalone/.env.production.local) bytes"
+              fi
             fi
             echo "✅ Copied to .next/.env.production.local"
           else
