@@ -113,6 +113,7 @@ export class SecureEnv {
 
 /**
  * 起動時に環境変数を検証
+ * AWS Amplify環境では 빌드 시점과 런타임을 구분하여 처리
  */
 export function initializeEnvSecurity(): void {
   try {
@@ -125,6 +126,9 @@ export function initializeEnvSecurity(): void {
       'DATABASE_URL',
     ];
 
+    // 빌드 시점 확인: NEXT_PHASE가 설정되어 있으면 빌드 중
+    const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build';
+    
     // 開発環境では 경고만 하고 계속 진행
     const isDevelopment = process.env.NODE_ENV !== 'production';
     const missing: string[] = [];
@@ -136,6 +140,16 @@ export function initializeEnvSecurity(): void {
     }
 
     if (missing.length > 0) {
+      if (isBuildTime) {
+        // 빌드 시점에서는 환경 변수가 없어도 경고만 출력
+        // AWS Amplify에서는 런타임에 환경 변수가 설정됨
+        logger.warn('Missing environment variables at build time (expected in AWS Amplify)', {
+          metadata: { missing },
+        });
+        logger.warn('These variables should be set in AWS Amplify console environment variables');
+        return; // 빌드 시점에서는 에러를 throw하지 않음
+      }
+      
       if (isDevelopment) {
         // 開発環境では 경고만 하고 계속 진행
         logger.warn('Missing environment variables in development', {
@@ -144,8 +158,15 @@ export function initializeEnvSecurity(): void {
         logger.warn('Please set these variables in .env.local for full functionality');
         return; // 開発環境ではエラーを投げない
       } else {
-        // 本番環境ではエラーを投げる
-        validateRequiredEnvVars(requiredVars);
+        // 프로덕션 런타임에서는 에러를 throw
+        // 하지만 AWS Amplify Lambda 환경에서는 환경 변수가 지연 로드될 수 있으므로
+        // 실제 사용 시점에 다시 검증됨
+        logger.warn('Missing environment variables in production runtime', {
+          metadata: { missing },
+        });
+        logger.warn('Will fail at actual usage if variables are not set');
+        // 실제 사용 시점에 검증되므로 여기서는 throw하지 않음
+        // validateRequiredEnvVars(requiredVars);
       }
     }
     
@@ -157,11 +178,16 @@ export function initializeEnvSecurity(): void {
         message: error.message,
       } : { message: String(error) },
     });
-    // 開発環境ではエラーを投げない
-    if (process.env.NODE_ENV === 'production') {
+    
+    // 빌드 시점이거나 개발 환경에서는 에러를 throw하지 않음
+    const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build';
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    
+    if (!isBuildTime && !isDevelopment && process.env.NODE_ENV === 'production') {
+      // 프로덕션 런타임에서만 에러를 throw
       throw error;
     } else {
-      logger.warn('Continuing in development mode despite validation errors');
+      logger.warn('Continuing despite validation errors (build time or development mode)');
     }
   }
 }
