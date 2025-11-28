@@ -5,97 +5,10 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { getPrisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { createClient } from '@supabase/supabase-js';
 import { validateImageFile } from '@/lib/upload/validateImage';
-import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
+import { uploadImageBufferToCloudflare } from '@/lib/cloudflare-images';
 
-// ▼▼▼【追加】 キャラクター作成APIと同様のヘルパー関数をここに追加します。 ▼▼▼
-// ───────────────────────────────────────────────────────────────
-//  ランタイムで GCP サービスアカウント認証ファイルを保証
-// ───────────────────────────────────────────────────────────────
-async function ensureGcpCredsFile() {
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) return;
-  const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-  const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
-  if (!raw && !b64) return;
-
-  const fs = await import('fs/promises');
-  const path = '/tmp/gcp-sa.json';
-  const content = raw ?? Buffer.from(b64!, 'base64').toString('utf8');
-  await fs.writeFile(path, content, { encoding: 'utf8' });
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = path;
-}
-
-// ───────────────────────────────────────────────────────────────
-//  GCP プロジェクト ID を解決
-// ───────────────────────────────────────────────────────────────
-async function resolveGcpProjectId(): Promise<string> {
-  const envProject =
-    process.env.GCP_PROJECT_ID ||
-    process.env.GOOGLE_CLOUD_PROJECT ||
-    process.env.GOOGLE_PROJECT_ID;
-  if (envProject && envProject.trim().length > 0) return envProject.trim();
-
-  const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-  const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
-  try {
-    if (raw || b64) {
-      const jsonStr = raw ?? Buffer.from(b64!, 'base64').toString('utf8');
-      const parsed = JSON.parse(jsonStr);
-      if (typeof parsed?.project_id === 'string' && parsed.project_id) return parsed.project_id;
-    }
-  } catch {}
-
-  try {
-    const fs = await import('fs/promises');
-    const path = process.env.GOOGLE_APPLICATION_CREDENTIALS || '/tmp/gcp-sa.json';
-    const buf = await fs.readFile(path, { encoding: 'utf8' });
-    const parsed = JSON.parse(buf);
-    if (typeof parsed?.project_id === 'string' && parsed.project_id) return parsed.project_id;
-  } catch {}
-
-  throw new Error('GCP project id が存在しません');
-}
-
-// ───────────────────────────────────────────────────────────────
-//  Secret Manager からシークレットを取得
-// ───────────────────────────────────────────────────────────────
-async function loadSecret(name: string, version = 'latest') {
-  const projectId = await resolveGcpProjectId();
-  const client = new SecretManagerServiceClient({ fallback: true });
-  const [acc] = await client.accessSecretVersion({
-    name: `projects/${projectId}/secrets/${name}/versions/${version}`,
-  });
-  const value = acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
-  return value.trim(); // ▼▼▼【重要】前後の空白・改行を削除
-}
-
-// ───────────────────────────────────────────────────────────────
-//  Supabase 関連の環境変数をランタイムで補完
-// ───────────────────────────────────────────────────────────────
-async function ensureSupabaseEnv() {
-  await ensureGcpCredsFile();
-  if (!process.env.SUPABASE_URL) {
-    process.env.SUPABASE_URL = await loadSecret('SUPABASE_URL');
-  }
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    process.env.SUPABASE_SERVICE_ROLE_KEY = await loadSecret('SUPABASE_SERVICE_ROLE_KEY');
-  }
-
-  // ▼▼▼【重要】Netlify環境変数に含まれる可能性のある空白・改行・タブを全て削除
-  if (process.env.SUPABASE_URL) {
-    process.env.SUPABASE_URL = process.env.SUPABASE_URL
-      .replace(/\s/g, '')  // 実際のホワイトスペース削除
-      .replace(/\\n|\\r|\\t/g, '');  // リテラル文字列 \n \r \t 削除
-  }
-  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-      .replace(/\s/g, '')  // 実際のホワイトスペース削除
-      .replace(/\\n|\\r|\\t/g, '');  // リテラル文字列 \n \r \t 削除
-  }
-  // ▲▲▲
-}
 
 
 // GET: 現在ログインしているユーザーのプロフィール情報を取得します
@@ -127,8 +40,6 @@ export async function GET() {
 // PUT: ユーザーのプロフィール情報を更新します
 export async function PUT(リクエスト: Request) {
   if (isBuildTime()) return buildTimeResponse();
-  
-  await ensureSupabaseEnv();
 
   const prisma = await getPrisma();
   const セッション = await getServerSession(authOptions);
@@ -153,36 +64,18 @@ export async function PUT(リクエスト: Request) {
         const message = error instanceof Error ? error.message : '画像検証中にエラーが発生しました。';
         return NextResponse.json({ message }, { status: 400 });
       }
-      const supabaseUrl = process.env.SUPABASE_URL!;
-      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-      const バケット名 = 'usersImage';
 
-      if (!supabaseUrl || !serviceRoleKey) {
-        console.error('[PUT] 環境変数不足: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
-        return NextResponse.json({ message: 'サーバー設定エラー（Storage接続情報不足）' }, { status: 500 });
-      }
-
-      const supabaseクライアント = createClient(supabaseUrl, serviceRoleKey);
-      
-      const オブジェクトキー = `avatars/${validatedImage.safeFileName}`;
-
-      const { error: アップロードエラー } = await supabaseクライアント.storage
-        .from(バケット名)
-        .upload(オブジェクトキー, validatedImage.buffer, {
+      try {
+        画像URL = await uploadImageBufferToCloudflare(validatedImage.buffer, {
+          filename: validatedImage.safeFileName,
           contentType: validatedImage.mimeType,
-          upsert: false,
         });
-
-      if (アップロードエラー) {
-        console.error(`[PUT] Supabaseアップロード失敗:`, アップロードエラー);
-        // ▼▼▼【修正】残っていた韓国語のコメントを日本語に修正しました。▼▼▼
-        // エラーオブジェクト全体をログに出力して詳細を確認
-        console.error(アップロードエラー); 
-        return NextResponse.json({ message: '画像アップロードに失敗しました。' }, { status: 500 });
+        console.log(`[PUT] プロフィール画像アップロード成功: ${画像URL}`);
+      } catch (uploadError) {
+        console.error(`[PUT] Cloudflareアップロード失敗:`, uploadError);
+        const message = uploadError instanceof Error ? uploadError.message : '画像アップロードに失敗しました。';
+        return NextResponse.json({ message: `画像アップロードに失敗しました: ${message}` }, { status: 500 });
       }
-
-      const { data: 公開URLデータ } = supabaseクライアント.storage.from(バケット名).getPublicUrl(オブジェクトキー);
-      画像URL = 公開URLデータ.publicUrl;
     }
 
     const 更新後のユーザー = await prisma.users.update({
