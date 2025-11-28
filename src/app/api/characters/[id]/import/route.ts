@@ -77,39 +77,6 @@ async function resolveGcpProjectId(): Promise<string> {
     throw new Error('GCP project id が存在しません');
 }
 
-async function loadSecret(name: string, version = 'latest') {
-    const projectId = await resolveGcpProjectId();
-    const client = new SecretManagerServiceClient({ fallback: true });
-    const [acc] = await client.accessSecretVersion({
-        name: `projects/${projectId}/secrets/${name}/versions/${version}`,
-    });
-    const value = acc.payload?.data ? Buffer.from(acc.payload.data).toString('utf8') : '';
-    return value.trim(); // ▼▼▼【重要】前後の空白・改行を削除
-}
-
-async function ensureSupabaseEnv() {
-    await ensureGcpCredsFile();
-
-    if (!process.env.SUPABASE_URL) {
-        process.env.SUPABASE_URL = await loadSecret('SUPABASE_URL');
-    }
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        process.env.SUPABASE_SERVICE_ROLE_KEY = await loadSecret('SUPABASE_SERVICE_ROLE_KEY');
-    }
-
-    // ▼▼▼【重要】Netlify環境変数に含まれる可能性のある空白・改行・タブを全て削除
-    if (process.env.SUPABASE_URL) {
-        process.env.SUPABASE_URL = process.env.SUPABASE_URL
-            .replace(/\s/g, '')  // 実際のホワイトスペース削除
-            .replace(/\\n|\\r|\\t/g, '');  // リテラル文字列 \n \r \t 削除
-    }
-    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-            .replace(/\s/g, '')  // 実際のホワイトスペース削除
-            .replace(/\\n|\\r|\\t/g, '');  // リテラル文字列 \n \r \t 削除
-    }
-    // ▲▲▲
-}
 // --- Google Secret Manager関連のコードここまで ---
 
 

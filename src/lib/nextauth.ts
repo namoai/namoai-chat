@@ -65,7 +65,6 @@ function createAdapterMethod(prop: string | symbol) {
       const adapter = await getAdapter();
       const method = (adapter as Record<string | symbol, unknown>)[prop];
       if (typeof method === 'function') {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument
         return method.apply(adapter, args);
       }
       throw new Error(`Adapter method ${String(prop)} is not a function`);
