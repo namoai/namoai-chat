@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import CharacterForm from "@/components/CharacterForm";
 import type { Session } from "next-auth";
 
 export default function CharacterCreatePage() {
   const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
+  const router = useRouter();
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -31,6 +33,13 @@ export default function CharacterCreatePage() {
     fetchSession();
   }, []);
 
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      // 認証されていない場合は即座にログインページにリダイレクト
+      router.push("/login");
+    }
+  }, [status, router]);
+
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-black text-white flex justify-center items-center">
@@ -40,6 +49,11 @@ export default function CharacterCreatePage() {
         </div>
       </div>
     );
+  }
+
+  if (status === "unauthenticated") {
+    // リダイレクト中は何も表示しない
+    return null;
   }
 
   return (
