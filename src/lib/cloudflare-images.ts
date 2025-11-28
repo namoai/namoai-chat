@@ -16,6 +16,18 @@ export async function uploadImageToCloudflare(
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   const apiToken = process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_IMAGES_API_TOKEN;
 
+  // デバッグ: 環境変数の状態をログに記録
+  if (typeof window === 'undefined') {
+    console.log('[Cloudflare Upload] 環境変数チェック:', {
+      hasAccountId: !!accountId,
+      accountIdLength: accountId?.length || 0,
+      accountIdPreview: accountId ? `${accountId.substring(0, 8)}...` : '未設定',
+      hasApiToken: !!apiToken,
+      apiTokenLength: apiToken?.length || 0,
+      apiTokenPreview: apiToken ? `${apiToken.substring(0, 8)}...` : '未設定',
+    });
+  }
+
   if (!accountId || !apiToken) {
     const errorMessage = `
 ❌ Cloudflare環境変数が設定されていません。
