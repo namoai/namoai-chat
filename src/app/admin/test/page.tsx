@@ -836,6 +836,15 @@ export default function TestToolPage() {
               authorIdToUse = currentTestUserInfo.userId;
             }
             if (!authorIdToUse) {
+              // パートナーユーザーが存在しない場合は、まずシードデータを生成を試みる
+              try {
+                await prepareSocialFixtures({ silent: true });
+                authorIdToUse = partnerInfoRef.current?.userId ?? null;
+              } catch (seedError) {
+                console.warn('シードデータ生成に失敗しましたが、既存データで続行します:', seedError);
+              }
+            }
+            if (!authorIdToUse) {
               const charsRes = await fetch('/api/charlist');
               const charsData = await charsRes.json() as { characters?: { author_id?: number }[] } | { author_id?: number }[];
               const chars = Array.isArray(charsData) ? charsData : (charsData.characters || []);
