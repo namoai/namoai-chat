@@ -96,18 +96,8 @@ function validateAuthEnv() {
       console.error(`   - ${key}`);
     });
     
-    // AWS Amplify/Lambda 환경에서는 환경 변수가 런타임에 설정될 수 있으므로,
-    // 빌드 시점이 아닌 실제 사용 시점에만 에러를 throw
-    // 빌드 시점 확인: NEXT_PHASE가 설정되어 있으면 빌드 중
-    const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build';
-    
-    if (isBuildTime) {
-      console.warn('[NextAuth] Build time detected - environment variables will be validated at runtime');
-      return; // 빌드 시점에서는 에러를 throw하지 않음
-    }
-    
-    // 런타임에서도 환경 변수가 없으면 경고만 출력 (실제 사용 시점에 에러 발생)
-    console.warn('[NextAuth] Missing environment variables - will fail at runtime if not set');
+    // 환경 변수가 없으면 빌드 실패
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   } else {
     console.log('✅ NextAuth 환경 변수 검증 완료');
     console.log(`   - GOOGLE_CLIENT_ID: ${process.env.GOOGLE_CLIENT_ID ? '설정됨' : '누락'}`);

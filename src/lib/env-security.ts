@@ -140,16 +140,6 @@ export function initializeEnvSecurity(): void {
     }
 
     if (missing.length > 0) {
-      if (isBuildTime) {
-        // 빌드 시점에서는 환경 변수가 없어도 경고만 출력
-        // AWS Amplify에서는 런타임에 환경 변수가 설정됨
-        logger.warn('Missing environment variables at build time (expected in AWS Amplify)', {
-          metadata: { missing },
-        });
-        logger.warn('These variables should be set in AWS Amplify console environment variables');
-        return; // 빌드 시점에서는 에러를 throw하지 않음
-      }
-      
       if (isDevelopment) {
         // 開発環境では 경고만 하고 계속 진행
         logger.warn('Missing environment variables in development', {
@@ -158,15 +148,11 @@ export function initializeEnvSecurity(): void {
         logger.warn('Please set these variables in .env.local for full functionality');
         return; // 開発環境ではエラーを投げない
       } else {
-        // 프로덕션 런타임에서는 에러를 throw
-        // 하지만 AWS Amplify Lambda 환경에서는 환경 변수가 지연 로드될 수 있으므로
-        // 실제 사용 시점에 다시 검증됨
-        logger.warn('Missing environment variables in production runtime', {
-          metadata: { missing },
+        // 프로덕션 환경(빌드 시점 포함)에서는 환경 변수가 없으면 에러를 throw하여 빌드 실패
+        logger.error('Missing required environment variables', {
+          metadata: { missing, isBuildTime },
         });
-        logger.warn('Will fail at actual usage if variables are not set');
-        // 실제 사용 시점에 검증되므로 여기서는 throw하지 않음
-        // validateRequiredEnvVars(requiredVars);
+        validateRequiredEnvVars(requiredVars);
       }
     }
     
