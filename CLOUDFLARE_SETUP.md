@@ -33,16 +33,25 @@
 
 **다른 확인 방법:**
 
-**방법 2: 오른쪽 사이드바**
+**방법 2: 오른쪽 사이드바 확인**
 - Dashboard 오른쪽 사이드바를 확인합니다
-- **"Account"** 섹션이 있으면 클릭
+- **"Account"** 또는 **"Account Home"** 섹션이 있으면 클릭
 - Account ID가 표시됩니다
 
-**방법 3: URL에서 확인**
-- Dashboard에 도메인이 등록되어 있다면:
-  - 도메인을 선택한 후 URL을 확인
-  - URL 형식: `https://dash.cloudflare.com/{account-id}/...`
-  - 하지만 이 방법은 도메인이 없으면 사용할 수 없습니다
+**방법 3: Account Home 페이지**
+- Dashboard 왼쪽 상단의 **계정 선택 드롭다운** 클릭
+- **"Account Home"** 클릭
+- Account Home 페이지에서 Account ID 확인
+
+**방법 4: API를 통한 확인**
+- API Token이 이미 있다면, API를 통해 Account ID를 확인할 수 있습니다
+- 또는 Cloudflare 지원팀에 문의하여 Account ID를 확인할 수 있습니다
+
+**⚠️ 중요: "namoai-chat" 같은 값이 표시되는 경우**
+- 스크린샷에서 "Account ID: namoai-chat"이 표시되는 경우:
+  - 이것은 **계정 이름**일 수 있습니다
+  - 실제 Account ID는 보통 **32자리 영숫자**입니다
+  - 다른 위치에서 확인하거나 Cloudflare 지원팀에 문의하세요
 
 **⚠️ Account ID를 찾을 수 없는 경우:**
 1. **계정이 제대로 생성되었는지 확인**

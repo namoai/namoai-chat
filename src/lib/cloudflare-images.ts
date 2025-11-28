@@ -40,6 +40,36 @@ export async function uploadImageToCloudflare(
     }
   }
 
+  // Account IDの形式を検証 (20文字以上の英数字である必要がある)
+  // 注意: CloudflareのAccount IDは通常32文字ですが、일부 계정では 다른 형식일 수 있습니다
+  if (accountId.length < 10 || !/^[a-zA-Z0-9]+$/.test(accountId)) {
+    const errorMessage = `
+❌ Cloudflare Account IDの形式が正しくありません。
+
+現在の値: "${accountId}"
+
+Account IDは通常32文字の英数字です（하이픈이나 언더스코어 없음）。
+확인 방법:
+1. Cloudflare Dashboard → 왼쪽 상단 계정 선택 → "Account Home" 클릭
+2. 또는 오른쪽 사이드바에서 "Account" 섹션 확인
+3. API Tokens 페이지에서 확인 (하지만 "namoai-chat" 같은 값은 계정 이름일 수 있음)
+
+⚠️ 注意: 
+- "namoai-chat" 같은 값은 계정 이름일 수 있습니다
+- 실제 Account ID는 보통 32자리 영숫자입니다
+- Account ID를 찾을 수 없으면 Cloudflare 지원팀에 문의하세요
+
+正しいAccount IDの例: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
+    `.trim();
+    
+    if (typeof window === 'undefined') {
+      throw new Error(errorMessage);
+    } else {
+      console.error(errorMessage);
+      throw new Error(`Cloudflare Account IDの形式が正しくありません: "${accountId}"`);
+    }
+  }
+
   // FileオブジェクトをFormDataに変換
   const formData = new FormData();
   
@@ -217,6 +247,12 @@ export async function deleteImageFromCloudflare(imageUrl: string): Promise<boole
 
   if (!accountId || !apiToken) {
     console.error('[Cloudflare Delete] 環境変数が設定されていません。');
+    return false;
+  }
+
+  // Account IDの形式を検証
+  if (accountId.length < 20 || !/^[a-zA-Z0-9]+$/.test(accountId)) {
+    console.error(`[Cloudflare Delete] Account IDの形式が正しくありません: "${accountId}"`);
     return false;
   }
 
