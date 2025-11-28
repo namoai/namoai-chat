@@ -33,25 +33,34 @@
 
 **다른 확인 방법:**
 
-**방법 2: 오른쪽 사이드바 확인**
-- Dashboard 오른쪽 사이드바를 확인합니다
-- **"Account"** 또는 **"Account Home"** 섹션이 있으면 클릭
-- Account ID가 표시됩니다
+**방법 2: 오른쪽 사이드바 확인** ⭐ 가장 확실한 방법
+- 현재 페이지(계정 홈)의 **오른쪽 사이드바**를 확인하세요
+- 오른쪽 사이드바에 **"Account ID"** 또는 **"계정 ID"** 섹션이 있을 수 있습니다
+- 스크롤을 내려서 확인해보세요
 
-**방법 3: Account Home 페이지**
-- Dashboard 왼쪽 상단의 **계정 선택 드롭다운** 클릭
-- **"Account Home"** 클릭
-- Account Home 페이지에서 Account ID 확인
+**방법 3: API Token 생성 시 확인** ⭐ 추천
+1. 왼쪽 사이드바에서 **"My Profile"** (또는 사람 아이콘) 클릭
+2. **"API Tokens"** 탭 클릭
+3. **"Create Token"** 버튼 클릭
+4. Token 생성 과정에서 Account ID가 표시될 수 있습니다
+5. 또는 생성된 Token의 권한 설정에서 Account ID를 확인할 수 있습니다
 
-**방법 4: API를 통한 확인**
-- API Token이 이미 있다면, API를 통해 Account ID를 확인할 수 있습니다
-- 또는 Cloudflare 지원팀에 문의하여 Account ID를 확인할 수 있습니다
+**방법 4: URL에서 확인**
+- 현재 페이지의 URL을 확인해보세요
+- URL 형식: `https://dash.cloudflare.com/{account-id}/...`
+- URL의 `/` 사이에 있는 값이 Account ID일 수 있습니다
+
+**방법 5: 실제로 테스트해보기**
+- "namoai-chat"을 Account ID로 사용해보고 에러가 나는지 확인
+- 에러가 나면 다른 방법으로 찾기
+- 작동한다면 그것이 실제 Account ID일 수 있습니다
 
 **⚠️ 중요: "namoai-chat" 같은 값이 표시되는 경우**
 - 스크린샷에서 "Account ID: namoai-chat"이 표시되는 경우:
   - 이것은 **계정 이름**일 수 있습니다
   - 실제 Account ID는 보통 **32자리 영숫자**입니다
-  - 다른 위치에서 확인하거나 Cloudflare 지원팀에 문의하세요
+  - 하지만 일부 계정에서는 다른 형식일 수도 있습니다
+  - **실제로 API를 호출해서 테스트**해보는 것이 가장 확실합니다
 
 **⚠️ Account ID를 찾을 수 없는 경우:**
 1. **계정이 제대로 생성되었는지 확인**
