@@ -28,7 +28,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ imageUrl });
   } catch (error) {
     console.error('[Upload Image API] エラー:', error);
-    const message = error instanceof Error ? error.message : '画像アップロード中にエラーが発生しました。';
+    let message = '画像アップロード中にエラーが発生しました。';
+    if (error instanceof Error) {
+      message = error.message;
+    } else if (typeof error === 'string') {
+      message = error;
+    } else {
+      message = JSON.stringify(error);
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

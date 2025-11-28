@@ -69,9 +69,27 @@ export async function uploadImageToCloudflare(
     );
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.errors?.[0]?.message || `HTTP ${response.status}: ${response.statusText}`;
-      console.error('[Cloudflare Upload] エラー:', errorMessage, errorData);
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        console.error('[Cloudflare Upload] エラーレスポンス:', errorData);
+        
+        // Cloudflare APIのエラーフォーマットに応じてメッセージを抽出
+        if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+          const firstError = errorData.errors[0];
+          errorMessage = firstError.message || JSON.stringify(firstError);
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        } else {
+          errorMessage = JSON.stringify(errorData);
+        }
+      } catch (e) {
+        console.error('[Cloudflare Upload] エラーレスポンスの解析に失敗:', e);
+        // JSON解析に失敗した場合はデフォルトメッセージを使用
+      }
+      console.error('[Cloudflare Upload] エラー:', errorMessage);
       throw new Error(`画像アップロード失敗: ${errorMessage}`);
     }
 
@@ -121,12 +139,30 @@ export async function uploadImageToStorage(file: File): Promise<string> {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        // エラーメッセージを適切に抽出
+        if (typeof errorData.error === 'string') {
+          errorMessage = errorData.error;
+        } else if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+          errorMessage = errorData.errors[0].message || JSON.stringify(errorData.errors[0]);
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else {
+          errorMessage = JSON.stringify(errorData);
+        }
+      } catch (e) {
+        // JSON解析に失敗した場合はデフォルトメッセージを使用
+        console.error('[Upload Image API] エラーレスポンスの解析に失敗:', e);
+      }
       throw new Error(`画像アップロード失敗: ${errorMessage}`);
     }
 
     const data = await response.json();
+    if (!data.imageUrl) {
+      throw new Error('画像URLが取得できませんでした。API応答にimageUrlがありません。');
+    }
     return data.imageUrl;
   }
 
