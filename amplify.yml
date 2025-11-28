@@ -4,6 +4,25 @@ frontend:
     preBuild:
       commands:
         - npm ci
+        - |
+          # 환경 변수를 .env.production.local 파일로 생성
+          # AWS Amplify Hosting은 빌드 시점 환경 변수를 런타임에 전달하지 않을 수 있으므로
+          # 빌드 시점에 .env.production.local 파일을 생성하여 Next.js가 런타임에 사용할 수 있도록 함
+          if [ -n "$GOOGLE_CLIENT_ID" ]; then
+            echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" >> .env.production.local
+          fi
+          if [ -n "$GOOGLE_CLIENT_SECRET" ]; then
+            echo "GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET" >> .env.production.local
+          fi
+          if [ -n "$NEXTAUTH_SECRET" ]; then
+            echo "NEXTAUTH_SECRET=$NEXTAUTH_SECRET" >> .env.production.local
+          fi
+          if [ -n "$DATABASE_URL" ]; then
+            echo "DATABASE_URL=$DATABASE_URL" >> .env.production.local
+          fi
+          if [ -n "$NEXTAUTH_URL" ]; then
+            echo "NEXTAUTH_URL=$NEXTAUTH_URL" >> .env.production.local
+          fi
         - npx prisma generate
     build:
       commands:
