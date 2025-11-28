@@ -75,6 +75,24 @@ function createAdapterMethod(prop: string | symbol) {
 
 // ▼▼▼【環境変数検証】▼▼▼
 function validateAuthEnv() {
+  // AWS Lambda 환경 감지
+  const isLambda = !!(
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.AWS_EXECUTION_ENV ||
+    process.env.LAMBDA_TASK_ROOT
+  );
+  
+  // 빌드 시점 확인
+  const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build';
+  
+  // Lambda 환경이 아니고 빌드 시점이 아닌 경우에만 즉시 검증
+  // Lambda 환경에서는 환경 변수가 런타임에 설정되므로 모듈 로드 시점 검증을 건너뜀
+  if (isLambda && !isBuildTime) {
+    console.log('[NextAuth] Lambda environment detected - skipping module load time validation');
+    console.log('[NextAuth] Environment variables will be validated at first use');
+    return; // Lambda 환경에서는 검증을 건너뜀
+  }
+
   const required = {
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
@@ -96,13 +114,33 @@ function validateAuthEnv() {
       console.error(`   - ${key}`);
     });
     
-    // 환경 변수가 없으면 빌드 실패
+    // 환경 변수가 없으면 빌드 실패 (빌드 시점 또는 Lambda가 아닌 환경)
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   } else {
     console.log('✅ NextAuth 환경 변수 검증 완료');
     console.log(`   - GOOGLE_CLIENT_ID: ${process.env.GOOGLE_CLIENT_ID ? '설정됨' : '누락'}`);
     console.log(`   - GOOGLE_CLIENT_SECRET: ${process.env.GOOGLE_CLIENT_SECRET ? '설정됨' : '누락'}`);
     console.log(`   - NEXTAUTH_SECRET: ${process.env.NEXTAUTH_SECRET ? '설정됨' : '누락'}`);
+  }
+}
+
+// 실제 사용 시점에 환경 변수 검증 (Lambda 환경용)
+export function validateAuthEnvAtRuntime() {
+  const required = {
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+  };
+
+  const missing: string[] = [];
+  for (const [key, value] of Object.entries(required)) {
+    if (!value || (typeof value === 'string' && value.trim() === '')) {
+      missing.push(key);
+    }
+  }
+
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
 }
 // ▲▲▲
@@ -380,6 +418,24 @@ export const authOptions: NextAuthOptions = {
   
   secret: process.env.NEXTAUTH_SECRET,
 };
+
+// Lambda 환경에서 실제 사용 시점에 환경 변수 검증
+// authOptions가 사용되기 전에 호출되어야 함
+if (typeof process !== 'undefined' && (
+  process.env.AWS_LAMBDA_FUNCTION_NAME ||
+  process.env.AWS_EXECUTION_ENV ||
+  process.env.LAMBDA_TASK_ROOT
+)) {
+  // Lambda 환경에서는 getter를 통해 실제 사용 시점에 검증
+  const originalSecret = authOptions.secret;
+  Object.defineProperty(authOptions, 'secret', {
+    get() {
+      validateAuthEnvAtRuntime();
+      return originalSecret;
+    },
+    configurable: true,
+  });
+}
 
 // 환경 변수 검증 실행 (모듈 로드 시 즉시 실행)
 validateAuthEnv();

@@ -119,6 +119,23 @@ export function initializeEnvSecurity(): void {
   try {
     validateProductionEnv();
     
+    // AWS Lambda 환경 감지
+    const isLambda = !!(
+      process.env.AWS_LAMBDA_FUNCTION_NAME ||
+      process.env.AWS_EXECUTION_ENV ||
+      process.env.LAMBDA_TASK_ROOT
+    );
+    
+    // 빌드 시점 확인: NEXT_PHASE가 설정되어 있으면 빌드 중
+    const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build';
+    
+    // Lambda 환경이 아니고 빌드 시점이 아닌 경우에만 즉시 검증
+    if (isLambda && !isBuildTime) {
+      logger.info('Lambda environment detected - skipping module load time validation');
+      logger.info('Environment variables will be validated at first use');
+      return; // Lambda 환경에서는 검증을 건너뜀
+    }
+    
     // 必須環境変数のチェック（アプリケーション固有）
     // AWS Amplify/RDS環境では環境変数から直接取得
     const requiredVars = [
@@ -126,9 +143,6 @@ export function initializeEnvSecurity(): void {
       'DATABASE_URL',
     ];
 
-    // 빌드 시점 확인: NEXT_PHASE가 설정되어 있으면 빌드 중
-    const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build';
-    
     // 開発環境では 경고만 하고 계속 진행
     const isDevelopment = process.env.NODE_ENV !== 'production';
     const missing: string[] = [];
