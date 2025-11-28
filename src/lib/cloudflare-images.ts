@@ -130,10 +130,13 @@ export async function uploadImageToCloudflare(
 export async function uploadImageToStorage(file: File): Promise<string> {
   // クライアントサイドではAPIルート経由でアップロード
   if (typeof window !== 'undefined') {
+    // fetchWithCsrfを動的にインポート（クライアントサイドのみ）
+    const { fetchWithCsrf } = await import('@/lib/csrf-client');
+    
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch('/api/upload-image', {
+    const response = await fetchWithCsrf('/api/upload-image', {
       method: 'POST',
       body: formData,
     });
