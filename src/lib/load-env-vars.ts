@@ -85,9 +85,9 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
           console.log(`[load-env-vars] ✅ Loaded ${loadedCount} environment variables from ${filePath}`);
           break;
         }
-      } catch (error) {
-        // Continue to next path
-      }
+          } catch {
+            // Continue to next path
+          }
     }
   } catch (error) {
     console.warn('[load-env-vars] Failed to load from .env.production.local:', error);
