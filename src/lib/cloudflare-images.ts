@@ -102,12 +102,17 @@ Account IDは通常32文字の英数字です（하이픈이나 언더스코어 
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
       try {
         const errorData = await response.json();
-        console.error('[Cloudflare Upload] エラーレスポンス:', errorData);
+        console.error('[Cloudflare Upload] エラーレスポンス:', JSON.stringify(errorData, null, 2));
         
         // Cloudflare APIのエラーフォーマットに応じてメッセージを抽出
         if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
           const firstError = errorData.errors[0];
           errorMessage = firstError.message || JSON.stringify(firstError);
+          
+          // 認証エラーの場合、より詳細なメッセージを提供
+          if (response.status === 401 || response.status === 403 || errorMessage.includes('Authentication') || errorMessage.includes('Unauthorized')) {
+            errorMessage = `認証エラー: ${errorMessage}\n\n確認事項:\n1. CLOUDFLARE_API_TOKENが正しく設定されているか確認\n2. API Tokenに「Account.Cloudflare Images:Edit」権限があるか確認\n3. API Tokenが有効期限内か確認\n4. サーバーを再起動して環境変数を再読み込み`;
+          }
         } else if (errorData.message) {
           errorMessage = errorData.message;
         } else if (typeof errorData === 'string') {
@@ -118,8 +123,13 @@ Account IDは通常32文字の英数字です（하이픈이나 언더스코어 
       } catch (e) {
         console.error('[Cloudflare Upload] エラーレスポンスの解析に失敗:', e);
         // JSON解析に失敗した場合はデフォルトメッセージを使用
+        if (response.status === 401 || response.status === 403) {
+          errorMessage = `認証エラー (HTTP ${response.status}): API Tokenを確認してください`;
+        }
       }
       console.error('[Cloudflare Upload] エラー:', errorMessage);
+      console.error('[Cloudflare Upload] Account ID:', accountId ? `${accountId.substring(0, 8)}...` : '未設定');
+      console.error('[Cloudflare Upload] API Token:', apiToken ? `${apiToken.substring(0, 8)}...` : '未設定');
       throw new Error(`画像アップロード失敗: ${errorMessage}`);
     }
 
