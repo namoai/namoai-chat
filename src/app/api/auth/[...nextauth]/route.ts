@@ -2,6 +2,7 @@
 
 import NextAuth from "next-auth";
 import { authOptions, validateAuthEnvAtRuntime } from "@/lib/nextauth";
+import { ensureEnvVarsLoaded } from "@/lib/load-env-vars";
 import type { NextRequest } from "next/server";
 
 const handler = NextAuth(authOptions);
@@ -13,6 +14,9 @@ export async function GET(
   context: { params: Promise<{ nextauth?: string[] }> }
 ) {
   try {
+    // Lambda 환경에서 환경 변수 로드
+    await ensureEnvVarsLoaded();
+    
     // 디버깅: 모든 환경 변수 확인
     console.log('[NextAuth GET] Environment check:', {
       hasGoogleClientId: !!process.env.GOOGLE_CLIENT_ID,
@@ -44,6 +48,9 @@ export async function POST(
   context: { params: Promise<{ nextauth?: string[] }> }
 ) {
   try {
+    // Lambda 환경에서 환경 변수 로드
+    await ensureEnvVarsLoaded();
+    
     // 실제 사용 시점에 환경 변수 검증 (Lambda 환경 대응)
     validateAuthEnvAtRuntime();
     return await handler(req, context);

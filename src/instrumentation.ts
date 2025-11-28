@@ -1,5 +1,13 @@
 // Next.js がサーバ起動時に実行されるフック
 export async function register() {
+  console.log('[instrumentation] register() called');
+  console.log('[instrumentation] Environment check:', {
+    hasWindow: typeof window !== 'undefined',
+    hasProcess: typeof process !== 'undefined',
+    hasNode: !!process.versions?.node,
+    isLambda: !!(process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.AWS_EXECUTION_ENV || process.env.LAMBDA_TASK_ROOT),
+  });
+  
   // サーバ環境でのみ実行（Edge/クライアントでは実行しない）
   // AWS Amplify/Lambda 環境では process.versions.node が存在
   if (typeof window === "undefined" && typeof process !== "undefined" && process.versions?.node) {

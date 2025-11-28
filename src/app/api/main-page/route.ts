@@ -9,6 +9,7 @@ import type { Prisma } from "@prisma/client";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
+import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
 
 // 代表画像を取得する共通ヘルパー関数
 // ▼▼▼【修正】orderByの型名を、Prismaが生成する正しい型名に修正します ▼▼▼
@@ -57,6 +58,9 @@ const getCharactersWithMainImage = async (
 
 
 export async function GET() {
+    // Lambda 환경에서 환경 변수 로드
+    await ensureEnvVarsLoaded();
+    
     // デバッグ用ログ
     console.log('[main-page] Environment check:', {
         NEXT_PHASE: process.env.NEXT_PHASE,
