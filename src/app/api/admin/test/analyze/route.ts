@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
 import { VertexAI } from '@google-cloud/vertexai';
+import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
 
 export async function POST(request: Request) {
+  // Lambda 환경에서 환경 변수 로드
+  await ensureEnvVarsLoaded();
+  
   const session = await getServerSession(authOptions);
   
   if (!session?.user) {
