@@ -23,10 +23,32 @@ frontend:
           if [ -n "$NEXTAUTH_URL" ]; then
             echo "NEXTAUTH_URL=$NEXTAUTH_URL" >> .env.production.local
           fi
+          # 생성된 파일 확인
+          if [ -f .env.production.local ]; then
+            echo "✅ .env.production.local file created"
+            echo "File size: $(wc -c < .env.production.local) bytes"
+          else
+            echo "⚠️ .env.production.local file not created"
+          fi
         - npx prisma generate
     build:
       commands:
         - npm run build
+        - |
+          # 빌드 후 .env.production.local 파일을 .next 디렉토리로 복사
+          # Lambda 런타임에서 이 파일을 읽을 수 있도록 함
+          if [ -f .env.production.local ]; then
+            echo "Copying .env.production.local to .next directory..."
+            cp .env.production.local .next/.env.production.local || true
+            # standalone 모드인 경우 standalone 디렉토리에도 복사
+            if [ -d .next/standalone ]; then
+              cp .env.production.local .next/standalone/.env.production.local || true
+              echo "✅ Copied to .next/standalone/.env.production.local"
+            fi
+            echo "✅ Copied to .next/.env.production.local"
+          else
+            echo "⚠️ .env.production.local file not found, skipping copy"
+          fi
   artifacts:
     baseDirectory: .next
     files:
