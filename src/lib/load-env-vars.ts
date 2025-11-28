@@ -38,6 +38,12 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
     'OPENAI_API_KEY',
     'GOOGLE_PROJECT_ID',
   ];
+  
+  // 선택적 환경 변수 (GCP 인증용)
+  const optionalVars = [
+    'GOOGLE_APPLICATION_CREDENTIALS_JSON',
+    'GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64',
+  ];
   const missingVars = requiredVars.filter(v => !process.env[v]);
 
   if (missingVars.length === 0) {
@@ -156,7 +162,53 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
     }
   }
 
-  // 3. 최종 확인
+  // 3. 선택적 환경 변수도 로드 시도 (GCP 인증용)
+  const missingOptional = optionalVars.filter(v => !process.env[v]);
+  if (missingOptional.length > 0) {
+    console.log(`[load-env-vars] Attempting to load ${missingOptional.length} optional variables from Parameter Store...`);
+    try {
+      const { SSMClient, GetParametersCommand } = await import('@aws-sdk/client-ssm');
+      const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
+      
+      const amplifyAppId = process.env.AWS_APP_ID || process.env.AWS_AMPLIFY_APP_ID || 'duvg1mvqbm4y4';
+      const branch = process.env.AWS_BRANCH || 'main';
+      
+      const parameterNames = missingOptional.map(key => 
+        `/amplify/${amplifyAppId}/${branch}/${key}`
+      );
+      
+      try {
+        const command = new GetParametersCommand({
+          Names: parameterNames,
+          WithDecryption: true,
+        });
+        const response = await ssmClient.send(command);
+        
+        if (response.Parameters) {
+          let loadedCount = 0;
+          for (const param of response.Parameters) {
+            if (param.Name && param.Value) {
+              const key = param.Name.split('/').pop();
+              if (key && !process.env[key]) {
+                process.env[key] = param.Value;
+                loadedCount++;
+                console.log(`[load-env-vars] ✅ Loaded optional ${key} from Parameter Store`);
+              }
+            }
+          }
+          if (loadedCount > 0) {
+            console.log(`[load-env-vars] ✅ Loaded ${loadedCount} optional variables from Parameter Store`);
+          }
+        }
+      } catch (ssmError) {
+        console.warn('[load-env-vars] Failed to load optional variables from Parameter Store:', ssmError);
+      }
+    } catch (error) {
+      console.warn('[load-env-vars] Failed to initialize SSM client for optional vars:', error);
+    }
+  }
+
+  // 4. 최종 확인
   const finalMissing = requiredVars.filter(v => !process.env[v]);
   const finalLoaded = requiredVars.filter(v => process.env[v]);
   console.log(`[load-env-vars] Final status - Loaded: ${finalLoaded.join(', ') || 'none'}`);

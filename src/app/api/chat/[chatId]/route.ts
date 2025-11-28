@@ -16,6 +16,7 @@ import { addImageTagIfKeywordMatched } from "@/lib/chat/image-selection";
 import { createDetailedMemories, updateMemoriesWithAIKeywords } from "@/lib/chat/memory-management";
 import { ensureGcpCreds } from "@/utils/ensureGcpCreds";
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
+import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
 
 // VertexAIクライアントの初期化（遅延初期化）
 let vertex_ai: VertexAI | null = null;
@@ -32,6 +33,11 @@ function getVertexAI(): VertexAI {
 
 export async function POST(request: Request, context: { params: Promise<{ chatId: string }> }) {
   if (isBuildTime()) return buildTimeResponse();
+  
+  // Lambda 환경에서 환경 변수 로드
+  await ensureEnvVarsLoaded();
+  // GCP 인증 정보 설정
+  await ensureGcpCreds();
   
   console.log("チャットAPIリクエスト受信");
   console.time("⏱️ 全体API処理時間"); // 全体時間測定開始
