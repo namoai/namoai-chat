@@ -11,24 +11,49 @@
 - 보통 **32자리 영숫자 문자열**입니다 (예: `a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6`)
 - ⚠️ **주의**: "namoai-chat" 같은 계정 이름이 아닙니다!
 
-**확인 방법 (단계별):**
+**✅ 중요: 도메인 등록은 필요 없습니다!**
+- Cloudflare Images는 **도메인 없이도 사용 가능**합니다
+- 무료 계정으로도 사용 가능합니다
+- 계정만 있으면 Account ID가 표시됩니다
+
+**확인 방법 (가장 확실한 방법):**
 
 1. **[Cloudflare Dashboard](https://dash.cloudflare.com/)에 로그인**
 
-2. **오른쪽 사이드바 확인**
-   - Dashboard 오른쪽 사이드바를 보면 여러 정보가 표시됩니다
-   - **"Account ID"** 또는 **"Account"** 섹션을 찾습니다
-   - Account ID는 **32자리 영숫자**로 표시됩니다
+2. **왼쪽 사이드바에서 "My Profile" 클릭**
+   - Dashboard 왼쪽 하단에 있는 **사람 아이콘** 또는 **"My Profile"** 클릭
 
-3. **찾기 어려운 경우:**
-   - 오른쪽 사이드바에서 **"Account"** 또는 **"Overview"** 클릭
-   - 또는 왼쪽 사이드바에서 **"My Profile"** → **"API Tokens"** 이동
-   - API Tokens 페이지 상단에 Account ID가 표시됩니다
+3. **"API Tokens" 탭 클릭**
+   - My Profile 페이지에서 **"API Tokens"** 탭을 클릭합니다
 
-4. **Account ID 복사**
-   - Account ID 옆에 **복사 버튼**이 있습니다
-   - 클릭하여 복사하거나 직접 복사합니다
-   - 예시: `a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6` (32자리 영숫자)
+4. **Account ID 확인**
+   - API Tokens 페이지 **상단**에 **"Account ID"**가 표시됩니다
+   - 예시: `Account ID: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6`
+   - 복사 버튼을 클릭하거나 직접 복사합니다
+
+**다른 확인 방법:**
+
+**방법 2: 오른쪽 사이드바**
+- Dashboard 오른쪽 사이드바를 확인합니다
+- **"Account"** 섹션이 있으면 클릭
+- Account ID가 표시됩니다
+
+**방법 3: URL에서 확인**
+- Dashboard에 도메인이 등록되어 있다면:
+  - 도메인을 선택한 후 URL을 확인
+  - URL 형식: `https://dash.cloudflare.com/{account-id}/...`
+  - 하지만 이 방법은 도메인이 없으면 사용할 수 없습니다
+
+**⚠️ Account ID를 찾을 수 없는 경우:**
+1. **계정이 제대로 생성되었는지 확인**
+   - Cloudflare 계정에 로그인할 수 있는지 확인
+   - 이메일 인증이 완료되었는지 확인
+
+2. **다른 브라우저나 시크릿 모드로 시도**
+   - 캐시 문제일 수 있습니다
+
+3. **Cloudflare 지원팀에 문의**
+   - Account ID가 표시되지 않으면 Cloudflare 지원팀에 문의하세요
 
 **⚠️ 확인 사항:**
 - Account ID는 반드시 **영문자와 숫자만** 포함합니다
