@@ -119,16 +119,11 @@ export function initializeEnvSecurity(): void {
     validateProductionEnv();
     
     // 必須環境変数のチェック（アプリケーション固有）
-    // DATABASE_URLはSecret Managerから動的にロードされる可能性があるため、条件付きでチェック
+    // AWS Amplify/RDS環境では環境変数から直接取得
     const requiredVars = [
       'NEXTAUTH_SECRET',
+      'DATABASE_URL',
     ];
-
-    // DATABASE_URLは環境変数に直接設定されている場合のみ必須としてチェック
-    // NetlifyなどSecret Managerを使用する環境では、後で動的にロードされるためスキップ
-    if (process.env.DATABASE_URL || !process.env.GOOGLE_PROJECT_ID) {
-      requiredVars.push('DATABASE_URL');
-    }
 
     // 開発環境では 경고만 하고 계속 진행
     const isDevelopment = process.env.NODE_ENV !== 'production';

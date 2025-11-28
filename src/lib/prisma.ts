@@ -1,6 +1,5 @@
 // src/lib/prisma.ts
 import { PrismaClient } from "@prisma/client";
-// SecretManagerServiceClientは動的にインポート（ビルド時の問題を回避）
 
 /**
  * グローバルキャッシュ（開発環境のHot Reload対策）
@@ -11,76 +10,14 @@ declare global {
 }
 
 /**
- * サービスアカウントJSONを /tmp に展開して ADC を設定
- * - GOOGLE_APPLICATION_CREDENTIALS が既にあれば何もしない
- * - GOOGLE_APPLICATION_CREDENTIALS_JSON（平文） or
- *   GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64（Base64）をサポート
- * - Edge Function では実行しない（Node.js runtime でのみ実行）
- */
-async function ensureGcpCredsFile() {
-  // Edge Function では実行しない（Node.js runtime でのみ実行）
-  if (typeof process === 'undefined' || !process.versions?.node) {
-    return;
-  }
-
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) return;
-
-  const jsonRaw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-  const jsonB64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64;
-
-  if (!jsonRaw && !jsonB64) return;
-
-  try {
-    const fs = await import("fs/promises");
-    const path = await import("path");
-    const credPath = path.join("/tmp", "gcp-sa.json");
-    const json = jsonRaw ?? Buffer.from(jsonB64!, "base64").toString("utf8");
-    await fs.writeFile(credPath, json, "utf8");
-    process.env.GOOGLE_APPLICATION_CREDENTIALS = credPath;
-  } catch (error) {
-    // Edge Function では node:fs が使用できないため、エラーを無視
-    if (error instanceof Error && (
-      error.message.includes('require is not defined') ||
-      error.message.includes('Cannot find module') ||
-      error.name === 'ReferenceError'
-    )) {
-      console.warn('[Prisma] Skipping GCP creds file creation in Edge runtime');
-      return;
-    }
-    throw error;
-  }
-}
-
-/**
- * Secret Manager のリソース名を構築
- * - 画面のシークレット命名に合わせて、IDは常に "DATABASE_URL" を使用
- * - projects/{GOOGLE_PROJECT_ID}/secrets/DATABASE_URL/versions/latest
- */
-function buildDatabaseUrlSecretName(): string | undefined {
-  const projectId = process.env.GOOGLE_PROJECT_ID;
-  if (!projectId) return undefined;
-  return `projects/${projectId}/secrets/DATABASE_URL/versions/latest`;
-}
-
-/**
  * 実行時またはビルド時に DB URL を取得
- * 1) ENV: DATABASE_URL（存在すれば最優先で使用）
- * 2) GSM: projects/{GOOGLE_PROJECT_ID}/secrets/DATABASE_URL/versions/latest から取得
- * 
- * ビルド時には Secret Manager を呼び出さない（環境変数からのみ取得）
+ * AWS Amplify/RDS環境では環境変数 DATABASE_URL のみを使用
  */
 async function resolveDatabaseUrl(): Promise<string> {
-  // ビルド時には環境変数からのみ取得（Secret Manager を呼び出さない）
-  const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || 
-                      process.env.NODE_ENV === 'production' && !process.env.NETLIFY_FUNCTION;
-  
   console.log('[Prisma] Resolving DATABASE_URL:', {
     hasEnvVar: !!process.env.DATABASE_URL,
     hasGlobalCache: !!global.__dbUrl,
-    isBuildTime,
-    NEXT_PHASE: process.env.NEXT_PHASE,
     NODE_ENV: process.env.NODE_ENV,
-    NETLIFY_FUNCTION: process.env.NETLIFY_FUNCTION
   });
   
   if (process.env.DATABASE_URL) {
@@ -89,6 +26,7 @@ async function resolveDatabaseUrl(): Promise<string> {
     console.log('[Prisma] After ensurePreparedStatementsDisabled, URL has prepared_statements:', processedUrl.includes('prepared_statements='));
     return processedUrl;
   }
+  
   if (global.__dbUrl) {
     console.log('[Prisma] Using DATABASE_URL from global cache');
     const processedUrl = ensurePreparedStatementsDisabled(global.__dbUrl);
@@ -96,48 +34,16 @@ async function resolveDatabaseUrl(): Promise<string> {
     return processedUrl;
   }
 
-  // ビルド時には Secret Manager を呼び出さない
-  if (isBuildTime) {
-    console.error('[Prisma] Build time detected, DATABASE_URL required but not found');
-    throw new Error(
-      "ビルド時には DATABASE_URL 環境変数が必要です。Secret Manager は使用できません。"
-    );
-  }
-
-  console.log('[Prisma] Attempting to fetch DATABASE_URL from Secret Manager...');
-  
-  // Secret Manager を使うためのADC設定
-  await ensureGcpCredsFile();
-
-  const name = buildDatabaseUrlSecretName();
-  if (!name) {
-    console.error('[Prisma] GOOGLE_PROJECT_ID not set');
-    throw new Error(
-      "GOOGLE_PROJECT_ID が未設定です。ENVの DATABASE_URL を直接設定するか、GOOGLE_PROJECT_ID とサービスアカウントJSONを設定してください。"
-    );
-  }
-
-  console.log('[Prisma] Secret name:', name);
-
-  // 動的にインポート（ビルド時の問題を回避）
-  const { SecretManagerServiceClient } = await import("@google-cloud/secret-manager");
-  const client = new SecretManagerServiceClient({ fallback: true }); // gRPC→RESTフォールバックで安定化
-  const [version] = await client.accessSecretVersion({ name });
-  const payload = version.payload?.data?.toString();
-  if (!payload) {
-    console.error('[Prisma] Secret payload is empty');
-    throw new Error("GSM: DATABASE_URL シークレットのpayloadが空です。");
-  }
-
-  console.log('[Prisma] Successfully fetched DATABASE_URL from Secret Manager');
-  const finalUrl = ensurePreparedStatementsDisabled(payload);
-  global.__dbUrl = finalUrl;
-  return finalUrl;
+  // DATABASE_URL が設定されていない場合はエラー
+  console.error('[Prisma] DATABASE_URL environment variable is required');
+  throw new Error(
+    "DATABASE_URL 環境変数が設定されていません。AWS Amplify環境変数に DATABASE_URL を設定してください。"
+  );
 }
 
 /**
- * Connection Poolingを使用する際にprepared statementsを無効化
- * Supabaseを使用する場合は常にprepared_statements=falseを追加（安全な方法）
+ * RDS/AWS環境での接続設定を追加
+ * RDSを使用する場合、SSL接続を推奨（必要に応じて設定を追加）
  */
 function ensurePreparedStatementsDisabled(url: string): string {
   console.log('[Prisma] ensurePreparedStatementsDisabled called');
@@ -149,7 +55,10 @@ function ensurePreparedStatementsDisabled(url: string): string {
     return url;
   }
   
-  // Supabaseを使用しているか確認（.supabase.coドメイン）
+  // RDSを使用しているか確認（.rds.amazonaws.comドメイン）
+  const isRDS = url.includes('.rds.amazonaws.com');
+  
+  // Supabaseを使用しているか確認（.supabase.coドメイン）- 後方互換性のため
   const isSupabase = url.includes('.supabase.co');
   
   // Connection Poolingを使用しているか確認（ポート6543またはpgbouncer=true）
@@ -157,39 +66,42 @@ function ensurePreparedStatementsDisabled(url: string): string {
   
   console.log('[Prisma] Checking database connection:', {
     urlPreview: url.substring(0, 100) + '...',
+    isRDS,
     isSupabase,
     hasPort6543: url.includes(':6543'),
     hasPort5432: url.includes(':5432'),
     hasPgbouncer: url.includes('pgbouncer=true'),
     isConnectionPooling,
-    willAddPreparedStatements: isSupabase || isConnectionPooling
   });
   
-  // Supabaseを使用するかConnection Poolingを使用する場合、設定を追加
+  // RDSの場合はSSL接続を推奨（必要に応じて設定）
+  // SupabaseまたはConnection Poolingを使用する場合、設定を追加
   if (isSupabase || isConnectionPooling) {
     let newUrl = url;
     const separator = newUrl.includes('?') ? '&' : '?';
     
     // Session modeを使用（Prismaは書き込み作業が必要なためSession mode必須）
-    // Transaction modeは読み取り専用のため使用しない
-    // pgbouncer=trueはSession modeを明示的に指定
     if (!newUrl.includes('pgbouncer=')) {
       newUrl = `${newUrl}${separator}pgbouncer=true`;
       console.log('[Prisma] Added pgbouncer=true (Session mode)');
     }
     
     // Session modeでもprepared_statementsの問題が発生する可能性があるため無効化
-    // （Connection Pooling環境で安全に動作するように）
     const nextSeparator = newUrl.includes('?') ? '&' : '?';
     newUrl = `${newUrl}${nextSeparator}prepared_statements=false`;
     console.log('[Prisma] ✅ Added prepared_statements=false for Session mode');
-    console.log('[Prisma] Modified URL preview:', newUrl.substring(0, 100) + '...');
-    console.log('[Prisma] Modified URL has pgbouncer:', newUrl.includes('pgbouncer=true'));
-    console.log('[Prisma] Modified URL has prepared_statements:', newUrl.includes('prepared_statements=false'));
     return newUrl;
   }
   
-  console.log('[Prisma] ⚠️ Not Supabase or Connection Pooling, prepared_statements not modified');
+  // RDSの場合はそのまま返す（必要に応じてSSL設定を追加可能）
+  if (isRDS) {
+    console.log('[Prisma] ✅ RDS connection detected, using URL as-is');
+    // RDSでSSLが必要な場合は、URLに ?sslmode=require を追加できます
+    // 現在のURLをそのまま返します
+    return url;
+  }
+  
+  console.log('[Prisma] ⚠️ Standard PostgreSQL connection, no modifications');
   return url;
 }
 

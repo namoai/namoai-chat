@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "cross-env NODE_ENV=production node scripts/gsm-fetch.mjs",
     "build": "rimraf .next && prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
