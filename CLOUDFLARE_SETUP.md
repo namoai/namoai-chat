@@ -4,10 +4,36 @@
 
 ## 📋 필수 환경 변수
 
-### 1️⃣ **Cloudflare Account ID 확인**
+### 1️⃣ **Cloudflare Account ID 확인** ⭐ 중요
 
-1. [Cloudflare Dashboard](https://dash.cloudflare.com/)에 로그인
-2. 오른쪽 사이드바에서 **Account ID** 확인 (예: `abc123def456...`)
+**Account ID란?**
+- Cloudflare 계정을 식별하는 고유한 ID입니다
+- 보통 **32자리 영숫자 문자열**입니다 (예: `a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6`)
+- ⚠️ **주의**: "namoai-chat" 같은 계정 이름이 아닙니다!
+
+**확인 방법 (단계별):**
+
+1. **[Cloudflare Dashboard](https://dash.cloudflare.com/)에 로그인**
+
+2. **오른쪽 사이드바 확인**
+   - Dashboard 오른쪽 사이드바를 보면 여러 정보가 표시됩니다
+   - **"Account ID"** 또는 **"Account"** 섹션을 찾습니다
+   - Account ID는 **32자리 영숫자**로 표시됩니다
+
+3. **찾기 어려운 경우:**
+   - 오른쪽 사이드바에서 **"Account"** 또는 **"Overview"** 클릭
+   - 또는 왼쪽 사이드바에서 **"My Profile"** → **"API Tokens"** 이동
+   - API Tokens 페이지 상단에 Account ID가 표시됩니다
+
+4. **Account ID 복사**
+   - Account ID 옆에 **복사 버튼**이 있습니다
+   - 클릭하여 복사하거나 직접 복사합니다
+   - 예시: `a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6` (32자리 영숫자)
+
+**⚠️ 확인 사항:**
+- Account ID는 반드시 **영문자와 숫자만** 포함합니다
+- 하이픈(-)이나 언더스코어(_)는 포함되지 않습니다
+- 길이는 보통 **32자리**입니다
 
 ### 2️⃣ **API Token 생성**
 
