@@ -13,6 +13,7 @@ import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import OpenAI from 'openai'; // ★ OpenAIクライアントをインポート
 import { notifyFollowersOnCharacterCreation } from '@/lib/notifications'; // ★ 通知関数をインポート
 import { validateImageFile } from '@/lib/upload/validateImage';
+import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
 
 // =================================================================================
 //  型定義 (Type Definitions)
@@ -330,6 +331,9 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
     if (isBuildTime()) return buildTimeResponse();
+    
+    // Lambda 환경에서 환경 변수 로드
+    await ensureEnvVarsLoaded();
     
     console.log('[POST] キャラクター作成処理開始');
     try {

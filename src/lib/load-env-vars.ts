@@ -27,7 +27,16 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
 
   console.log('[load-env-vars] Lambda environment detected, loading environment variables...');
 
-  const requiredVars = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'NEXTAUTH_SECRET', 'DATABASE_URL'];
+  // 필요한 환경 변수 목록 (기본 인증 + 캐릭터 작성 등에 필요한 변수)
+  const requiredVars = [
+    'GOOGLE_CLIENT_ID', 
+    'GOOGLE_CLIENT_SECRET', 
+    'NEXTAUTH_SECRET', 
+    'DATABASE_URL',
+    'SUPABASE_URL',
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'OPENAI_API_KEY',
+  ];
   const missingVars = requiredVars.filter(v => !process.env[v]);
 
   if (missingVars.length === 0) {
