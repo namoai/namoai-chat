@@ -13,84 +13,130 @@ export async function register() {
       );
 
       if (isLambda) {
-        console.log('[instrumentation] Lambda environment detected, loading environment variables from .env.production.local...');
+        console.log('[instrumentation] Lambda environment detected, loading environment variables...');
         console.log('[instrumentation] Current working directory:', process.cwd());
         console.log('[instrumentation] LAMBDA_TASK_ROOT:', process.env.LAMBDA_TASK_ROOT);
         
-        // 동적 import로 fs와 path 로드 (서버 사이드에서만 사용)
-        const fs = await import('fs');
-        const path = await import('path');
-        
-        // 가능한 경로들에서 .env.production.local 파일 찾기
-        const possiblePaths = [
-          path.join(process.cwd(), '.env.production.local'),
-          path.join(process.cwd(), '.next', '.env.production.local'),
-          path.join(process.cwd(), '.next', 'standalone', '.env.production.local'),
-          path.join('/var/task', '.env.production.local'),
-          path.join('/var/task', '.next', '.env.production.local'),
-          path.join('/var/task', '.next', 'standalone', '.env.production.local'),
-          ...(process.env.LAMBDA_TASK_ROOT ? [
-            path.join(process.env.LAMBDA_TASK_ROOT, '.env.production.local'),
-            path.join(process.env.LAMBDA_TASK_ROOT, '.next', '.env.production.local'),
-            path.join(process.env.LAMBDA_TASK_ROOT, '.next', 'standalone', '.env.production.local'),
-          ] : []),
-        ];
+        // 1. 먼저 .env.production.local 파일에서 로드 시도
+        try {
+          const fs = await import('fs');
+          const path = await import('path');
+          
+          const possiblePaths = [
+            path.join(process.cwd(), '.env.production.local'),
+            path.join(process.cwd(), '.next', '.env.production.local'),
+            path.join(process.cwd(), '.next', 'standalone', '.env.production.local'),
+            path.join('/var/task', '.env.production.local'),
+            path.join('/var/task', '.next', '.env.production.local'),
+            path.join('/var/task', '.next', 'standalone', '.env.production.local'),
+            ...(process.env.LAMBDA_TASK_ROOT ? [
+              path.join(process.env.LAMBDA_TASK_ROOT, '.env.production.local'),
+              path.join(process.env.LAMBDA_TASK_ROOT, '.next', '.env.production.local'),
+              path.join(process.env.LAMBDA_TASK_ROOT, '.next', 'standalone', '.env.production.local'),
+            ] : []),
+          ];
 
-        console.log('[instrumentation] Searching for .env.production.local in paths:', possiblePaths);
-
-        let loaded = false;
-        for (const filePath of possiblePaths) {
-          try {
-            if (fs.existsSync(filePath)) {
-              console.log(`[instrumentation] Found .env.production.local at: ${filePath}`);
-              const content = fs.readFileSync(filePath, 'utf8');
-              console.log(`[instrumentation] File content length: ${content.length} bytes`);
-              
-              const lines = content.split('\n');
-              
-              let loadedCount = 0;
-              for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed || trimmed.startsWith('#')) continue;
+          let loaded = false;
+          for (const filePath of possiblePaths) {
+            try {
+              if (fs.existsSync(filePath)) {
+                console.log(`[instrumentation] Found .env.production.local at: ${filePath}`);
+                const content = fs.readFileSync(filePath, 'utf8');
+                const lines = content.split('\n');
                 
-                const match = trimmed.match(/^([^=]+)=(.*)$/);
-                if (match) {
-                  const key = match[1].trim();
-                  const value = match[2].trim();
+                let loadedCount = 0;
+                for (const line of lines) {
+                  const trimmed = line.trim();
+                  if (!trimmed || trimmed.startsWith('#')) continue;
                   
-                  if (!process.env[key]) {
-                    process.env[key] = value;
-                    loadedCount++;
-                    console.log(`[instrumentation] Loaded ${key} from ${filePath}`);
-                  } else {
-                    console.log(`[instrumentation] Skipped ${key} (already set)`);
+                  const match = trimmed.match(/^([^=]+)=(.*)$/);
+                  if (match) {
+                    const key = match[1].trim();
+                    const value = match[2].trim();
+                    
+                    if (!process.env[key]) {
+                      process.env[key] = value;
+                      loadedCount++;
+                      console.log(`[instrumentation] Loaded ${key} from ${filePath}`);
+                    }
                   }
                 }
+                
+                console.log(`[instrumentation] ✅ Loaded ${loadedCount} environment variables from ${filePath}`);
+                loaded = true;
+                break;
               }
+            } catch (error) {
+              console.warn(`[instrumentation] Failed to check/load ${filePath}:`, error);
+            }
+          }
+
+          if (!loaded) {
+            console.warn('[instrumentation] ⚠️ .env.production.local file not found');
+          }
+        } catch (error) {
+          console.warn('[instrumentation] Failed to load from .env.production.local:', error);
+        }
+
+        // 2. AWS Systems Manager Parameter Store에서 로드 시도
+        const requiredVars = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'NEXTAUTH_SECRET', 'DATABASE_URL'];
+        const missingVars = requiredVars.filter(v => !process.env[v]);
+        
+        if (missingVars.length > 0) {
+          console.log(`[instrumentation] Attempting to load ${missingVars.length} missing variables from Parameter Store...`);
+          try {
+            const { SSMClient, GetParametersCommand } = await import('@aws-sdk/client-ssm');
+            const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
+            
+            // Amplify 환경 변수 경로 패턴: /amplify/{appId}/{branch}/{key}
+            const amplifyAppId = process.env.AWS_AMPLIFY_APP_ID || process.env.AMPLIFY_APP_ID;
+            const branch = process.env.AWS_BRANCH || 'main';
+            
+            if (amplifyAppId) {
+              const parameterNames = missingVars.map(key => 
+                `/amplify/${amplifyAppId}/${branch}/${key}`
+              );
               
-              console.log(`[instrumentation] ✅ Loaded ${loadedCount} environment variables from ${filePath}`);
-              loaded = true;
-              break;
+              try {
+                const command = new GetParametersCommand({
+                  Names: parameterNames,
+                  WithDecryption: true,
+                });
+                const response = await ssmClient.send(command);
+                
+                if (response.Parameters) {
+                  let loadedCount = 0;
+                  for (const param of response.Parameters) {
+                    if (param.Name && param.Value) {
+                      // /amplify/{appId}/{branch}/{key} 형식에서 key 추출
+                      const key = param.Name.split('/').pop();
+                      if (key && !process.env[key]) {
+                        process.env[key] = param.Value;
+                        loadedCount++;
+                        console.log(`[instrumentation] ✅ Loaded ${key} from Parameter Store`);
+                      }
+                    }
+                  }
+                  console.log(`[instrumentation] ✅ Loaded ${loadedCount} variables from Parameter Store`);
+                }
+              } catch (ssmError) {
+                console.warn('[instrumentation] Failed to load from Parameter Store:', ssmError);
+              }
             } else {
-              console.log(`[instrumentation] File not found: ${filePath}`);
+              console.warn('[instrumentation] AWS_AMPLIFY_APP_ID not found, skipping Parameter Store lookup');
             }
           } catch (error) {
-            console.warn(`[instrumentation] Failed to check/load ${filePath}:`, error);
+            console.warn('[instrumentation] Failed to initialize SSM client:', error);
           }
         }
 
-        if (!loaded) {
-          console.warn('[instrumentation] ⚠️ .env.production.local file not found in any of the expected paths');
-          console.warn('[instrumentation] This may indicate that the file was not included in the Lambda deployment');
-        } else {
-          // 로드된 환경 변수 확인
-          const requiredVars = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'NEXTAUTH_SECRET', 'DATABASE_URL'];
-          const loadedVars = requiredVars.filter(v => process.env[v]);
-          console.log(`[instrumentation] ✅ Loaded environment variables: ${loadedVars.join(', ')}`);
-          const missingVars = requiredVars.filter(v => !process.env[v]);
-          if (missingVars.length > 0) {
-            console.warn(`[instrumentation] ⚠️ Still missing: ${missingVars.join(', ')}`);
-          }
+        // 3. 최종 확인
+        const finalMissing = requiredVars.filter(v => !process.env[v]);
+        const finalLoaded = requiredVars.filter(v => process.env[v]);
+        console.log(`[instrumentation] Final status - Loaded: ${finalLoaded.join(', ') || 'none'}`);
+        if (finalMissing.length > 0) {
+          console.warn(`[instrumentation] ⚠️ Still missing: ${finalMissing.join(', ')}`);
+          console.warn('[instrumentation] Please ensure these are set in AWS Amplify Console or Parameter Store');
         }
       }
     } catch (error) {
