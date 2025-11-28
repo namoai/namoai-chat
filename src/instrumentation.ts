@@ -6,7 +6,7 @@ export async function register() {
     // AWS Amplify Lambda 환경에서 환경 변수 로드
     try {
       const { loadAmplifyEnvVars } = await import("./lib/amplify-env-loader");
-      loadAmplifyEnvVars();
+      await loadAmplifyEnvVars();
     } catch (error) {
       console.warn("[instrumentation] Failed to load Amplify env vars:", error);
     }

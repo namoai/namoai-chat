@@ -1,13 +1,12 @@
 // src/lib/amplify-env-loader.ts
 // AWS Amplify Lambda 환경에서 환경 변수를 로드하는 유틸리티
 
-import fs from 'fs';
-import path from 'path';
+// fs와 path는 서버 사이드에서만 사용 가능하므로 동적 import 사용
 
 /**
  * .env.production.local 파일에서 환경 변수를 로드
  */
-function loadEnvFile(filePath: string): void {
+function loadEnvFile(filePath: string, fs: typeof import('fs'), path: typeof import('path')): void {
   try {
     if (fs.existsSync(filePath)) {
       console.log(`[AmplifyEnvLoader] Loading environment variables from ${filePath}`);
@@ -47,7 +46,12 @@ function loadEnvFile(filePath: string): void {
  * AWS Amplify Lambda 환경에서 환경 변수를 로드
  * Lambda 런타임에서는 .env.production.local 파일을 명시적으로 읽어야 함
  */
-export function loadAmplifyEnvVars(): void {
+export async function loadAmplifyEnvVars(): Promise<void> {
+  // 서버 사이드에서만 실행
+  if (typeof window !== 'undefined' || typeof process === 'undefined' || !process.versions?.node) {
+    return;
+  }
+
   // AWS Amplify Lambda 환경 감지
   const isLambda = !!(
     process.env.AWS_LAMBDA_FUNCTION_NAME ||
@@ -61,28 +65,36 @@ export function loadAmplifyEnvVars(): void {
 
   console.log('[AmplifyEnvLoader] Lambda environment detected, loading environment variables from .env.production.local...');
 
-  // 가능한 경로들에서 .env.production.local 파일 찾기
-  const possiblePaths = [
-    path.join(process.cwd(), '.env.production.local'),
-    path.join(process.cwd(), '.next', '.env.production.local'),
-    path.join(process.cwd(), '.next', 'standalone', '.env.production.local'),
-    path.join('/var/task', '.env.production.local'),
-    path.join('/var/task', '.next', '.env.production.local'),
-    path.join('/var/task', '.next', 'standalone', '.env.production.local'),
-  ];
+  try {
+    // 동적 import로 path 로드
+    const path = await import('path');
+    const fs = await import('fs');
+    
+    // 가능한 경로들에서 .env.production.local 파일 찾기
+    const possiblePaths = [
+      path.join(process.cwd(), '.env.production.local'),
+      path.join(process.cwd(), '.next', '.env.production.local'),
+      path.join(process.cwd(), '.next', 'standalone', '.env.production.local'),
+      path.join('/var/task', '.env.production.local'),
+      path.join('/var/task', '.next', '.env.production.local'),
+      path.join('/var/task', '.next', 'standalone', '.env.production.local'),
+    ];
 
-  let loaded = false;
-  for (const filePath of possiblePaths) {
-    if (fs.existsSync(filePath)) {
-      loadEnvFile(filePath);
-      loaded = true;
-      break;
+    let loaded = false;
+    for (const filePath of possiblePaths) {
+      if (fs.existsSync(filePath)) {
+        loadEnvFile(filePath, fs, path);
+        loaded = true;
+        break;
+      }
     }
-  }
 
-  if (!loaded) {
-    console.warn('[AmplifyEnvLoader] ⚠️ .env.production.local file not found in any of the expected paths');
-    console.warn('[AmplifyEnvLoader] Searched paths:', possiblePaths);
+    if (!loaded) {
+      console.warn('[AmplifyEnvLoader] ⚠️ .env.production.local file not found in any of the expected paths');
+      console.warn('[AmplifyEnvLoader] Searched paths:', possiblePaths);
+    }
+  } catch (error) {
+    console.warn('[AmplifyEnvLoader] Failed to load environment variables:', error);
   }
 
   // 필요한 환경 변수 목록
