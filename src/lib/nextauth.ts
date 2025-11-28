@@ -126,6 +126,16 @@ function validateAuthEnv() {
 
 // 실제 사용 시점에 환경 변수 검증 (Lambda 환경용)
 export function validateAuthEnvAtRuntime() {
+  // 디버깅: 환경 변수 확인
+  console.log('[validateAuthEnvAtRuntime] Checking environment variables:', {
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ? 'set (length: ' + process.env.GOOGLE_CLIENT_ID.length + ')' : 'not set',
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ? 'set (length: ' + process.env.GOOGLE_CLIENT_SECRET.length + ')' : 'not set',
+    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET ? 'set (length: ' + process.env.NEXTAUTH_SECRET.length + ')' : 'not set',
+    allEnvKeys: Object.keys(process.env).filter(k => 
+      k.includes('GOOGLE') || k.includes('NEXTAUTH') || k.includes('DATABASE') || k.includes('AWS')
+    ).slice(0, 20), // 처음 20개만
+  });
+
   const required = {
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
@@ -140,8 +150,12 @@ export function validateAuthEnvAtRuntime() {
   }
 
   if (missing.length > 0) {
+    console.error('[validateAuthEnvAtRuntime] Missing variables:', missing);
+    console.error('[validateAuthEnvAtRuntime] Available env keys:', Object.keys(process.env).slice(0, 50));
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
+  
+  console.log('[validateAuthEnvAtRuntime] ✅ All environment variables are set');
 }
 // ▲▲▲
 

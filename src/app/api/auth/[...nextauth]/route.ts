@@ -13,6 +13,16 @@ export async function GET(
   context: { params: Promise<{ nextauth?: string[] }> }
 ) {
   try {
+    // 디버깅: 모든 환경 변수 확인
+    console.log('[NextAuth GET] Environment check:', {
+      hasGoogleClientId: !!process.env.GOOGLE_CLIENT_ID,
+      hasGoogleClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+      hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
+      allEnvKeys: Object.keys(process.env).filter(k => 
+        k.includes('GOOGLE') || k.includes('NEXTAUTH') || k.includes('DATABASE')
+      ),
+    });
+    
     // 실제 사용 시점에 환경 변수 검증 (Lambda 환경 대응)
     validateAuthEnvAtRuntime();
     return await handler(req, context);
@@ -22,6 +32,9 @@ export async function GET(
     console.error('   - GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? '설정됨' : '누락');
     console.error('   - GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? '설정됨' : '누락');
     console.error('   - NEXTAUTH_SECRET:', process.env.NEXTAUTH_SECRET ? '설정됨' : '누락');
+    console.error('   - 모든 환경 변수 키:', Object.keys(process.env).filter(k => 
+      k.includes('GOOGLE') || k.includes('NEXTAUTH') || k.includes('DATABASE')
+    ));
     throw error;
   }
 }
