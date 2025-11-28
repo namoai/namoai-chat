@@ -5,10 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
-import { createClient } from '@supabase/supabase-js';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { randomUUID } from 'crypto';
 import OpenAI from 'openai'; // ★ OpenAIクライアントをインポート
+import { uploadImageBufferToCloudflare } from '@/lib/cloudflare-images';
 
 // =================================================================================
 //  型定義 (Type Definitions)
@@ -360,15 +360,7 @@ export async function POST(request: Request) {
         const imageCountString = formData.get('imageCount') as string;
         const imageCount = imageCountString ? parseInt(imageCountString, 10) : 0;
         
-        // Supabase ストレージへ画像アップロード
-        const supabaseUrl = process.env.SUPABASE_URL!;
-        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-        const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'characters';
-        if (!supabaseUrl || !serviceRoleKey) {
-            return NextResponse.json({ message: 'サーバー設定エラー（Storage接続情報不足）' }, { status: 500 });
-        }
-        const sb = createClient(supabaseUrl, serviceRoleKey);
-
+        // Cloudflare Imagesへ画像アップロード
         const imageMetas: ImageMetaData[] = [];
 
         for (let i = 0; i < imageCount; i++) {
@@ -380,31 +372,26 @@ export async function POST(request: Request) {
 
             const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'png';
             const safeFileName = `${randomUUID()}.${fileExtension}`;
-            const objectKey = `uploads/${safeFileName}`;
 
             const arrayBuffer = await file.arrayBuffer();
 
-            const { error: uploadErr } = await sb.storage
-                .from(bucket)
-                .upload(objectKey, Buffer.from(arrayBuffer), {
+            try {
+                const imageUrl = await uploadImageBufferToCloudflare(Buffer.from(arrayBuffer), {
+                    filename: safeFileName,
                     contentType: file.type || 'application/octet-stream',
-                    upsert: false,
                 });
 
-            if (uploadErr) {
-                console.error(`[POST] Supabaseアップロード失敗(index=${i}):`, uploadErr);
-                return NextResponse.json({ message: '画像アップロードに失敗しました。' }, { status: 500 });
+                imageMetas.push({
+                    url: imageUrl,
+                    keyword,
+                    isMain: i === 0,
+                    displayOrder: i,
+                });
+            } catch (uploadErr) {
+                console.error(`[POST] Cloudflareアップロード失敗(index=${i}):`, uploadErr);
+                const message = uploadErr instanceof Error ? uploadErr.message : '画像アップロードに失敗しました。';
+                return NextResponse.json({ message: `画像アップロードに失敗しました: ${message}` }, { status: 500 });
             }
-
-            const { data: pub } = sb.storage.from(bucket).getPublicUrl(objectKey);
-            const imageUrl = pub.publicUrl;
-
-            imageMetas.push({
-                url: imageUrl,
-                keyword,
-                isMain: i === 0,
-                displayOrder: i,
-            });
         }
         
         const characterData = {

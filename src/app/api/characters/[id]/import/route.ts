@@ -4,10 +4,10 @@ import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { getPrisma } from "@/lib/prisma";
-import { createClient } from '@supabase/supabase-js';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { randomUUID } from 'crypto';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
+import { uploadImageBufferToCloudflare } from '@/lib/cloudflare-images';
 
 // --- ▼▼▼【修正】データ型を明確に定義します ▼▼▼ ---
 type SourceImageData = {
@@ -145,8 +145,6 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        await ensureSupabaseEnv();
-
         const sourceCharacterData = await request.json();
         const targetCharacter = await prisma.characters.findFirst({
             where: { id: targetCharacterId, author_id: currentUserId },
@@ -155,15 +153,6 @@ export async function POST(request: NextRequest) {
         if (!targetCharacter) {
             return NextResponse.json({ error: 'キャラクターが見つからないか、権限がありません。' }, { status: 404 });
         }
-        
-        const supabaseUrl = process.env.SUPABASE_URL;
-        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'characters';
-
-        if (!supabaseUrl || !serviceRoleKey) {
-            throw new Error('Supabaseの接続情報が不足しています。');
-        }
-        const sb = createClient(supabaseUrl, serviceRoleKey);
 
         // --- ▼▼▼【修正】'let'を'const'に、'any[]'を'NewImageData[]'型に変更します ▼▼▼ ---
         const newImagesData: NewImageData[] = [];
@@ -190,13 +179,14 @@ export async function POST(request: NextRequest) {
                     const contentType = response.headers.get('content-type') || 'application/octet-stream';
                     const fileExtension = img.imageUrl.split('.').pop()?.split('?')[0].toLowerCase() || 'png';
                     const safeFileName = `${randomUUID()}.${fileExtension}`;
-                    const objectKey = `uploads/${safeFileName}`;
 
-                    await sb.storage.from(bucket).upload(objectKey, Buffer.from(imageBuffer), { contentType });
-                    const { data: pub } = sb.storage.from(bucket).getPublicUrl(objectKey);
+                    const imageUrl = await uploadImageBufferToCloudflare(Buffer.from(imageBuffer), {
+                        filename: safeFileName,
+                        contentType,
+                    });
 
                     newImagesData.push({
-                        imageUrl: pub.publicUrl,
+                        imageUrl: imageUrl,
                         keyword: img.keyword || '',
                         isMain: img.isMain,
                         displayOrder: img.displayOrder,

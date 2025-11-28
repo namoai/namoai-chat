@@ -13,10 +13,10 @@ import { Role } from '@prisma/client';
 import { redis } from '@/lib/redis'; 
 import OpenAI from 'openai';
 import { checkFieldsForSexualContent } from '@/lib/content-filter';
-// ▼▼▼【Supabase】追加インポート
-import { createClient } from '@supabase/supabase-js';
+// ▼▼▼【Cloudflare Images】追加インポート
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { validateImageFile } from '@/lib/upload/validateImage';
+import { uploadImageBufferToCloudflare, deleteImageFromCloudflare, isCloudflareImageUrl } from '@/lib/cloudflare-images';
 
 // =================================================================================
 //  型定義 (Type Definitions)
@@ -466,34 +466,8 @@ export async function PUT(
     const firstSituationDate = formData.get('firstSituationDate') as string;
     const firstSituationPlace = formData.get('firstSituationPlace') as string;
 
-    // ▼▼▼【Supabase】環境変数を準備してクライアントを初期化
-    await ensureSupabaseEnv();
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'characters';
-
-    if (!supabaseUrl || !serviceRoleKey) {
-      throw new Error('Supabaseの接続情報が不足しています。');
-    }
-    
-    // ▼▼▼【デバッグ】キーの長さと最初/最後の文字を確認
-    console.log('[PUT] SUPABASE_URL:', supabaseUrl);
-    console.log('[PUT] SERVICE_ROLE_KEY length:', serviceRoleKey?.length);
-    console.log('[PUT] SERVICE_ROLE_KEY first 30 chars:', serviceRoleKey?.substring(0, 30));
-    console.log('[PUT] SERVICE_ROLE_KEY last 30 chars:', serviceRoleKey?.substring(serviceRoleKey.length - 30));
-    console.log('[PUT] 【重要】全ての環境変数名をチェック:');
-    console.log('[PUT] - OPENAI_API_KEY:', process.env.OPENAI_API_KEY?.substring(0, 20), 'length:', process.env.OPENAI_API_KEY?.length);
-    console.log('[PUT] - OPENAI_KEY:', process.env.OPENAI_KEY?.substring(0, 20));
-    console.log('[PUT] - OPEN_AI_API_KEY:', process.env.OPEN_AI_API_KEY?.substring(0, 20));
-    console.log('[PUT] - API_KEY:', process.env.API_KEY?.substring(0, 20));
-    console.log('[PUT] 【比較】SERVICE_ROLE_KEY === OPENAI_API_KEY?', process.env.SUPABASE_SERVICE_ROLE_KEY === process.env.OPENAI_API_KEY);
-    // ▲▲▲【デバッグ】
-    
-    const sb = createClient(supabaseUrl, serviceRoleKey);
-    // ▲▲▲【Supabase】初期化完了
-
     // ▼▼▼【重要】トランザクション外で外部API呼び出し（Storage & OpenAI）を実行
-    // 1. 新しい画像をSupabase Storageにアップロード（トランザクション外）
+    // 1. 新しい画像をCloudflare Imagesにアップロード（トランザクション外）
     const newImageCountString = formData.get('newImageCount') as string;
     const newImageCount = newImageCountString ? parseInt(newImageCountString, 10) : 0;
     const newImageMetas: { characterId: number; imageUrl: string; keyword: string; isMain: boolean; displayOrder: number; }[] = [];
@@ -511,30 +485,24 @@ export async function PUT(
           const message = error instanceof Error ? error.message : '画像検証中にエラーが発生しました。';
           return NextResponse.json({ message: `画像${i + 1}: ${message}` }, { status: 400 });
         }
-        const objectKey = `uploads/${validatedFile.safeFileName}`;
-        
-        const { error: uploadErr } = await sb.storage
-          .from(bucket)
-          .upload(objectKey, validatedFile.buffer, {
+        try {
+          const imageUrl = await uploadImageBufferToCloudflare(validatedFile.buffer, {
+            filename: validatedFile.safeFileName,
             contentType: validatedFile.mimeType,
-            upsert: false,
           });
 
-        if (uploadErr) {
-          console.error(`[PUT] Supabaseアップロード失敗(index=${i}):`, uploadErr);
-          throw new Error('画像アップロードに失敗しました。');
+          newImageMetas.push({
+            characterId: characterIdToUpdate,
+            imageUrl: imageUrl,
+            keyword,
+            isMain: false,
+            displayOrder: displayOrderCounter++,
+          });
+        } catch (uploadErr) {
+          console.error(`[PUT] Cloudflareアップロード失敗(index=${i}):`, uploadErr);
+          const message = uploadErr instanceof Error ? uploadErr.message : '画像アップロードに失敗しました。';
+          throw new Error(`画像アップロードに失敗しました: ${message}`);
         }
-
-        const { data: pub } = sb.storage.from(bucket).getPublicUrl(objectKey);
-        const imageUrl = pub.publicUrl;
-
-        newImageMetas.push({
-          characterId: characterIdToUpdate,
-          imageUrl: imageUrl,
-          keyword,
-          isMain: false,
-          displayOrder: displayOrderCounter++,
-        });
       }
     }
 
@@ -563,13 +531,23 @@ export async function PUT(
           const images = await tx.character_images.findMany({ where: { id: { in: imagesToDelete } } });
           for (const img of images) {
             try {
-              if (img.imageUrl.startsWith('http://') || img.imageUrl.startsWith('https://')) {
-                console.log(`外部ストレージのファイルのため削除をスキップ: ${img.imageUrl}`);
+              // Cloudflare Images URLの場合は実際に削除
+              if (isCloudflareImageUrl(img.imageUrl)) {
+                const deleted = await deleteImageFromCloudflare(img.imageUrl);
+                if (deleted) {
+                  console.log(`[PUT] Cloudflare Imagesから削除成功: ${img.imageUrl}`);
+                } else {
+                  console.warn(`[PUT] Cloudflare Imagesから削除失敗: ${img.imageUrl}`);
+                }
+              } else if (img.imageUrl.startsWith('http://') || img.imageUrl.startsWith('https://')) {
+                // 他の外部ストレージ (Supabaseなど)はスキップ
+                console.log(`[PUT] 外部ストレージのファイルのため削除をスキップ: ${img.imageUrl}`);
               } else {
+                // ローカルファイルの場合は物理削除
                 await fs.unlink(path.join(process.cwd(), 'public', img.imageUrl));
               }
             } catch (e) {
-              console.error(`ファイルの物理削除に失敗: ${img.imageUrl}`, e);
+              console.error(`[PUT] ファイルの物理削除に失敗: ${img.imageUrl}`, e);
             }
           }
           await tx.character_images.deleteMany({ where: { id: { in: imagesToDelete } } });
@@ -692,17 +670,24 @@ export async function DELETE(
     
     for (const img of characterToDelete.characterImages) {
       try {
-        // URLかローカルパスかを判定して適切に処理
-        if (img.imageUrl.startsWith('http://') || img.imageUrl.startsWith('https://')) {
-          // Supabase Storageなど外部URLの場合はスキップ（Netlify環境では削除不要）
-          console.log(`外部ストレージのファイルのため削除をスキップ: ${img.imageUrl}`);
+        // Cloudflare Images URLの場合は実際に削除
+        if (isCloudflareImageUrl(img.imageUrl)) {
+          const deleted = await deleteImageFromCloudflare(img.imageUrl);
+          if (deleted) {
+            console.log(`[DELETE] Cloudflare Imagesから削除成功: ${img.imageUrl}`);
+          } else {
+            console.warn(`[DELETE] Cloudflare Imagesから削除失敗: ${img.imageUrl}`);
+          }
+        } else if (img.imageUrl.startsWith('http://') || img.imageUrl.startsWith('https://')) {
+          // 他の外部ストレージ (Supabaseなど)はスキップ
+          console.log(`[DELETE] 外部ストレージのファイルのため削除をスキップ: ${img.imageUrl}`);
         } else {
-          // ローカルファイルの場合のみ物理削除
+          // ローカルファイルの場合は物理削除
           const filePath = path.join(process.cwd(), 'public', img.imageUrl);
           await fs.unlink(filePath);
         }
       } catch (e) {
-        console.error(`ファイルの物理削除に失敗: ${img.imageUrl}`, e);
+        console.error(`[DELETE] ファイルの物理削除に失敗: ${img.imageUrl}`, e);
       }
     }
     

@@ -11,31 +11,53 @@
    - **Project URL** (例: `https://abcdefgh.supabase.co`)
    - **anon public key** (例: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`)
 
-### 2️⃣ **ローカル開発環境設定** ⭐ 重要
+### 2️⃣ **Cloudflare Imagesから値を取得**
+
+1. [Cloudflare Dashboard](https://dash.cloudflare.com/) にログイン
+2. 右サイドバーから **Account ID** を確認
+3. **My Profile** → **API Tokens** に移動
+4. **Create Token** → **Custom token** を選択
+5. 権限設定: **Account** → **Cloudflare Images** → **Edit**
+6. トークンを生成してコピー
+
+### 3️⃣ **ローカル開発環境設定** ⭐ 重要
 
 プロジェクトルートに `.env.local` ファイルを作成し、以下を追加:
 
 ```bash
 # .env.local
+# Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Cloudflare Images
+CLOUDFLARE_ACCOUNT_ID=your-account-id-here
+CLOUDFLARE_API_TOKEN=your-api-token-here
 ```
 
 **💡 Note:** `.env.local` ファイルは `.gitignore` に含まれているため、Gitにコミットされません。
 
-### 3️⃣ **Netlify環境変数設定** ⭐ 重要
+### 4️⃣ **Netlify環境変数設定** ⭐ 重要
 
-Netlify Dashboard → Site configuration → Environment variables → **Add a variable** で以下2つを追加:
+Netlify Dashboard → Site configuration → Environment variables → **Add a variable** で以下を追加:
 
 ```
+# Supabase
 変数名: NEXT_PUBLIC_SUPABASE_URL
 値: https://your-project.supabase.co
 
 変数名: NEXT_PUBLIC_SUPABASE_ANON_KEY
 値: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Cloudflare Images
+変数名: CLOUDFLARE_ACCOUNT_ID
+値: your-account-id-here
+
+変数名: CLOUDFLARE_API_TOKEN
+値: your-api-token-here
 ```
 
-**💡 Note:** GSMではなくNetlify環境変数に追加してください。`NEXT_PUBLIC_*`変数はビルド時に必要で、公開されても安全です。
+**💡 Note:** GSMではなくNetlify環境変数に追加してください。`NEXT_PUBLIC_*`変数はビルド時に必要で、公開されても安全です。`CLOUDFLARE_*`変数はサーバーサイドでのみ使用されます。
 
 ## 🔒 セキュリティ設定
 
