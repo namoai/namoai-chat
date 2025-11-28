@@ -440,14 +440,20 @@ if (typeof process !== 'undefined' && (
   process.env.AWS_EXECUTION_ENV ||
   process.env.LAMBDA_TASK_ROOT
 )) {
-  // Lambda 환경에서는 getter를 통해 실제 사용 시점에 검증
-  const originalSecret = authOptions.secret;
+  // Lambda 환경에서는 getter/setter를 통해 실제 사용 시점에 검증
+  // NextAuth가 secret을 설정하려고 할 때도 처리할 수 있도록 setter 추가
+  let secretValue = authOptions.secret;
   Object.defineProperty(authOptions, 'secret', {
     get() {
       validateAuthEnvAtRuntime();
-      return originalSecret;
+      // 환경 변수가 런타임에 로드되었을 수 있으므로 최신 값을 반환
+      return process.env.NEXTAUTH_SECRET || secretValue;
+    },
+    set(value: string | undefined) {
+      secretValue = value;
     },
     configurable: true,
+    enumerable: true,
   });
 }
 
