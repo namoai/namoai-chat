@@ -191,6 +191,18 @@ let initPromise: Promise<PrismaClient> | null = null;
 
 // ビルド時かどうかを判定する関数
 function isBuildTime(): boolean {
+  // AWS Lambda 환경 감지
+  const isLambda = !!(
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.AWS_EXECUTION_ENV ||
+    process.env.LAMBDA_TASK_ROOT
+  );
+  
+  // Lambda 환경에서는 빌드 타임이 아님 (런타임)
+  if (isLambda) {
+    return false;
+  }
+  
   return process.env.NEXT_PHASE === 'phase-production-build' || 
          (process.env.NODE_ENV === 'production' && !process.env.NETLIFY_FUNCTION && !process.env.DATABASE_URL);
 }
