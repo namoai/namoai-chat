@@ -10,7 +10,10 @@
     "test": "node scripts/test-runner.mjs",
     "test:json": "node scripts/test-runner.mjs --json",
     "test:category": "node scripts/test-runner.mjs --category",
-    "test:ai": "node scripts/test-runner.mjs --ai-analysis"
+    "test:ai": "node scripts/test-runner.mjs --ai-analysis",
+    "generate:req": "node scripts/generate-requirements-excel.mjs",
+    "generate:basic": "node scripts/generate-basic-design-excel.mjs",
+    "generate:detail": "node scripts/generate-ui-ss-excel.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.887.0",

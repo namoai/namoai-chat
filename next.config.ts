@@ -71,7 +71,8 @@ const nextConfig: NextConfig = {
     ];
   },
   webpack: (config, { isServer }) => {
-    // ensureGcpCreds.ts는 서버 전용이므로 클라이언트 번들에서 제외
+    // ensureGcpCreds.ts와 load-env-vars.ts는 서버 전용이므로 클라이언트 번들에서 제외
+    // ensureGcpCreds.ts and load-env-vars.ts are server-only, so exclude from client bundle
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -82,13 +83,14 @@ const nextConfig: NextConfig = {
         'node:fs/promises': false,
         'node:path': false,
       };
-      // ensureGcpCreds.ts를 클라이언트 번들에서 완전히 제외
-      // ignore-loader를 사용하거나, externals로 제외
+      // ensureGcpCreds.ts와 load-env-vars.ts를 클라이언트 번들에서 완전히 제외
+      // Completely exclude ensureGcpCreds.ts and load-env-vars.ts from client bundle
       config.resolve.alias = {
         ...config.resolve.alias,
       };
     } else {
       // 서버 사이드에서는 node: 프리픽스를 처리하기 위한 설정
+      // Server-side configuration to handle node: prefix
       config.resolve.alias = {
         ...config.resolve.alias,
         'node:fs': 'fs',

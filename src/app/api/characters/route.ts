@@ -612,7 +612,7 @@ export async function POST(request: Request) {
         const imageCountString = formData.get('imageCount') as string;
         const imageCount = imageCountString ? parseInt(imageCountString, 10) : 0;
         
-        // Cloudflare Imagesへ画像アップロード
+        // Cloudflare R2へ画像アップロード
         const imageMetas: ImageMetaData[] = [];
 
         for (let i = 0; i < imageCount; i++) {

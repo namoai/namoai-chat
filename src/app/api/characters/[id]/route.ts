@@ -13,7 +13,7 @@ import { Role } from '@prisma/client';
 import { redis } from '@/lib/redis'; 
 import OpenAI from 'openai';
 import { checkFieldsForSexualContent } from '@/lib/content-filter';
-// ▼▼▼【Cloudflare Images】追加インポート
+// ▼▼▼【Cloudflare R2】追加インポート
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { validateImageFile } from '@/lib/upload/validateImage';
 import { uploadImageBufferToCloudflare, deleteImageFromCloudflare, isCloudflareImageUrl } from '@/lib/cloudflare-images';
@@ -467,7 +467,7 @@ export async function PUT(
     const firstSituationPlace = formData.get('firstSituationPlace') as string;
 
     // ▼▼▼【重要】トランザクション外で外部API呼び出し（Storage & OpenAI）を実行
-    // 1. 新しい画像をCloudflare Imagesにアップロード（トランザクション外）
+    // 1. 新しい画像をCloudflare R2にアップロード（トランザクション外）
     const newImageCountString = formData.get('newImageCount') as string;
     const newImageCount = newImageCountString ? parseInt(newImageCountString, 10) : 0;
     const newImageMetas: { characterId: number; imageUrl: string; keyword: string; isMain: boolean; displayOrder: number; }[] = [];
@@ -531,13 +531,13 @@ export async function PUT(
           const images = await tx.character_images.findMany({ where: { id: { in: imagesToDelete } } });
           for (const img of images) {
             try {
-              // Cloudflare Images URLの場合は実際に削除
+              // Cloudflare R2 URLの場合は実際に削除
               if (isCloudflareImageUrl(img.imageUrl)) {
                 const deleted = await deleteImageFromCloudflare(img.imageUrl);
                 if (deleted) {
-                  console.log(`[PUT] Cloudflare Imagesから削除成功: ${img.imageUrl}`);
+                  console.log(`[PUT] Cloudflare R2から削除成功: ${img.imageUrl}`);
                 } else {
-                  console.warn(`[PUT] Cloudflare Imagesから削除失敗: ${img.imageUrl}`);
+                  console.warn(`[PUT] Cloudflare R2から削除失敗: ${img.imageUrl}`);
                 }
               } else if (img.imageUrl.startsWith('http://') || img.imageUrl.startsWith('https://')) {
                 // 他の外部ストレージ (Supabaseなど)はスキップ
@@ -670,13 +670,13 @@ export async function DELETE(
     
     for (const img of characterToDelete.characterImages) {
       try {
-        // Cloudflare Images URLの場合は実際に削除
+        // Cloudflare R2 URLの場合は実際に削除
         if (isCloudflareImageUrl(img.imageUrl)) {
           const deleted = await deleteImageFromCloudflare(img.imageUrl);
           if (deleted) {
-            console.log(`[DELETE] Cloudflare Imagesから削除成功: ${img.imageUrl}`);
+            console.log(`[DELETE] Cloudflare R2から削除成功: ${img.imageUrl}`);
           } else {
-            console.warn(`[DELETE] Cloudflare Imagesから削除失敗: ${img.imageUrl}`);
+            console.warn(`[DELETE] Cloudflare R2から削除失敗: ${img.imageUrl}`);
           }
         } else if (img.imageUrl.startsWith('http://') || img.imageUrl.startsWith('https://')) {
           // 他の外部ストレージ (Supabaseなど)はスキップ

@@ -35,6 +35,6 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 // ブラウザから直接Supabase Storageにアクセスするためのクライアント
 export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
-// 画像アップロード用のヘルパー関数 (Cloudflare Images 사용)
+// 画像アップロード用のヘルパー関数 (Cloudflare R2)
 export { uploadImageToStorage } from './cloudflare-images';
 

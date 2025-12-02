@@ -67,7 +67,7 @@ export function getDatabaseUrl(): string {
 // ============================================
 // 예시 4: 환경별 로깅 레벨
 // ============================================
-export function logWithEnvironment(level: 'debug' | 'info' | 'warn' | 'error', message: string, data?: any) {
+export function logWithEnvironment(level: 'debug' | 'info' | 'warn' | 'error', message: string, data?: unknown) {
   const config = getEnvironmentConfig();
   
   // 디버그 로그는 로컬/통합 테스트 환경에서만

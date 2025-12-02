@@ -70,58 +70,64 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
   console.log(`[load-env-vars] Missing ${missingVars.length} variables: ${missingVars.join(', ')}`);
 
   // 1. .env.production.local 파일에서 로드 시도
-  try {
-    const fs = await import('fs');
-    const path = await import('path');
+  // サーバーサイドでのみ実行（fs/pathはNode.js専用）
+  // Only execute on server side (fs/path are Node.js only)
+  if (typeof window === 'undefined') {
+    try {
+      // 動的インポートでサーバーサイドでのみロード
+      // Dynamic import to load only on server side
+      const fs = await import('fs');
+      const path = await import('path');
     
-    const possiblePaths = [
-      path.join(process.cwd(), '.env.production.local'),
-      path.join(process.cwd(), '.next', '.env.production.local'),
-      path.join(process.cwd(), '.next', 'standalone', '.env.production.local'),
-      path.join('/var/task', '.env.production.local'),
-      path.join('/var/task', '.next', '.env.production.local'),
-      path.join('/var/task', '.next', 'standalone', '.env.production.local'),
-      ...(process.env.LAMBDA_TASK_ROOT ? [
-        path.join(process.env.LAMBDA_TASK_ROOT, '.env.production.local'),
-        path.join(process.env.LAMBDA_TASK_ROOT, '.next', '.env.production.local'),
-        path.join(process.env.LAMBDA_TASK_ROOT, '.next', 'standalone', '.env.production.local'),
-      ] : []),
-    ];
+      const possiblePaths = [
+        path.join(process.cwd(), '.env.production.local'),
+        path.join(process.cwd(), '.next', '.env.production.local'),
+        path.join(process.cwd(), '.next', 'standalone', '.env.production.local'),
+        path.join('/var/task', '.env.production.local'),
+        path.join('/var/task', '.next', '.env.production.local'),
+        path.join('/var/task', '.next', 'standalone', '.env.production.local'),
+        ...(process.env.LAMBDA_TASK_ROOT ? [
+          path.join(process.env.LAMBDA_TASK_ROOT, '.env.production.local'),
+          path.join(process.env.LAMBDA_TASK_ROOT, '.next', '.env.production.local'),
+          path.join(process.env.LAMBDA_TASK_ROOT, '.next', 'standalone', '.env.production.local'),
+        ] : []),
+      ];
 
-    for (const filePath of possiblePaths) {
-      try {
-        if (fs.existsSync(filePath)) {
-          console.log(`[load-env-vars] Found .env.production.local at: ${filePath}`);
-          const content = fs.readFileSync(filePath, 'utf8');
-          const lines = content.split('\n');
-          
-          let loadedCount = 0;
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith('#')) continue;
+      for (const filePath of possiblePaths) {
+        try {
+          if (fs.existsSync(filePath)) {
+            console.log(`[load-env-vars] Found .env.production.local at: ${filePath}`);
+            const content = fs.readFileSync(filePath, 'utf8');
+            const lines = content.split('\n');
             
-            const match = trimmed.match(/^([^=]+)=(.*)$/);
-            if (match) {
-              const key = match[1].trim();
-              const value = match[2].trim();
+            let loadedCount = 0;
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed || trimmed.startsWith('#')) continue;
               
-              if (!process.env[key]) {
-                process.env[key] = value;
-                loadedCount++;
-                console.log(`[load-env-vars] Loaded ${key} from ${filePath}`);
+              const match = trimmed.match(/^([^=]+)=(.*)$/);
+              if (match) {
+                const key = match[1].trim();
+                const value = match[2].trim();
+                
+                if (!process.env[key]) {
+                  process.env[key] = value;
+                  loadedCount++;
+                  console.log(`[load-env-vars] Loaded ${key} from ${filePath}`);
+                }
               }
             }
+            
+            console.log(`[load-env-vars] ✅ Loaded ${loadedCount} environment variables from ${filePath}`);
+            break;
           }
-          
-          console.log(`[load-env-vars] ✅ Loaded ${loadedCount} environment variables from ${filePath}`);
-          break;
+        } catch {
+          // Continue to next path
         }
-          } catch {
-            // Continue to next path
-          }
+      }
+    } catch (error) {
+      console.warn('[load-env-vars] Failed to load from .env.production.local:', error);
     }
-  } catch (error) {
-    console.warn('[load-env-vars] Failed to load from .env.production.local:', error);
   }
 
   // 2. AWS Systems Manager Parameter Store에서 로드 시도
@@ -224,7 +230,8 @@ async function loadFromParameterStore(variableKeys: string[], type: 'required' |
     // Retry on CredentialsProviderError
     const isCredentialsError = error instanceof Error && 
       (error.message.includes('Could not load credentials') || 
-       (error as any).name === 'CredentialsProviderError');
+       error.name === 'CredentialsProviderError' ||
+       (error.constructor && (error.constructor as { name?: string }).name === 'CredentialsProviderError'));
     
     if (isCredentialsError && retryCount < maxRetries) {
       console.warn(`[load-env-vars] Credentials not ready, retrying in ${retryDelay}ms... (attempt ${retryCount + 1}/${maxRetries})`);
