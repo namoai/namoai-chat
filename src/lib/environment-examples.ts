@@ -12,7 +12,6 @@ import {
   isIntegration,
   isStaging,
   isProduction,
-  isTestEnvironment,
   shouldEnableDebugLogs,
   shouldEnableTestFeatures,
   allowMutations

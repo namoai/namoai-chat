@@ -1,5 +1,9 @@
 // src/lib/load-env-vars.ts
 // Lambda 런타임에서 환경 변수를 로드하는 유틸리티
+// サーバーサイド専用（Node.jsモジュールを使用）
+// Server-side only (uses Node.js modules)
+
+'use server';
 
 let envVarsLoaded = false;
 

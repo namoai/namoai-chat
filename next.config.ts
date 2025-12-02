@@ -83,11 +83,20 @@ const nextConfig: NextConfig = {
         'node:fs/promises': false,
         'node:path': false,
       };
-      // ensureGcpCreds.ts와 load-env-vars.ts를 클라이언트 번들에서 완전히 제외
-      // Completely exclude ensureGcpCreds.ts and load-env-vars.ts from client bundle
+      // load-env-vars.ts를 클라이언트 번들에서 완전히 제외
+      // Completely exclude load-env-vars.ts from client bundle
       config.resolve.alias = {
         ...config.resolve.alias,
+        '@/lib/load-env-vars': false,
       };
+      // externals에 추가하여 클라이언트 번들에서 제외
+      // Add to externals to exclude from client bundle
+      if (!config.externals) {
+        config.externals = [];
+      }
+      if (Array.isArray(config.externals)) {
+        config.externals.push('@/lib/load-env-vars');
+      }
     } else {
       // 서버 사이드에서는 node: 프리픽스를 처리하기 위한 설정
       // Server-side configuration to handle node: prefix
