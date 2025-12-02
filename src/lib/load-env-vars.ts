@@ -127,100 +127,13 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
   // 2. AWS Systems Manager Parameter Store에서 로드 시도
   const stillMissing = requiredVars.filter(v => !process.env[v]);
   if (stillMissing.length > 0) {
-    console.log(`[load-env-vars] Attempting to load ${stillMissing.length} missing variables from Parameter Store...`);
-    try {
-      const { SSMClient, GetParametersCommand } = await import('@aws-sdk/client-ssm');
-      const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
-      
-      // Amplify 환경 변수 경로 패턴: /amplify/{appId}/{branch}/{key}
-      // 빌드 로그에서 확인한 appId: duvg1mvqbm4y4
-      const amplifyAppId = process.env.AWS_APP_ID || process.env.AWS_AMPLIFY_APP_ID || 'duvg1mvqbm4y4';
-      const branch = process.env.AWS_BRANCH || 'main';
-      
-      console.log(`[load-env-vars] Using Amplify App ID: ${amplifyAppId}, Branch: ${branch}`);
-      
-      const parameterNames = stillMissing.map(key => 
-        `/amplify/${amplifyAppId}/${branch}/${key}`
-      );
-      
-      try {
-        const command = new GetParametersCommand({
-          Names: parameterNames,
-          WithDecryption: true,
-        });
-        const response = await ssmClient.send(command);
-        
-        if (response.Parameters) {
-          let loadedCount = 0;
-          for (const param of response.Parameters) {
-            if (param.Name && param.Value) {
-              // /amplify/{appId}/{branch}/{key} 형식에서 key 추출
-              const key = param.Name.split('/').pop();
-              if (key && !process.env[key]) {
-                process.env[key] = param.Value;
-                loadedCount++;
-                console.log(`[load-env-vars] ✅ Loaded ${key} from Parameter Store`);
-              }
-            }
-          }
-          console.log(`[load-env-vars] ✅ Loaded ${loadedCount} variables from Parameter Store`);
-        }
-        
-        if (response.InvalidParameters && response.InvalidParameters.length > 0) {
-          console.warn(`[load-env-vars] Invalid parameters: ${response.InvalidParameters.join(', ')}`);
-        }
-      } catch (ssmError) {
-        console.warn('[load-env-vars] Failed to load from Parameter Store:', ssmError);
-      }
-    } catch (error) {
-      console.warn('[load-env-vars] Failed to initialize SSM client:', error);
-    }
+    await loadFromParameterStore(stillMissing, 'required');
   }
 
   // 3. 선택적 환경 변수도 로드 시도 (GCP 인증용)
   const missingOptional = optionalVars.filter(v => !process.env[v]);
   if (missingOptional.length > 0) {
-    console.log(`[load-env-vars] Attempting to load ${missingOptional.length} optional variables from Parameter Store...`);
-    try {
-      const { SSMClient, GetParametersCommand } = await import('@aws-sdk/client-ssm');
-      const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
-      
-      const amplifyAppId = process.env.AWS_APP_ID || process.env.AWS_AMPLIFY_APP_ID || 'duvg1mvqbm4y4';
-      const branch = process.env.AWS_BRANCH || 'main';
-      
-      const parameterNames = missingOptional.map(key => 
-        `/amplify/${amplifyAppId}/${branch}/${key}`
-      );
-      
-      try {
-        const command = new GetParametersCommand({
-          Names: parameterNames,
-          WithDecryption: true,
-        });
-        const response = await ssmClient.send(command);
-        
-        if (response.Parameters) {
-          let loadedCount = 0;
-          for (const param of response.Parameters) {
-            if (param.Name && param.Value) {
-              const key = param.Name.split('/').pop();
-              if (key && !process.env[key]) {
-                process.env[key] = param.Value;
-                loadedCount++;
-                console.log(`[load-env-vars] ✅ Loaded optional ${key} from Parameter Store`);
-              }
-            }
-          }
-          if (loadedCount > 0) {
-            console.log(`[load-env-vars] ✅ Loaded ${loadedCount} optional variables from Parameter Store`);
-          }
-        }
-      } catch (ssmError) {
-        console.warn('[load-env-vars] Failed to load optional variables from Parameter Store:', ssmError);
-      }
-    } catch (error) {
-      console.warn('[load-env-vars] Failed to initialize SSM client for optional vars:', error);
-    }
+    await loadFromParameterStore(missingOptional, 'optional');
   }
 
   // 4. 최종 확인
@@ -234,5 +147,69 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
   }
 
   envVarsLoaded = true;
+}
+
+async function loadFromParameterStore(variableKeys: string[], type: 'required' | 'optional') {
+  if (variableKeys.length === 0) return;
+
+  console.log(`[load-env-vars] Attempting to load ${variableKeys.length} ${type === 'required' ? 'missing' : 'optional'} variables from Parameter Store...`);
+  try {
+    const { SSMClient, GetParametersCommand } = await import('@aws-sdk/client-ssm');
+    const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
+
+    const amplifyAppId = process.env.AWS_APP_ID || process.env.AWS_AMPLIFY_APP_ID || 'duvg1mvqbm4y4';
+    const branch = process.env.AWS_BRANCH || 'main';
+
+    console.log(`[load-env-vars] Using Amplify App ID: ${amplifyAppId}, Branch: ${branch}`);
+
+    const parameterNames = variableKeys.map(key => `/amplify/${amplifyAppId}/${branch}/${key}`);
+    const chunks = chunkArray(parameterNames, 10);
+    let loadedCount = 0;
+
+    for (const chunk of chunks) {
+      if (chunk.length === 0) continue;
+      try {
+        const command = new GetParametersCommand({
+          Names: chunk,
+          WithDecryption: true,
+        });
+        const response = await ssmClient.send(command);
+
+        if (response.Parameters) {
+          for (const param of response.Parameters) {
+            if (param.Name && param.Value) {
+              const key = param.Name.split('/').pop();
+              if (key && !process.env[key]) {
+                process.env[key] = param.Value;
+                loadedCount++;
+                console.log(`[load-env-vars] ✅ Loaded ${key} from Parameter Store`);
+              }
+            }
+          }
+        }
+
+        if (response.InvalidParameters && response.InvalidParameters.length > 0) {
+          console.warn(`[load-env-vars] Invalid parameters (${type}): ${response.InvalidParameters.join(', ')}`);
+        }
+      } catch (ssmError) {
+        console.warn(`[load-env-vars] Failed to load ${type} variables from Parameter Store (chunk):`, ssmError);
+      }
+    }
+
+    if (loadedCount > 0) {
+      console.log(`[load-env-vars] ✅ Loaded ${loadedCount} ${type === 'required' ? '' : 'optional '}variables from Parameter Store`);
+    }
+  } catch (error) {
+    console.warn('[load-env-vars] Failed to initialize SSM client:', error);
+  }
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  if (size <= 0) return [items];
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
 }
 
