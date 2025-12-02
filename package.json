@@ -7,6 +7,13 @@
     "build": "rimraf .next && prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
+    "setup:local": "node scripts/setup-local.mjs",
+    "db:docker:up": "docker-compose -f docker-compose.local.yml up -d",
+    "db:docker:down": "docker-compose -f docker-compose.local.yml down",
+    "db:docker:logs": "docker-compose -f docker-compose.local.yml logs -f",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
     "test": "node scripts/test-runner.mjs",
     "test:json": "node scripts/test-runner.mjs --json",
     "test:category": "node scripts/test-runner.mjs --category",
@@ -16,6 +23,7 @@
     "generate:detail": "node scripts/generate-ui-ss-excel.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-rds": "^3.887.0",
     "@aws-sdk/client-s3": "^3.887.0",
     "@aws-sdk/client-ssm": "^3.940.0",
     "@google-cloud/secret-manager": "^5.5.0",

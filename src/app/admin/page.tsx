@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Session } from 'next-auth';
-import { Users, FileText, ArrowLeft, BrainCircuit, Flag, TestTube, Timer, ShieldCheck } from 'lucide-react';
+import { Users, FileText, ArrowLeft, BrainCircuit, Flag, TestTube, Timer, ShieldCheck, Server } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   // ▼▼▼【修正点】useRouterを使用します ▼▼▼
@@ -145,6 +145,16 @@ export default function AdminDashboardPage() {
                 </div>
                 <h2 className="text-xl font-bold mb-2 group-hover:text-pink-400 transition-colors">セキュリティテスト</h2>
                 <p className="text-gray-400 text-sm">レート制限やサニタイズを即時確認します。</p>
+              </Link>
+            )}
+
+            {(userRole === 'SUPER_ADMIN') && (
+              <Link href="/admin/it-environment" className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl hover:bg-gray-800/50 transition-all cursor-pointer flex flex-col items-center text-center border border-gray-800/50 hover:border-pink-500/30 group">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 mb-4 group-hover:scale-110 transition-transform">
+                  <Server size={40} className="text-indigo-400" />
+                </div>
+                <h2 className="text-xl font-bold mb-2 group-hover:text-pink-400 transition-colors">IT テスト環境管理</h2>
+                <p className="text-gray-400 text-sm">AWS RDS インスタンスの開始・停止を管理します。</p>
               </Link>
             )}
           </div>

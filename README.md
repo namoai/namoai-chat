@@ -1,8 +1,27 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Getting Started
+## 🚀 빠른 시작 (Quick Start)
 
-First, run the development server:
+### 로컬 개발 환경 설정
+
+**한 번의 명령으로 모든 설정 완료!**
+
+```bash
+# 1. 의존성 설치
+npm install
+
+# 2. 로컬 환경 자동 설정 (PostgreSQL, 데이터베이스, 마이그레이션 등)
+npm run setup:local
+
+# 3. 개발 서버 시작
+npm run dev
+```
+
+브라우저에서 [http://localhost:3000](http://localhost:3000) 접속!
+
+> 📖 **자세한 설정 가이드**: [로컬 환경 설정 가이드](./LOCAL_SETUP_GUIDE.md) 참고
+
+### 수동 설정 (선택사항)
 
 ```bash
 npm run dev
@@ -13,8 +32,6 @@ pnpm dev
 # or
 bun dev
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
