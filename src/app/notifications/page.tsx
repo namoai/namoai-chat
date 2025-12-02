@@ -112,7 +112,13 @@ export default function NotificationsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ markAllAsRead: true }),
       });
-      fetchNotifications();
+      // 全て既読にした後は「全て」フィルターに切り替えてから更新
+      setFilter("all");
+      // filter 변경 후 fetchNotifications가 자동으로 호출되지만, 
+      // 즉시 업데이트를 위해 명시적으로 호출
+      setTimeout(() => {
+        fetchNotifications(false);
+      }, 0);
     } catch (error) {
       console.error("全既読処理エラー:", error);
     }
