@@ -4,7 +4,7 @@ import { validatePassword } from "./password-policy";
 
 // パスワード検証用のカスタムZodバリデーション
 const passwordSchema = z.string()
-  .min(12, "パスワードは12文字以上である必要があります。")
+  .min(8, "パスワードは8文字以上である必要があります。")
   .max(128, "パスワードは128文字以下である必要があります。")
   .refine((password) => {
     const result = validatePassword(password);

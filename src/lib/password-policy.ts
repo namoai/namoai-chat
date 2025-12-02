@@ -97,8 +97,8 @@ export function validatePassword(password: string): PasswordValidationResult {
   const warnings: string[] = [];
   
   // 最小長さチェック
-  if (password.length < 12) {
-    errors.push('パスワードは12文字以上である必要があります。');
+  if (password.length < 8) {
+    errors.push('パスワードは8文字以上である必要があります。');
   }
   
   // 最大長さチェック（セキュリティ上の理由）
@@ -108,16 +108,11 @@ export function validatePassword(password: string): PasswordValidationResult {
   
   // 文字種チェック
   const hasLowercase = /[a-z]/.test(password);
-  const hasUppercase = /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
   const hasSpecialChar = /[^a-zA-Z0-9]/.test(password);
   
   if (!hasLowercase) {
     errors.push('パスワードには小文字（a-z）が含まれる必要があります。');
-  }
-  
-  if (!hasUppercase) {
-    errors.push('パスワードには大文字（A-Z）が含まれる必要があります。');
   }
   
   if (!hasNumber) {

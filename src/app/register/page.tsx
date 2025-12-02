@@ -38,8 +38,8 @@ export default function SignUpPage() {
     }
     
     // パスワード検証（サーバー側のポリシーと一致）
-    if (form.password.length < 12) {
-      alert("パスワードは12文字以上である必要があります。");
+    if (form.password.length < 8) {
+      alert("パスワードは8文字以上である必要があります。");
       return false;
     }
     if (form.password.length > 128) {
@@ -47,16 +47,11 @@ export default function SignUpPage() {
       return false;
     }
     const hasLowercase = /[a-z]/.test(form.password);
-    const hasUppercase = /[A-Z]/.test(form.password);
     const hasNumber = /[0-9]/.test(form.password);
     const hasSpecialChar = /[^a-zA-Z0-9]/.test(form.password);
     
     if (!hasLowercase) {
       alert("パスワードには小文字（a-z）が含まれる必要があります。");
-      return false;
-    }
-    if (!hasUppercase) {
-      alert("パスワードには大文字（A-Z）が含まれる必要があります。");
       return false;
     }
     if (!hasNumber) {
@@ -166,7 +161,7 @@ export default function SignUpPage() {
               icon: <Lock size={18} className="text-pink-400" />,
               label: "パスワード",
               field: "password",
-              placeholder: "12文字以上（大文字・小文字・数字・特殊文字必須）",
+              placeholder: "8文字以上（小文字・数字・特殊文字必須）",
               type: "password",
             },
             {
