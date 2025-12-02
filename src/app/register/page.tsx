@@ -28,7 +28,6 @@ export default function SignUpPage() {
 
   const validate = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const passwordRegex = /^.{8,16}$/;
     const nameRegex = /^[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}ー\s]+$/u;
     const phoneRegex = /^070-\d{4}-\d{4}$/;
     const nicknameRegex = /^.{2,12}$/;
@@ -37,8 +36,35 @@ export default function SignUpPage() {
       alert("正しいメールアドレスを入力してください。");
       return false;
     }
-    if (!passwordRegex.test(form.password)) {
-      alert("パスワードは8〜16文字で入力してください。");
+    
+    // パスワード検証（サーバー側のポリシーと一致）
+    if (form.password.length < 12) {
+      alert("パスワードは12文字以上である必要があります。");
+      return false;
+    }
+    if (form.password.length > 128) {
+      alert("パスワードは128文字以下である必要があります。");
+      return false;
+    }
+    const hasLowercase = /[a-z]/.test(form.password);
+    const hasUppercase = /[A-Z]/.test(form.password);
+    const hasNumber = /[0-9]/.test(form.password);
+    const hasSpecialChar = /[^a-zA-Z0-9]/.test(form.password);
+    
+    if (!hasLowercase) {
+      alert("パスワードには小文字（a-z）が含まれる必要があります。");
+      return false;
+    }
+    if (!hasUppercase) {
+      alert("パスワードには大文字（A-Z）が含まれる必要があります。");
+      return false;
+    }
+    if (!hasNumber) {
+      alert("パスワードには数字（0-9）が含まれる必要があります。");
+      return false;
+    }
+    if (!hasSpecialChar) {
+      alert("パスワードには特殊文字（!@#$%^&*など）が含まれる必要があります。");
       return false;
     }
     if (!nameRegex.test(form.name)) {
@@ -140,7 +166,7 @@ export default function SignUpPage() {
               icon: <Lock size={18} className="text-pink-400" />,
               label: "パスワード",
               field: "password",
-              placeholder: "8〜16文字のパスワード",
+              placeholder: "12文字以上（大文字・小文字・数字・特殊文字必須）",
               type: "password",
             },
             {
