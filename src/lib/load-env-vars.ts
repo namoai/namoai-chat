@@ -28,7 +28,7 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
   console.log('[load-env-vars] Lambda environment detected, loading environment variables...');
 
   // 필요한 환경 변수 목록 (기본 인증 + 캐릭터 작성 + AI 분석 등에 필요한 변수)
-  const requiredVars = [
+  const coreVars = [
     'GOOGLE_CLIENT_ID', 
     'GOOGLE_CLIENT_SECRET', 
     'NEXTAUTH_SECRET', 
@@ -38,6 +38,21 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
     'OPENAI_API_KEY',
     'GOOGLE_PROJECT_ID',
   ];
+  const cloudflareVars = [
+    'CLOUDFLARE_R2_ACCOUNT_ID',
+    'CLOUDFLARE_ACCOUNT_ID',
+    'CLOUDFLARE_R2_ACCESS_KEY_ID',
+    'CLOUDFLARE_R2_SECRET_ACCESS_KEY',
+    'CLOUDFLARE_R2_BUCKET_NAME',
+    'CLOUDFLARE_R2_BUCKET',
+    'CLOUDFLARE_R2_PUBLIC_URL',
+    'CLOUDFLARE_R2_ENDPOINT',
+  ];
+  const redisVars = [
+    'UPSTASH_REDIS_REST_URL',
+    'UPSTASH_REDIS_REST_TOKEN',
+  ];
+  const requiredVars = Array.from(new Set([...coreVars, ...cloudflareVars, ...redisVars]));
   
   // 선택적 환경 변수 (GCP 인증용)
   const optionalVars = [
