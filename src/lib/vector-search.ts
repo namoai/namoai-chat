@@ -22,23 +22,30 @@ export async function vectorSimilaritySearch<T extends { id: number }>(
     return [];
   }
 
+  // テーブル名とカラム名の検証（SQL Injection防止）
+  const validTables = ['chat_message', 'detailed_memories', 'chat'];
+  const validColumns = ['embedding', 'backMemoryEmbedding'];
+  if (!validTables.includes(table) || !validColumns.includes(embeddingColumn)) {
+    throw new Error('Invalid table or column name');
+  }
+
   // PostgreSQL vector型の形式に変換（文字列として）
   const vectorString = `[${queryEmbedding.join(',')}]`;
   
-  // WHERE句を構成
+  // WHERE句を構成（whereClauseは信頼できるソースからのみ使用）
   const whereSQL = whereClause ? `WHERE ${whereClause} AND` : 'WHERE';
   
   // クエリ実行 (cosine distance使用)
   // pgvectorのcosine distanceは1 - cosine similarity
   // したがって小さいほど類似 (0 = 完全に類似, 2 = 反対)
-  // ベクトル値を文字列로扱い、::vectorでキャスト
+  // ベクトル値を文字列で扱い、::vectorでキャスト
   const query = `
     SELECT *, 
-           1 - (${embeddingColumn} <=> $1::vector) as similarity
+           1 - ("${embeddingColumn}" <=> $1::vector) as similarity
     FROM "${table}"
-    ${whereSQL} ${embeddingColumn} IS NOT NULL
-      AND (1 - (${embeddingColumn} <=> $1::vector)) >= ${1 - similarityThreshold}
-    ORDER BY ${embeddingColumn} <=> $1::vector
+    ${whereSQL} "${embeddingColumn}" IS NOT NULL
+      AND (1 - ("${embeddingColumn}" <=> $1::vector)) >= ${1 - similarityThreshold}
+    ORDER BY "${embeddingColumn}" <=> $1::vector
     LIMIT ${limit}
   `;
 
@@ -46,7 +53,9 @@ export async function vectorSimilaritySearch<T extends { id: number }>(
     const results = await prisma.$queryRawUnsafe<T[]>(query, vectorString);
     return results;
   } catch (error) {
-    console.error(`ベクトル検索エラー (${table}):`, error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`ベクトル検索エラー (${table}):`, error);
+    }
     return [];
   }
 }
@@ -64,9 +73,18 @@ export async function searchSimilarMessages(
     return [];
   }
 
-  const excludeClause = excludeTurnIds.length > 0 
-    ? `"chatId" = ${chatId} AND "isActive" = true AND "turnId" NOT IN (${excludeTurnIds.join(',')})`
-    : `"chatId" = ${chatId} AND "isActive" = true`;
+  // SQL Injection防止: 数値のみ許可
+  const safeChatId = Number.parseInt(String(chatId), 10);
+  if (isNaN(safeChatId)) {
+    return [];
+  }
+  const safeExcludeTurnIds = excludeTurnIds
+    .map(id => Number.parseInt(String(id), 10))
+    .filter(id => !isNaN(id));
+  
+  const excludeClause = safeExcludeTurnIds.length > 0 
+    ? `"chatId" = ${safeChatId} AND "isActive" = true AND "turnId" NOT IN (${safeExcludeTurnIds.join(',')})`
+    : `"chatId" = ${safeChatId} AND "isActive" = true`;
   
   // PostgreSQL vector型の形式に変換（文字列として）
   const vectorString = `[${queryEmbedding.join(',')}]`;
@@ -85,7 +103,9 @@ export async function searchSimilarMessages(
     const results = await prisma.$queryRawUnsafe<Array<{ id: number; content: string; role: string; createdAt: Date }>>(query, vectorString);
     return results;
   } catch (error) {
-    console.error('メッセージベクトル検索エラー:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('メッセージベクトル検索エラー:', error);
+    }
     return [];
   }
 }
@@ -98,13 +118,18 @@ export async function searchSimilarDetailedMemories(
   chatId: number,
   limit: number = 3
 ): Promise<Array<{ id: number; content: string; keywords: string[]; similarity: number }>> {
+  // SQL Injection防止: 数値のみ許可
+  const safeChatId = Number.parseInt(String(chatId), 10);
+  if (isNaN(safeChatId)) {
+    return [];
+  }
+  
   return vectorSimilaritySearch(
     queryEmbedding,
     'detailed_memories',
     'embedding',
-    `"chatId" = ${chatId}`,
+    `"chatId" = ${safeChatId}`,
     limit,
     0.2 // 20%以上類似したメモリのみ (より厳格)
   ) as Promise<Array<{ id: number; content: string; keywords: string[]; similarity: number }>>;
 }
-

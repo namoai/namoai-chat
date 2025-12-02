@@ -202,7 +202,9 @@ export async function uploadImageToStorage(file: File): Promise<string> {
           errorMessage = JSON.stringify(errorData);
         }
       } catch (error) {
-        console.error('[Upload Image API] エラーレスポンスの解析に失敗:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Upload Image API] エラーレスポンスの解析に失敗:', error);
+        }
       }
       throw new Error(`画像アップロード失敗: ${errorMessage}`);
     }
@@ -241,7 +243,9 @@ export async function deleteImageFromCloudflare(imageUrl: string): Promise<boole
   const key = extractR2KeyFromUrl(imageUrl) || imageUrl.replace(/^\/+/, '');
 
   if (!key) {
-    console.warn('[R2 Delete] 画像キーを特定できませんでした:', imageUrl);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[R2 Delete] 画像キーを特定できませんでした:', imageUrl);
+    }
     return false;
   }
 
@@ -252,10 +256,14 @@ export async function deleteImageFromCloudflare(imageUrl: string): Promise<boole
         Key: key,
       })
     );
-    console.log(`[R2 Delete] 成功: ${key}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[R2 Delete] 成功: ${key}`);
+    }
     return true;
   } catch (error) {
-    console.error('[R2 Delete] 例外発生:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[R2 Delete] 例外発生:', error);
+    }
     return false;
   }
 }

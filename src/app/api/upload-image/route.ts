@@ -22,22 +22,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'ファイルが提供されていません。' }, { status: 400 });
     }
 
-    // 環境変数の確認（デバッグ用）
-    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-    const apiToken = process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_IMAGES_API_TOKEN;
-    console.log('[Upload Image API] 環境変数確認:', {
-      hasAccountId: !!accountId,
-      hasApiToken: !!apiToken,
-      accountIdPreview: accountId ? `${accountId.substring(0, 8)}...` : '未設定',
-      apiTokenPreview: apiToken ? `${apiToken.substring(0, 8)}...` : '未設定',
-    });
-
-    // Cloudflare Imagesにアップロード
+    // Cloudflare R2にアップロード
     const imageUrl = await uploadImageToCloudflare(file);
 
     return NextResponse.json({ imageUrl });
   } catch (error) {
-    console.error('[Upload Image API] エラー:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[Upload Image API] エラー:', error);
+    }
     let message = '画像アップロード中にエラーが発生しました。';
     if (error instanceof Error) {
       message = error.message;
