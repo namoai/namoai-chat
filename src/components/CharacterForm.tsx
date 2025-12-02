@@ -83,23 +83,67 @@ type ModalState = {
     title: string;
     message: string;
     onConfirm?: () => void;
+    characterId?: number | string; // IT環境での移行用
+    isITEnvironment?: boolean; // IT環境フラグ
 };
 
 const NotificationModal = ({ modalState, setModalState }: { modalState: ModalState, setModalState: (state: ModalState) => void }) => {
     if (!modalState.isOpen) return null;
+    
     const handleConfirm = () => {
         modalState.onConfirm?.();
         setModalState({ isOpen: false, title: '', message: '' });
     };
+
+    // IT環境から混紡環境への移行処理
+    // Migration from IT environment to staging environment
+    const handleMigrateToStaging = async () => {
+        if (!modalState.characterId) return;
+        
+        try {
+            const response = await fetch('/api/environment/migrate-to-staging', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ characterId: modalState.characterId }),
+            });
+
+            const data = await response.json();
+            
+            if (data.success && data.migrationUrl) {
+                // 混紡環境のURLにリダイレクト
+                // Redirect to staging environment URL
+                window.location.href = data.migrationUrl;
+            } else {
+                alert(data.error || '移行に失敗しました。');
+            }
+        } catch (error) {
+            console.error('移行エラー:', error);
+            alert('移行処理中にエラーが発生しました。');
+        }
+    };
+
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex justify-center items-center">
             <div className="bg-gray-800/95 backdrop-blur-xl rounded-xl p-6 w-full max-w-sm m-4 border border-gray-700/50 shadow-2xl">
                 <h2 className="text-xl font-bold mb-4 text-white">{modalState.title}</h2>
                 <p className="text-gray-200 mb-6">{modalState.message}</p>
-                <div className="flex justify-end">
-                    <Button onClick={handleConfirm} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-xl shadow-lg shadow-pink-500/30 font-semibold">
-                        確認
-                    </Button>
+                <div className="flex flex-col gap-3">
+                    {modalState.isITEnvironment && modalState.characterId && (
+                        <Button 
+                            onClick={handleMigrateToStaging}
+                            className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white rounded-xl shadow-lg shadow-blue-500/30 font-semibold w-full"
+                        >
+                            混紡環境に移行
+                        </Button>
+                    )}
+                    <div className="flex justify-end gap-3">
+                        <Button 
+                            onClick={handleConfirm} 
+                            className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-xl shadow-lg shadow-pink-500/30 font-semibold"
+                        >
+                            確認
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -777,11 +821,30 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         // ▲▲▲
       }
 
+      // レスポンスからキャラクターIDを取得
+      // Get character ID from response
+      const responseData = await response.json();
+      const characterId = responseData.character?.id || responseData.id;
+
+      // IT環境の場合は混紡環境への移行オプションを追加
+      // Add staging migration option if in IT environment
+      // クライアント側で環境を判定（ホスト名または環境変数から）
+      // Determine environment on client side (from hostname or environment variable)
+      const isITEnv = typeof window !== 'undefined' && (
+        window.location.hostname.includes('it-test') || 
+        window.location.hostname.includes('integration') ||
+        (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_APP_ENV === 'integration')
+      );
+      
       setModalState({
         isOpen: true,
         title: '成功',
-        message: isEditMode ? "キャラクター情報が更新されました。" : "キャラクターが正常に登録されました！",
+        message: isEditMode 
+          ? "キャラクター情報が更新されました。" 
+          : "キャラクターが正常に登録されました！",
         onConfirm: () => router.push("/MyPage"),
+        characterId: characterId, // IT環境での移行用
+        isITEnvironment: isITEnv, // IT環境フラグ
       });
 
     } catch (error) {

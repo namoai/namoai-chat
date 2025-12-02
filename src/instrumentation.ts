@@ -31,6 +31,14 @@ export async function register() {
       console.warn("[instrumentation] Failed to load Amplify env vars:", error);
     }
 
+    // 環境情報のログ出力
+    try {
+      const { logEnvironmentInfo } = await import("./lib/environment");
+      logEnvironmentInfo();
+    } catch (error) {
+      console.warn("[instrumentation] Failed to log environment info:", error);
+    }
+
     // セキュリティ強化: 環境変数の検証
     // 환경 변수가 없으면 빌드 실패
     try {

@@ -11,18 +11,53 @@ declare global {
 
 /**
  * 実行時またはビルド時に DB URL を取得
- * AWS Amplify/RDS環境では環境変数 DATABASE_URL のみを使用
+ * 環境別のDATABASE_URLをサポート（後方互換性を維持）
+ * 
+ * 優先順位:
+ * 1. 環境別URL (STAGING_DATABASE_URL, IT_DATABASE_URL) - APP_ENVに基づく
+ * 2. DATABASE_URL (既存コードとの互換性のため)
+ * 3. グローバルキャッシュ
+ * 
+ * Supports environment-specific DATABASE_URL (maintains backward compatibility)
+ * Priority:
+ * 1. Environment-specific URL (STAGING_DATABASE_URL, IT_DATABASE_URL) - based on APP_ENV
+ * 2. DATABASE_URL (for compatibility with existing code)
+ * 3. Global cache
  */
 async function resolveDatabaseUrl(): Promise<string> {
+  // 環境タイプを取得（環境変数から）
+  // Get environment type (from environment variable)
+  const appEnv = process.env.APP_ENV?.toLowerCase();
+  
+  // 環境別のDATABASE_URLを優先的に使用（設定されている場合）
+  // Use environment-specific DATABASE_URL if available
+  let databaseUrl: string | undefined;
+  
+  if (appEnv === 'staging' && process.env.STAGING_DATABASE_URL) {
+    databaseUrl = process.env.STAGING_DATABASE_URL;
+    console.log('[Prisma] Using STAGING_DATABASE_URL for staging environment');
+  } else if (appEnv === 'integration' && process.env.IT_DATABASE_URL) {
+    databaseUrl = process.env.IT_DATABASE_URL;
+    console.log('[Prisma] Using IT_DATABASE_URL for integration environment');
+  } else if (process.env.DATABASE_URL) {
+    // 既存コードとの互換性: DATABASE_URLをフォールバックとして使用
+    // Backward compatibility: Use DATABASE_URL as fallback
+    databaseUrl = process.env.DATABASE_URL;
+    console.log('[Prisma] Using DATABASE_URL (fallback for compatibility)');
+  }
+  
   console.log('[Prisma] Resolving DATABASE_URL:', {
-    hasEnvVar: !!process.env.DATABASE_URL,
+    appEnv,
+    hasStagingUrl: !!process.env.STAGING_DATABASE_URL,
+    hasItUrl: !!process.env.IT_DATABASE_URL,
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
     hasGlobalCache: !!global.__dbUrl,
     NODE_ENV: process.env.NODE_ENV,
+    selectedUrl: databaseUrl ? 'selected' : 'none',
   });
   
-  if (process.env.DATABASE_URL) {
-    console.log('[Prisma] Using DATABASE_URL from environment variable');
-    const processedUrl = ensurePreparedStatementsDisabled(process.env.DATABASE_URL);
+  if (databaseUrl) {
+    const processedUrl = ensurePreparedStatementsDisabled(databaseUrl);
     console.log('[Prisma] After ensurePreparedStatementsDisabled, URL has prepared_statements:', processedUrl.includes('prepared_statements='));
     return processedUrl;
   }
@@ -35,9 +70,11 @@ async function resolveDatabaseUrl(): Promise<string> {
   }
 
   // DATABASE_URL が設定されていない場合はエラー
+  // Error if DATABASE_URL is not set
   console.error('[Prisma] DATABASE_URL environment variable is required');
   throw new Error(
-    "DATABASE_URL 環境変数が設定されていません。AWS Amplify環境変数に DATABASE_URL を設定してください。"
+    "DATABASE_URL 環境変数が設定されていません。AWS Amplify環境変数に DATABASE_URL を設定してください。" +
+    (appEnv ? ` (現在の環境: ${appEnv})` : '')
   );
 }
 

@@ -7,6 +7,7 @@ import { authOptions } from '@/lib/nextauth';
 import { getPrisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
+import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
 
 /**
  * テストデータの一括削除API
@@ -18,6 +19,9 @@ export async function DELETE() {
   if (isBuildTime()) return buildTimeResponse();
   
   try {
+    // Lambda環境で環境変数をロード（リトライ機能付き）
+    // Load environment variables in Lambda environment (with retry)
+    await ensureEnvVarsLoaded();
     // セッション確認
     const session = await getServerSession(authOptions);
     
@@ -265,9 +269,30 @@ export async function DELETE() {
       },
     });
   } catch (error) {
-    console.error('テストデータ削除エラー:', error);
+    console.error('[cleanup] テストデータ削除エラー:', error);
+    
+    // エラーの詳細をログに記録
+    // Log error details
+    if (error instanceof Error) {
+      console.error('[cleanup] Error name:', error.name);
+      console.error('[cleanup] Error message:', error.message);
+      console.error('[cleanup] Error stack:', error.stack);
+      
+      // Prismaエラーの場合は詳細情報を追加
+      // Add details for Prisma errors
+      if (error.message.includes('Prisma') || error.message.includes('database')) {
+        console.error('[cleanup] Database connection error detected');
+      }
+    }
+    
     return NextResponse.json(
-      { error: 'テストデータの削除に失敗しました。', details: error instanceof Error ? error.message : '不明なエラー' },
+      { 
+        error: 'テストデータの削除に失敗しました。',
+        details: error instanceof Error ? error.message : '不明なエラー',
+        // 開発環境でのみスタックトレースを返す
+        // Return stack trace only in development
+        ...(process.env.NODE_ENV === 'development' && error instanceof Error ? { stack: error.stack } : {})
+      },
       { status: 500 }
     );
   }

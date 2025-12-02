@@ -149,10 +149,18 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
   envVarsLoaded = true;
 }
 
-async function loadFromParameterStore(variableKeys: string[], type: 'required' | 'optional') {
+/**
+ * Parameter Storeから環境変数をロード（リトライ機能付き）
+ * Load environment variables from Parameter Store (with retry)
+ */
+async function loadFromParameterStore(variableKeys: string[], type: 'required' | 'optional', retryCount = 0): Promise<void> {
   if (variableKeys.length === 0) return;
 
-  console.log(`[load-env-vars] Attempting to load ${variableKeys.length} ${type === 'required' ? 'missing' : 'optional'} variables from Parameter Store...`);
+  const maxRetries = 3;
+  const retryDelay = 500; // 500ms
+
+  console.log(`[load-env-vars] Attempting to load ${variableKeys.length} ${type === 'required' ? 'missing' : 'optional'} variables from Parameter Store... (attempt ${retryCount + 1}/${maxRetries + 1})`);
+  
   try {
     const { SSMClient, GetParametersCommand } = await import('@aws-sdk/client-ssm');
     const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
@@ -192,6 +200,18 @@ async function loadFromParameterStore(variableKeys: string[], type: 'required' |
           console.warn(`[load-env-vars] Invalid parameters (${type}): ${response.InvalidParameters.join(', ')}`);
         }
       } catch (ssmError) {
+        // CredentialsProviderErrorの場合はリトライ
+        // Retry on CredentialsProviderError
+        const isCredentialsError = ssmError instanceof Error && 
+          (ssmError.message.includes('Could not load credentials') || 
+           ssmError.name === 'CredentialsProviderError');
+        
+        if (isCredentialsError && retryCount < maxRetries) {
+          console.warn(`[load-env-vars] Credentials not ready, retrying in ${retryDelay}ms... (attempt ${retryCount + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay * (retryCount + 1)));
+          return loadFromParameterStore(variableKeys, type, retryCount + 1);
+        }
+        
         console.warn(`[load-env-vars] Failed to load ${type} variables from Parameter Store (chunk):`, ssmError);
       }
     }
@@ -200,6 +220,18 @@ async function loadFromParameterStore(variableKeys: string[], type: 'required' |
       console.log(`[load-env-vars] ✅ Loaded ${loadedCount} ${type === 'required' ? '' : 'optional '}variables from Parameter Store`);
     }
   } catch (error) {
+    // CredentialsProviderErrorの場合はリトライ
+    // Retry on CredentialsProviderError
+    const isCredentialsError = error instanceof Error && 
+      (error.message.includes('Could not load credentials') || 
+       (error as any).name === 'CredentialsProviderError');
+    
+    if (isCredentialsError && retryCount < maxRetries) {
+      console.warn(`[load-env-vars] Credentials not ready, retrying in ${retryDelay}ms... (attempt ${retryCount + 1}/${maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay * (retryCount + 1)));
+      return loadFromParameterStore(variableKeys, type, retryCount + 1);
+    }
+    
     console.warn('[load-env-vars] Failed to initialize SSM client:', error);
   }
 }

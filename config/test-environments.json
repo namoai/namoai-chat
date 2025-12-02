@@ -1,23 +1,55 @@
 {
-  "sandbox": {
-    "description": "자동/회귀 테스트를 위한 기본 샌드박스 환경",
+  "local": {
+    "description": "로컬 테스트 환경 - 개발자가 로컬에서 테스트하는 환경",
     "apiUrl": "http://localhost:3000",
     "allowMutations": true,
     "autoCreateCharacters": true,
+    "enableDebugLogs": true,
+    "enableTestFeatures": true,
     "primary": {
-      "email": "sandbox-primary@example.com",
+      "email": "local-test@example.com",
       "password": "replace-with-real-password"
     },
     "secondary": {
-      "email": "sandbox-secondary@example.com",
+      "email": "local-test-secondary@example.com",
       "password": "replace-with-real-password"
     }
   },
-  "admin-review": {
-    "description": "운영 관리자 최종 확인용 환경 (읽기 전용 권장)",
-    "apiUrl": "https://admin.example.com",
-    "allowMutations": false,
+  "integration": {
+    "description": "IT(결합) 테스트 환경 - 시스템 통합 및 결합 테스트를 위한 환경",
+    "apiUrl": "https://it-test.example.com",
+    "allowMutations": true,
+    "autoCreateCharacters": true,
+    "enableDebugLogs": true,
+    "enableTestFeatures": true,
+    "primary": {
+      "email": "it-test@example.com",
+      "password": "replace-with-real-password"
+    },
+    "secondary": {
+      "email": "it-test-secondary@example.com",
+      "password": "replace-with-real-password"
+    }
+  },
+  "staging": {
+    "description": "혼방(스테이징) 환경 - 프로덕션 배포 전 최종 검증을 위한 환경",
+    "apiUrl": "https://staging.example.com",
+    "allowMutations": true,
     "autoCreateCharacters": false,
+    "enableDebugLogs": false,
+    "enableTestFeatures": false,
+    "primary": {
+      "email": "staging-admin@example.com",
+      "password": "replace-with-real-password"
+    }
+  },
+  "production": {
+    "description": "프로덕션 환경 - 실제 서비스 운영 환경",
+    "apiUrl": "https://example.com",
+    "allowMutations": true,
+    "autoCreateCharacters": false,
+    "enableDebugLogs": false,
+    "enableTestFeatures": false,
     "primary": {
       "email": "admin@example.com",
       "password": "replace-with-real-password"
