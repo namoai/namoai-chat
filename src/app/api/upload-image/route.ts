@@ -5,7 +5,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
-import { uploadImageToCloudflare } from '@/lib/cloudflare-images';
+import { uploadImageBufferToCloudflare } from '@/lib/cloudflare-images';
+import { validateImageFile } from '@/lib/upload/validateImage';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,8 +23,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'ファイルが提供されていません。' }, { status: 400 });
     }
 
+    // 画像ファイルの検証（サイズ、MIMEタイプ、マジックナンバー）
+    let validatedFile;
+    try {
+      validatedFile = await validateImageFile(file, { maxSizeBytes: 5 * 1024 * 1024 });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '画像検証中にエラーが発生しました。';
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
     // Cloudflare R2にアップロード
-    const imageUrl = await uploadImageToCloudflare(file);
+    const imageUrl = await uploadImageBufferToCloudflare(validatedFile.buffer, {
+      filename: validatedFile.safeFileName,
+      contentType: validatedFile.mimeType,
+    });
 
     return NextResponse.json({ imageUrl });
   } catch (error) {
