@@ -1,190 +1,187 @@
-// Cloudflare Images APIを使用した画像アップロードヘルパー関数
+type UploadOptions = {
+  filename?: string;
+  contentType?: string;
+};
 
-/**
- * Cloudflare Imagesに画像をアップロード
- * @param file アップロードするファイル (File または Buffer)
- * @param metadata オプションメタデータ
- * @returns アップロードされた画像の公開URL
- */
-export async function uploadImageToCloudflare(
-  file: File | Buffer,
-  metadata?: {
-    filename?: string;
-    contentType?: string;
-  }
-): Promise<string> {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const apiToken = process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_IMAGES_API_TOKEN;
+type R2Config = {
+  accountId: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  bucketName: string;
+  endpoint: string;
+  publicBaseUrl: string;
+};
 
-  // デバッグ: 環境変数の状態をログに記録
-  if (typeof window === 'undefined') {
-    console.log('[Cloudflare Upload] 環境変数チェック:', {
-      hasAccountId: !!accountId,
-      accountIdLength: accountId?.length || 0,
-      accountIdPreview: accountId ? `${accountId.substring(0, 8)}...` : '未設定',
-      hasApiToken: !!apiToken,
-      apiTokenLength: apiToken?.length || 0,
-      apiTokenPreview: apiToken ? `${apiToken.substring(0, 8)}...` : '未設定',
-    });
-  }
+type S3Module = typeof import('@aws-sdk/client-s3');
 
-  if (!accountId || !apiToken) {
-    const errorMessage = `
-❌ Cloudflare環境変数が設定されていません。
+let cachedClient: InstanceType<S3Module['S3Client']> | null = null;
+let cachedConfig: R2Config | null = null;
+let cachedS3Module: S3Module | null = null;
 
-必要な環境変数:
-  - CLOUDFLARE_ACCOUNT_ID
-  - CLOUDFLARE_API_TOKEN (または CLOUDFLARE_IMAGES_API_TOKEN)
+function getR2Config(): R2Config {
+  if (cachedConfig) return cachedConfig;
 
-設定方法:
-1. Cloudflare DashboardでAccount IDを確認
-2. API Tokenを生成 (Images:Edit権限が必要)
-3. .env.localファイルに追加:
-   CLOUDFLARE_ACCOUNT_ID=your-account-id
-   CLOUDFLARE_API_TOKEN=your-api-token
-    `.trim();
+  const accountId =
+    process.env.CLOUDFLARE_R2_ACCOUNT_ID ||
+    process.env.CLOUDFLARE_ACCOUNT_ID ||
+    '';
+  const accessKeyId = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || '';
+  const secretAccessKey = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || '';
+  const bucketName =
+    process.env.CLOUDFLARE_R2_BUCKET_NAME ||
+    process.env.CLOUDFLARE_R2_BUCKET ||
+    '';
+  const endpoint =
+    process.env.CLOUDFLARE_R2_ENDPOINT ||
+    (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : '');
+  const publicBaseUrlRaw =
+    process.env.CLOUDFLARE_R2_PUBLIC_URL ||
+    (accountId && bucketName
+      ? `https://${bucketName}.${accountId}.r2.cloudflarestorage.com`
+      : '');
+  const publicBaseUrl = publicBaseUrlRaw.replace(/\/+$/, '');
 
-    if (typeof window === 'undefined') {
-      throw new Error(errorMessage);
-    } else {
-      console.error(errorMessage);
-      throw new Error('Cloudflare環境変数が設定されていません。');
-    }
-  }
-
-  // Account IDの形式を検証 (20文字以上の英数字である必要がある)
-  // 注意: CloudflareのAccount IDは通常32文字ですが、일부 계정では 다른 형식일 수 있습니다
-  if (accountId.length < 10 || !/^[a-zA-Z0-9]+$/.test(accountId)) {
-    const errorMessage = `
-❌ Cloudflare Account IDの形式が正しくありません。
-
-現在の値: "${accountId}"
-
-Account IDは通常32文字の英数字です（하이픈이나 언더스코어 없음）。
-확인 방법:
-1. Cloudflare Dashboard → 왼쪽 상단 계정 선택 → "Account Home" 클릭
-2. 또는 오른쪽 사이드바에서 "Account" 섹션 확인
-3. API Tokens 페이지에서 확인 (하지만 "namoai-chat" 같은 값은 계정 이름일 수 있음)
-
-⚠️ 注意: 
-- "namoai-chat" 같은 값은 계정 이름일 수 있습니다
-- 실제 Account ID는 보통 32자리 영숫자입니다
-- Account ID를 찾을 수 없으면 Cloudflare 지원팀에 문의하세요
-
-正しいAccount IDの例: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
-    `.trim();
-    
-    if (typeof window === 'undefined') {
-      throw new Error(errorMessage);
-    } else {
-      console.error(errorMessage);
-      throw new Error(`Cloudflare Account IDの形式が正しくありません: "${accountId}"`);
-    }
-  }
-
-  // FileオブジェクトをFormDataに変換
-  const formData = new FormData();
-  
-  if (file instanceof File) {
-    formData.append('file', file);
-    console.log(`[Cloudflare Upload] アップロード開始: ${file.name} (${Math.round(file.size / 1024)}KB)`);
-  } else {
-    // Bufferの場合はBlobに変換
-    const blob = new Blob([file], { 
-      type: metadata?.contentType || 'image/jpeg' 
-    });
-    const filename = metadata?.filename || `image-${Date.now()}.jpg`;
-    formData.append('file', blob, filename);
-    console.log(`[Cloudflare Upload] アップロード開始: ${filename} (${Math.round(file.length / 1024)}KB)`);
-  }
-
-  try {
-    const response = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v1`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiToken}`,
-        },
-        body: formData,
-      }
+  if (!accountId || !accessKeyId || !secretAccessKey || !bucketName || !endpoint || !publicBaseUrl) {
+    throw new Error(
+      [
+        '❌ Cloudflare R2環境変数が不足しています。',
+        '必要な環境変数:',
+        '  - CLOUDFLARE_R2_ACCESS_KEY_ID',
+        '  - CLOUDFLARE_R2_SECRET_ACCESS_KEY',
+        '  - CLOUDFLARE_R2_BUCKET_NAME',
+        '  - CLOUDFLARE_ACCOUNT_ID (または CLOUDFLARE_R2_ACCOUNT_ID)',
+        '  - CLOUDFLARE_R2_PUBLIC_URL (パブリックアクセスURL)',
+      ].join('\n')
     );
-
-    if (!response.ok) {
-      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-      try {
-        const errorData = await response.json();
-        console.error('[Cloudflare Upload] エラーレスポンス:', JSON.stringify(errorData, null, 2));
-        
-        // Cloudflare APIのエラーフォーマットに応じてメッセージを抽出
-        if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
-          const firstError = errorData.errors[0];
-          errorMessage = firstError.message || JSON.stringify(firstError);
-          
-          // 認証エラーの場合、より詳細なメッセージを提供
-          if (response.status === 401 || response.status === 403 || errorMessage.includes('Authentication') || errorMessage.includes('Unauthorized')) {
-            errorMessage = `認証エラー: ${errorMessage}\n\n確認事項:\n1. CLOUDFLARE_API_TOKENが正しく設定されているか確認\n2. API Tokenに「Account.Cloudflare Images:Edit」権限があるか確認\n3. API Tokenが有効期限内か確認\n4. サーバーを再起動して環境変数を再読み込み`;
-          }
-        } else if (errorData.message) {
-          errorMessage = errorData.message;
-        } else if (typeof errorData === 'string') {
-          errorMessage = errorData;
-        } else {
-          errorMessage = JSON.stringify(errorData);
-        }
-      } catch (e) {
-        console.error('[Cloudflare Upload] エラーレスポンスの解析に失敗:', e);
-        // JSON解析に失敗した場合はデフォルトメッセージを使用
-        if (response.status === 401 || response.status === 403) {
-          errorMessage = `認証エラー (HTTP ${response.status}): API Tokenを確認してください`;
-        }
-      }
-      console.error('[Cloudflare Upload] エラー:', errorMessage);
-      console.error('[Cloudflare Upload] Account ID:', accountId ? `${accountId.substring(0, 8)}...` : '未設定');
-      console.error('[Cloudflare Upload] API Token:', apiToken ? `${apiToken.substring(0, 8)}...` : '未設定');
-      throw new Error(`画像アップロード失敗: ${errorMessage}`);
-    }
-
-    const data = await response.json();
-    
-    // Cloudflare Images API応答形式:
-    // {
-    //   "result": {
-    //     "id": "image-id",
-    //     "filename": "filename.jpg",
-    //     "variants": [
-    //       "https://imagedelivery.net/{account-hash}/{image-id}/public"
-    //     ]
-    //   }
-    // }
-    const imageUrl = data.result?.variants?.[0];
-
-    if (!imageUrl) {
-      console.error('[Cloudflare Upload] 応答データ:', data);
-      throw new Error('画像URLを取得できません。API応答にvariantsがありません。');
-    }
-    
-    console.log(`[Cloudflare Upload] 成功: ${imageUrl}`);
-    return imageUrl;
-  } catch (error) {
-    console.error('[Cloudflare Upload] 例外発生:', error);
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('画像アップロード中に予期しないエラーが発生しました。');
   }
+
+  cachedConfig = {
+    accountId,
+    accessKeyId,
+    secretAccessKey,
+    bucketName,
+    endpoint,
+    publicBaseUrl,
+  };
+
+  return cachedConfig;
 }
 
-/**
- * クライアントサイドで使用するアップロード関数 (Fileオブジェクト用)
- * APIルート経由でアップロードしてAPIトークンを露出しない
- */
-export async function uploadImageToStorage(file: File): Promise<string> {
-  // クライアントサイドではAPIルート経由でアップロード
+async function loadS3Module(): Promise<S3Module> {
+  if (cachedS3Module) return cachedS3Module;
   if (typeof window !== 'undefined') {
-    // fetchWithCsrfを動的にインポート（クライアントサイドのみ）
+    throw new Error('R2クライアントはブラウザでは使用できません。');
+  }
+  cachedS3Module = await import('@aws-sdk/client-s3');
+  return cachedS3Module;
+}
+
+async function getR2Client() {
+  if (cachedClient) return cachedClient;
+  const config = getR2Config();
+  const { S3Client } = await loadS3Module();
+  cachedClient = new S3Client({
+    region: 'auto',
+    endpoint: config.endpoint,
+    credentials: {
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+    },
+    forcePathStyle: true,
+  });
+  return cachedClient;
+}
+
+function generateUuid(): string {
+  const cryptoLike = (globalThis as typeof globalThis & { crypto?: { randomUUID?: () => string } }).crypto;
+  if (cryptoLike?.randomUUID) {
+    return cryptoLike.randomUUID();
+  }
+  return `r2-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function sanitizeFilename(filename: string): string {
+  return filename.replace(/[^\w.\-]/g, '_');
+}
+
+function ensureExtension(filename?: string, fallback = 'png'): string {
+  if (!filename) return `${generateUuid()}.${fallback}`;
+  if (filename.includes('.')) return filename;
+  return `${filename}.${fallback}`;
+}
+
+function buildPublicUrl(key: string): string {
+  const { publicBaseUrl } = getR2Config();
+  const trimmedBase = publicBaseUrl.replace(/\/+$/, '');
+  const normalizedKey = key.replace(/^\/+/, '');
+  return `${trimmedBase}/${encodeURI(normalizedKey).replace(/%2F/g, '/')}`;
+}
+
+async function uploadBufferToR2(buffer: Buffer, options?: UploadOptions): Promise<string> {
+  const { bucketName } = getR2Config();
+  const client = await getR2Client();
+  const { PutObjectCommand } = await loadS3Module();
+
+  const originalName = options?.filename || `image-${Date.now()}-${generateUuid()}.png`;
+  const safeFilename = sanitizeFilename(ensureExtension(originalName));
+  const key = `uploads/${safeFilename}`;
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      Body: buffer,
+      ContentType: options?.contentType || 'application/octet-stream',
+    })
+  );
+
+  return buildPublicUrl(key);
+}
+
+type Uploadable = Buffer | File | Blob;
+
+function isFile(value: unknown): value is File {
+  return typeof File !== 'undefined' && value instanceof File;
+}
+
+function isBlob(value: unknown): value is Blob {
+  return typeof Blob !== 'undefined' && value instanceof Blob;
+}
+
+async function blobToBuffer(blob: Blob): Promise<Buffer> {
+  const arrayBuffer = await blob.arrayBuffer();
+  if (typeof Buffer === 'undefined') {
+    throw new Error('Buffer is not available in this environment.');
+  }
+  return Buffer.from(arrayBuffer);
+}
+
+export async function uploadImageToCloudflare(
+  file: Uploadable,
+  metadata?: UploadOptions
+): Promise<string> {
+  const isNodeBuffer = typeof Buffer !== 'undefined' && Buffer.isBuffer(file);
+  if (isNodeBuffer) {
+    return uploadBufferToR2(file as Buffer, metadata);
+  }
+
+  if (isFile(file) || isBlob(file)) {
+    const blob = file as Blob;
+    const buffer = await blobToBuffer(blob);
+    const fallbackName =
+      (isFile(file) && (file as File).name) || `image-${Date.now()}-${generateUuid()}.png`;
+    return uploadBufferToR2(buffer, {
+      filename: metadata?.filename ?? fallbackName,
+      contentType: metadata?.contentType ?? (blob.type || 'application/octet-stream'),
+    });
+  }
+
+  throw new Error('Unsupported file type. Expected File, Blob, or Buffer.');
+}
+
+export async function uploadImageToStorage(file: File): Promise<string> {
+  if (typeof window !== 'undefined') {
     const { fetchWithCsrf } = await import('@/lib/csrf-client');
-    
     const formData = new FormData();
     formData.append('file', file);
 
@@ -197,19 +194,15 @@ export async function uploadImageToStorage(file: File): Promise<string> {
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
       try {
         const errorData = await response.json();
-        // エラーメッセージを適切に抽出
         if (typeof errorData.error === 'string') {
           errorMessage = errorData.error;
-        } else if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
-          errorMessage = errorData.errors[0].message || JSON.stringify(errorData.errors[0]);
         } else if (errorData.message) {
           errorMessage = errorData.message;
         } else {
           errorMessage = JSON.stringify(errorData);
         }
-      } catch (e) {
-        // JSON解析に失敗した場合はデフォルトメッセージを使用
-        console.error('[Upload Image API] エラーレスポンスの解析に失敗:', e);
+      } catch (error) {
+        console.error('[Upload Image API] エラーレスポンスの解析に失敗:', error);
       }
       throw new Error(`画像アップロード失敗: ${errorMessage}`);
     }
@@ -221,115 +214,55 @@ export async function uploadImageToStorage(file: File): Promise<string> {
     return data.imageUrl;
   }
 
-  // サーバーサイドでは直接アップロード
   return uploadImageToCloudflare(file);
 }
 
-/**
- * サーバーサイドで使用するアップロード関数 (Buffer用)
- */
 export async function uploadImageBufferToCloudflare(
   buffer: Buffer,
-  options?: {
-    filename?: string;
-    contentType?: string;
-  }
+  options?: UploadOptions
 ): Promise<string> {
-  return uploadImageToCloudflare(buffer, options);
+  return uploadBufferToR2(buffer, options);
 }
 
-/**
- * Cloudflare Images URLから画像IDを抽出
- * URL形式: https://imagedelivery.net/{account-hash}/{image-id}/public
- * @param imageUrl Cloudflare Images URL
- * @returns 画像IDまたはnull
- */
-export function extractImageIdFromUrl(imageUrl: string): string | null {
-  try {
-    // https://imagedelivery.net/{account-hash}/{image-id}/public 形式
-    const match = imageUrl.match(/imagedelivery\.net\/[^/]+\/([^/]+)\//);
-    if (match && match[1]) {
-      return match[1];
-    }
-    return null;
-  } catch (error) {
-    console.error('[Cloudflare] URLから画像ID抽出失敗:', error);
+function extractR2KeyFromUrl(imageUrl: string): string | null {
+  const { publicBaseUrl } = getR2Config();
+  const normalizedBase = publicBaseUrl.replace(/\/+$/, '');
+  if (!imageUrl.startsWith(normalizedBase)) {
     return null;
   }
+  const key = imageUrl.substring(normalizedBase.length).replace(/^\/+/, '');
+  return decodeURI(key);
 }
 
-/**
- * Cloudflare Imagesから画像を削除
- * @param imageUrl Cloudflare Images URLまたは画像ID
- * @returns 削除成功可否
- */
 export async function deleteImageFromCloudflare(imageUrl: string): Promise<boolean> {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const apiToken = process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_IMAGES_API_TOKEN;
+  const { bucketName } = getR2Config();
+  const client = await getR2Client();
+  const { DeleteObjectCommand } = await loadS3Module();
+  const key = extractR2KeyFromUrl(imageUrl) || imageUrl.replace(/^\/+/, '');
 
-  if (!accountId || !apiToken) {
-    console.error('[Cloudflare Delete] 環境変数が設定されていません。');
+  if (!key) {
+    console.warn('[R2 Delete] 画像キーを特定できませんでした:', imageUrl);
     return false;
-  }
-
-  // Account IDの形式を検証
-  if (accountId.length < 20 || !/^[a-zA-Z0-9]+$/.test(accountId)) {
-    console.error(`[Cloudflare Delete] Account IDの形式が正しくありません: "${accountId}"`);
-    return false;
-  }
-
-  // URLから画像IDを抽出
-  let imageId: string;
-  if (imageUrl.startsWith('https://imagedelivery.net/')) {
-    const extractedId = extractImageIdFromUrl(imageUrl);
-    if (!extractedId) {
-      console.error('[Cloudflare Delete] URLから画像IDを抽出できません:', imageUrl);
-      return false;
-    }
-    imageId = extractedId;
-  } else {
-    // 既にIDの場合
-    imageId = imageUrl;
   }
 
   try {
-    const response = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v1/${imageId}`,
-      {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${apiToken}`,
-        },
-      }
+    await client.send(
+      new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+      })
     );
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.errors?.[0]?.message || `HTTP ${response.status}: ${response.statusText}`;
-      console.error('[Cloudflare Delete] 削除失敗:', errorMessage, errorData);
-      return false;
-    }
-
-    const data = await response.json();
-    if (data.success) {
-      console.log(`[Cloudflare Delete] 成功: ${imageId}`);
-      return true;
-    } else {
-      console.error('[Cloudflare Delete] API応答失敗:', data);
-      return false;
-    }
+    console.log(`[R2 Delete] 成功: ${key}`);
+    return true;
   } catch (error) {
-    console.error('[Cloudflare Delete] 例外発生:', error);
+    console.error('[R2 Delete] 例外発生:', error);
     return false;
   }
 }
 
-/**
- * Cloudflare Images URLかどうかを確認
- * @param url 確認するURL
- * @returns Cloudflare Images URLかどうか
- */
 export function isCloudflareImageUrl(url: string): boolean {
-  return url.startsWith('https://imagedelivery.net/');
+  const { publicBaseUrl } = getR2Config();
+  const normalizedBase = publicBaseUrl.replace(/\/+$/, '');
+  return url.startsWith(normalizedBase);
 }
 

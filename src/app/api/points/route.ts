@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse, NextRequest } from 'next/server';
 import { getPrisma } from "@/lib/prisma";
+import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { isBuildTime, buildTimeResponse, safeJsonParse } from '@/lib/api-helpers';
@@ -10,6 +11,7 @@ import { isBuildTime, buildTimeResponse, safeJsonParse } from '@/lib/api-helpers
 // GET: 現在のポイントと出席状況を取得します。
 export async function GET() {
   if (isBuildTime()) return buildTimeResponse();
+  await ensureEnvVarsLoaded();
   
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -48,6 +50,7 @@ export async function GET() {
 // POST: ポイントのチャージまたは出席チェックを処理します。
 export async function POST(request: NextRequest) {
   if (isBuildTime()) return buildTimeResponse();
+  await ensureEnvVarsLoaded();
   
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {

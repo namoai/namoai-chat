@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 // ▼▼▼【修正点】useRouterをインポートします ▼▼▼
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Gift, CheckCircle, HelpCircle } from 'lucide-react';
@@ -58,17 +58,16 @@ export default function PointPage() {
   const router = useRouter();
   const [pointsData, setPointsData] = useState<PointsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   // ▼▼▼【修正点】モーダル用のstateを追加 ▼▼▼
   const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '' });
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
-  useEffect(() => {
-    fetchPoints();
-  }, []);
-
   const closeModal = () => setModalState({ isOpen: false, title: '', message: '' });
 
-  const fetchPoints = async () => {
+  const fetchPoints = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const response = await fetch('/api/points');
       if (response.ok) {
@@ -79,11 +78,17 @@ export default function PointPage() {
       }
     } catch (error) {
       console.error(error);
-      setModalState({ isOpen: true, title: 'エラー', message: (error as Error).message });
+      const message = error instanceof Error ? error.message : 'ポイントデータの取得に失敗しました。';
+      setError(message);
+      setPointsData(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchPoints();
+  }, [fetchPoints]);
 
   const handleAttendance = async () => {
     if (pointsData?.attendedToday) return;
@@ -163,69 +168,94 @@ export default function PointPage() {
               </button>
             </header>
 
-            <div className="bg-gradient-to-r from-yellow-500/20 via-pink-500/20 to-purple-500/20 backdrop-blur-sm p-6 md:p-8 rounded-2xl mb-8 border border-gray-800/50">
-              <p className="text-gray-400 text-sm mb-2">保有ポイント</p>
-              <p className="text-5xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
-                {totalPoints.toLocaleString()}
-              </p>
-              <div className="mt-4 text-sm text-gray-400 space-y-1">
-                <p>有料ポイント: <span className="text-pink-400 font-semibold">{pointsData?.paid_points?.toLocaleString() ?? 0}</span></p>
-                <p>無料ポイント: <span className="text-yellow-400 font-semibold">{pointsData?.free_points?.toLocaleString() ?? 0}</span></p>
-              </div>
-            </div>
-
-            <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl mb-8 border border-gray-800/50">
-              <h2 className="text-xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-                毎日出席イベント
-              </h2>
-              <button 
-                onClick={handleAttendance}
-                disabled={pointsData?.attendedToday}
-                className={`w-full p-5 rounded-xl font-bold transition-all flex items-center justify-center ${
-                  pointsData?.attendedToday 
-                    ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed border border-gray-700/50' 
-                    : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 cursor-pointer shadow-lg shadow-pink-500/30'
-                }`}
-              >
-                {pointsData?.attendedToday ? (
-                  <>
-                    <CheckCircle className="mr-2" size={24} />
-                    <span>本日は出席済み</span>
-                  </>
-                ) : (
-                  <>
-                    <Gift className="mr-2" size={24} />
-                    <span>出席して30ポイントGET</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            <div>
-              <h2 className="text-xl font-bold mb-6 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-                ポイント購入
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {pointPackages.map(pkg => (
-                  <div key={pkg.yen} className="bg-gray-900/50 backdrop-blur-sm p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4 border border-gray-800/50 hover:border-pink-500/30 transition-all">
-                    <div>
-                      <p className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
-                        {pkg.points.toLocaleString()} ポイント
-                      </p>
-                      {pkg.bonus && (
-                        <p className="text-sm text-pink-400 mt-1">+{pkg.bonus} ボーナス</p>
-                      )}
-                    </div>
-                    <button 
-                      onClick={() => handleCharge(pkg.points)}
-                      className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-2 px-6 rounded-xl transition-all shadow-lg shadow-pink-500/30 whitespace-nowrap"
-                    >
-                      ￥{pkg.yen.toLocaleString()}
-                    </button>
+            {pointsData ? (
+              <>
+                <div className="bg-gradient-to-r from-yellow-500/20 via-pink-500/20 to-purple-500/20 backdrop-blur-sm p-6 md:p-8 rounded-2xl mb-8 border border-gray-800/50">
+                  <p className="text-gray-400 text-sm mb-2">保有ポイント</p>
+                  <p className="text-5xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+                    {totalPoints.toLocaleString()}
+                  </p>
+                  <div className="mt-4 text-sm text-gray-400 space-y-1">
+                    <p>有料ポイント: <span className="text-pink-400 font-semibold">{pointsData.paid_points.toLocaleString()}</span></p>
+                    <p>無料ポイント: <span className="text-yellow-400 font-semibold">{pointsData.free_points.toLocaleString()}</span></p>
                   </div>
-                ))}
+                </div>
+
+                <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl mb-8 border border-gray-800/50">
+                  <h2 className="text-xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                    毎日出席イベント
+                  </h2>
+                  <button 
+                    onClick={handleAttendance}
+                    disabled={pointsData.attendedToday}
+                    className={`w-full p-5 rounded-xl font-bold transition-all flex items-center justify-center ${
+                      pointsData.attendedToday 
+                        ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed border border-gray-700/50' 
+                        : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 cursor-pointer shadow-lg shadow-pink-500/30'
+                    }`}
+                  >
+                    {pointsData.attendedToday ? (
+                      <>
+                        <CheckCircle className="mr-2" size={24} />
+                        <span>本日は出席済み</span>
+                      </>
+                    ) : (
+                      <>
+                        <Gift className="mr-2" size={24} />
+                        <span>出席して30ポイントGET</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-bold mb-6 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                    ポイント購入
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {pointPackages.map(pkg => (
+                      <div key={pkg.yen} className="bg-gray-900/50 backdrop-blur-sm p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4 border border-gray-800/50 hover:border-pink-500/30 transition-all">
+                        <div>
+                          <p className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+                            {pkg.points.toLocaleString()} ポイント
+                          </p>
+                          {pkg.bonus && (
+                            <p className="text-sm text-pink-400 mt-1">+{pkg.bonus} ボーナス</p>
+                          )}
+                        </div>
+                        <button 
+                          onClick={() => handleCharge(pkg.points)}
+                          className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-2 px-6 rounded-xl transition-all shadow-lg shadow-pink-500/30 whitespace-nowrap"
+                        >
+                          ￥{pkg.yen.toLocaleString()}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50 text-center">
+                <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                  ポイントデータを取得できませんでした
+                </h2>
+                <p className="text-gray-400 mb-6">{error ?? '時間をおいて再度お試しください。'}</p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <button
+                    onClick={fetchPoints}
+                    className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-2 px-6 rounded-xl transition-all"
+                  >
+                    再読み込み
+                  </button>
+                  <button
+                    onClick={() => router.back()}
+                    className="border border-gray-700 hover:border-pink-400 text-white font-semibold py-2 px-6 rounded-xl transition-all"
+                  >
+                    戻る
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
