@@ -269,8 +269,86 @@ export async function deleteImageFromCloudflare(imageUrl: string): Promise<boole
 }
 
 export function isCloudflareImageUrl(url: string): boolean {
-  const { publicBaseUrl } = getR2Config();
-  const normalizedBase = publicBaseUrl.replace(/\/+$/, '');
-  return url.startsWith(normalizedBase);
+  try {
+    const { publicBaseUrl } = getR2Config();
+    const normalizedBase = publicBaseUrl.replace(/\/+$/, '');
+    return url.startsWith(normalizedBase);
+  } catch {
+    // 環境変数が設定されていない場合はfalseを返す
+    return false;
+  }
+}
+
+/**
+ * R2から画像をダウンロード
+ * Download image from R2
+ */
+export async function downloadImageFromR2(imageUrl: string): Promise<{ buffer: Buffer; contentType: string }> {
+  const config = getR2Config();
+  const client = await getR2Client();
+  const { GetObjectCommand } = await loadS3Module();
+  
+  // URLからキーを抽出
+  const normalizedBase = config.publicBaseUrl.replace(/\/+$/, '');
+  if (!imageUrl.startsWith(normalizedBase)) {
+    throw new Error(`Invalid R2 URL: ${imageUrl}`);
+  }
+  
+  const key = imageUrl.substring(normalizedBase.length).replace(/^\/+/, '');
+  const decodedKey = decodeURIComponent(key);
+  
+  const command = new GetObjectCommand({
+    Bucket: config.bucketName,
+    Key: decodedKey,
+  });
+  
+  const response = await client.send(command);
+  
+  if (!response.Body) {
+    throw new Error('R2 response body is empty');
+  }
+  
+  // BodyをBufferに変換
+  const chunks: Uint8Array[] = [];
+  if ('transformToWebStream' in response.Body && typeof response.Body.transformToWebStream === 'function') {
+    const stream = response.Body.transformToWebStream();
+    const reader = stream.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) chunks.push(value);
+    }
+  } else if ('on' in response.Body && typeof (response.Body as any).on === 'function') {
+    // Node.js Streamの場合
+    const stream = response.Body as any;
+    for await (const chunk of stream) {
+      chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk));
+    }
+  } else {
+    // ArrayBufferまたはBufferの場合
+    const body = response.Body as any;
+    if (body instanceof ArrayBuffer) {
+      chunks.push(new Uint8Array(body));
+    } else if (Buffer.isBuffer(body)) {
+      chunks.push(new Uint8Array(body));
+    } else {
+      const arrayBuffer = await body.arrayBuffer();
+      chunks.push(new Uint8Array(arrayBuffer));
+    }
+  }
+  
+  // chunksを結合してBufferに変換
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const combined = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  }
+  
+  const buffer = Buffer.from(combined);
+  const contentType = response.ContentType || 'image/png';
+  
+  return { buffer, contentType };
 }
 

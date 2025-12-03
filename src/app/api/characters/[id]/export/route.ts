@@ -6,6 +6,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { getPrisma } from '@/lib/prisma';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
+import { isCloudflareImageUrl, downloadImageFromR2 } from '@/lib/cloudflare-images';
 import JSZip from 'jszip';
 
 /**
@@ -124,76 +125,110 @@ export async function GET(
           // URLからクエリパラメータを削除して元の画像を取得
           let cleanUrl = img.imageUrl.split('?')[0].trim();
           
-          // 相対URLの場合は絶対URLに変換
-          if (cleanUrl.startsWith('/')) {
-            const requestUrl = new URL(request.url);
-            cleanUrl = `${requestUrl.protocol}//${requestUrl.host}${cleanUrl}`;
-            console.log(`[Export] 相対URLを絶対URLに変換: ${cleanUrl}`);
-          }
+          let imageBuffer: ArrayBuffer;
+          let contentType: string;
           
-          // fetchで画像をダウンロード（リダイレクトを許可、タイムアウト設定）
-          const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error('画像ダウンロードがタイムアウトしました（30秒）')), 30000);
-          });
-          
-          try {
-            const imageResponse = await Promise.race([
-              fetch(cleanUrl, {
-                method: 'GET',
-                headers: {
-                  'Accept': 'image/*',
-                  'User-Agent': 'Mozilla/5.0',
-                },
-                redirect: 'follow',
-              }),
-              timeoutPromise,
-            ]);
-            
-            if (imageResponse.ok) {
-              const imageBuffer = await imageResponse.arrayBuffer();
+          // Cloudflare R2 URLの場合はSDKを使用して直接ダウンロード
+          if (isCloudflareImageUrl(cleanUrl)) {
+            console.log(`[Export] Cloudflare R2 URL検出、SDKを使用してダウンロード: ${cleanUrl}`);
+            try {
+              const timeoutPromise = new Promise<never>((_, reject) => {
+                setTimeout(() => reject(new Error('R2ダウンロードがタイムアウトしました（30秒）')), 30000);
+              });
               
-              if (imageBuffer.byteLength === 0) {
-                console.error(`[Export] ❌ 画像 ${i + 1}/${sortedImages.length}: ダウンロードしたデータが空です`);
+              const { buffer, contentType: r2ContentType } = await Promise.race([
+                downloadImageFromR2(cleanUrl),
+                timeoutPromise,
+              ]);
+              
+              imageBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+              contentType = r2ContentType;
+              console.log(`[Export] R2からダウンロード成功: ${imageBuffer.byteLength} bytes, ${contentType}`);
+            } catch (r2Error) {
+              console.error(`[Export] ❌ R2ダウンロードエラー:`, r2Error);
+              console.error(`[Export] URL: ${img.imageUrl}`);
+              console.error(`[Export] エラー詳細:`, r2Error instanceof Error ? r2Error.stack : String(r2Error));
+              failCount++;
+              continue;
+            }
+          } else {
+            // その他のURLの場合はfetchを使用
+            console.log(`[Export] 通常のURL、fetchを使用してダウンロード: ${cleanUrl}`);
+            
+            // 相対URLの場合は絶対URLに変換
+            if (cleanUrl.startsWith('/')) {
+              const requestUrl = new URL(request.url);
+              cleanUrl = `${requestUrl.protocol}//${requestUrl.host}${cleanUrl}`;
+              console.log(`[Export] 相対URLを絶対URLに変換: ${cleanUrl}`);
+            }
+            
+            // fetchで画像をダウンロード（リダイレクトを許可、タイムアウト設定）
+            const timeoutPromise = new Promise<never>((_, reject) => {
+              setTimeout(() => reject(new Error('画像ダウンロードがタイムアウトしました（30秒）')), 30000);
+            });
+            
+            try {
+              const imageResponse = await Promise.race([
+                fetch(cleanUrl, {
+                  method: 'GET',
+                  headers: {
+                    'Accept': 'image/*',
+                    'User-Agent': 'Mozilla/5.0',
+                  },
+                  redirect: 'follow',
+                }),
+                timeoutPromise,
+              ]);
+              
+              if (!imageResponse.ok) {
+                console.error(`[Export] ❌ 画像 ${i + 1}/${sortedImages.length} ダウンロード失敗: HTTP ${imageResponse.status} ${imageResponse.statusText}`);
+                console.error(`[Export] URL: ${img.imageUrl} -> ${cleanUrl}`);
                 failCount++;
                 continue;
               }
               
-              const contentType = imageResponse.headers.get('content-type') || 'image/png';
-              
-              // Content-Typeから拡張子を決定
-              let extension = 'png';
-              if (contentType.includes('jpeg') || contentType.includes('jpg')) {
-                extension = 'jpg';
-              } else if (contentType.includes('webp')) {
-                extension = 'webp';
-              } else if (contentType.includes('gif')) {
-                extension = 'gif';
+              imageBuffer = await imageResponse.arrayBuffer();
+              contentType = imageResponse.headers.get('content-type') || 'image/png';
+            } catch (fetchError) {
+              if (fetchError instanceof Error && fetchError.message.includes('タイムアウト')) {
+                console.error(`[Export] ❌ 画像 ${i + 1}/${sortedImages.length} ダウンロードタイムアウト (30秒)`);
               } else {
-                // URLから拡張子を抽出を試みる
-                const urlMatch = cleanUrl.match(/\.(png|jpg|jpeg|webp|gif)(\?|$|#)/i);
-                if (urlMatch) {
-                  extension = urlMatch[1].toLowerCase();
-                }
+                console.error(`[Export] ❌ fetchエラー:`, fetchError);
+                console.error(`[Export] エラー詳細:`, fetchError instanceof Error ? fetchError.stack : String(fetchError));
               }
-              
-              // シンプルなファイル名: image_0.png, image_1.jpg など
-              const filename = `image_${i}.${extension}`;
-              imagesFolder.file(filename, imageBuffer);
-              successCount++;
-              console.log(`[Export] ✅ 画像 ${i + 1}/${sortedImages.length} ZIPに追加成功: ${filename} (${imageBuffer.byteLength} bytes, ${contentType})`);
-            } else {
-              console.error(`[Export] ❌ 画像 ${i + 1}/${sortedImages.length} ダウンロード失敗: HTTP ${imageResponse.status} ${imageResponse.statusText}`);
-              console.error(`[Export] URL: ${img.imageUrl} -> ${cleanUrl}`);
               failCount++;
+              continue;
             }
-          } catch (fetchError) {
-            if (fetchError instanceof Error && fetchError.message.includes('タイムアウト')) {
-              console.error(`[Export] ❌ 画像 ${i + 1}/${sortedImages.length} ダウンロードタイムアウト (30秒)`);
-            } else {
-              throw fetchError;
-            }
-            failCount++;
           }
+          
+          // 画像データの検証
+          if (imageBuffer.byteLength === 0) {
+            console.error(`[Export] ❌ 画像 ${i + 1}/${sortedImages.length}: ダウンロードしたデータが空です`);
+            failCount++;
+            continue;
+          }
+          
+          // Content-Typeから拡張子を決定
+          let extension = 'png';
+          if (contentType.includes('jpeg') || contentType.includes('jpg')) {
+            extension = 'jpg';
+          } else if (contentType.includes('webp')) {
+            extension = 'webp';
+          } else if (contentType.includes('gif')) {
+            extension = 'gif';
+          } else {
+            // URLから拡張子を抽出を試みる
+            const urlMatch = cleanUrl.match(/\.(png|jpg|jpeg|webp|gif)(\?|$|#)/i);
+            if (urlMatch) {
+              extension = urlMatch[1].toLowerCase();
+            }
+          }
+          
+          // シンプルなファイル名: image_0.png, image_1.jpg など
+          const filename = `image_${i}.${extension}`;
+          imagesFolder.file(filename, imageBuffer);
+          successCount++;
+          console.log(`[Export] ✅ 画像 ${i + 1}/${sortedImages.length} ZIPに追加成功: ${filename} (${imageBuffer.byteLength} bytes, ${contentType})`);
         } catch (error) {
           console.error(`[Export] ❌ 画像 ${i + 1}/${sortedImages.length} ダウンロードエラー:`, error);
           console.error(`[Export] URL: ${img.imageUrl}`);
