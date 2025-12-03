@@ -177,53 +177,59 @@ async function loadFromParameterStore(variableKeys: string[], type: 'required' |
     const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
     const amplifyAppId = process.env.AWS_APP_ID || process.env.AWS_AMPLIFY_APP_ID || 'duvg1mvqbm4y4';
-    const branch = process.env.AWS_BRANCH || 'main';
+    const branchCandidates = getAmplifyBranchCandidates();
+    console.log(`[load-env-vars] Using Amplify App ID: ${amplifyAppId}, Branch candidates: ${branchCandidates.join(', ')}`);
 
-    console.log(`[load-env-vars] Using Amplify App ID: ${amplifyAppId}, Branch: ${branch}`);
-
-    const parameterNames = variableKeys.map(key => `/amplify/${amplifyAppId}/${branch}/${key}`);
-    const chunks = chunkArray(parameterNames, 10);
+    let remainingKeys = [...variableKeys];
     let loadedCount = 0;
 
-    for (const chunk of chunks) {
-      if (chunk.length === 0) continue;
-      try {
-        const command = new GetParametersCommand({
-          Names: chunk,
-          WithDecryption: true,
-        });
-        const response = await ssmClient.send(command);
+    for (const branch of branchCandidates) {
+      if (remainingKeys.length === 0) {
+        break;
+      }
 
-        if (response.Parameters) {
-          for (const param of response.Parameters) {
-            if (param.Name && param.Value) {
-              const key = param.Name.split('/').pop();
-              if (key && !process.env[key]) {
-                process.env[key] = param.Value;
-                loadedCount++;
-                console.log(`[load-env-vars] ✅ Loaded ${key} from Parameter Store`);
+      const parameterNames = remainingKeys.map(key => `/amplify/${amplifyAppId}/${branch}/${key}`);
+      const chunks = chunkArray(parameterNames, 10);
+
+      for (const chunk of chunks) {
+        if (chunk.length === 0) continue;
+        try {
+          const command = new GetParametersCommand({
+            Names: chunk,
+            WithDecryption: true,
+          });
+          const response = await ssmClient.send(command);
+
+          if (response.Parameters) {
+            for (const param of response.Parameters) {
+              if (param.Name && param.Value) {
+                const key = param.Name.split('/').pop();
+                if (key && !process.env[key]) {
+                  process.env[key] = param.Value;
+                  remainingKeys = remainingKeys.filter(k => k !== key);
+                  loadedCount++;
+                  console.log(`[load-env-vars] ✅ Loaded ${key} from Parameter Store (branch: ${branch})`);
+                }
               }
             }
           }
-        }
 
-        if (response.InvalidParameters && response.InvalidParameters.length > 0) {
-          console.warn(`[load-env-vars] Invalid parameters (${type}): ${response.InvalidParameters.join(', ')}`);
+          if (response.InvalidParameters && response.InvalidParameters.length > 0) {
+            console.warn(`[load-env-vars] Invalid parameters for branch ${branch} (${type}): ${response.InvalidParameters.join(', ')}`);
+          }
+        } catch (ssmError) {
+          const isCredentialsError = ssmError instanceof Error && 
+            (ssmError.message.includes('Could not load credentials') || 
+             ssmError.name === 'CredentialsProviderError');
+          
+          if (isCredentialsError && retryCount < maxRetries) {
+            console.warn(`[load-env-vars] Credentials not ready, retrying in ${retryDelay}ms... (attempt ${retryCount + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay * (retryCount + 1)));
+            return loadFromParameterStore(variableKeys, type, retryCount + 1);
+          }
+          
+          console.warn(`[load-env-vars] Failed to load ${type} variables from Parameter Store (branch: ${branch}):`, ssmError);
         }
-      } catch (ssmError) {
-        // CredentialsProviderErrorの場合はリトライ
-        // Retry on CredentialsProviderError
-        const isCredentialsError = ssmError instanceof Error && 
-          (ssmError.message.includes('Could not load credentials') || 
-           ssmError.name === 'CredentialsProviderError');
-        
-        if (isCredentialsError && retryCount < maxRetries) {
-          console.warn(`[load-env-vars] Credentials not ready, retrying in ${retryDelay}ms... (attempt ${retryCount + 1}/${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, retryDelay * (retryCount + 1)));
-          return loadFromParameterStore(variableKeys, type, retryCount + 1);
-        }
-        
-        console.warn(`[load-env-vars] Failed to load ${type} variables from Parameter Store (chunk):`, ssmError);
       }
     }
 
@@ -255,5 +261,44 @@ function chunkArray<T>(items: T[], size: number): T[][] {
     chunks.push(items.slice(i, i + size));
   }
   return chunks;
+}
+
+function getAmplifyBranchCandidates(): string[] {
+  const candidates: string[] = [];
+  const addCandidate = (value?: string | null) => {
+    if (value) {
+      const trimmed = value.trim();
+      if (trimmed && !candidates.includes(trimmed)) {
+        candidates.push(trimmed);
+      }
+    }
+  };
+
+  addCandidate(process.env.AWS_BRANCH);
+  addCandidate(process.env.AMPLIFY_BRANCH);
+  addCandidate(process.env.BRANCH);
+  addCandidate(process.env.GIT_BRANCH);
+
+  const appEnv = process.env.APP_ENV?.toLowerCase();
+  if (appEnv === 'integration') {
+    addCandidate('develop');
+    addCandidate('integration');
+  } else if (appEnv === 'staging') {
+    addCandidate('main');
+    addCandidate('staging');
+  } else if (appEnv === 'production') {
+    addCandidate('production');
+    addCandidate('main');
+  }
+
+  addCandidate('develop');
+  addCandidate('development');
+  addCandidate('integration');
+  addCandidate('main');
+  addCandidate('staging');
+  addCandidate('production');
+  addCandidate('shared');
+
+  return candidates;
 }
 
