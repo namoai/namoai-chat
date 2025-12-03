@@ -34,6 +34,22 @@ export function middleware(request: NextRequest) {
         const cookieParts = cookieToken ? cookieToken.split(':') : [];
         const tokenMatch = cookieToken && headerToken ? cookieToken.split(':')[0] === headerToken : false;
         
+        // ▼▼▼ Lambda 환경에서도 로그가 출력되도록 console.log 추가 ▼▼▼
+        console.error('[middleware] ❌ CSRF token validation failed', {
+          ip: getClientIp(request),
+          path: pathname,
+          method: request.method,
+          hasCookie,
+          hasHeader,
+          cookieTokenLength: cookieToken?.length || 0,
+          headerTokenLength: headerToken?.length || 0,
+          cookiePartsCount: cookieParts.length,
+          tokenMatch,
+          cookieTokenPrefix: cookieToken ? cookieToken.substring(0, 20) + '...' : 'none',
+          headerTokenPrefix: headerToken ? headerToken.substring(0, 20) + '...' : 'none',
+        });
+        // ▲▲▲
+        
         logger.warn('CSRF token validation failed', {
           ip: getClientIp(request),
           path: pathname,
