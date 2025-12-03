@@ -141,7 +141,9 @@ export async function GET(
                 timeoutPromise,
               ]);
               
-              imageBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+              // BufferをArrayBufferに変換
+              const uint8Array = new Uint8Array(buffer);
+              imageBuffer = uint8Array.buffer.slice(uint8Array.byteOffset, uint8Array.byteOffset + uint8Array.byteLength) as ArrayBuffer;
               contentType = r2ContentType;
               console.log(`[Export] R2からダウンロード成功: ${imageBuffer.byteLength} bytes, ${contentType}`);
             } catch (r2Error) {
