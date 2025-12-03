@@ -539,15 +539,36 @@ export async function POST(request: Request) {
                     
                     // 画像登録
                     if (newImagesData.length > 0) {
+                        console.log(`[IMPORT] データベースに保存する画像データ:`, newImagesData.map(img => ({
+                            url: img.url.substring(0, 50) + '...',
+                            keyword: img.keyword,
+                            isMain: img.isMain,
+                            displayOrder: img.displayOrder,
+                        })));
+                        
+                        const imageDataToSave = newImagesData.map(img => ({
+                            characterId: character.id,
+                            imageUrl: img.url,
+                            keyword: img.keyword || '',
+                            isMain: img.isMain,
+                            displayOrder: img.displayOrder,
+                        }));
+                        
+                        console.log(`[IMPORT] createManyに渡すデータ:`, imageDataToSave.map(img => ({
+                            characterId: img.characterId,
+                            imageUrl: img.imageUrl.substring(0, 50) + '...',
+                            keyword: img.keyword,
+                            isMain: img.isMain,
+                            displayOrder: img.displayOrder,
+                        })));
+                        
                         await tx.character_images.createMany({
-                            data: newImagesData.map(img => ({
-                                characterId: character.id,
-                                imageUrl: img.url,
-                                keyword: img.keyword,
-                                isMain: img.isMain,
-                                displayOrder: img.displayOrder,
-                            }))
+                            data: imageDataToSave,
                         });
+                        
+                        console.log(`[IMPORT] 画像データベース保存完了: ${imageDataToSave.length} 枚`);
+                    } else {
+                        console.warn(`[IMPORT] 保存する画像データがありません`);
                     }
                     
                     // ロアブック保存
