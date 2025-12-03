@@ -176,18 +176,31 @@ async function loadFromParameterStore(variableKeys: string[], type: 'required' |
     const { SSMClient, GetParametersCommand } = await import('@aws-sdk/client-ssm');
     const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
-    // AWS Amplify App ID 확인 (AWS_ 접두사는 Amplify에서 사용 불가하므로 AMPLIFY_APP_ID 사용)
-    // Check AWS Amplify App ID (AWS_ prefix is not allowed in Amplify, so use AMPLIFY_APP_ID)
+    // AWS Amplify App ID 확인
+    // 1. 사용자가 설정한 환경변수 (AMPLIFY_APP_ID 또는 APP_ID)
+    // 2. Amplify가 자동으로 제공하는 환경변수 확인 (디버깅용)
+    // Check AWS Amplify App ID
+    // 1. User-set environment variable (AMPLIFY_APP_ID or APP_ID)
+    // 2. Check Amplify auto-provided environment variables (for debugging)
     const amplifyAppId = process.env.AMPLIFY_APP_ID || process.env.APP_ID;
+    
+    // 디버깅: 관련 환경변수 로그 출력
+    // Debugging: log related environment variables
+    console.log('[load-env-vars] Checking for App ID...');
+    console.log(`[load-env-vars] AMPLIFY_APP_ID: ${process.env.AMPLIFY_APP_ID ? 'set' : 'not set'}`);
+    console.log(`[load-env-vars] APP_ID: ${process.env.APP_ID ? 'set' : 'not set'}`);
+    console.log(`[load-env-vars] AWS_AMPLIFY_DEPLOYMENT_ID: ${process.env.AWS_AMPLIFY_DEPLOYMENT_ID || 'not set'}`);
     
     if (!amplifyAppId) {
       console.warn('[load-env-vars] ⚠️ AMPLIFY_APP_ID or APP_ID environment variable is not set. Cannot load from Parameter Store.');
       console.warn('[load-env-vars] ⚠️ Please set AMPLIFY_APP_ID in your Amplify app environment variables.');
       console.warn('[load-env-vars] ⚠️ Note: AWS_ prefix is not allowed in Amplify environment variables.');
+      console.warn('[load-env-vars] ⚠️ Available env vars with AMPLIFY/APP: ' + 
+        Object.keys(process.env).filter(k => k.includes('AMPLIFY') || k.includes('APP')).join(', ') || 'none');
       return; // App ID가 없으면 Parameter Store에서 로드하지 않음
     }
     
-    console.log(`[load-env-vars] Using Amplify App ID: ${amplifyAppId}`);
+    console.log(`[load-env-vars] ✅ Using Amplify App ID: ${amplifyAppId}`);
     
     const branchCandidates = getAmplifyBranchCandidates();
     console.log(`[load-env-vars] Using Amplify App ID: ${amplifyAppId}, Branch candidates: ${branchCandidates.join(', ')}`);
