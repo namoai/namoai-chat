@@ -32,6 +32,7 @@ function getVertexAI(): VertexAI {
   // プロジェクトIDが変更された場合は再初期化
   if (!vertex_ai || (vertex_ai as any).project !== projectId) {
     console.log(`[getVertexAI] VertexAI クライアントを初期化: project=${projectId}`);
+    console.log(`[getVertexAI] GOOGLE_APPLICATION_CREDENTIALS: ${process.env.GOOGLE_APPLICATION_CREDENTIALS || 'not set'}`);
     vertex_ai = new VertexAI({
       project: projectId,
       location: "asia-northeast1",

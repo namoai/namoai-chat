@@ -63,6 +63,20 @@ export async function ensureGcpCreds() {
     try {
       const stats = await fs.stat(credPath);
       console.log("[creds] wrote", credPath, "size:", stats.size);
+      
+      // ▼▼▼【デバッグ】サービスアカウント情報をログ出力 ▼▼▼
+      try {
+        const saContent = await fs.readFile(credPath, 'utf8');
+        const saJson = JSON.parse(saContent);
+        console.log("[creds] 📋 サービスアカウント情報:");
+        console.log(`[creds]    - project_id: ${saJson.project_id || 'N/A'}`);
+        console.log(`[creds]    - client_email: ${saJson.client_email || 'N/A'}`);
+        console.log(`[creds]    - type: ${saJson.type || 'N/A'}`);
+        console.log(`[creds]    - GOOGLE_PROJECT_ID env: ${process.env.GOOGLE_PROJECT_ID || 'not set'}`);
+      } catch (parseError) {
+        console.warn("[creds] ⚠️ サービスアカウントJSONの解析に失敗:", parseError);
+      }
+      // ▲▲▲
     } catch {}
   } catch (e) {
     // Edge Runtime でのエラーは無視（既にチェック済みだが念のため）
