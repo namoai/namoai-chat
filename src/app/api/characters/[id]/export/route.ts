@@ -118,8 +118,11 @@ export async function GET(
     const safeName = character.name.replace(/[^a-zA-Z0-9가-힣ひらがなカタカナ漢字_-]/g, '_');
     const filename = `${safeName}_${characterId}_${Date.now()}.zip`;
 
+    // BufferをUint8Arrayに変換してNextResponseに渡す
+    const uint8Array = new Uint8Array(zipBuffer);
+
     // レスポンスを返す
-    return new NextResponse(zipBuffer, {
+    return new NextResponse(uint8Array, {
       headers: {
         'Content-Type': 'application/zip',
         'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
