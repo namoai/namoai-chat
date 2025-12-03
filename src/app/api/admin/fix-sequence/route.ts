@@ -60,11 +60,11 @@ export async function POST() {
             `SELECT setval('${table}_id_seq', ${tableMaxId + 1}, false)`
           );
           results[table] = { maxId: tableMaxId, sequenceSet: true };
-        } catch (seqError) {
+        } catch {
           // Sequence might not exist for this table, skip it
           results[table] = { maxId: tableMaxId, sequenceSet: false };
         }
-      } catch (error) {
+      } catch {
         results[table] = { maxId: 0, sequenceSet: false };
       }
     }

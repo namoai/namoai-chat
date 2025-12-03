@@ -156,7 +156,7 @@ ${idx + 1}. 【${r.category}】${r.name}
       console.error('コンテンツ生成エラー:', generateError);
       
       // GCP IAM 권한 에러인 경우 더 명확한 메시지 제공
-      let errorMessage = generateError instanceof Error ? generateError.message : '不明なエラー';
+      const errorMessage = generateError instanceof Error ? generateError.message : '不明なエラー';
       let helpfulMessage = '';
       
       if (errorMessage.includes('Permission') && errorMessage.includes('aiplatform.endpoints.predict')) {
