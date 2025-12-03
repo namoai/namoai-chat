@@ -160,7 +160,6 @@ export default function AdminCharactersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: '', message: '' });
   const [importModalOpen, setImportModalOpen] = useState(false);
-  const [importCharacterId, setImportCharacterId] = useState<number | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -235,25 +234,30 @@ export default function AdminCharactersPage() {
     }
   };
 
-  const handleImportCharacter = async (characterId: number, file: File) => {
+  const handleImportCharacter = async (file: File) => {
     setImportLoading(true);
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('zipFile', file);
 
-      const response = await fetchWithCsrf(`/api/characters/${characterId}/import`, {
+      const response = await fetchWithCsrf(`/api/characters`, {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'インポートに失敗しました');
+        throw new Error(errorData.error || errorData.message || 'インポートに失敗しました');
       }
 
-      setModalState({ isOpen: true, title: '成功', message: 'キャラクターをインポートしました。', isAlert: true });
+      const result = await response.json();
+      setModalState({ 
+        isOpen: true, 
+        title: '成功', 
+        message: result.message || 'キャラクターをインポートしました。', 
+        isAlert: true 
+      });
       setImportModalOpen(false);
-      setImportCharacterId(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -280,9 +284,7 @@ export default function AdminCharactersPage() {
       return;
     }
 
-    if (importCharacterId) {
-      handleImportCharacter(importCharacterId, file);
-    }
+    handleImportCharacter(file);
   };
 
   const handleMenuAction = (action: string, char: Character) => {
@@ -395,17 +397,8 @@ export default function AdminCharactersPage() {
             </div>
             <button
               onClick={() => {
-                const characterId = prompt('インポート先のキャラクターIDを入力してください:');
-                if (characterId) {
-                  const id = parseInt(characterId, 10);
-                  if (!isNaN(id)) {
-                    setImportCharacterId(id);
-                    setImportModalOpen(true);
-                    setTimeout(() => fileInputRef.current?.click(), 100);
-                  } else {
-                    setModalState({ isOpen: true, title: 'エラー', message: '無効なキャラクターIDです。', isAlert: true });
-                  }
-                }
+                setImportModalOpen(true);
+                setTimeout(() => fileInputRef.current?.click(), 100);
               }}
               className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500/20 to-purple-500/20 hover:from-pink-500/30 hover:to-purple-500/30 rounded-xl border border-pink-500/30 hover:border-pink-500/50 transition-all"
             >
@@ -419,11 +412,8 @@ export default function AdminCharactersPage() {
             <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex justify-center items-center">
               <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md m-4">
                 <h2 className="text-xl font-bold mb-4 text-white">キャラクターインポート</h2>
-                <p className="text-gray-200 mb-4">
-                  キャラクターID: <span className="font-bold text-pink-400">{importCharacterId}</span>
-                </p>
                 <p className="text-gray-400 text-sm mb-4">
-                  ZIPファイルを選択してください。キャラクター情報、画像、ロアブックがインポートされます。
+                  ZIPファイルを選択してください。新しいキャラクターとして作成されます。キャラクター情報、画像、ロアブックがインポートされます。
                 </p>
                 <input
                   ref={fileInputRef}
@@ -436,7 +426,6 @@ export default function AdminCharactersPage() {
                   <button
                     onClick={() => {
                       setImportModalOpen(false);
-                      setImportCharacterId(null);
                       if (fileInputRef.current) {
                         fileInputRef.current.value = '';
                       }
