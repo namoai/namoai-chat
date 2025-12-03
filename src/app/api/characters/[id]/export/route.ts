@@ -132,21 +132,22 @@ export async function GET(
           }
           
           // fetchで画像をダウンロード（リダイレクトを許可、タイムアウト設定）
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒タイムアウト
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('画像ダウンロードがタイムアウトしました（30秒）')), 30000);
+          });
           
           try {
-            const imageResponse = await fetch(cleanUrl, {
-              method: 'GET',
-              headers: {
-                'Accept': 'image/*',
-                'User-Agent': 'Mozilla/5.0',
-              },
-              redirect: 'follow',
-              signal: controller.signal,
-            });
-            
-            clearTimeout(timeoutId);
+            const imageResponse = await Promise.race([
+              fetch(cleanUrl, {
+                method: 'GET',
+                headers: {
+                  'Accept': 'image/*',
+                  'User-Agent': 'Mozilla/5.0',
+                },
+                redirect: 'follow',
+              }),
+              timeoutPromise,
+            ]);
             
             if (imageResponse.ok) {
               const imageBuffer = await imageResponse.arrayBuffer();
@@ -186,8 +187,7 @@ export async function GET(
               failCount++;
             }
           } catch (fetchError) {
-            clearTimeout(timeoutId);
-            if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+            if (fetchError instanceof Error && fetchError.message.includes('タイムアウト')) {
               console.error(`[Export] ❌ 画像 ${i + 1}/${sortedImages.length} ダウンロードタイムアウト (30秒)`);
             } else {
               throw fetchError;
