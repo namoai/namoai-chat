@@ -177,25 +177,29 @@ async function loadFromParameterStore(variableKeys: string[], type: 'required' |
     const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
     // AWS Amplify App ID 확인
-    // 1. 사용자가 설정한 환경변수 (AMPLIFY_APP_ID 또는 APP_ID)
-    // 2. Amplify가 자동으로 제공하는 환경변수 확인 (디버깅용)
+    // 1. 사용자가 설정한 환경변수 (AMPLIFY_APP_ID 또는 APP_ID) - 우선순위 최고
+    // 2. Amplify API를 사용해서 Deployment ID로부터 App ID 가져오기
     // Check AWS Amplify App ID
-    // 1. User-set environment variable (AMPLIFY_APP_ID or APP_ID)
-    // 2. Check Amplify auto-provided environment variables (for debugging)
+    // 1. User-set environment variable (AMPLIFY_APP_ID or APP_ID) - highest priority
+    // 2. Use Amplify API to get App ID from Deployment ID
     const amplifyAppId = process.env.AMPLIFY_APP_ID || process.env.APP_ID;
     
     // 디버깅: 관련 환경변수 로그 출력
     // Debugging: log related environment variables
     console.log('[load-env-vars] Checking for App ID...');
-    console.log(`[load-env-vars] AMPLIFY_APP_ID: ${process.env.AMPLIFY_APP_ID ? 'set' : 'not set'}`);
-    console.log(`[load-env-vars] APP_ID: ${process.env.APP_ID ? 'set' : 'not set'}`);
+    console.log(`[load-env-vars] AMPLIFY_APP_ID: ${process.env.AMPLIFY_APP_ID ? `set (${process.env.AMPLIFY_APP_ID.substring(0, 8)}...)` : 'not set'}`);
+    console.log(`[load-env-vars] APP_ID: ${process.env.APP_ID ? `set (${process.env.APP_ID.substring(0, 8)}...)` : 'not set'}`);
     console.log(`[load-env-vars] AWS_AMPLIFY_DEPLOYMENT_ID: ${process.env.AWS_AMPLIFY_DEPLOYMENT_ID || 'not set'}`);
     
     if (!amplifyAppId) {
-      console.warn('[load-env-vars] ⚠️ AMPLIFY_APP_ID or APP_ID environment variable is not set. Cannot load from Parameter Store.');
-      console.warn('[load-env-vars] ⚠️ Please set AMPLIFY_APP_ID in your Amplify app environment variables.');
-      console.warn('[load-env-vars] ⚠️ Note: AWS_ prefix is not allowed in Amplify environment variables.');
-      console.warn('[load-env-vars] ⚠️ Available env vars with AMPLIFY/APP: ' + 
+      console.error('[load-env-vars] ❌ AMPLIFY_APP_ID or APP_ID environment variable is not set. Cannot load from Parameter Store.');
+      console.error('[load-env-vars] ❌ IMPORTANT: Amplify distinguishes between "Build settings" and "Environment variables".');
+      console.error('[load-env-vars] ❌ You MUST set AMPLIFY_APP_ID in "Environment variables" section (NOT "Build settings").');
+      console.error('[load-env-vars] ❌ Steps: Amplify Console → Your App → Environment variables → Add variable');
+      console.error('[load-env-vars] ❌ Key: AMPLIFY_APP_ID, Value: your-app-id (e.g., duvg1mvqbm4y4)');
+      console.error('[load-env-vars] ❌ Note: AWS_ prefix is not allowed in Amplify environment variables.');
+      console.error('[load-env-vars] ❌ After setting, you MUST redeploy the app for changes to take effect.');
+      console.error('[load-env-vars] ❌ Available env vars with AMPLIFY/APP: ' + 
         Object.keys(process.env).filter(k => k.includes('AMPLIFY') || k.includes('APP')).join(', ') || 'none');
       return; // App ID가 없으면 Parameter Store에서 로드하지 않음
     }
