@@ -397,35 +397,44 @@ export async function POST(request: Request) {
                 
                 // 画像をZIPから取得
                 const imagesFolder = zip.folder('images');
-                const imageBuffers: Buffer[] = [];
-                if (imagesFolder) {
-                    // displayOrder順にソートされた画像を順番に取得
-                    const sortedImages = sourceCharacterData.characterImages 
-                        ? [...sourceCharacterData.characterImages].sort((a, b) => a.displayOrder - b.displayOrder)
-                        : [];
+                const imageMap = new Map<number, Buffer>(); // displayOrder -> Buffer のマップ
+                
+                if (imagesFolder && sourceCharacterData.characterImages && sourceCharacterData.characterImages.length > 0) {
+                    // displayOrder順にソート
+                    const sortedImages = [...sourceCharacterData.characterImages].sort((a, b) => a.displayOrder - b.displayOrder);
                     
                     console.log(`[IMPORT] ZIP内の画像ファイル数: ${sortedImages.length}`);
+                    console.log(`[IMPORT] characterImages データ:`, sortedImages.map(img => ({
+                        displayOrder: img.displayOrder,
+                        isMain: img.isMain,
+                        keyword: img.keyword,
+                    })));
                     
                     // 画像ファイルを順番に読み込む (image_0.png, image_1.png など)
                     for (let i = 0; i < sortedImages.length; i++) {
+                        const img = sortedImages[i];
+                        const displayOrder = img.displayOrder;
+                        
                         // 拡張子を試行 (png, jpg, jpeg, webp)
                         const extensions = ['png', 'jpg', 'jpeg', 'webp'];
                         let imageBuffer: Buffer | null = null;
+                        let foundExtension: string | null = null;
                         
                         for (const ext of extensions) {
                             const imagePath = `images/image_${i}.${ext}`;
                             const imageFile = imagesFolder.file(imagePath);
                             if (imageFile) {
                                 imageBuffer = await imageFile.async('nodebuffer');
-                                console.log(`[IMPORT] 画像 ${i} をZIPから取得: ${imagePath}`);
+                                foundExtension = ext;
+                                console.log(`[IMPORT] 画像 ${i} (displayOrder: ${displayOrder}) をZIPから取得: ${imagePath} (${imageBuffer.length} bytes)`);
                                 break;
                             }
                         }
                         
-                        if (imageBuffer) {
-                            imageBuffers.push(imageBuffer);
+                        if (imageBuffer && foundExtension) {
+                            imageMap.set(displayOrder, imageBuffer);
                         } else {
-                            console.warn(`[IMPORT] 画像 ${i} が見つかりません (image_${i}.png/jpg/jpeg/webp)`);
+                            console.warn(`[IMPORT] 画像 ${i} (displayOrder: ${displayOrder}) が見つかりません (image_${i}.png/jpg/jpeg/webp)`);
                         }
                     }
                 }
@@ -436,19 +445,31 @@ export async function POST(request: Request) {
                     // displayOrder順にソート
                     const sortedImages = [...sourceCharacterData.characterImages].sort((a, b) => a.displayOrder - b.displayOrder);
                     
+                    console.log(`[IMPORT] 画像アップロード開始: ${sortedImages.length} 枚`);
+                    
                     for (let i = 0; i < sortedImages.length; i++) {
                         const img = sortedImages[i];
+                        const displayOrder = img.displayOrder;
                         
-                        // ZIPから取得した画像バッファを使用
-                        if (i < imageBuffers.length && imageBuffers[i]) {
+                        // displayOrderに対応する画像バッファを取得
+                        const imageBuffer = imageMap.get(displayOrder);
+                        
+                        if (imageBuffer) {
                             try {
-                                const imageBuffer = imageBuffers[i];
                                 // 拡張子を推測 (デフォルトはpng)
-                                const fileExtension = img.imageUrl?.split('.').pop()?.split('?')[0].toLowerCase() || 'png';
+                                // 元のURLから拡張子を取得、なければpng
+                                let fileExtension = 'png';
+                                if (img.imageUrl) {
+                                    const urlMatch = img.imageUrl.match(/\.(png|jpg|jpeg|webp|gif)(\?|$|#)/i);
+                                    if (urlMatch) {
+                                        fileExtension = urlMatch[1].toLowerCase();
+                                    }
+                                }
+                                
                                 const safeFileName = `${randomUUID()}.${fileExtension}`;
                                 const contentType = `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
                                 
-                                console.log(`[IMPORT] 画像 ${i} をCloudflareにアップロード中...`);
+                                console.log(`[IMPORT] 画像 ${i} (displayOrder: ${displayOrder}, isMain: ${img.isMain}, keyword: ${img.keyword || '(なし)'}) をCloudflareにアップロード中...`);
                                 const imageUrl = await uploadImageBufferToCloudflare(imageBuffer, {
                                     filename: safeFileName,
                                     contentType,
@@ -463,10 +484,10 @@ export async function POST(request: Request) {
                                     displayOrder: img.displayOrder,
                                 });
                             } catch (e) {
-                                console.error(`[IMPORT] ZIP画像 ${i} アップロードエラー:`, e);
+                                console.error(`[IMPORT] ZIP画像 ${i} (displayOrder: ${displayOrder}) アップロードエラー:`, e);
                             }
                         } else {
-                            console.warn(`[IMPORT] 画像 ${i} のバッファが見つかりません`);
+                            console.warn(`[IMPORT] 画像 ${i} (displayOrder: ${displayOrder}) のバッファが見つかりません`);
                         }
                     }
                 }
