@@ -44,12 +44,14 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
     'GOOGLE_PROJECT_ID',
   ];
   const cloudflareVars = [
-    'CLOUDFLARE_R2_ACCOUNT_ID',
+    // CLOUDFLARE_R2_ACCOUNT_ID는 CLOUDFLARE_ACCOUNT_ID의 fallback이므로 선택사항
+    // CLOUDFLARE_R2_ACCOUNT_ID is optional as CLOUDFLARE_ACCOUNT_ID is the primary
     'CLOUDFLARE_ACCOUNT_ID',
     'CLOUDFLARE_R2_ACCESS_KEY_ID',
     'CLOUDFLARE_R2_SECRET_ACCESS_KEY',
+    // CLOUDFLARE_R2_BUCKET는 CLOUDFLARE_R2_BUCKET_NAME의 fallback이므로 선택사항
+    // CLOUDFLARE_R2_BUCKET is optional as CLOUDFLARE_R2_BUCKET_NAME is the primary
     'CLOUDFLARE_R2_BUCKET_NAME',
-    'CLOUDFLARE_R2_BUCKET',
     'CLOUDFLARE_R2_PUBLIC_URL',
     'CLOUDFLARE_R2_ENDPOINT',
   ];

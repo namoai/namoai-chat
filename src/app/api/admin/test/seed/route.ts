@@ -123,26 +123,48 @@ async function ensureCharacter(
   userId: number,
   template: { name: string; description: string }
 ) {
+  // より安全な方法: 名前とauthor_idで一意に特定できるキャラクターを探す
+  // テスト用なので、同じ名前のキャラクターが既にあればそれを使う
   let character = await tx.characters.findFirst({
-    where: { author_id: userId },
-    orderBy: { createdAt: 'asc' },
+    where: { 
+      author_id: userId,
+      name: template.name,
+    },
   });
 
   if (!character) {
-    character = await tx.characters.create({
-      data: {
-        author_id: userId,
-        name: template.name,
-        description: template.description,
-        detailSetting: 'テスト自動生成されたキャラクター設定です。',
-        firstSituation: 'テスト環境での確認用シナリオです。',
-        firstMessage: 'こんにちは、テスト用のキャラクターです！',
-        visibility: 'public',
-        safetyFilter: true,
-        category: 'テスト',
-        hashtags: ['テスト', '自動生成'],
-      },
-    });
+    try {
+      character = await tx.characters.create({
+        data: {
+          author_id: userId,
+          name: template.name,
+          description: template.description,
+          detailSetting: 'テスト自動生成されたキャラクター設定です。',
+          firstSituation: 'テスト環境での確認用シナリオです。',
+          firstMessage: 'こんにちは、テスト用のキャラクターです！',
+          visibility: 'public',
+          safetyFilter: true,
+          category: 'テスト',
+          hashtags: ['テスト', '自動生成'],
+        },
+      });
+    } catch (error) {
+      // 同時実行時の競合を処理: もう一度検索して既存のキャラクターを取得
+      if (error instanceof Error && error.message.includes('Unique constraint')) {
+        console.warn('[ensureCharacter] Unique constraint error, retrying findFirst...');
+        character = await tx.characters.findFirst({
+          where: { 
+            author_id: userId,
+            name: template.name,
+          },
+        });
+        if (!character) {
+          throw error; // それでも見つからなければエラーを再スロー
+        }
+      } else {
+        throw error;
+      }
+    }
   }
 
   return character;
