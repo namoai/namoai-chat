@@ -702,7 +702,7 @@ export async function POST(request: Request) {
                 console.log('[POST] Prisma connection status:', prismaUrl);
                 
                 // トランザクションを再試行するヘルパー関数（シーケンス同期を含む）
-                type CharacterResult = Prisma.charactersGetPayload<{}>;
+                type CharacterResult = Prisma.charactersGetPayload<Record<string, never>>;
                 const createCharacterWithRetry = async (): Promise<CharacterResult> => {
                     return await withSequenceSyncInTransaction(
                         prisma,
