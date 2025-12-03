@@ -1,7 +1,7 @@
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
 import { getPrisma } from '@/lib/prisma';
@@ -21,14 +21,37 @@ const isAdminRole = (role?: Role | string | null): boolean => {
   return roleValue === Role.SUPER_ADMIN || roleValue === Role.MODERATOR || roleValue === Role.CHAR_MANAGER;
 };
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   if (isBuildTime()) return buildTimeResponse();
   
+  // 디버깅: 요청 헤더 확인
+  const headers = request.headers;
+  const csrfHeader = headers.get('x-csrf-token');
+  const cookieHeader = headers.get('cookie');
+  console.log('[seed] Request headers:', {
+    hasCsrfHeader: !!csrfHeader,
+    csrfHeaderLength: csrfHeader?.length || 0,
+    hasCookie: !!cookieHeader,
+    cookieIncludesCsrf: cookieHeader?.includes('csrf-token') || false,
+  });
+  
   const session = await getServerSession(authOptions);
+  console.log('[seed] Session check:', {
+    hasSession: !!session,
+    hasUser: !!session?.user,
+    userId: session?.user?.id,
+    userRole: session?.user?.role,
+  });
+  
   if (!session?.user?.id) {
     return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
   }
   if (!isAdminRole(session.user.role)) {
+    console.log('[seed] ❌ 권한 없음:', {
+      userId: session.user.id,
+      role: session.user.role,
+      requiredRoles: ['SUPER_ADMIN', 'MODERATOR', 'CHAR_MANAGER'],
+    });
     return NextResponse.json({ error: 'この操作を実行する権限がありません。' }, { status: 403 });
   }
 
