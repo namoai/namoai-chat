@@ -6,16 +6,18 @@ import { ensureEnvVarsLoaded } from "@/lib/load-env-vars";
 import type { NextRequest } from "next/server";
 
 /**
- * 요청에서 NEXTAUTH_URL을 동적으로 설정
- * Lambda 환경에서 요청 헤더를 확인하여 올바른 URL 설정
+ * リクエストから NEXTAUTH_URL を動的に設定
+ * Lambda環境でリクエストヘッダーを確認して正しいURLを設定
  */
 function setNextAuthUrlFromRequest(request: NextRequest) {
-  // 이미 설정되어 있으면 스킵
+  // 既に設定されている場合はスキップ
   if (process.env.NEXTAUTH_URL) {
+    console.log(`[NextAuth] NEXTAUTH_URL は既に設定されています: ${process.env.NEXTAUTH_URL}`);
+    console.log(`[NextAuth] Google OAuth redirect URI: ${process.env.NEXTAUTH_URL}/api/auth/callback/google`);
     return;
   }
 
-  // 요청 헤더에서 호스트 확인
+  // リクエストヘッダーからホストを確認
   const host = request.headers.get('host');
   const protocol = request.headers.get('x-forwarded-proto') || 
                    (request.url.startsWith('https') ? 'https' : 'http');
@@ -23,9 +25,12 @@ function setNextAuthUrlFromRequest(request: NextRequest) {
   if (host) {
     const url = `${protocol}://${host}`;
     process.env.NEXTAUTH_URL = url;
-    console.log(`[NextAuth] ✅ NEXTAUTH_URL을 요청 헤더에서 자동 설정: ${url}`);
+    console.log(`[NextAuth] ✅ NEXTAUTH_URL をリクエストヘッダーから自動設定: ${url}`);
+    console.log(`[NextAuth] Google OAuth redirect URI: ${url}/api/auth/callback/google`);
+    console.log(`[NextAuth] ⚠️ Google Cloud Console の「Authorized redirect URIs」に以下を追加してください:`);
+    console.log(`[NextAuth]    ${url}/api/auth/callback/google`);
   } else {
-    console.warn('[NextAuth] ⚠️ 요청 헤더에서 호스트를 찾을 수 없습니다. NEXTAUTH_URL이 설정되지 않았습니다.');
+    console.warn('[NextAuth] ⚠️ リクエストヘッダーからホストを見つけることができませんでした。NEXTAUTH_URL が設定されていません。');
   }
 }
 
@@ -50,8 +55,19 @@ export async function GET(
     const handler = NextAuth(authOptions);
     return await handler(req, context);
   } catch (error) {
+    if (error instanceof Error && error.message.includes('redirect_uri_mismatch')) {
+      const currentUrl = process.env.NEXTAUTH_URL || 'not set';
+      console.error('[NextAuth] ❌ redirect_uri_mismatch エラーが発生しました');
+      console.error(`[NextAuth] 現在の NEXTAUTH_URL: ${currentUrl}`);
+      console.error(`[NextAuth] 必要な redirect URI: ${currentUrl}/api/auth/callback/google`);
+      console.error('[NextAuth] 解決方法:');
+      console.error('[NextAuth] 1. Google Cloud Console → APIs & Services → Credentials');
+      console.error('[NextAuth] 2. OAuth 2.0 Client ID をクリック');
+      console.error(`[NextAuth] 3. 「Authorized redirect URIs」に以下を追加: ${currentUrl}/api/auth/callback/google`);
+      console.error('[NextAuth] 4. 「Authorized JavaScript origins」に以下を追加: ' + currentUrl.replace(/\/$/, ''));
+    }
     if (process.env.NODE_ENV === 'development') {
-      console.error('❌ NextAuth GET 에러:', error);
+      console.error('❌ NextAuth GET エラー:', error);
     }
     throw error;
   }
@@ -76,8 +92,19 @@ export async function POST(
     const handler = NextAuth(authOptions);
     return await handler(req, context);
   } catch (error) {
+    if (error instanceof Error && error.message.includes('redirect_uri_mismatch')) {
+      const currentUrl = process.env.NEXTAUTH_URL || 'not set';
+      console.error('[NextAuth] ❌ redirect_uri_mismatch エラーが発生しました');
+      console.error(`[NextAuth] 現在の NEXTAUTH_URL: ${currentUrl}`);
+      console.error(`[NextAuth] 必要な redirect URI: ${currentUrl}/api/auth/callback/google`);
+      console.error('[NextAuth] 解決方法:');
+      console.error('[NextAuth] 1. Google Cloud Console → APIs & Services → Credentials');
+      console.error('[NextAuth] 2. OAuth 2.0 Client ID をクリック');
+      console.error(`[NextAuth] 3. 「Authorized redirect URIs」に以下を追加: ${currentUrl}/api/auth/callback/google`);
+      console.error('[NextAuth] 4. 「Authorized JavaScript origins」に以下を追加: ' + currentUrl.replace(/\/$/, ''));
+    }
     if (process.env.NODE_ENV === 'development') {
-      console.error('❌ NextAuth POST 에러:', error);
+      console.error('❌ NextAuth POST エラー:', error);
     }
     throw error;
   }
