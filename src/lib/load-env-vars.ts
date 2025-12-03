@@ -278,6 +278,8 @@ function getAmplifyBranchCandidates(): string[] {
   addCandidate(process.env.AMPLIFY_BRANCH);
   addCandidate(process.env.BRANCH);
   addCandidate(process.env.GIT_BRANCH);
+  addCandidate(inferBranchFromFunctionName(process.env.AWS_LAMBDA_FUNCTION_NAME));
+  addCandidate(inferBranchFromFunctionName(process.env.AWS_LAMBDA_LOG_GROUP_NAME));
 
   const appEnv = process.env.APP_ENV?.toLowerCase();
   if (appEnv === 'integration') {
@@ -291,14 +293,35 @@ function getAmplifyBranchCandidates(): string[] {
     addCandidate('main');
   }
 
-  addCandidate('develop');
-  addCandidate('development');
-  addCandidate('integration');
   addCandidate('main');
   addCandidate('staging');
   addCandidate('production');
+  addCandidate('develop');
+  addCandidate('development');
+  addCandidate('integration');
   addCandidate('shared');
 
   return candidates;
+}
+
+function inferBranchFromFunctionName(name?: string | null): string | undefined {
+  if (!name) return undefined;
+  const lowered = name.toLowerCase();
+  const branchHints: Array<{ keyword: string; branch: string }> = [
+    { keyword: 'develop', branch: 'develop' },
+    { keyword: 'development', branch: 'develop' },
+    { keyword: 'integration', branch: 'integration' },
+    { keyword: 'staging', branch: 'staging' },
+    { keyword: 'prod', branch: 'production' },
+    { keyword: 'production', branch: 'production' },
+    { keyword: 'main', branch: 'main' },
+  ];
+
+  for (const hint of branchHints) {
+    if (lowered.includes(hint.keyword)) {
+      return hint.branch;
+    }
+  }
+  return undefined;
 }
 
