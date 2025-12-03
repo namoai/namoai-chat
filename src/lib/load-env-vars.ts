@@ -183,8 +183,11 @@ async function loadFromParameterStore(variableKeys: string[], type: 'required' |
     if (!amplifyAppId) {
       console.warn('[load-env-vars] ⚠️ AMPLIFY_APP_ID or APP_ID environment variable is not set. Cannot load from Parameter Store.');
       console.warn('[load-env-vars] ⚠️ Please set AMPLIFY_APP_ID in your Amplify app environment variables.');
+      console.warn('[load-env-vars] ⚠️ Note: AWS_ prefix is not allowed in Amplify environment variables.');
       return; // App ID가 없으면 Parameter Store에서 로드하지 않음
     }
+    
+    console.log(`[load-env-vars] Using Amplify App ID: ${amplifyAppId}`);
     
     const branchCandidates = getAmplifyBranchCandidates();
     console.log(`[load-env-vars] Using Amplify App ID: ${amplifyAppId}, Branch candidates: ${branchCandidates.join(', ')}`);
