@@ -92,32 +92,66 @@ export async function GET(
 
     // 画像をダウンロードしてZIPに追加
     const imagesFolder = zip.folder('images');
-    if (imagesFolder) {
+    if (imagesFolder && character.characterImages.length > 0) {
       // displayOrder順にソート
       const sortedImages = [...character.characterImages].sort((a, b) => a.displayOrder - b.displayOrder);
+      
+      console.log(`[Export] ${sortedImages.length} 枚の画像をダウンロード開始...`);
       
       for (let i = 0; i < sortedImages.length; i++) {
         const img = sortedImages[i];
         try {
-          console.log(`[Export] 画像 ${i} ダウンロード開始: ${img.imageUrl}`);
-          const imageResponse = await fetch(img.imageUrl);
+          console.log(`[Export] 画像 ${i + 1}/${sortedImages.length} ダウンロード開始: ${img.imageUrl}`);
+          
+          // URLからクエリパラメータを削除して元の画像を取得
+          const cleanUrl = img.imageUrl.split('?')[0];
+          
+          // fetchで画像をダウンロード（リダイレクトを許可）
+          const imageResponse = await fetch(cleanUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'image/*',
+            },
+            redirect: 'follow',
+          });
+          
           if (imageResponse.ok) {
             const imageBuffer = await imageResponse.arrayBuffer();
-            const urlParts = img.imageUrl.split('.');
-            const extension = urlParts[urlParts.length - 1]?.split('?')[0] || 'png';
-            // シンプルなファイル名: image_0.png, image_1.png など
+            const contentType = imageResponse.headers.get('content-type') || 'image/png';
+            
+            // Content-Typeから拡張子を決定
+            let extension = 'png';
+            if (contentType.includes('jpeg') || contentType.includes('jpg')) {
+              extension = 'jpg';
+            } else if (contentType.includes('webp')) {
+              extension = 'webp';
+            } else if (contentType.includes('gif')) {
+              extension = 'gif';
+            } else {
+              // URLから拡張子を抽出を試みる
+              const urlMatch = cleanUrl.match(/\.(png|jpg|jpeg|webp|gif)(\?|$)/i);
+              if (urlMatch) {
+                extension = urlMatch[1].toLowerCase();
+              }
+            }
+            
+            // シンプルなファイル名: image_0.png, image_1.jpg など
             const filename = `image_${i}.${extension}`;
             imagesFolder.file(filename, imageBuffer);
-            console.log(`[Export] 画像 ${i} ZIPに追加: ${filename}`);
+            console.log(`[Export] ✅ 画像 ${i + 1}/${sortedImages.length} ZIPに追加成功: ${filename} (${imageBuffer.byteLength} bytes)`);
           } else {
-            console.error(`[Export] 画像 ${i} ダウンロード失敗: ${imageResponse.status} ${imageResponse.statusText}`);
+            console.error(`[Export] ❌ 画像 ${i + 1}/${sortedImages.length} ダウンロード失敗: HTTP ${imageResponse.status} ${imageResponse.statusText}`);
+            console.error(`[Export] URL: ${img.imageUrl}`);
           }
         } catch (error) {
-          console.error(`[Export] 画像 ${i} ダウンロードエラー: ${img.imageUrl}`, error);
+          console.error(`[Export] ❌ 画像 ${i + 1}/${sortedImages.length} ダウンロードエラー:`, error);
+          console.error(`[Export] URL: ${img.imageUrl}`);
           // 画像のダウンロードに失敗しても続行
         }
       }
-      console.log(`[Export] 合計 ${sortedImages.length} 枚の画像をZIPに追加`);
+      console.log(`[Export] 画像ダウンロード処理完了`);
+    } else {
+      console.log(`[Export] 画像がありません（スキップ）`);
     }
 
     // ZIPファイルを生成

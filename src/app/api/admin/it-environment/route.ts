@@ -122,7 +122,13 @@ export async function GET() {
       });
     } catch (error: unknown) {
       // インスタンスが見つからない場合、すべてのインスタンスをリストして確認
-      if (error instanceof Error && (error.name === 'DBInstanceNotFoundFault' || error.message.includes('not found'))) {
+      const isNotFoundError = error instanceof Error && (
+        error.name === 'DBInstanceNotFoundFault' || 
+        error.message.includes('not found') ||
+        (error as any).$fault === 'client'
+      );
+      
+      if (isNotFoundError) {
         console.log('[IT-Environment] インスタンスが見つかりません。すべてのRDSインスタンスをリストします...');
         try {
           const listCommand = new DescribeDBInstancesCommand({});
@@ -149,8 +155,16 @@ export async function GET() {
               suggestedInstance: itInstance.DBInstanceIdentifier,
             });
           }
+          
+          // IT環境に関連するインスタンスが見つからない場合でも、利用可能なインスタンスを返す
+          return NextResponse.json({ 
+            status: 'not-found',
+            message: `IT環境データベースインスタンス「${IT_DB_INSTANCE_IDENTIFIER}」が見つかりません。\n\n利用可能なインスタンス: ${allInstances.map(i => i.DBInstanceIdentifier).join(', ') || 'なし'}`,
+            availableInstances: allInstances.map(i => i.DBInstanceIdentifier),
+          });
         } catch (listError) {
           console.error('[IT-Environment] インスタンスリスト取得エラー:', listError);
+          // リスト取得に失敗しても元のエラーを返す
         }
       }
       throw error;
