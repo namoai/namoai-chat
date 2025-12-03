@@ -21,7 +21,7 @@ interface CreateNotificationParams {
 }
 
 /**
- * 通知を作成する（시퀀스 문제 자동 해결 포함）
+ * 通知を作成する（シーケンス問題自動解決を含む）
  */
 export async function createNotification(params: CreateNotificationParams) {
   try {
@@ -30,7 +30,8 @@ export async function createNotification(params: CreateNotificationParams) {
       return null;
     }
 
-    const createNotificationWithRetry = async (): Promise<typeof notification> => {
+    type NotificationResult = Prisma.notificationsGetPayload<Record<string, never>>;
+    const createNotificationWithRetry = async (): Promise<NotificationResult> => {
       try {
         return await prisma.notifications.create({
           data: {
@@ -46,7 +47,7 @@ export async function createNotification(params: CreateNotificationParams) {
           },
         });
       } catch (error) {
-        // Unique constraint 에러가 id 필드에서 발생한 경우 시퀀스 수정 후 재시도
+        // Unique constraint エラーが id フィールドで発生した場合、シーケンス修正後に再試行
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
           const isIdFieldError = error.meta && 
             typeof error.meta === 'object' && 
@@ -69,7 +70,7 @@ export async function createNotification(params: CreateNotificationParams) {
               
               console.log(`[notifications] ✅ Sequence fixed. Max ID: ${maxId}, Sequence set to: ${maxId + 1}`);
               
-              // 재시도
+              // 再試行
               return await prisma.notifications.create({
                 data: {
                   userId: params.userId,
@@ -85,7 +86,7 @@ export async function createNotification(params: CreateNotificationParams) {
               });
             } catch (retryError) {
               console.error('[notifications] ❌ Sequence fix and retry failed:', retryError);
-              throw error; // 원래 에러를 다시 throw
+              throw error; // 元のエラーを再度 throw
             }
           }
         }
