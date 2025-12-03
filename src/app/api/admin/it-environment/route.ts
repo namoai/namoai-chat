@@ -4,10 +4,16 @@ import { authOptions } from '@/lib/nextauth';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
 // AWS RDS 클라이언트 동적 import
-let RDSClient: any;
-let StartDBInstanceCommand: any;
-let StopDBInstanceCommand: any;
-let DescribeDBInstancesCommand: any;
+// 動的インポートのため型を遅延評価
+type RDSClientType = typeof import('@aws-sdk/client-rds').RDSClient;
+type StartDBInstanceCommandType = typeof import('@aws-sdk/client-rds').StartDBInstanceCommand;
+type StopDBInstanceCommandType = typeof import('@aws-sdk/client-rds').StopDBInstanceCommand;
+type DescribeDBInstancesCommandType = typeof import('@aws-sdk/client-rds').DescribeDBInstancesCommand;
+
+let RDSClient: RDSClientType | null = null;
+let StartDBInstanceCommand: StartDBInstanceCommandType | null = null;
+let StopDBInstanceCommand: StopDBInstanceCommandType | null = null;
+let DescribeDBInstancesCommand: DescribeDBInstancesCommandType | null = null;
 
 async function getRDSClient() {
   if (!RDSClient) {
@@ -38,7 +44,7 @@ const IT_DB_INSTANCE_IDENTIFIER = process.env.IT_RDS_INSTANCE_IDENTIFIER || 'nam
 /**
  * GET: IT 환경 RDS 인스턴스 상태 확인
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   if (isBuildTime()) return buildTimeResponse();
 
   try {
@@ -98,11 +104,11 @@ export async function GET(request: NextRequest) {
         port: instance.Endpoint.Port,
       } : null,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('IT 환경 상태 확인 오류:', error);
     
-    // 인스턴스를 찾을 수 없는 경우
-    if (error.name === 'DBInstanceNotFoundFault') {
+    // インスタンスが見つからない場合
+    if (error instanceof Error && error.name === 'DBInstanceNotFoundFault') {
       return NextResponse.json({ 
         status: 'not-found',
         message: 'IT環境データベースインスタンスが見つかりません。',
@@ -111,7 +117,7 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({ 
       error: '状態確認中にエラーが発生しました。',
-      message: error.message || '状態確認中にエラーが発生しました。',
+      message: error instanceof Error ? error.message : '状態確認中にエラーが発生しました。',
     }, { status: 500 });
   }
 }
@@ -119,7 +125,7 @@ export async function GET(request: NextRequest) {
 /**
  * POST: IT 환경 RDS 인스턴스 시작
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
   if (isBuildTime()) return buildTimeResponse();
 
   try {
@@ -143,11 +149,11 @@ export async function POST(request: NextRequest) {
       message: 'IT環境データベースの起動リクエストが完了しました。約5-10分かかります。',
       instanceIdentifier: IT_DB_INSTANCE_IDENTIFIER,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('IT 환경 시작 오류:', error);
     
-    // 이미 실행 중인 경우
-    if (error.name === 'InvalidDBInstanceStateFault') {
+    // 既に実行中の場合
+    if (error instanceof Error && error.name === 'InvalidDBInstanceStateFault') {
       return NextResponse.json({ 
         error: '既に実行中または起動中です。',
         message: '既に実行中または起動中です。',
@@ -156,7 +162,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ 
       error: '起動リクエスト中にエラーが発生しました。',
-      message: error.message || '起動リクエスト中にエラーが発生しました。',
+      message: error instanceof Error ? error.message : '起動リクエスト中にエラーが発生しました。',
     }, { status: 500 });
   }
 }
@@ -164,7 +170,7 @@ export async function POST(request: NextRequest) {
 /**
  * DELETE: IT 환경 RDS 인스턴스 중지
  */
-export async function DELETE(request: NextRequest) {
+export async function DELETE() {
   if (isBuildTime()) return buildTimeResponse();
 
   try {
@@ -188,11 +194,11 @@ export async function DELETE(request: NextRequest) {
       message: 'IT環境データベースの停止リクエストが完了しました。',
       instanceIdentifier: IT_DB_INSTANCE_IDENTIFIER,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('IT 환경 중지 오류:', error);
     
-    // 이미 중지된 경우
-    if (error.name === 'InvalidDBInstanceStateFault') {
+    // 既に停止されている場合
+    if (error instanceof Error && error.name === 'InvalidDBInstanceStateFault') {
       return NextResponse.json({ 
         error: '既に停止されているか、停止中です。',
         message: '既に停止されているか、停止中です。',
@@ -201,7 +207,7 @@ export async function DELETE(request: NextRequest) {
     
     return NextResponse.json({ 
       error: '停止リクエスト中にエラーが発生しました。',
-      message: error.message || '停止リクエスト中にエラーが発生しました。',
+      message: error instanceof Error ? error.message : '停止リクエスト中にエラーが発生しました。',
     }, { status: 500 });
   }
 }

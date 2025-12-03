@@ -64,7 +64,20 @@ export async function POST(request: NextRequest) {
 
     try {
         const contentType = request.headers.get('content-type') || '';
-        let sourceCharacterData: any;
+        let sourceCharacterData: {
+            name: string;
+            description?: string | null;
+            systemTemplate?: string | null;
+            firstSituation?: string | null;
+            firstMessage?: string | null;
+            visibility: 'public' | 'private';
+            safetyFilter: boolean;
+            category?: string | null;
+            hashtags?: string[];
+            detailSetting?: string | null;
+            characterImages?: (SourceImageData & { _zipImageBuffer?: Buffer })[];
+            lorebooks?: LorebookData[];
+        };
 
         // ZIPファイルの場合は解凍してcharacter.jsonを取得
         if (contentType.includes('multipart/form-data') || contentType.includes('application/zip')) {
