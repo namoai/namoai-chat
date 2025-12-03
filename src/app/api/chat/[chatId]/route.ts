@@ -22,8 +22,31 @@ import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
 let vertex_ai: VertexAI | null = null;
 
 function getVertexAI(): VertexAI {
-  // 環境変数がロードされているか確認
-  const projectId = process.env.GOOGLE_PROJECT_ID;
+  // プロジェクトIDを解決: サービスアカウントJSONのproject_idを優先
+  let projectId = process.env.GOOGLE_PROJECT_ID;
+  
+  // サービスアカウントJSONからproject_idを取得（環境変数より優先）
+  const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (credPath) {
+    try {
+      // 同期的に読み込む（Node.js環境でのみ）
+      const fs = require('fs');
+      if (fs.existsSync(credPath)) {
+        const saContent = fs.readFileSync(credPath, 'utf8');
+        const saJson = JSON.parse(saContent);
+        if (saJson.project_id) {
+          projectId = saJson.project_id;
+          console.log(`[getVertexAI] ✅ サービスアカウントJSONからプロジェクトIDを取得: ${projectId}`);
+          if (process.env.GOOGLE_PROJECT_ID && process.env.GOOGLE_PROJECT_ID !== projectId) {
+            console.warn(`[getVertexAI] ⚠️ 環境変数GOOGLE_PROJECT_ID(${process.env.GOOGLE_PROJECT_ID})とサービスアカウントのproject_id(${projectId})が異なります。サービスアカウントのproject_idを使用します。`);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`[getVertexAI] ⚠️ サービスアカウントJSONの読み込みに失敗:`, error);
+    }
+  }
+  
   if (!projectId) {
     console.error('[getVertexAI] ❌ GOOGLE_PROJECT_ID が設定されていません');
     throw new Error('GOOGLE_PROJECT_ID 環境変数が設定されていません。');
