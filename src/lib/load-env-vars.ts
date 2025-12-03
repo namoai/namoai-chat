@@ -194,16 +194,31 @@ async function loadFromParameterStore(variableKeys: string[], type: 'required' |
     // Lambda 함수 이름에서 App ID 추출 시도
     // Try to extract App ID from Lambda function name
     if (!amplifyAppId && process.env.AWS_LAMBDA_FUNCTION_NAME) {
-      // Amplify Lambda 함수 이름 형식: amplify-{appId}-{branch}-{functionName}
-      // 예: amplify-duvg1mvqbm4y4-main-api 또는 amplify-d1iev7g2v9xd8f-develop-api
       const functionName = process.env.AWS_LAMBDA_FUNCTION_NAME;
-      const match = functionName.match(/^amplify-([a-z0-9]+)-/);
+      console.log(`[load-env-vars] Attempting to extract App ID from function name: ${functionName}`);
+      
+      // 여러 가능한 형식 시도
+      // Try multiple possible formats
+      // 형식 1: amplify-{appId}-{branch}-{functionName}
+      // Format 1: amplify-{appId}-{branch}-{functionName}
+      let match = functionName.match(/^amplify-([a-z0-9]+)-/);
       if (match && match[1]) {
         amplifyAppId = match[1];
-        console.log(`[load-env-vars] ✅ Extracted App ID from Lambda function name: ${amplifyAppId}`);
+        console.log(`[load-env-vars] ✅ Extracted App ID from Lambda function name (format 1): ${amplifyAppId}`);
       } else {
-        console.log(`[load-env-vars] ⚠️ Lambda function name does not match expected format (amplify-{appId}-{branch}-{functionName})`);
-        console.log(`[load-env-vars] ⚠️ Function name: ${functionName}`);
+        // 형식 2: {appId}-{branch}-{functionName} (amplify 접두사 없음)
+        // Format 2: {appId}-{branch}-{functionName} (no amplify prefix)
+        match = functionName.match(/^([a-z0-9]{13,})-/);
+        if (match && match[1] && match[1].length >= 13) {
+          // App ID는 보통 13자 이상의 영숫자 문자열
+          // App ID is usually a 13+ character alphanumeric string
+          amplifyAppId = match[1];
+          console.log(`[load-env-vars] ✅ Extracted App ID from Lambda function name (format 2): ${amplifyAppId}`);
+        } else {
+          console.log(`[load-env-vars] ⚠️ Lambda function name does not match any expected format`);
+          console.log(`[load-env-vars] ⚠️ Function name: ${functionName}`);
+          console.log(`[load-env-vars] ⚠️ Please set AMPLIFY_APP_ID environment variable manually.`);
+        }
       }
     }
     
