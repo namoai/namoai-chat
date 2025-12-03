@@ -68,12 +68,22 @@ const IT_DB_INSTANCE_IDENTIFIER = process.env.IT_RDS_INSTANCE_IDENTIFIER || 'nam
  * GET: IT 환경 RDS 인스턴스 상태 확인
  */
 export async function GET() {
-  if (isBuildTime()) return buildTimeResponse();
+  console.log('[IT-Environment] GET function called');
+  console.log('[IT-Environment] isBuildTime check:', isBuildTime());
+  
+  if (isBuildTime()) {
+    console.log('[IT-Environment] Build time detected, returning buildTimeResponse');
+    return buildTimeResponse();
+  }
 
   try {
     console.log('[IT-Environment] GET request received');
     console.log('[IT-Environment] IT_DB_INSTANCE_IDENTIFIER:', IT_DB_INSTANCE_IDENTIFIER);
     console.log('[IT-Environment] AWS_REGION:', process.env.AWS_REGION || 'ap-northeast-1');
+    console.log('[IT-Environment] Environment variables:', {
+      hasAWS_REGION: !!process.env.AWS_REGION,
+      hasIT_RDS_INSTANCE_IDENTIFIER: !!process.env.IT_RDS_INSTANCE_IDENTIFIER,
+    });
     
     const session = await getServerSession(authOptions);
     

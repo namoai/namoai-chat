@@ -66,8 +66,13 @@ export default function ITEnvironmentPage() {
   const loadITStatus = async () => {
     setIsRefreshing(true);
     try {
+      console.log('[IT-Environment-Client] Fetching IT environment status...');
       const res = await fetch('/api/admin/it-environment');
+      console.log('[IT-Environment-Client] Response status:', res.status);
+      console.log('[IT-Environment-Client] Response ok:', res.ok);
+      
       const data = await res.json();
+      console.log('[IT-Environment-Client] Response data:', data);
       
       if (res.ok) {
         setItStatus(data);
