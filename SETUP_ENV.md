@@ -99,7 +99,7 @@ Amplify Hostingでデプロイする場合は、同じキーを **Amplify Enviro
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
 
-> ⚠️ Amplify 앱 ID가 기본값(`duvg1mvqbm4y4`)과 다르면, Amplify 콘솔의 **Environment variables**에 `AWS_APP_ID`(또는 `AWS_AMPLIFY_APP_ID`)와 `AWS_BRANCH`를 반드시 지정해 주세요. 지정하지 않으면 Lambda가 Parameter Store 경로를 찾지 못해 환경 변수를 불러오지 못합니다.
+> ⚠️ Amplify 앱 ID는 Lambda 함수 이름에서 자동으로 추출됩니다 (`Compute-{appId}-{hash}` 형식). 만약 자동 추출이 실패하면, Amplify 콘솔의 **Environment variables**에 `AMPLIFY_APP_ID`를 반드시 지정해 주세요. 지정하지 않으면 Lambda가 Parameter Store 경로를 찾지 못해 환경 변수를 불러오지 못합니다.
 
 ## ✅ 動作確認
 

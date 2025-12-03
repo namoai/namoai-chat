@@ -19,7 +19,7 @@ IT 환경 RDS 인스턴스를 제어하려면 Amplify Lambda 함수의 IAM 역�
 
 1. **AWS Amplify 콘솔** 접속
    - https://console.aws.amazon.com/amplify/
-   - 앱 선택: `duvg1mvqbm4y4`
+   - 앱 선택: (사용 중인 Amplify 앱 ID)
 
 2. **Lambda 함수의 IAM 역할 찾기**
    - Amplify 앱 설정 → "App settings" → "General"
