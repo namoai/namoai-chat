@@ -17,6 +17,7 @@
     "db:migrate:staging-to-it": "node scripts/migrate-staging-to-it-prisma.mjs",
     "db:fix-vector-indexes": "node scripts/fix-vector-indexes.mjs",
     "db:check-vector-indexes": "node scripts/check-vector-indexes.mjs",
+    "db:sync:from-it": "node scripts/sync-db-from-it.mjs",
     "it:setup-security": "node scripts/setup-it-security-sdk.mjs",
     "test": "node scripts/test-runner.mjs",
     "test:json": "node scripts/test-runner.mjs --json",
