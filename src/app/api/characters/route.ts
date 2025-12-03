@@ -370,7 +370,8 @@ export async function POST(request: Request) {
                 }
                 
                 const characterJsonText = await characterJsonFile.async('string');
-                const sourceCharacterData = JSON.parse(characterJsonText) as {
+                const parsedData = JSON.parse(characterJsonText) as {
+                    id?: number; // Import時は無視される
                     name: string;
                     description?: string | null;
                     systemTemplate?: string | null;
@@ -394,6 +395,12 @@ export async function POST(request: Request) {
                         keywords: string[];
                     }>;
                 };
+                
+                // idフィールドを明示的に削除（新規作成時はidを指定しない）
+                const { id, ...sourceCharacterData } = parsedData;
+                if (id !== undefined) {
+                    console.log(`[IMPORT] 警告: character.jsonにidフィールド(${id})が含まれていますが、新規作成のため無視されます。`);
+                }
                 
                 // 画像をZIPから取得
                 // ZIP内のすべてのファイルをリストして確認
@@ -643,7 +650,11 @@ export async function POST(request: Request) {
             // ▼▼▼【新規】直接アップロード方式（images配列がある場合）▼▼▼
             if (data.images && Array.isArray(data.images)) {
                 console.log('[POST/JSON] 直接アップロード方式での作成');
-                const { userId, images, lorebooks, ...formFields } = data;
+                const { userId, images, lorebooks, id, ...formFields } = data;
+                // idフィールドを明示的に削除（新規作成時はidを指定しない）
+                if (id !== undefined) {
+                    console.log(`[POST/JSON] 警告: リクエストにidフィールド(${id})が含まれていますが、新規作成のため無視されます。`);
+                }
                 
                 if (!userId) {
                     return NextResponse.json({ message: '認証情報が見つかりません。' }, { status: 401 });
