@@ -762,6 +762,85 @@ export async function POST(request: Request) {
                             const prismaError = dbError as { code?: string; meta?: unknown; message?: string };
                             console.error('[POST] Prisma 에러 코드:', prismaError.code);
                             console.error('[POST] Prisma 에러 메타:', prismaError.meta);
+                            
+                            // Unique constraint 에러가 id 필드에서 발생한 경우 시퀀스 수정 시도
+                            const errorMessage = prismaError.message || (dbError instanceof Error ? dbError.message : '');
+                            if (prismaError.code === 'P2002' && 
+                                (errorMessage.includes('Unique constraint failed on the fields: (`id`)') ||
+                                 (prismaError.meta && typeof prismaError.meta === 'object' && 
+                                  'target' in prismaError.meta && 
+                                  Array.isArray(prismaError.meta.target) &&
+                                  prismaError.meta.target.includes('id'))) {
+                                console.log('[POST] ⚠️ Sequence out of sync detected. Attempting to fix...');
+                                try {
+                                    // 현재 최대 id 확인
+                                    const maxResult = await prisma.$queryRaw<Array<{ max: bigint | null }>>`
+                                        SELECT MAX(id) as max FROM characters
+                                    `;
+                                    const maxId = maxResult[0]?.max ? Number(maxResult[0].max) : 0;
+                                    
+                                    // 시퀀스 재설정
+                                    await prisma.$executeRawUnsafe(`
+                                        SELECT setval('characters_id_seq', ${maxId + 1}, false)
+                                    `);
+                                    
+                                    console.log(`[POST] ✅ Sequence fixed. Max ID: ${maxId}, Sequence set to: ${maxId + 1}`);
+                                    
+                                    // 재시도
+                                    const character = await tx.characters.create({
+                                        data: {
+                                            name: formFields.name,
+                                            description: formFields.description ?? null,
+                                            systemTemplate: formFields.systemTemplate ?? null,
+                                            firstSituation: formFields.firstSituation ?? null,
+                                            firstMessage: formFields.firstMessage ?? null,
+                                            visibility: formFields.visibility || 'public',
+                                            safetyFilter: formFields.safetyFilter !== false,
+                                            category: formFields.category ?? null,
+                                            hashtags: formFields.hashtags ?? [],
+                                            detailSetting: formFields.detailSetting ?? null,
+                                            statusWindowPrompt: formFields.statusWindowPrompt ?? null,
+                                            statusWindowDescription: formFields.statusWindowDescription ?? null,
+                                            author: { connect: { id: userIdNum } },
+                                        }
+                                    });
+                                    console.log('[POST] ✅ characters.create 성공 (재시도 후):', character.id);
+                                    
+                                    // 이미지와 로어북 처리도 다시 해야 함
+                                    if (images && images.length > 0) {
+                                        await tx.character_images.createMany({
+                                            data: images.map((img: { imageUrl: string; keyword: string }, index: number) => ({
+                                                characterId: character.id,
+                                                imageUrl: img.imageUrl,
+                                                keyword: img.keyword || '',
+                                                isMain: index === 0,
+                                                displayOrder: index,
+                                            }))
+                                        });
+                                    }
+                                    
+                                    if (lorebooks && lorebooks.length > 0) {
+                                        for (const lore of lorebooks) {
+                                            const embedding = await getEmbedding(lore.content);
+                                            const embeddingString = `[${embedding.join(',')}]`;
+                                            await tx.$executeRaw`
+                                                INSERT INTO "lorebooks" ("content", "keywords", "characterId", "embedding")
+                                                VALUES (${lore.content}, ${lore.keywords || []}::text[], ${character.id}, ${embeddingString}::vector)
+                                            `;
+                                        }
+                                    }
+                                    
+                                    return character;
+                                } catch (retryError) {
+                                    console.error('[POST] ❌ Sequence fix and retry failed:', retryError);
+                                    throw dbError; // 원래 에러를 다시 throw
+                                }
+                            }
+                        }
+                        if (typeof dbError === 'object' && dbError !== null) {
+                            const prismaError = dbError as { code?: string; meta?: unknown; message?: string };
+                            console.error('[POST] Prisma 에러 코드:', prismaError.code);
+                            console.error('[POST] Prisma 에러 메타:', prismaError.meta);
                         }
                         throw dbError;
                     }

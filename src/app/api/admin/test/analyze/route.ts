@@ -117,8 +117,42 @@ ${idx + 1}. 【${r.category}】${r.name}
       result = await model.generateContent(prompt);
     } catch (generateError) {
       console.error('コンテンツ生成エラー:', generateError);
+      
+      // GCP IAM 권한 에러인 경우 더 명확한 메시지 제공
+      let errorMessage = generateError instanceof Error ? generateError.message : '不明なエラー';
+      let helpfulMessage = '';
+      
+      if (errorMessage.includes('Permission') && errorMessage.includes('aiplatform.endpoints.predict')) {
+        // 서비스 계정 정보 확인
+        let serviceAccountEmail = '不明';
+        try {
+          const credsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || 
+                           (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64 ? 
+                            Buffer.from(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64, 'base64').toString('utf8') : null);
+          if (credsJson) {
+            const parsed = JSON.parse(credsJson);
+            serviceAccountEmail = parsed.client_email || '不明';
+            console.error(`[Vertex AI Permission Error] Service Account: ${serviceAccountEmail}`);
+          }
+        } catch (e) {
+          console.error('Failed to parse service account info:', e);
+        }
+        
+        helpfulMessage = `\n\n🔧 解決方法:\n` +
+          `1. GCP Console (https://console.cloud.google.com/) にアクセス\n` +
+          `2. IAM & Admin → Service Accounts に移動\n` +
+          `3. サービスアカウント "${serviceAccountEmail}" を検索\n` +
+          `4. ロールを追加 → "Vertex AI User" (roles/aiplatform.user) を選択\n` +
+          `5. 保存後、数分待ってから再度お試しください\n\n` +
+          `プロジェクト: ${process.env.GOOGLE_PROJECT_ID || '不明'}\n` +
+          `リソース: //aiplatform.googleapis.com/projects/${process.env.GOOGLE_PROJECT_ID || 'namoai-chat'}/locations/asia-northeast1/publishers/google/models/gemini-2.5-flash`;
+      }
+      
       return NextResponse.json(
-        { error: `AIコンテンツ生成に失敗しました: ${generateError instanceof Error ? generateError.message : '不明なエラー'}` },
+        { 
+          error: `AIコンテンツ生成に失敗しました: ${errorMessage}${helpfulMessage}`,
+          isPermissionError: errorMessage.includes('Permission') && errorMessage.includes('aiplatform.endpoints.predict'),
+        },
         { status: 500 }
       );
     }
