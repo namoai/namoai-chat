@@ -397,14 +397,35 @@ export async function POST(request: Request) {
                 
                 // 画像をZIPから取得
                 const imagesFolder = zip.folder('images');
-                const imageMap = new Map<string, Buffer>();
+                const imageBuffers: Buffer[] = [];
                 if (imagesFolder) {
-                    const imageFiles = Object.keys(imagesFolder.files);
-                    for (const imagePath of imageFiles) {
-                        const imageFile = imagesFolder.file(imagePath);
-                        if (imageFile) {
-                            const imageBuffer = await imageFile.async('nodebuffer');
-                            imageMap.set(imagePath, imageBuffer);
+                    // displayOrder順にソートされた画像を順番に取得
+                    const sortedImages = sourceCharacterData.characterImages 
+                        ? [...sourceCharacterData.characterImages].sort((a, b) => a.displayOrder - b.displayOrder)
+                        : [];
+                    
+                    console.log(`[IMPORT] ZIP内の画像ファイル数: ${sortedImages.length}`);
+                    
+                    // 画像ファイルを順番に読み込む (image_0.png, image_1.png など)
+                    for (let i = 0; i < sortedImages.length; i++) {
+                        // 拡張子を試行 (png, jpg, jpeg, webp)
+                        const extensions = ['png', 'jpg', 'jpeg', 'webp'];
+                        let imageBuffer: Buffer | null = null;
+                        
+                        for (const ext of extensions) {
+                            const imagePath = `images/image_${i}.${ext}`;
+                            const imageFile = imagesFolder.file(imagePath);
+                            if (imageFile) {
+                                imageBuffer = await imageFile.async('nodebuffer');
+                                console.log(`[IMPORT] 画像 ${i} をZIPから取得: ${imagePath}`);
+                                break;
+                            }
+                        }
+                        
+                        if (imageBuffer) {
+                            imageBuffers.push(imageBuffer);
+                        } else {
+                            console.warn(`[IMPORT] 画像 ${i} が見つかりません (image_${i}.png/jpg/jpeg/webp)`);
                         }
                     }
                 }
@@ -412,23 +433,28 @@ export async function POST(request: Request) {
                 // 画像をアップロード
                 const newImagesData: ImageMetaData[] = [];
                 if (sourceCharacterData.characterImages && sourceCharacterData.characterImages.length > 0) {
-                    for (let i = 0; i < sourceCharacterData.characterImages.length; i++) {
-                        const img = sourceCharacterData.characterImages[i];
-                        const imageKey = Object.keys(imageMap).find(key =>
-                            key.includes(`image_${i}`) || key.includes(img.imageUrl?.split('/').pop() || '')
-                        );
+                    // displayOrder順にソート
+                    const sortedImages = [...sourceCharacterData.characterImages].sort((a, b) => a.displayOrder - b.displayOrder);
+                    
+                    for (let i = 0; i < sortedImages.length; i++) {
+                        const img = sortedImages[i];
                         
-                        if (imageKey && imageMap.has(imageKey)) {
+                        // ZIPから取得した画像バッファを使用
+                        if (i < imageBuffers.length && imageBuffers[i]) {
                             try {
-                                const imageBuffer = imageMap.get(imageKey)!;
-                                const fileExtension = imageKey.split('.').pop()?.toLowerCase() || 'png';
+                                const imageBuffer = imageBuffers[i];
+                                // 拡張子を推測 (デフォルトはpng)
+                                const fileExtension = img.imageUrl?.split('.').pop()?.split('?')[0].toLowerCase() || 'png';
                                 const safeFileName = `${randomUUID()}.${fileExtension}`;
                                 const contentType = `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
                                 
+                                console.log(`[IMPORT] 画像 ${i} をCloudflareにアップロード中...`);
                                 const imageUrl = await uploadImageBufferToCloudflare(imageBuffer, {
                                     filename: safeFileName,
                                     contentType,
                                 });
+                                
+                                console.log(`[IMPORT] 画像 ${i} アップロード成功: ${imageUrl}`);
                                 
                                 newImagesData.push({
                                     url: imageUrl,
@@ -437,11 +463,15 @@ export async function POST(request: Request) {
                                     displayOrder: img.displayOrder,
                                 });
                             } catch (e) {
-                                console.error(`[IMPORT] ZIP画像アップロードエラー:`, e);
+                                console.error(`[IMPORT] ZIP画像 ${i} アップロードエラー:`, e);
                             }
+                        } else {
+                            console.warn(`[IMPORT] 画像 ${i} のバッファが見つかりません`);
                         }
                     }
                 }
+                
+                console.log(`[IMPORT] 合計 ${newImagesData.length} 枚の画像をアップロードしました`);
                 
                 // セーフティフィルターチェック
                 if (sourceCharacterData.safetyFilter) {
