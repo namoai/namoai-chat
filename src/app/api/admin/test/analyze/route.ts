@@ -11,6 +11,38 @@ export async function POST(request: Request) {
   // GCP 인증 정보 설정
   await ensureGcpCreds();
   
+  // ▼▼▼ 디버깅: 사용 중인 서비스 계정 정보 로그 출력 ▼▼▼
+  try {
+    const credsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || 
+                     (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64 ? 
+                      Buffer.from(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64, 'base64').toString('utf8') : null);
+    if (credsJson) {
+      const parsed = JSON.parse(credsJson);
+      console.log('[analyze] 🔍 현재 사용 중인 서비스 계정:');
+      console.log(`   - client_email: ${parsed.client_email || 'N/A'}`);
+      console.log(`   - project_id: ${parsed.project_id || 'N/A'}`);
+      console.log(`   - type: ${parsed.type || 'N/A'}`);
+    } else {
+      console.warn('[analyze] ⚠️ GOOGLE_APPLICATION_CREDENTIALS_JSON가 설정되지 않았습니다.');
+      // 파일에서 읽기 시도
+      try {
+        const fs = await import('fs/promises');
+        const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || '/tmp/gcp-sa.json';
+        const fileContent = await fs.readFile(credPath, 'utf8');
+        const parsed = JSON.parse(fileContent);
+        console.log('[analyze] 🔍 파일에서 읽은 서비스 계정:');
+        console.log(`   - client_email: ${parsed.client_email || 'N/A'}`);
+        console.log(`   - project_id: ${parsed.project_id || 'N/A'}`);
+      } catch (e) {
+        console.error('[analyze] ❌ 서비스 계정 정보를 읽을 수 없습니다:', e);
+      }
+    }
+  } catch (e) {
+    console.error('[analyze] ❌ 서비스 계정 파싱 에러:', e);
+  }
+  console.log(`[analyze] GOOGLE_PROJECT_ID: ${process.env.GOOGLE_PROJECT_ID || 'N/A'}`);
+  // ▲▲▲
+  
   const session = await getServerSession(authOptions);
   
   if (!session?.user) {
@@ -37,12 +69,17 @@ export async function POST(request: Request) {
     // VertexAIクライアントの初期化
     let vertex_ai: VertexAI;
     try {
+      const projectId = process.env.GOOGLE_PROJECT_ID;
+      console.log(`[analyze] 🔧 VertexAI 초기화 시도: project=${projectId}, location=asia-northeast1`);
+      console.log(`[analyze] 🔧 GOOGLE_APPLICATION_CREDENTIALS: ${process.env.GOOGLE_APPLICATION_CREDENTIALS || 'not set'}`);
+      
       vertex_ai = new VertexAI({
-        project: process.env.GOOGLE_PROJECT_ID,
+        project: projectId,
         location: 'asia-northeast1',
       });
+      console.log('[analyze] ✅ VertexAI 초기화 성공');
     } catch (initError) {
-      console.error('VertexAI初期化エラー:', initError);
+      console.error('[analyze] ❌ VertexAI初期化エラー:', initError);
       return NextResponse.json(
         { error: `VertexAIの初期化に失敗しました: ${initError instanceof Error ? initError.message : '不明なエラー'}` },
         { status: 500 }
