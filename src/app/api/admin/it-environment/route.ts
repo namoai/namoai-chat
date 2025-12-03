@@ -108,15 +108,53 @@ export async function GET() {
     const { client, DescribeDBInstancesCommand } = await getRDSClient();
     console.log('[IT-Environment] RDS client initialized successfully');
     
-    const command = new DescribeDBInstancesCommand({
+    // まず特定のインスタンスを検索
+    let command = new DescribeDBInstancesCommand({
       DBInstanceIdentifier: IT_DB_INSTANCE_IDENTIFIER,
     });
 
-    console.log('[IT-Environment] Sending DescribeDBInstancesCommand...');
-    const response = await client.send(command);
-    console.log('[IT-Environment] Response received:', { 
-      instanceCount: response.DBInstances?.length || 0 
-    });
+    console.log('[IT-Environment] Sending DescribeDBInstancesCommand for:', IT_DB_INSTANCE_IDENTIFIER);
+    let response;
+    try {
+      response = await client.send(command);
+      console.log('[IT-Environment] Response received:', { 
+        instanceCount: response.DBInstances?.length || 0 
+      });
+    } catch (error: unknown) {
+      // インスタンスが見つからない場合、すべてのインスタンスをリストして確認
+      if (error instanceof Error && (error.name === 'DBInstanceNotFoundFault' || error.message.includes('not found'))) {
+        console.log('[IT-Environment] インスタンスが見つかりません。すべてのRDSインスタンスをリストします...');
+        try {
+          const listCommand = new DescribeDBInstancesCommand({});
+          const listResponse = await client.send(listCommand);
+          const allInstances = listResponse.DBInstances || [];
+          console.log('[IT-Environment] 利用可能なRDSインスタンス:', allInstances.map(inst => ({
+            identifier: inst.DBInstanceIdentifier,
+            status: inst.DBInstanceStatus,
+            engine: inst.Engine,
+          })));
+          
+          // IT環境に関連する可能性のあるインスタンスを探す
+          const itInstance = allInstances.find(inst => 
+            inst.DBInstanceIdentifier?.toLowerCase().includes('it') ||
+            inst.DBInstanceIdentifier?.toLowerCase().includes('namos-chat')
+          );
+          
+          if (itInstance) {
+            console.log('[IT-Environment] IT環境に関連する可能性のあるインスタンスを発見:', itInstance.DBInstanceIdentifier);
+            return NextResponse.json({ 
+              status: 'not-found',
+              message: `IT環境データベースインスタンス「${IT_DB_INSTANCE_IDENTIFIER}」が見つかりません。\n\n利用可能なインスタンス: ${allInstances.map(i => i.DBInstanceIdentifier).join(', ')}\n\nIT環境に関連する可能性のあるインスタンス: ${itInstance.DBInstanceIdentifier}`,
+              availableInstances: allInstances.map(i => i.DBInstanceIdentifier),
+              suggestedInstance: itInstance.DBInstanceIdentifier,
+            });
+          }
+        } catch (listError) {
+          console.error('[IT-Environment] インスタンスリスト取得エラー:', listError);
+        }
+      }
+      throw error;
+    }
     
     if (!response.DBInstances || response.DBInstances.length === 0) {
       return NextResponse.json({ 
