@@ -62,7 +62,7 @@ async function getRDSClient() {
 }
 
 // IT 환경 RDS 인스턴스 식별자 (환경 변수에서 가져오거나 기본값 사용)
-const IT_DB_INSTANCE_IDENTIFIER = process.env.IT_RDS_INSTANCE_IDENTIFIER || 'namos-chat-it';
+const IT_DB_INSTANCE_IDENTIFIER = process.env.IT_RDS_INSTANCE_IDENTIFIER || 'namoai-it';
 
 /**
  * GET: IT 환경 RDS 인스턴스 상태 확인
@@ -92,7 +92,7 @@ export async function GET() {
     // IT_RDS_INSTANCE_IDENTIFIER가 없으면 기본값 사용 (모든 환경에서 동일하게 IT 환경 RDS 제어)
     // If IT_RDS_INSTANCE_IDENTIFIER is not set, use default (control IT environment RDS from any environment)
     if (!process.env.IT_RDS_INSTANCE_IDENTIFIER) {
-      console.log('[IT-Environment] IT_RDS_INSTANCE_IDENTIFIER not set, using default: namos-chat-it');
+      console.log('[IT-Environment] IT_RDS_INSTANCE_IDENTIFIER not set, using default: namoai-it');
       console.log('[IT-Environment] Note: This API controls IT environment RDS regardless of current environment');
     }
     
