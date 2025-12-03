@@ -3,59 +3,17 @@ frontend:
   phases:
     preBuild:
       commands:
+        - echo "Installing dependencies..."
         - npm ci --include=optional
-        - |
-          # 환경 변수를 .env.production.local 파일로 생성
-          # AWS Amplify Hosting은 빌드 시점 환경 변수를 런타임에 전달하지 않을 수 있으므로
-          # 빌드 시점에 .env.production.local 파일을 생성하여 Next.js가 런타임에 사용할 수 있도록 함
-          if [ -n "$GOOGLE_CLIENT_ID" ]; then
-            echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" >> .env.production.local
-          fi
-          if [ -n "$GOOGLE_CLIENT_SECRET" ]; then
-            echo "GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET" >> .env.production.local
-          fi
-          if [ -n "$NEXTAUTH_SECRET" ]; then
-            echo "NEXTAUTH_SECRET=$NEXTAUTH_SECRET" >> .env.production.local
-          fi
-          if [ -n "$DATABASE_URL" ]; then
-            echo "DATABASE_URL=$DATABASE_URL" >> .env.production.local
-          fi
-          if [ -n "$NEXTAUTH_URL" ]; then
-            echo "NEXTAUTH_URL=$NEXTAUTH_URL" >> .env.production.local
-          fi
-          # 생성된 파일 확인
-          if [ -f .env.production.local ]; then
-            echo "✅ .env.production.local file created"
-            echo "File size: $(wc -c < .env.production.local) bytes"
-          else
-            echo "⚠️ .env.production.local file not created"
-          fi
-        - npx prisma generate
+        - echo "Loading secrets from GCP Secret Manager (optional, will use env vars if GSM fails)..."
+        - node scripts/load-gsm-secrets.js || echo "GSM failed, continuing with environment variables..."
     build:
       commands:
+        - echo "Generating Prisma client..."
+        - npx prisma generate
+        - echo "Building Next.js app..."
+        - rm -rf .next
         - npm run build
-        - |
-          # 빌드 후 .env.production.local 파일을 .next 디렉토리로 복사
-          # Lambda 런타임에서 이 파일을 읽을 수 있도록 함
-          if [ -f .env.production.local ]; then
-            echo "Copying .env.production.local to .next directory..."
-            cp .env.production.local .next/.env.production.local || true
-            # standalone 모드인 경우 standalone 디렉토리에도 복사
-            if [ -d .next/standalone ]; then
-              cp .env.production.local .next/standalone/.env.production.local || true
-              # standalone의 루트에도 복사 (Lambda 실행 디렉토리)
-              cp .env.production.local .next/standalone/.env.production.local || true
-              echo "✅ Copied to .next/standalone/.env.production.local"
-              # 파일이 제대로 복사되었는지 확인
-              if [ -f .next/standalone/.env.production.local ]; then
-                echo "✅ Verified: .next/standalone/.env.production.local exists"
-                echo "File size: $(wc -c < .next/standalone/.env.production.local) bytes"
-              fi
-            fi
-            echo "✅ Copied to .next/.env.production.local"
-          else
-            echo "⚠️ .env.production.local file not found, skipping copy"
-          fi
   artifacts:
     baseDirectory: .next
     files:
