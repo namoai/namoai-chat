@@ -78,6 +78,8 @@ export function getEnvironmentConfig(): EnvironmentConfig {
       name: 'IT(結合)テスト環境', // IT(결합) 테스트 환경
       description: 'システム統合および結合テストのための環境', // 시스템 통합 및 결합 테스트를 위한 환경
       apiUrl: process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_IT_API_URL || '',
+      // IT環境ではSTAGING_DATABASE_URLを明示的に無視し、IT_DATABASE_URLのみ使用
+      // In IT environment, explicitly ignore STAGING_DATABASE_URL and use only IT_DATABASE_URL
       databaseUrl: process.env.IT_DATABASE_URL || process.env.DATABASE_URL,
       allowMutations: true,
       enableDebugLogs: true,
@@ -210,8 +212,18 @@ export function logEnvironmentInfo(): void {
  * 
  * IT環境で作成されたキャラクターを混紡環境に移行するためのURLを生成します。
  * Generates a URL to migrate characters created in IT environment to staging environment.
+ * 
+ * 注意: IT環境ではこの関数は使用されません（IT環境では混紡環境への移行は不要）。
+ * Note: This function is not used in IT environment (migration to staging is not needed in IT environment).
  */
 export function getStagingMigrationUrl(characterId: number | string): string {
+  // IT環境では空文字列を返す（IT環境では混紡環境への移行は不要）
+  // Return empty string in IT environment (migration to staging is not needed in IT environment)
+  if (getEnvironmentType() === 'integration') {
+    console.log('[Environment] IT environment detected - staging migration URL not available');
+    return '';
+  }
+  
   const stagingUrl = process.env.NEXT_PUBLIC_STAGING_API_URL || 
                      process.env.NEXT_PUBLIC_STAGING_URL || 
                      '';

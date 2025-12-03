@@ -7,6 +7,7 @@ import { getPrisma } from "@/lib/prisma";
 import { randomUUID } from 'crypto';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 import { uploadImageBufferToCloudflare } from '@/lib/cloudflare-images';
+import JSZip from 'jszip';
 
 // --- ▼▼▼【修正】データ型を明確に定義します ▼▼▼ ---
 type SourceImageData = {
@@ -62,7 +63,63 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const sourceCharacterData = await request.json();
+        const contentType = request.headers.get('content-type') || '';
+        let sourceCharacterData: any;
+
+        // ZIPファイルの場合は解凍してcharacter.jsonを取得
+        if (contentType.includes('multipart/form-data') || contentType.includes('application/zip')) {
+            const formData = await request.formData();
+            const file = formData.get('file') as File | null;
+            
+            if (!file) {
+                return NextResponse.json({ error: 'ZIPファイルが提供されていません。' }, { status: 400 });
+            }
+
+            const arrayBuffer = await file.arrayBuffer();
+            const zip = await JSZip.loadAsync(arrayBuffer);
+            
+            // character.jsonを取得
+            const characterJsonFile = zip.file('character.json');
+            if (!characterJsonFile) {
+                return NextResponse.json({ error: 'ZIPファイルにcharacter.jsonが見つかりません。' }, { status: 400 });
+            }
+
+            const characterJsonText = await characterJsonFile.async('string');
+            sourceCharacterData = JSON.parse(characterJsonText);
+
+            // 画像をZIPから取得してアップロード
+            const imagesFolder = zip.folder('images');
+            if (imagesFolder && sourceCharacterData.characterImages) {
+                const imageFiles = Object.keys(imagesFolder.files);
+                const imageMap = new Map<string, Buffer>();
+
+                for (const imagePath of imageFiles) {
+                    const imageFile = imagesFolder.file(imagePath);
+                    if (imageFile) {
+                        const imageBuffer = await imageFile.async('nodebuffer');
+                        imageMap.set(imagePath, imageBuffer);
+                    }
+                }
+
+                // characterImagesの順序に合わせて画像をマッピング
+                for (let i = 0; i < sourceCharacterData.characterImages.length; i++) {
+                    const img = sourceCharacterData.characterImages[i];
+                    // 元のimageUrlからファイル名を推測してマッピング
+                    const imageKey = Object.keys(imageMap).find(key => 
+                        key.includes(`image_${i}`) || key.includes(img.imageUrl?.split('/').pop() || '')
+                    );
+                    
+                    if (imageKey && imageMap.has(imageKey)) {
+                        // ZIP内の画像を使用
+                        img._zipImageBuffer = imageMap.get(imageKey);
+                    }
+                }
+            }
+        } else {
+            // JSON形式の場合は従来通り
+            sourceCharacterData = await request.json();
+        }
+
         const targetCharacter = await prisma.characters.findFirst({
             where: { id: targetCharacterId, author_id: currentUserId },
         });
@@ -78,8 +135,33 @@ export async function POST(request: NextRequest) {
 
         if (imageCount > 0) {
             // --- ▼▼▼【修正】ループ内の'img'に'SourceImageData'型を適用します ▼▼▼ ---
-            for (const img of sourceCharacterData.characterImages as SourceImageData[]) {
+            for (const img of sourceCharacterData.characterImages as (SourceImageData & { _zipImageBuffer?: Buffer })[]) {
             // --- ▲▲▲ 修正ここまで ▲▲▲
+                // ZIP内の画像がある場合はそれを使用
+                if (img._zipImageBuffer) {
+                    try {
+                        const fileExtension = img.imageUrl?.split('.').pop()?.split('?')[0].toLowerCase() || 'png';
+                        const safeFileName = `${randomUUID()}.${fileExtension}`;
+                        const contentType = `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
+
+                        const imageUrl = await uploadImageBufferToCloudflare(img._zipImageBuffer, {
+                            filename: safeFileName,
+                            contentType,
+                        });
+
+                        newImagesData.push({
+                            imageUrl: imageUrl,
+                            keyword: img.keyword || '',
+                            isMain: img.isMain,
+                            displayOrder: img.displayOrder,
+                        });
+                    } catch (e) {
+                        console.error(`[IMPORT] ZIP画像アップロードエラー:`, e);
+                    }
+                    continue;
+                }
+
+                // 従来通りURLから画像をダウンロード
                 if (!img.imageUrl) continue;
 
                 let absoluteImageUrl = img.imageUrl;

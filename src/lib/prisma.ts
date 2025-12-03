@@ -31,14 +31,23 @@ async function resolveDatabaseUrl(): Promise<string> {
   
   // 環境別のDATABASE_URLを優先的に使用（設定されている場合）
   // Use environment-specific DATABASE_URL if available
+  // 注意: IT環境ではSTAGING_DATABASE_URLは使用されません（明示的に無視）
+  // Note: STAGING_DATABASE_URL is not used in IT environment (explicitly ignored)
   let databaseUrl: string | undefined;
   
   if (appEnv === 'staging' && process.env.STAGING_DATABASE_URL) {
     databaseUrl = process.env.STAGING_DATABASE_URL;
     console.log('[Prisma] Using STAGING_DATABASE_URL for staging environment');
-  } else if (appEnv === 'integration' && process.env.IT_DATABASE_URL) {
-    databaseUrl = process.env.IT_DATABASE_URL;
-    console.log('[Prisma] Using IT_DATABASE_URL for integration environment');
+  } else if (appEnv === 'integration') {
+    // IT環境ではSTAGING_DATABASE_URLを明示的に無視し、IT_DATABASE_URLのみ使用
+    // In IT environment, explicitly ignore STAGING_DATABASE_URL and use only IT_DATABASE_URL
+    if (process.env.IT_DATABASE_URL) {
+      databaseUrl = process.env.IT_DATABASE_URL;
+      console.log('[Prisma] Using IT_DATABASE_URL for integration environment (STAGING_DATABASE_URL ignored)');
+    } else if (process.env.DATABASE_URL) {
+      databaseUrl = process.env.DATABASE_URL;
+      console.log('[Prisma] Using DATABASE_URL for integration environment (STAGING_DATABASE_URL ignored)');
+    }
   } else if (process.env.DATABASE_URL) {
     // 既存コードとの互換性: DATABASE_URLをフォールバックとして使用
     // Backward compatibility: Use DATABASE_URL as fallback

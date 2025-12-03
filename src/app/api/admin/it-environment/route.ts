@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     
     // SUPER_ADMIN 권한만 허용
     if (!session || session.user?.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
+      return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
     }
 
     const { client, DescribeDBInstancesCommand } = await getRDSClient();
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     if (!response.DBInstances || response.DBInstances.length === 0) {
       return NextResponse.json({ 
         status: 'not-found',
-        message: 'IT 환경 데이터베이스 인스턴스를 찾을 수 없습니다.',
+        message: 'IT環境データベースインスタンスが見つかりません。',
       });
     }
 
@@ -73,15 +73,15 @@ export async function GET(request: NextRequest) {
     let canStop = false;
     
     if (status === 'stopped') {
-      displayStatus = '중지됨';
+      displayStatus = '停止中';
       canStart = true;
     } else if (status === 'available') {
-      displayStatus = '실행 중';
+      displayStatus = '実行中';
       canStop = true;
     } else if (status === 'starting') {
-      displayStatus = '시작 중...';
+      displayStatus = '起動中...';
     } else if (status === 'stopping') {
-      displayStatus = '중지 중...';
+      displayStatus = '停止中...';
     }
 
     return NextResponse.json({
@@ -105,13 +105,13 @@ export async function GET(request: NextRequest) {
     if (error.name === 'DBInstanceNotFoundFault') {
       return NextResponse.json({ 
         status: 'not-found',
-        message: 'IT 환경 데이터베이스 인스턴스를 찾을 수 없습니다.',
+        message: 'IT環境データベースインスタンスが見つかりません。',
       });
     }
     
     return NextResponse.json({ 
-      error: '상태 확인 중 오류가 발생했습니다.',
-      details: error.message,
+      error: '状態確認中にエラーが発生しました。',
+      message: error.message || '状態確認中にエラーが発生しました。',
     }, { status: 500 });
   }
 }
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
     
     // SUPER_ADMIN 권한만 허용
     if (!session || session.user?.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
+      return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
     }
 
     const { client, StartDBInstanceCommand } = await getRDSClient();
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'IT 환경 데이터베이스 시작 요청이 완료되었습니다. 약 5-10분 소요됩니다.',
+      message: 'IT環境データベースの起動リクエストが完了しました。約5-10分かかります。',
       instanceIdentifier: IT_DB_INSTANCE_IDENTIFIER,
     });
   } catch (error: any) {
@@ -149,13 +149,14 @@ export async function POST(request: NextRequest) {
     // 이미 실행 중인 경우
     if (error.name === 'InvalidDBInstanceStateFault') {
       return NextResponse.json({ 
-        error: '이미 실행 중이거나 시작 중입니다.',
+        error: '既に実行中または起動中です。',
+        message: '既に実行中または起動中です。',
       }, { status: 400 });
     }
     
     return NextResponse.json({ 
-      error: '시작 요청 중 오류가 발생했습니다.',
-      details: error.message,
+      error: '起動リクエスト中にエラーが発生しました。',
+      message: error.message || '起動リクエスト中にエラーが発生しました。',
     }, { status: 500 });
   }
 }
@@ -171,7 +172,7 @@ export async function DELETE(request: NextRequest) {
     
     // SUPER_ADMIN 권한만 허용
     if (!session || session.user?.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
+      return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
     }
 
     const { client, StopDBInstanceCommand } = await getRDSClient();
@@ -184,7 +185,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'IT 환경 데이터베이스 중지 요청이 완료되었습니다.',
+      message: 'IT環境データベースの停止リクエストが完了しました。',
       instanceIdentifier: IT_DB_INSTANCE_IDENTIFIER,
     });
   } catch (error: any) {
@@ -193,14 +194,16 @@ export async function DELETE(request: NextRequest) {
     // 이미 중지된 경우
     if (error.name === 'InvalidDBInstanceStateFault') {
       return NextResponse.json({ 
-        error: '이미 중지되었거나 중지 중입니다.',
+        error: '既に停止されているか、停止中です。',
+        message: '既に停止されているか、停止中です。',
       }, { status: 400 });
     }
     
     return NextResponse.json({ 
-      error: '중지 요청 중 오류가 발생했습니다.',
-      details: error.message,
+      error: '停止リクエスト中にエラーが発生しました。',
+      message: error.message || '停止リクエスト中にエラーが発生しました。',
     }, { status: 500 });
   }
 }
+
 
