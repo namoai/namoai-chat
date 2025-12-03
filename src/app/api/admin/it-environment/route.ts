@@ -109,7 +109,7 @@ export async function GET() {
     console.log('[IT-Environment] RDS client initialized successfully');
     
     // まず特定のインスタンスを検索
-    let command = new DescribeDBInstancesCommand({
+    const command = new DescribeDBInstancesCommand({
       DBInstanceIdentifier: IT_DB_INSTANCE_IDENTIFIER,
     });
 
@@ -122,10 +122,11 @@ export async function GET() {
       });
     } catch (error: unknown) {
       // インスタンスが見つからない場合、すべてのインスタンスをリストして確認
+      const errorObj = error as { name?: string; message?: string; $fault?: string };
       const isNotFoundError = error instanceof Error && (
         error.name === 'DBInstanceNotFoundFault' || 
         error.message.includes('not found') ||
-        (error as any).$fault === 'client'
+        errorObj.$fault === 'client'
       );
       
       if (isNotFoundError) {
