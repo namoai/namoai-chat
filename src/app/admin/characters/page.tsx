@@ -334,7 +334,7 @@ export default function AdminCharactersPage() {
         });
         break;
       case 'edit':
-        router.push(`/character-management/edit/${char.id}`);
+        router.push(`/characters/edit/${char.id}`);
         break;
       case 'export':
         handleExportCharacter(char.id);
