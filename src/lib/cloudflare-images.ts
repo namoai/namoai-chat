@@ -269,8 +269,99 @@ export async function deleteImageFromCloudflare(imageUrl: string): Promise<boole
 }
 
 export function isCloudflareImageUrl(url: string): boolean {
-  const { publicBaseUrl } = getR2Config();
-  const normalizedBase = publicBaseUrl.replace(/\/+$/, '');
-  return url.startsWith(normalizedBase);
+  try {
+    const { publicBaseUrl } = getR2Config();
+    const normalizedBase = publicBaseUrl.replace(/\/+$/, '');
+    return url.startsWith(normalizedBase);
+  } catch {
+    // 環境変数が設定されていない場合はfalseを返す
+    return false;
+  }
+}
+
+/**
+ * R2から画像をダウンロード
+ * Download image from R2
+ */
+export async function downloadImageFromR2(imageUrl: string): Promise<{ buffer: Buffer; contentType: string }> {
+  const config = getR2Config();
+  const client = await getR2Client();
+  const { GetObjectCommand } = await loadS3Module();
+  
+  // URLからキーを抽出
+  const normalizedBase = config.publicBaseUrl.replace(/\/+$/, '');
+  if (!imageUrl.startsWith(normalizedBase)) {
+    throw new Error(`Invalid R2 URL: ${imageUrl}`);
+  }
+  
+  const key = imageUrl.substring(normalizedBase.length).replace(/^\/+/, '');
+  const decodedKey = decodeURIComponent(key);
+  
+  const command = new GetObjectCommand({
+    Bucket: config.bucketName,
+    Key: decodedKey,
+  });
+  
+  const response = await client.send(command);
+  
+  if (!response.Body) {
+    throw new Error('R2 response body is empty');
+  }
+  
+  // BodyをBufferに変換
+  const chunks: Uint8Array[] = [];
+  const body = response.Body;
+  
+  if (!body) {
+    throw new Error('R2 response body is empty');
+  }
+  
+  // Web Streamの場合
+  if ('transformToWebStream' in body && typeof body.transformToWebStream === 'function') {
+    const stream = body.transformToWebStream();
+    const reader = stream.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) chunks.push(value);
+    }
+  } 
+  // Node.js Streamの場合
+  else if ('on' in body && typeof (body as { on?: unknown }).on === 'function') {
+    const stream = body as AsyncIterable<Uint8Array> | Iterable<Uint8Array>;
+    for await (const chunk of stream) {
+      chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk));
+    }
+  } 
+  // ArrayBufferまたはBufferの場合
+  else {
+    type BodyType = ArrayBuffer | Buffer | { arrayBuffer: () => Promise<ArrayBuffer> };
+    const typedBody = body as BodyType;
+    
+    if (typedBody instanceof ArrayBuffer) {
+      chunks.push(new Uint8Array(typedBody));
+    } else if (Buffer.isBuffer(typedBody)) {
+      chunks.push(new Uint8Array(typedBody));
+    } else if (typeof typedBody === 'object' && typedBody !== null && 'arrayBuffer' in typedBody && typeof typedBody.arrayBuffer === 'function') {
+      const arrayBuffer = await typedBody.arrayBuffer();
+      chunks.push(new Uint8Array(arrayBuffer));
+    } else {
+      throw new Error('Unsupported R2 response body type');
+    }
+  }
+  
+  // chunksを結合してBufferに変換
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const combined = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  }
+  
+  const buffer = Buffer.from(combined);
+  const contentType = response.ContentType || 'image/png';
+  
+  return { buffer, contentType };
 }
 

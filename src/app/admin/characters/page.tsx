@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 // ▼▼▼【修正点】未使用の 'X' アイコンを削除しました ▼▼▼
-import { Search, MoreVertical, Edit, Trash2, Eye, EyeOff, ArrowLeft, Star, StarOff } from 'lucide-react';
+import { Search, MoreVertical, Edit, Trash2, Eye, EyeOff, ArrowLeft, Star, StarOff, Download, Upload } from 'lucide-react';
 import { fetchWithCsrf } from '@/lib/csrf-client';
 
 // 型定義
@@ -131,6 +131,10 @@ const KebabMenu = ({ character, onAction }: { character: Character, onAction: (a
               {character.visibility === 'private' ? <Eye size={16} className="text-white group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" /> : <EyeOff size={16} className="text-white group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" />}
               <span className="group-hover:translate-x-1 transition-transform duration-300">{character.visibility === 'private' ? '公開に切り替え' : '非公開に切り替え'}</span>
             </button>
+            <button onClick={() => handleAction('export')} className="w-full text-left flex items-center gap-2 px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 group">
+              <Download size={16} className="text-white group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" /> 
+              <span className="group-hover:translate-x-1 transition-transform duration-300">エクスポート</span>
+            </button>
             <button onClick={() => handleAction('edit')} className="w-full text-left flex items-center gap-2 px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 group">
               <Edit size={16} className="text-white group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" /> 
               <span className="group-hover:translate-x-1 transition-transform duration-300">修正</span>
@@ -155,6 +159,9 @@ export default function AdminCharactersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: '', message: '' });
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -205,6 +212,81 @@ export default function AdminCharactersPage() {
     fetchCharacters(currentPage, debouncedQuery);
   }, [currentPage, debouncedQuery, fetchCharacters]);
 
+  const handleExportCharacter = async (characterId: number) => {
+    try {
+      const response = await fetch(`/api/characters/${characterId}/export`);
+      if (!response.ok) {
+        throw new Error('エクスポートに失敗しました');
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `character_${characterId}_${Date.now()}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      setModalState({ isOpen: true, title: '成功', message: 'キャラクターをエクスポートしました。', isAlert: true });
+    } catch (error) {
+      console.error('Export error:', error);
+      setModalState({ isOpen: true, title: 'エラー', message: 'エクスポートに失敗しました。', isAlert: true });
+    }
+  };
+
+  const handleImportCharacter = async (file: File) => {
+    setImportLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('zipFile', file);
+
+      const response = await fetchWithCsrf(`/api/characters`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.message || 'インポートに失敗しました');
+      }
+
+      const result = await response.json();
+      setModalState({ 
+        isOpen: true, 
+        title: '成功', 
+        message: result.message || 'キャラクターをインポートしました。', 
+        isAlert: true 
+      });
+      setImportModalOpen(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      fetchCharacters(currentPage, debouncedQuery);
+    } catch (error) {
+      console.error('Import error:', error);
+      setModalState({ 
+        isOpen: true, 
+        title: 'エラー', 
+        message: error instanceof Error ? error.message : 'インポートに失敗しました。', 
+        isAlert: true 
+      });
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.zip')) {
+      setModalState({ isOpen: true, title: 'エラー', message: 'ZIPファイルを選択してください。', isAlert: true });
+      return;
+    }
+
+    handleImportCharacter(file);
+  };
+
   const handleMenuAction = (action: string, char: Character) => {
     switch (action) {
       case 'toggleOfficial':
@@ -252,7 +334,10 @@ export default function AdminCharactersPage() {
         });
         break;
       case 'edit':
-        router.push(`/character-management/edit/${char.id}`);
+        router.push(`/characters/edit/${char.id}`);
+        break;
+      case 'export':
+        handleExportCharacter(char.id);
         break;
       case 'delete':
         setModalState({
@@ -301,14 +386,66 @@ export default function AdminCharactersPage() {
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 pb-24" style={{ overflow: 'visible' }}>
           <ConfirmationModal modalState={modalState} setModalState={setModalState} />
 
-          <header className="flex items-center mb-8">
-            <button onClick={() => router.back()} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
-              <ArrowLeft size={24} />
+          <header className="flex items-center justify-between mb-8">
+            <div className="flex items-center">
+              <button onClick={() => router.back()} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
+                <ArrowLeft size={24} />
+              </button>
+              <h1 className="text-2xl md:text-3xl font-bold ml-4 bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                キャラクター管理
+              </h1>
+            </div>
+            <button
+              onClick={() => {
+                setImportModalOpen(true);
+                setTimeout(() => fileInputRef.current?.click(), 100);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500/20 to-purple-500/20 hover:from-pink-500/30 hover:to-purple-500/30 rounded-xl border border-pink-500/30 hover:border-pink-500/50 transition-all"
+            >
+              <Upload size={20} />
+              <span>インポート</span>
             </button>
-            <h1 className="text-2xl md:text-3xl font-bold ml-4 bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              キャラクター管理
-            </h1>
           </header>
+
+          {/* インポートモーダル */}
+          {importModalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex justify-center items-center">
+              <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md m-4">
+                <h2 className="text-xl font-bold mb-4 text-white">キャラクターインポート</h2>
+                <p className="text-gray-400 text-sm mb-4">
+                  ZIPファイルを選択してください。新しいキャラクターとして作成されます。キャラクター情報、画像、ロアブックがインポートされます。
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".zip"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <div className="flex justify-end gap-4">
+                  <button
+                    onClick={() => {
+                      setImportModalOpen(false);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                      }
+                    }}
+                    className="px-4 py-2 bg-gray-600 text-white hover:bg-gray-500 rounded-lg transition-colors"
+                    disabled={importLoading}
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-4 py-2 bg-pink-600 text-white hover:bg-pink-500 rounded-lg transition-colors"
+                    disabled={importLoading}
+                  >
+                    {importLoading ? 'インポート中...' : 'ファイルを選択'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="relative mb-6">
             <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />

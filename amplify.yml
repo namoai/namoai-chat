@@ -3,7 +3,7 @@ frontend:
   phases:
     preBuild:
       commands:
-        - npm ci
+        - npm ci --include=optional
         - |
           # 환경 변수를 .env.production.local 파일로 생성
           # AWS Amplify Hosting은 빌드 시점 환경 변수를 런타임에 전달하지 않을 수 있으므로

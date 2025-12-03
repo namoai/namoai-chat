@@ -14,6 +14,10 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
+    "db:migrate:staging-to-it": "node scripts/migrate-staging-to-it-prisma.mjs",
+    "db:fix-vector-indexes": "node scripts/fix-vector-indexes.mjs",
+    "db:check-vector-indexes": "node scripts/check-vector-indexes.mjs",
+    "it:setup-security": "node scripts/setup-it-security-sdk.mjs",
     "test": "node scripts/test-runner.mjs",
     "test:json": "node scripts/test-runner.mjs --json",
     "test:category": "node scripts/test-runner.mjs --category",
@@ -23,9 +27,12 @@
     "generate:detail": "node scripts/generate-ui-ss-excel.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-ec2": "^3.943.0",
+    "@aws-sdk/client-iam": "^3.943.0",
     "@aws-sdk/client-rds": "^3.887.0",
     "@aws-sdk/client-s3": "^3.887.0",
     "@aws-sdk/client-ssm": "^3.940.0",
+    "@aws-sdk/client-sts": "^3.943.0",
     "@google-cloud/secret-manager": "^5.5.0",
     "@google-cloud/vertexai": "^1.10.0",
     "@google/generative-ai": "^0.24.1",
@@ -51,7 +58,12 @@
     "react-icons": "^5.5.0",
     "sanitize-html": "^2.14.0",
     "tailwind-merge": "^3.3.1",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "jszip": "^3.10.1",
+    "lightningcss": "^1.30.1"
+  },
+  "optionalDependencies": {
+    "lightningcss-linux-x64-gnu": "^1.30.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -67,7 +79,6 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
     "fast-xml-parser": "^5.3.1",
-    "jszip": "^3.10.1",
     "marked": "^16.4.1",
     "pptxgenjs": "^4.0.1",
     "prisma": "^6.11.1",

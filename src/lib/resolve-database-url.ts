@@ -20,14 +20,26 @@
 export function resolveDatabaseUrlForPool(): string {
   const appEnv = process.env.APP_ENV?.toLowerCase();
   
-  // 環境別のDATABASE_URLを優先的に使用（設定されている場合）
-  // Use environment-specific DATABASE_URL if available
-  if (appEnv === 'staging' && process.env.STAGING_DATABASE_URL) {
-    return process.env.STAGING_DATABASE_URL;
+  // IT環境ではSTAGING_DATABASE_URLを明示的に無視
+  // Explicitly ignore STAGING_DATABASE_URL in IT environment
+  if (appEnv === 'integration') {
+    // IT環境ではIT_DATABASE_URLのみを使用
+    // In IT environment, use only IT_DATABASE_URL
+    if (process.env.IT_DATABASE_URL) {
+      return process.env.IT_DATABASE_URL;
+    }
+    // IT_DATABASE_URLがなければDATABASE_URLを使用（STAGING_DATABASE_URLは使用しない）
+    // If IT_DATABASE_URL is not set, use DATABASE_URL (don't use STAGING_DATABASE_URL)
+    if (process.env.DATABASE_URL) {
+      return process.env.DATABASE_URL;
+    }
+    throw new Error('IT環境ではIT_DATABASE_URLまたはDATABASE_URLが必要です。STAGING_DATABASE_URLは使用されません。');
   }
   
-  if (appEnv === 'integration' && process.env.IT_DATABASE_URL) {
-    return process.env.IT_DATABASE_URL;
+  // ステージング環境ではSTAGING_DATABASE_URLを使用
+  // Use STAGING_DATABASE_URL in staging environment
+  if (appEnv === 'staging' && process.env.STAGING_DATABASE_URL) {
+    return process.env.STAGING_DATABASE_URL;
   }
   
   // 既存コードとの互換性: DATABASE_URLをフォールバックとして使用

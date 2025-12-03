@@ -14,6 +14,8 @@ import { notifyFollowersOnCharacterCreation } from '@/lib/notifications'; // ★
 import { validateImageFile } from '@/lib/upload/validateImage';
 import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
 import { uploadImageBufferToCloudflare } from '@/lib/cloudflare-images';
+import JSZip from 'jszip';
+import { randomUUID } from 'crypto';
 
 // =================================================================================
 //  型定義 (Type Definitions)
@@ -342,6 +344,298 @@ export async function POST(request: Request) {
 
         const contentType = request.headers.get("content-type") || "";
 
+        // === ZIPファイルインポート（新規キャラクター作成） ===
+        if (contentType.includes("multipart/form-data")) {
+            const formData = await request.formData();
+            const zipFile = formData.get('zipFile') as File | null;
+            
+            // ZIPファイルがある場合は新規キャラクター作成
+            if (zipFile && zipFile.name.endsWith('.zip')) {
+                console.log('[POST] ZIPファイルからの新規キャラクター作成開始');
+                
+                const session = await getServerSession(authOptions);
+                if (!session?.user?.id) {
+                    return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
+                }
+                const currentUserId = parseInt(session.user.id, 10);
+                
+                // ZIPファイルを解凍
+                const arrayBuffer = await zipFile.arrayBuffer();
+                const zip = await JSZip.loadAsync(arrayBuffer);
+                
+                // character.jsonを取得
+                const characterJsonFile = zip.file('character.json');
+                if (!characterJsonFile) {
+                    return NextResponse.json({ error: 'ZIPファイルにcharacter.jsonが見つかりません。' }, { status: 400 });
+                }
+                
+                const characterJsonText = await characterJsonFile.async('string');
+                const sourceCharacterData = JSON.parse(characterJsonText) as {
+                    name: string;
+                    description?: string | null;
+                    systemTemplate?: string | null;
+                    firstSituation?: string | null;
+                    firstMessage?: string | null;
+                    visibility: 'public' | 'private' | 'link';
+                    safetyFilter: boolean;
+                    category?: string | null;
+                    hashtags?: string[];
+                    detailSetting?: string | null;
+                    statusWindowPrompt?: string | null;
+                    statusWindowDescription?: string | null;
+                    characterImages?: Array<{
+                        imageUrl: string;
+                        keyword: string | null;
+                        isMain: boolean;
+                        displayOrder: number;
+                    }>;
+                    lorebooks?: Array<{
+                        content: string;
+                        keywords: string[];
+                    }>;
+                };
+                
+                // 画像をZIPから取得
+                // ZIP内のすべてのファイルをリストして確認
+                const allFiles: string[] = [];
+                zip.forEach((relativePath) => {
+                    allFiles.push(relativePath);
+                });
+                console.log(`[IMPORT] ZIP内の全ファイル:`, allFiles);
+                
+                const imagesFolder = zip.folder('images');
+                const imageMap = new Map<number, Buffer>(); // displayOrder -> Buffer のマップ
+                
+                if (sourceCharacterData.characterImages && sourceCharacterData.characterImages.length > 0) {
+                    // displayOrder順にソート
+                    const sortedImages = [...sourceCharacterData.characterImages].sort((a, b) => a.displayOrder - b.displayOrder);
+                    
+                    console.log(`[IMPORT] ZIP内の画像ファイル数: ${sortedImages.length}`);
+                    console.log(`[IMPORT] characterImages データ:`, sortedImages.map(img => ({
+                        displayOrder: img.displayOrder,
+                        isMain: img.isMain,
+                        keyword: img.keyword,
+                    })));
+                    
+                    // 画像ファイルを順番に読み込む (image_0.png, image_1.png など)
+                    for (let i = 0; i < sortedImages.length; i++) {
+                        const img = sortedImages[i];
+                        const displayOrder = img.displayOrder;
+                        
+                        // 拡張子を試行 (png, jpg, jpeg, webp, gif)
+                        const extensions = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
+                        let imageBuffer: Buffer | null = null;
+                        let foundExtension: string | null = null;
+                        let foundPath: string | null = null;
+                        
+                        // 方法1: images/image_0.png 形式で検索
+                        if (imagesFolder) {
+                            for (const ext of extensions) {
+                                const imagePath = `image_${i}.${ext}`;
+                                const imageFile = imagesFolder.file(imagePath);
+                                if (imageFile) {
+                                    imageBuffer = await imageFile.async('nodebuffer');
+                                    foundExtension = ext;
+                                    foundPath = `images/${imagePath}`;
+                                    console.log(`[IMPORT] 画像 ${i} (displayOrder: ${displayOrder}) をZIPから取得: ${foundPath} (${imageBuffer.length} bytes)`);
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // 方法2: 全ファイルから直接検索 (images/image_0.png など)
+                        if (!imageBuffer) {
+                            for (const ext of extensions) {
+                                const possiblePaths = [
+                                    `images/image_${i}.${ext}`,
+                                    `image_${i}.${ext}`,
+                                    `images/${i}.${ext}`,
+                                    `${i}.${ext}`,
+                                ];
+                                
+                                for (const imagePath of possiblePaths) {
+                                    const imageFile = zip.file(imagePath);
+                                    if (imageFile) {
+                                        imageBuffer = await imageFile.async('nodebuffer');
+                                        foundExtension = ext;
+                                        foundPath = imagePath;
+                                        console.log(`[IMPORT] 画像 ${i} (displayOrder: ${displayOrder}) をZIPから取得 (直接検索): ${foundPath} (${imageBuffer.length} bytes)`);
+                                        break;
+                                    }
+                                }
+                                if (imageBuffer) break;
+                            }
+                        }
+                        
+                        if (imageBuffer && foundExtension && foundPath) {
+                            imageMap.set(displayOrder, imageBuffer);
+                        } else {
+                            console.warn(`[IMPORT] 画像 ${i} (displayOrder: ${displayOrder}) が見つかりません`);
+                            console.warn(`[IMPORT] 試行したパス: image_${i}.{png,jpg,jpeg,webp,gif} (images/ フォルダ内)`);
+                            console.warn(`[IMPORT] 試行したパス: images/image_${i}.{png,jpg,jpeg,webp,gif} (直接検索)`);
+                        }
+                    }
+                }
+                
+                // 画像をアップロード
+                const newImagesData: ImageMetaData[] = [];
+                if (sourceCharacterData.characterImages && sourceCharacterData.characterImages.length > 0) {
+                    // displayOrder順にソート
+                    const sortedImages = [...sourceCharacterData.characterImages].sort((a, b) => a.displayOrder - b.displayOrder);
+                    
+                    console.log(`[IMPORT] 画像アップロード開始: ${sortedImages.length} 枚`);
+                    
+                    for (let i = 0; i < sortedImages.length; i++) {
+                        const img = sortedImages[i];
+                        const displayOrder = img.displayOrder;
+                        
+                        // displayOrderに対応する画像バッファを取得
+                        const imageBuffer = imageMap.get(displayOrder);
+                        
+                        if (imageBuffer) {
+                            try {
+                                // 拡張子を推測 (デフォルトはpng)
+                                // 元のURLから拡張子を取得、なければpng
+                                let fileExtension = 'png';
+                                if (img.imageUrl) {
+                                    const urlMatch = img.imageUrl.match(/\.(png|jpg|jpeg|webp|gif)(\?|$|#)/i);
+                                    if (urlMatch) {
+                                        fileExtension = urlMatch[1].toLowerCase();
+                                    }
+                                }
+                                
+                                const safeFileName = `${randomUUID()}.${fileExtension}`;
+                                const contentType = `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
+                                
+                                console.log(`[IMPORT] 画像 ${i} (displayOrder: ${displayOrder}, isMain: ${img.isMain}, keyword: ${img.keyword || '(なし)'}) をCloudflareにアップロード中...`);
+                                const imageUrl = await uploadImageBufferToCloudflare(imageBuffer, {
+                                    filename: safeFileName,
+                                    contentType,
+                                });
+                                
+                                console.log(`[IMPORT] 画像 ${i} アップロード成功: ${imageUrl}`);
+                                
+                                newImagesData.push({
+                                    url: imageUrl,
+                                    keyword: img.keyword || '',
+                                    isMain: img.isMain,
+                                    displayOrder: img.displayOrder,
+                                });
+                            } catch (e) {
+                                console.error(`[IMPORT] ZIP画像 ${i} (displayOrder: ${displayOrder}) アップロードエラー:`, e);
+                            }
+                        } else {
+                            console.warn(`[IMPORT] 画像 ${i} (displayOrder: ${displayOrder}) のバッファが見つかりません`);
+                        }
+                    }
+                }
+                
+                console.log(`[IMPORT] 合計 ${newImagesData.length} 枚の画像をアップロードしました`);
+                
+                // セーフティフィルターチェック
+                if (sourceCharacterData.safetyFilter) {
+                    const violations = checkFieldsForSexualContent({
+                        systemTemplate: sourceCharacterData.systemTemplate,
+                        firstSituation: sourceCharacterData.firstSituation,
+                        firstMessage: sourceCharacterData.firstMessage,
+                        description: sourceCharacterData.description,
+                    });
+                    
+                    if (violations.length > 0) {
+                        const fieldNames: Record<string, string> = {
+                            systemTemplate: 'システムテンプレート',
+                            firstSituation: '初期状況',
+                            firstMessage: '最初のメッセージ',
+                            description: '説明',
+                        };
+                        const violationMessages = violations.map(v => fieldNames[v] || v).join('、');
+                        return NextResponse.json({ 
+                            error: `セーフティフィルターがONのキャラクターには性的コンテンツを含めることができません。\n\n以下のフィールドに性的コンテンツが検出されました: ${violationMessages}` 
+                        }, { status: 400 });
+                    }
+                }
+                
+                // 新規キャラクター作成
+                const newCharacter = await prisma.$transaction(async (tx) => {
+                    const character = await tx.characters.create({
+                        data: {
+                            name: sourceCharacterData.name,
+                            description: sourceCharacterData.description ?? null,
+                            systemTemplate: sourceCharacterData.systemTemplate ?? null,
+                            firstSituation: sourceCharacterData.firstSituation ?? null,
+                            firstMessage: sourceCharacterData.firstMessage ?? null,
+                            visibility: sourceCharacterData.visibility === 'link' ? 'public' : sourceCharacterData.visibility,
+                            safetyFilter: sourceCharacterData.safetyFilter,
+                            category: sourceCharacterData.category ?? null,
+                            hashtags: sourceCharacterData.hashtags ?? [],
+                            detailSetting: sourceCharacterData.detailSetting ?? null,
+                            statusWindowPrompt: sourceCharacterData.statusWindowPrompt ?? null,
+                            statusWindowDescription: sourceCharacterData.statusWindowDescription ?? null,
+                            author: { connect: { id: currentUserId } },
+                        }
+                    });
+                    
+                    // 画像登録
+                    if (newImagesData.length > 0) {
+                        console.log(`[IMPORT] データベースに保存する画像データ:`, newImagesData.map(img => ({
+                            url: img.url.substring(0, 50) + '...',
+                            keyword: img.keyword,
+                            isMain: img.isMain,
+                            displayOrder: img.displayOrder,
+                        })));
+                        
+                        const imageDataToSave = newImagesData.map(img => ({
+                            characterId: character.id,
+                            imageUrl: img.url,
+                            keyword: img.keyword || '',
+                            isMain: img.isMain,
+                            displayOrder: img.displayOrder,
+                        }));
+                        
+                        console.log(`[IMPORT] createManyに渡すデータ:`, imageDataToSave.map(img => ({
+                            characterId: img.characterId,
+                            imageUrl: img.imageUrl.substring(0, 50) + '...',
+                            keyword: img.keyword,
+                            isMain: img.isMain,
+                            displayOrder: img.displayOrder,
+                        })));
+                        
+                        await tx.character_images.createMany({
+                            data: imageDataToSave,
+                        });
+                        
+                        console.log(`[IMPORT] 画像データベース保存完了: ${imageDataToSave.length} 枚`);
+                    } else {
+                        console.warn(`[IMPORT] 保存する画像データがありません`);
+                    }
+                    
+                    // ロアブック保存
+                    if (sourceCharacterData.lorebooks && sourceCharacterData.lorebooks.length > 0) {
+                        for (const lore of sourceCharacterData.lorebooks) {
+                            const embedding = await getEmbedding(lore.content);
+                            const embeddingString = `[${embedding.join(',')}]`;
+                            await tx.$executeRaw`
+                                INSERT INTO "lorebooks" ("content", "keywords", "characterId", "embedding")
+                                VALUES (${lore.content}, ${lore.keywords || []}::text[], ${character.id}, ${embeddingString}::vector)
+                            `;
+                        }
+                    }
+                    
+                    return character;
+                });
+                
+                // フォロワーに通知
+                notifyFollowersOnCharacterCreation(currentUserId, newCharacter.id, newCharacter.name).catch(err => 
+                    console.error('通知作成エラー:', err)
+                );
+                
+                return NextResponse.json({ 
+                    message: 'キャラクターのインポートに成功しました！', 
+                    character: newCharacter 
+                }, { status: 201 });
+            }
+        }
+
         // === JSON（通常作成 または インポート） ===
         if (contentType.includes("application/json")) {
             const data = await request.json();
@@ -544,8 +838,14 @@ export async function POST(request: Request) {
             // ▲▲▲【既存 終了】▲▲▲
         }
 
-        // === FormData（通常作成） ===
+        // === FormData（通常作成、ZIPファイル以外） ===
         const formData = await request.formData();
+        
+        // ZIPファイルの場合は既に処理済みなのでスキップ
+        const zipFile = formData.get('zipFile');
+        if (zipFile && zipFile instanceof File && zipFile.name.endsWith('.zip')) {
+            return NextResponse.json({ error: 'ZIPファイルは既に処理されました。' }, { status: 400 });
+        }
         console.log('[POST] formData 受信成功');
 
         const lorebooksString = formData.get('lorebooks') as string;

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Session } from 'next-auth';
 import { ArrowLeft, Play, Square, RefreshCw, Database, AlertCircle } from 'lucide-react';
+import { fetchWithCsrf } from '@/lib/csrf-client';
 
 interface ITEnvironmentStatus {
   status: string;
@@ -65,28 +66,42 @@ export default function ITEnvironmentPage() {
   const loadITStatus = async () => {
     setIsRefreshing(true);
     try {
+      console.log('[IT-Environment-Client] Fetching IT environment status...');
       const res = await fetch('/api/admin/it-environment');
+      console.log('[IT-Environment-Client] Response status:', res.status);
+      console.log('[IT-Environment-Client] Response ok:', res.ok);
+      
       const data = await res.json();
+      console.log('[IT-Environment-Client] Response data:', data);
       
       if (res.ok) {
         setItStatus(data);
       } else {
+        // エラーメッセージを文字列に変換
+        const errorMessage = typeof data.error === 'string' 
+          ? data.error 
+          : typeof data.message === 'string'
+          ? data.message
+          : typeof data.details === 'string'
+          ? data.details
+          : data.error?.message || data.message || '状態を読み込めませんでした。';
+        
         setItStatus({
           status: 'error',
-          displayStatus: '오류',
+          displayStatus: 'エラー',
           canStart: false,
           canStop: false,
-          message: data.error || data.message || '상태를 불러올 수 없습니다.',
+          message: errorMessage,
         });
       }
     } catch (error) {
       console.error('IT 환경 상태 로드 오류:', error);
       setItStatus({
         status: 'error',
-        displayStatus: '오류',
+        displayStatus: 'エラー',
         canStart: false,
         canStop: false,
-        message: '상태를 불러올 수 없습니다.',
+        message: '状態を読み込めませんでした。',
       });
     } finally {
       setIsRefreshing(false);
@@ -94,7 +109,7 @@ export default function ITEnvironmentPage() {
   };
 
   const handleStart = async () => {
-    if (!confirm('IT 환경 데이터베이스를 시작하시겠습니까?\n약 5-10분 소요됩니다.')) {
+    if (!confirm('IT環境データベースを起動しますか？\n約5-10分かかります。')) {
       return;
     }
 
@@ -102,31 +117,35 @@ export default function ITEnvironmentPage() {
     setMessage(null);
 
     try {
-      const res = await fetch('/api/admin/it-environment', {
+      const res = await fetchWithCsrf('/api/admin/it-environment', {
         method: 'POST',
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        setMessage({ type: 'success', text: data.message || '시작 요청이 완료되었습니다.' });
+        setMessage({ type: 'success', text: data.message || '起動リクエストが完了しました。' });
         // 상태 새로고침 (약간의 지연 후)
         setTimeout(() => {
           loadITStatus();
         }, 2000);
       } else {
-        setMessage({ type: 'error', text: data.error || '시작 요청 중 오류가 발생했습니다.' });
+        // エラーメッセージを文字列に変換
+        const errorMessage = typeof data.error === 'string' 
+          ? data.error 
+          : data.error?.message || data.message || '起動リクエスト中にエラーが発生しました。';
+        setMessage({ type: 'error', text: errorMessage });
       }
     } catch (error) {
       console.error('IT 환경 시작 오류:', error);
-      setMessage({ type: 'error', text: '시작 요청 중 오류가 발생했습니다.' });
+      setMessage({ type: 'error', text: '起動リクエスト中にエラーが発生しました。' });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleStop = async () => {
-    if (!confirm('IT 환경 데이터베이스를 중지하시겠습니까?\n비용 절감을 위해 중지하는 것을 권장합니다.')) {
+    if (!confirm('IT環境データベースを停止しますか？\nコスト削減のため停止することを推奨します。')) {
       return;
     }
 
@@ -134,24 +153,28 @@ export default function ITEnvironmentPage() {
     setMessage(null);
 
     try {
-      const res = await fetch('/api/admin/it-environment', {
+      const res = await fetchWithCsrf('/api/admin/it-environment', {
         method: 'DELETE',
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        setMessage({ type: 'success', text: data.message || '중지 요청이 완료되었습니다.' });
+        setMessage({ type: 'success', text: data.message || '停止リクエストが完了しました。' });
         // 상태 새로고침 (약간의 지연 후)
         setTimeout(() => {
           loadITStatus();
         }, 2000);
       } else {
-        setMessage({ type: 'error', text: data.error || '중지 요청 중 오류가 발생했습니다.' });
+        // エラーメッセージを文字列に変換
+        const errorMessage = typeof data.error === 'string' 
+          ? data.error 
+          : data.error?.message || data.message || '停止リクエスト中にエラーが発生しました。';
+        setMessage({ type: 'error', text: errorMessage });
       }
     } catch (error) {
       console.error('IT 환경 중지 오류:', error);
-      setMessage({ type: 'error', text: '중지 요청 중 오류가 발생했습니다.' });
+      setMessage({ type: 'error', text: '停止リクエスト中にエラーが発生しました。' });
     } finally {
       setIsLoading(false);
     }
@@ -169,10 +192,10 @@ export default function ITEnvironmentPage() {
   }
 
   const getStatusColor = (status: string) => {
-    if (status === 'available' || status === '실행 중') return 'text-green-400';
-    if (status === 'stopped' || status === '중지됨') return 'text-gray-400';
-    if (status === 'starting' || status === '시작 중...') return 'text-yellow-400';
-    if (status === 'stopping' || status === '중지 중...') return 'text-orange-400';
+    if (status === 'available' || status === '実行中') return 'text-green-400';
+    if (status === 'stopped' || status === '停止中') return 'text-gray-400';
+    if (status === 'starting' || status === '起動中...') return 'text-yellow-400';
+    if (status === 'stopping' || status === '停止中...') return 'text-orange-400';
     return 'text-red-400';
   };
 
@@ -302,7 +325,7 @@ export default function ITEnvironmentPage() {
 
             <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
               <p className="text-sm text-blue-400">
-                💡 <strong>비용 절감 팁:</strong> IT 환경은 테스트할 때만 시작하고, 사용하지 않을 때는 중지하면 월 비용을 크게 절감할 수 있습니다.
+                💡 <strong>コスト削減のヒント:</strong> IT環境はテスト時のみ起動し、使用しない時は停止することで月額コストを大幅に削減できます。
               </p>
             </div>
           </div>
@@ -311,4 +334,5 @@ export default function ITEnvironmentPage() {
     </div>
   );
 }
+
 
