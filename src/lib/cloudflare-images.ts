@@ -310,30 +310,43 @@ export async function downloadImageFromR2(imageUrl: string): Promise<{ buffer: B
   
   // BodyをBufferに変換
   const chunks: Uint8Array[] = [];
-  if ('transformToWebStream' in response.Body && typeof response.Body.transformToWebStream === 'function') {
-    const stream = response.Body.transformToWebStream();
+  const body = response.Body;
+  
+  if (!body) {
+    throw new Error('R2 response body is empty');
+  }
+  
+  // Web Streamの場合
+  if ('transformToWebStream' in body && typeof body.transformToWebStream === 'function') {
+    const stream = body.transformToWebStream();
     const reader = stream.getReader();
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       if (value) chunks.push(value);
     }
-  } else if ('on' in response.Body && typeof (response.Body as any).on === 'function') {
-    // Node.js Streamの場合
-    const stream = response.Body as any;
+  } 
+  // Node.js Streamの場合
+  else if ('on' in body && typeof (body as { on?: unknown }).on === 'function') {
+    const stream = body as AsyncIterable<Uint8Array> | Iterable<Uint8Array>;
     for await (const chunk of stream) {
       chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk));
     }
-  } else {
-    // ArrayBufferまたはBufferの場合
-    const body = response.Body as any;
-    if (body instanceof ArrayBuffer) {
-      chunks.push(new Uint8Array(body));
-    } else if (Buffer.isBuffer(body)) {
-      chunks.push(new Uint8Array(body));
-    } else {
-      const arrayBuffer = await body.arrayBuffer();
+  } 
+  // ArrayBufferまたはBufferの場合
+  else {
+    type BodyType = ArrayBuffer | Buffer | { arrayBuffer: () => Promise<ArrayBuffer> };
+    const typedBody = body as BodyType;
+    
+    if (typedBody instanceof ArrayBuffer) {
+      chunks.push(new Uint8Array(typedBody));
+    } else if (Buffer.isBuffer(typedBody)) {
+      chunks.push(new Uint8Array(typedBody));
+    } else if (typeof typedBody === 'object' && typedBody !== null && 'arrayBuffer' in typedBody && typeof typedBody.arrayBuffer === 'function') {
+      const arrayBuffer = await typedBody.arrayBuffer();
       chunks.push(new Uint8Array(arrayBuffer));
+    } else {
+      throw new Error('Unsupported R2 response body type');
     }
   }
   
