@@ -176,7 +176,16 @@ async function loadFromParameterStore(variableKeys: string[], type: 'required' |
     const { SSMClient, GetParametersCommand } = await import('@aws-sdk/client-ssm');
     const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
-    const amplifyAppId = process.env.AWS_APP_ID || process.env.AWS_AMPLIFY_APP_ID || 'duvg1mvqbm4y4';
+    // AWS Amplify App ID 확인 (AWS_ 접두사는 Amplify에서 사용 불가하므로 AMPLIFY_APP_ID 사용)
+    // Check AWS Amplify App ID (AWS_ prefix is not allowed in Amplify, so use AMPLIFY_APP_ID)
+    const amplifyAppId = process.env.AMPLIFY_APP_ID || process.env.APP_ID;
+    
+    if (!amplifyAppId) {
+      console.warn('[load-env-vars] ⚠️ AMPLIFY_APP_ID or APP_ID environment variable is not set. Cannot load from Parameter Store.');
+      console.warn('[load-env-vars] ⚠️ Please set AMPLIFY_APP_ID in your Amplify app environment variables.');
+      return; // App ID가 없으면 Parameter Store에서 로드하지 않음
+    }
+    
     const branchCandidates = getAmplifyBranchCandidates();
     console.log(`[load-env-vars] Using Amplify App ID: ${amplifyAppId}, Branch candidates: ${branchCandidates.join(', ')}`);
 
