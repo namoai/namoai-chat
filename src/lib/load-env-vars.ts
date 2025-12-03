@@ -274,6 +274,9 @@ function getAmplifyBranchCandidates(): string[] {
     }
   };
 
+  addCandidate(process.env.ENV_BRANCH);
+  addCandidate(process.env.APP_BRANCH);
+  addCandidate(process.env.BRANCH_NAME);
   addCandidate(process.env.AWS_BRANCH);
   addCandidate(process.env.AMPLIFY_BRANCH);
   addCandidate(process.env.BRANCH);
