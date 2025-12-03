@@ -42,8 +42,12 @@ export function getEnvironmentType(): EnvironmentType {
   }
 
   // Amplifyブランチ名をフォールバックとして使用
-  // Use AWS_BRANCH as a fallback e.g. develop -> integration, main -> staging
-  const branch = process.env.AWS_BRANCH?.toLowerCase();
+  // Use branch env vars as fallback e.g. develop -> integration, main -> staging
+  const branch =
+    process.env.ENV_BRANCH?.toLowerCase() ||
+    process.env.APP_BRANCH?.toLowerCase() ||
+    process.env.BRANCH_NAME?.toLowerCase() ||
+    process.env.AWS_BRANCH?.toLowerCase();
   if (branch) {
     if (['develop', 'development', 'it', 'integration'].includes(branch)) {
       return 'integration';
