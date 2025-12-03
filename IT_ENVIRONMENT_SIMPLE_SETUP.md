@@ -173,3 +173,4 @@ NEXTAUTH_URL=https://it-test.namos-chat.com  # IT 환경 URL
 **작성일:** 2025-01-27  
 **핵심:** Git 브랜치 나눌 필요 없음! 같은 브랜치 사용, 환경 변수만 다르게!
 
+                                    
