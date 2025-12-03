@@ -480,29 +480,34 @@ function getCachedAuthOptions(): NextAuthOptions {
 // Proxyを使用してauthOptionsのすべてのプロパティアクセスをインターセプト
 // これにより、実際の使用時にgetAuthOptions()が呼び出されます
 export const authOptions = new Proxy({} as NextAuthOptions, {
-  get(_target, prop: string | symbol) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  get(_target, prop: string | symbol): any {
     const options = getCachedAuthOptions();
-    const value = (options as any)[prop];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const value = (options as Record<string | symbol, any>)[prop];
     // 関数の場合はthisをバインド
     if (typeof value === 'function') {
       return value.bind(options);
     }
     return value;
   },
-  set(_target, prop: string | symbol, value: any) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  set(_target, prop: string | symbol, value: any): boolean {
     const options = getCachedAuthOptions();
-    (options as any)[prop] = value;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (options as Record<string | symbol, any>)[prop] = value;
     return true;
   },
-  has(_target, prop: string | symbol) {
+  has(_target, prop: string | symbol): boolean {
     const options = getCachedAuthOptions();
     return prop in options;
   },
-  ownKeys(_target) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  ownKeys(_target): string[] {
     const options = getCachedAuthOptions();
     return Object.keys(options);
   },
-  getOwnPropertyDescriptor(_target, prop: string | symbol) {
+  getOwnPropertyDescriptor(_target, prop: string | symbol): PropertyDescriptor | undefined {
     const options = getCachedAuthOptions();
     return Object.getOwnPropertyDescriptor(options, prop);
   },
