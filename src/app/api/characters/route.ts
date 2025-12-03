@@ -14,6 +14,7 @@ import { notifyFollowersOnCharacterCreation } from '@/lib/notifications'; // ★
 import { validateImageFile } from '@/lib/upload/validateImage';
 import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
 import { uploadImageBufferToCloudflare } from '@/lib/cloudflare-images';
+import { withSequenceSyncInTransaction } from '@/lib/sequence-sync';
 import JSZip from 'jszip';
 import { randomUUID } from 'crypto';
 
@@ -694,117 +695,97 @@ export async function POST(request: Request) {
                 }
                 // ▲▲▲
                 
-                console.log('[POST] 데이터베이스 쓰기 시도 시작...');
+                console.log('[POST] データベース書き込み試行開始...');
                 console.log('[POST] DATABASE_URL from env:', process.env.DATABASE_URL?.substring(0, 50) + '...');
-                // Prisma가 실제로 사용하는 URL 확인
+                // Prismaが実際に使用するURLを確認
                 const prismaUrl = typeof prisma.$connect === 'function' ? 'Prisma connected' : 'Prisma not connected';
                 console.log('[POST] Prisma connection status:', prismaUrl);
                 
-                // 트랜잭션을 재시도하는 헬퍼 함수
-                const createCharacterWithRetry = async (): Promise<typeof newCharacter> => {
-                    try {
-                        return await prisma.$transaction(async (tx) => {
-                            console.log('[POST] characters.create 시도...');
-                            const character = await tx.characters.create({
-                                data: {
-                                    name: formFields.name,
-                                    description: formFields.description ?? null,
-                                    systemTemplate: formFields.systemTemplate ?? null,
-                                    firstSituation: formFields.firstSituation ?? null,
-                                    firstMessage: formFields.firstMessage ?? null,
-                                    visibility: formFields.visibility || 'public',
-                                    safetyFilter: formFields.safetyFilter !== false,
-                                    category: formFields.category ?? null,
-                                    hashtags: formFields.hashtags ?? [],
-                                    detailSetting: formFields.detailSetting ?? null,
-                                    statusWindowPrompt: formFields.statusWindowPrompt ?? null,
-                                    statusWindowDescription: formFields.statusWindowDescription ?? null,
-                                    author: { connect: { id: userIdNum } },
-                                }
-                            });
-                            console.log('[POST] characters.create 성공:', character.id);
-                        
-                            // 画像登録（既にSupabaseにアップロード済みのURL）
-                            if (images && images.length > 0) {
-                                console.log('[POST] character_images.createMany 시도...');
-                                await tx.character_images.createMany({
-                                    data: images.map((img: { imageUrl: string; keyword: string }, index: number) => ({
-                                        characterId: character.id,
-                                        imageUrl: img.imageUrl,
-                                        keyword: img.keyword || '',
-                                        isMain: index === 0,
-                                        displayOrder: index,
-                                    }))
+                // トランザクションを再試行するヘルパー関数（シーケンス同期を含む）
+                type CharacterResult = Prisma.charactersGetPayload<{}>;
+                const createCharacterWithRetry = async (): Promise<CharacterResult> => {
+                    return await withSequenceSyncInTransaction(
+                        prisma,
+                        'characters', // メインテーブル（エラー発生時はこのテーブルのシーケンスを修正）
+                        async () => {
+                            return await prisma.$transaction(async (tx) => {
+                                console.log('[POST] characters.create 試行...');
+                                const character = await tx.characters.create({
+                                    data: {
+                                        name: formFields.name,
+                                        description: formFields.description ?? null,
+                                        systemTemplate: formFields.systemTemplate ?? null,
+                                        firstSituation: formFields.firstSituation ?? null,
+                                        firstMessage: formFields.firstMessage ?? null,
+                                        visibility: formFields.visibility || 'public',
+                                        safetyFilter: formFields.safetyFilter !== false,
+                                        category: formFields.category ?? null,
+                                        hashtags: formFields.hashtags ?? [],
+                                        detailSetting: formFields.detailSetting ?? null,
+                                        statusWindowPrompt: formFields.statusWindowPrompt ?? null,
+                                        statusWindowDescription: formFields.statusWindowDescription ?? null,
+                                        author: { connect: { id: userIdNum } },
+                                    }
                                 });
-                                console.log('[POST] character_images.createMany 성공');
-                            }
+                                console.log('[POST] characters.create 成功:', character.id);
                             
-                            // ロアブック保存
-                            if (lorebooks && lorebooks.length > 0) {
-                                for (const lore of lorebooks) {
-                                    const embedding = await getEmbedding(lore.content);
-                                    const embeddingString = `[${embedding.join(',')}]`;
-                                    await tx.$executeRaw`
-                                        INSERT INTO "lorebooks" ("content", "keywords", "characterId", "embedding")
-                                        VALUES (${lore.content}, ${lore.keywords || []}::text[], ${character.id}, ${embeddingString}::vector)
-                                    `;
+                                // 画像登録（既にSupabaseにアップロード済みのURL）
+                                if (images && images.length > 0) {
+                                    console.log('[POST] character_images.createMany 試行...');
+                                    await tx.character_images.createMany({
+                                        data: images.map((img: { imageUrl: string; keyword: string }, index: number) => ({
+                                            characterId: character.id,
+                                            imageUrl: img.imageUrl,
+                                            keyword: img.keyword || '',
+                                            isMain: index === 0,
+                                            displayOrder: index,
+                                        }))
+                                    });
+                                    console.log('[POST] character_images.createMany 成功');
                                 }
-                            }
-                            
-                            return character;
-                        });
-                    } catch (dbError) {
-                        console.error('[POST] 데이터베이스 쓰기 에러 상세:');
-                        console.error('[POST] 에러 타입:', typeof dbError);
-                        console.error('[POST] 에러 객체:', dbError);
-                        if (dbError instanceof Error) {
-                            console.error('[POST] 에러 메시지:', dbError.message);
-                            console.error('[POST] 에러 스택:', dbError.stack);
-                        }
-                        
-                        // Unique constraint 에러가 id 필드에서 발생한 경우 시퀀스 수정 후 재시도
-                        if (typeof dbError === 'object' && dbError !== null) {
-                            const prismaError = dbError as { code?: string; meta?: unknown; message?: string };
-                            console.error('[POST] Prisma 에러 코드:', prismaError.code);
-                            console.error('[POST] Prisma 에러 메타:', prismaError.meta);
-                            
-                            const errorMessage = prismaError.message || (dbError instanceof Error ? dbError.message : '');
-                            const isIdFieldError = prismaError.meta && 
-                                typeof prismaError.meta === 'object' && 
-                                prismaError.meta !== null &&
-                                'target' in prismaError.meta && 
-                                Array.isArray((prismaError.meta as { target?: unknown }).target) &&
-                                ((prismaError.meta as { target: unknown[] }).target.includes('id'));
-                            
-                            if (prismaError.code === 'P2002' && 
-                                (errorMessage.includes('Unique constraint failed on the fields: (`id`)') ||
-                                 isIdFieldError)) {
-                                console.log('[POST] ⚠️ Sequence out of sync detected. Fixing outside transaction...');
                                 
-                                // 트랜잭션 밖에서 시퀀스 수정
-                                try {
-                                    const maxResult = await prisma.$queryRaw<Array<{ max: bigint | null }>>`
-                                        SELECT MAX(id) as max FROM characters
-                                    `;
-                                    const maxId = maxResult[0]?.max ? Number(maxResult[0].max) : 0;
-                                    
-                                    await prisma.$executeRawUnsafe(`
-                                        SELECT setval('characters_id_seq', ${maxId + 1}, false)
-                                    `);
-                                    
-                                    console.log(`[POST] ✅ Sequence fixed outside transaction. Max ID: ${maxId}, Sequence set to: ${maxId + 1}`);
-                                    
-                                    // 새 트랜잭션으로 재시도
-                                    console.log('[POST] Retrying with new transaction...');
-                                    return await createCharacterWithRetry();
-                                } catch (retryError) {
-                                    console.error('[POST] ❌ Sequence fix and retry failed:', retryError);
-                                    throw dbError; // 원래 에러를 다시 throw
+                                // ロアブック保存
+                                if (lorebooks && lorebooks.length > 0) {
+                                    for (const lore of lorebooks) {
+                                        const embedding = await getEmbedding(lore.content);
+                                        const embeddingString = `[${embedding.join(',')}]`;
+                                        await tx.$executeRaw`
+                                            INSERT INTO "lorebooks" ("content", "keywords", "characterId", "embedding")
+                                            VALUES (${lore.content}, ${lore.keywords || []}::text[], ${character.id}, ${embeddingString}::vector)
+                                        `;
+                                    }
                                 }
+                                
+                                return character;
+                            });
+                        }
+                    ).catch(async (error) => {
+                        // character_images シーケンス問題も処理
+                        if (error instanceof Prisma.PrismaClientKnownRequestError && 
+                            error.code === 'P2002' &&
+                            error.meta && 
+                            typeof error.meta === 'object' && 
+                            error.meta !== null &&
+                            'target' in error.meta && 
+                            Array.isArray((error.meta as { target?: unknown }).target) &&
+                            ((error.meta as { target: unknown[] }).target.includes('id'))) {
+                            const errorMessage = error.message || '';
+                            if (errorMessage.includes('character_images')) {
+                                console.log('[POST] ⚠️ character_images sequence out of sync. Fixing...');
+                                const maxResult = await prisma.$queryRaw<Array<{ max: bigint | null }>>`
+                                    SELECT MAX(id) as max FROM character_images
+                                `;
+                                const maxId = maxResult[0]?.max ? Number(maxResult[0].max) : 0;
+                                await prisma.$executeRawUnsafe(`
+                                    SELECT setval('character_images_id_seq', ${maxId + 1}, false)
+                                `);
+                                console.log(`[POST] ✅ character_images sequence fixed. Max ID: ${maxId}, Sequence set to: ${maxId + 1}`);
+                                // 再試行
+                                return await createCharacterWithRetry();
                             }
                         }
-                        throw dbError;
-                    }
+                        throw error;
+                    });
                 };
                 
                 const newCharacter = await createCharacterWithRetry();
