@@ -1,11 +1,9 @@
 // src/app/api/auth/[...nextauth]/route.ts
 
 import NextAuth from "next-auth";
-import { authOptions, validateAuthEnvAtRuntime } from "@/lib/nextauth";
+import { getAuthOptions, validateAuthEnvAtRuntime } from "@/lib/nextauth";
 import { ensureEnvVarsLoaded } from "@/lib/load-env-vars";
 import type { NextRequest } from "next/server";
-
-const handler = NextAuth(authOptions);
 
 /**
  * 요청에서 NEXTAUTH_URL을 동적으로 설정
@@ -46,6 +44,10 @@ export async function GET(
     
     // 실제 사용 시점에 환경 변수 검증 (Lambda 환경 대응)
     validateAuthEnvAtRuntime();
+    
+    // 런타임에 authOptions 생성 (환경 변수가 로드된 후)
+    const authOptions = getAuthOptions();
+    const handler = NextAuth(authOptions);
     return await handler(req, context);
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
@@ -68,6 +70,10 @@ export async function POST(
     
     // 실제 사용 시점에 환경 변수 검증 (Lambda 환경 대응)
     validateAuthEnvAtRuntime();
+    
+    // 런타임에 authOptions 생성 (환경 변수가 로드된 후)
+    const authOptions = getAuthOptions();
+    const handler = NextAuth(authOptions);
     return await handler(req, context);
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {

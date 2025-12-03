@@ -158,61 +158,76 @@ export function validateAuthEnvAtRuntime() {
 }
 // ▲▲▲
 
-// NextAuthの設定をオブジェクトとして定義し、エクスポートします。
-// adapter는 lazy하게 초기화되지만, Proxy를 사용하여 실제 메서드를 반환합니다.
-export const authOptions: NextAuthOptions = {
-  // Adapter를 lazy하게 초기화하기 위한 Proxy
-  // NextAuth는 adapter.getUserByAccount를 직접 호출하므로,
-  // Proxy는 실제 메서드를 반환해야 합니다.
-  // NextAuth v4는 adapter 메서드를 직접 호출하기 전에 메서드가 함수인지 확인하므로,
-  // Proxy의 get이 실제 함수를 반환하도록 개선했습니다.
-  adapter: new Proxy({} as Adapter, {
-    get(_target, prop: string | symbol) {
-      // NextAuth가 메서드를 확인할 때 함수를 반환해야 합니다.
-      // createAdapterMethod는 동기 함수를 반환하지만, 내부에서 비동기 작업을 수행합니다.
-      return createAdapterMethod(prop);
-    },
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    has(_target, _prop: string | symbol) {
-      // NextAuth가 메서드 존재 여부를 확인할 때 true를 반환
-      return true;
-    },
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    ownKeys(_target) {
-      // NextAuth가 adapter의 속성을 열거할 때 필요한 메서드 목록 반환
-      return [
-        'createUser',
-        'getUser',
-        'getUserByEmail',
-        'getUserByAccount',
-        'updateUser',
-        'linkAccount',
-        'createSession',
-        'getSessionAndUser',
-        'updateSession',
-        'deleteSession',
-        'createVerificationToken',
-        'useVerificationToken',
-        'deleteVerificationToken',
-      ];
-    },
-    getOwnPropertyDescriptor(_target, prop) {
-      // NextAuth가 속성 디스크립터를 요청할 때 함수임을 명시
-      return {
-        enumerable: true,
-        configurable: true,
-        value: createAdapterMethod(prop),
-      };
-    },
-  }) as Adapter,
+// NextAuthの設定を関数として定義し、ランタイムに生成します。
+// Lambda環境では環境変数がランタイムにロードされるため、関数として定義する必要があります。
+// NextAuth configuration is defined as a function to generate at runtime.
+// In Lambda environment, environment variables are loaded at runtime, so it needs to be a function.
+export function getAuthOptions(): NextAuthOptions {
+  // 環境変数が設定されているか確認
+  // Check if environment variables are set
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const secret = process.env.NEXTAUTH_SECRET;
 
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      // 既に同じメールアドレスを持つアカウントが存在する場合でも、Googleアカウントとのリンクを許可します。
-      allowDangerousEmailAccountLinking: true,
-    }),
+  if (!clientId || !clientSecret) {
+    console.error('[NextAuth] ⚠️ GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is not set');
+    console.error('[NextAuth] GOOGLE_CLIENT_ID:', clientId ? `set (length: ${clientId.length})` : 'not set');
+    console.error('[NextAuth] GOOGLE_CLIENT_SECRET:', clientSecret ? `set (length: ${clientSecret.length})` : 'not set');
+  }
+
+  return {
+    // Adapter를 lazy하게 초기화하기 위한 Proxy
+    // NextAuth는 adapter.getUserByAccount를 직접 호출하므로,
+    // Proxy는 실제 메서드를 반환해야 합니다.
+    // NextAuth v4는 adapter 메서드를 직접 호출하기 전에 메서드가 함수인지 확인하므로,
+    // Proxy의 get이 실제 함수를 반환하도록 개선했습니다.
+    adapter: new Proxy({} as Adapter, {
+      get(_target, prop: string | symbol) {
+        // NextAuth가 메서드를 확인할 때 함수를 반환해야 합니다.
+        // createAdapterMethod는 동기 함수를 반환하지만, 내부에서 비동기 작업을 수행합니다.
+        return createAdapterMethod(prop);
+      },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      has(_target, _prop: string | symbol) {
+        // NextAuth가 메서드 존재 여부를 확인할 때 true를 반환
+        return true;
+      },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      ownKeys(_target) {
+        // NextAuth가 adapter의 속성을 열거할 때 필요한 메서드 목록 반환
+        return [
+          'createUser',
+          'getUser',
+          'getUserByEmail',
+          'getUserByAccount',
+          'updateUser',
+          'linkAccount',
+          'createSession',
+          'getSessionAndUser',
+          'updateSession',
+          'deleteSession',
+          'createVerificationToken',
+          'useVerificationToken',
+          'deleteVerificationToken',
+        ];
+      },
+      getOwnPropertyDescriptor(_target, prop) {
+        // NextAuth가 속성 디스크립터를 요청할 때 함수임을 명시
+        return {
+          enumerable: true,
+          configurable: true,
+          value: createAdapterMethod(prop),
+        };
+      },
+    }) as Adapter,
+
+    providers: [
+      GoogleProvider({
+        clientId: clientId || '',
+        clientSecret: clientSecret || '',
+        // 既に同じメールアドレスを持つアカウントが存在する場合でも、Googleアカウントとのリンクを許可します。
+        allowDangerousEmailAccountLinking: true,
+      }),
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -425,12 +440,17 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-  pages: {
-    signIn: "/login",
-  },
-  
-  secret: process.env.NEXTAUTH_SECRET,
-};
+    pages: {
+      signIn: "/login",
+    },
+    
+    secret: secret || '',
+  };
+}
+
+// 後方互換性のため、authOptionsもエクスポート（getAuthOptions()を呼び出す）
+// For backward compatibility, also export authOptions (calls getAuthOptions())
+export const authOptions: NextAuthOptions = getAuthOptions();
 
 // Lambda 환경에서 실제 사용 시점에 환경 변수 검증
 // authOptions가 사용되기 전에 호출되어야 함
