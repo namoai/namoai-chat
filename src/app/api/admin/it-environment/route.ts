@@ -16,7 +16,7 @@ let StopDBInstanceCommand: StopDBInstanceCommandType | null = null;
 let DescribeDBInstancesCommand: DescribeDBInstancesCommandType | null = null;
 
 async function getRDSClient() {
-  if (!RDSClient) {
+  if (!RDSClient || !StartDBInstanceCommand || !StopDBInstanceCommand || !DescribeDBInstancesCommand) {
     const { RDSClient: RDS } = await import('@aws-sdk/client-rds');
     const { StartDBInstanceCommand: Start } = await import('@aws-sdk/client-rds');
     const { StopDBInstanceCommand: Stop } = await import('@aws-sdk/client-rds');
@@ -26,6 +26,11 @@ async function getRDSClient() {
     StartDBInstanceCommand = Start;
     StopDBInstanceCommand = Stop;
     DescribeDBInstancesCommand = Describe;
+  }
+  
+  // この時点でnullでないことを保証
+  if (!RDSClient || !StartDBInstanceCommand || !StopDBInstanceCommand || !DescribeDBInstancesCommand) {
+    throw new Error('AWS RDS SDKの初期化に失敗しました。');
   }
   
   return {
