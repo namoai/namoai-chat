@@ -41,6 +41,21 @@ export function getEnvironmentType(): EnvironmentType {
     return appEnv as EnvironmentType;
   }
 
+  // Amplifyブランチ名をフォールバックとして使用
+  // Use AWS_BRANCH as a fallback e.g. develop -> integration, main -> staging
+  const branch = process.env.AWS_BRANCH?.toLowerCase();
+  if (branch) {
+    if (['develop', 'development', 'it', 'integration'].includes(branch)) {
+      return 'integration';
+    }
+    if (['main', 'staging', '混紡', 'honbang'].includes(branch)) {
+      return 'staging';
+    }
+    if (['production', 'prod', 'release'].includes(branch)) {
+      return 'production';
+    }
+  }
+
   // NODE_ENVベースの推論
   // NODE_ENV-based inference
   if (process.env.NODE_ENV === 'production') {

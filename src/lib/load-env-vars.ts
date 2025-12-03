@@ -33,6 +33,7 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
 
   // 필요한 환경 변수 목록 (기본 인증 + 캐릭터 작성 + AI 분석 등에 필요한 변수)
   const coreVars = [
+    'APP_ENV',
     'GOOGLE_CLIENT_ID', 
     'GOOGLE_CLIENT_SECRET', 
     'NEXTAUTH_SECRET', 
