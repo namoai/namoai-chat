@@ -396,10 +396,17 @@ export async function POST(request: Request) {
                 };
                 
                 // 画像をZIPから取得
+                // ZIP内のすべてのファイルをリストして確認
+                const allFiles: string[] = [];
+                zip.forEach((relativePath) => {
+                    allFiles.push(relativePath);
+                });
+                console.log(`[IMPORT] ZIP内の全ファイル:`, allFiles);
+                
                 const imagesFolder = zip.folder('images');
                 const imageMap = new Map<number, Buffer>(); // displayOrder -> Buffer のマップ
                 
-                if (imagesFolder && sourceCharacterData.characterImages && sourceCharacterData.characterImages.length > 0) {
+                if (sourceCharacterData.characterImages && sourceCharacterData.characterImages.length > 0) {
                     // displayOrder順にソート
                     const sortedImages = [...sourceCharacterData.characterImages].sort((a, b) => a.displayOrder - b.displayOrder);
                     
@@ -415,26 +422,57 @@ export async function POST(request: Request) {
                         const img = sortedImages[i];
                         const displayOrder = img.displayOrder;
                         
-                        // 拡張子を試行 (png, jpg, jpeg, webp)
-                        const extensions = ['png', 'jpg', 'jpeg', 'webp'];
+                        // 拡張子を試行 (png, jpg, jpeg, webp, gif)
+                        const extensions = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
                         let imageBuffer: Buffer | null = null;
                         let foundExtension: string | null = null;
+                        let foundPath: string | null = null;
                         
-                        for (const ext of extensions) {
-                            const imagePath = `images/image_${i}.${ext}`;
-                            const imageFile = imagesFolder.file(imagePath);
-                            if (imageFile) {
-                                imageBuffer = await imageFile.async('nodebuffer');
-                                foundExtension = ext;
-                                console.log(`[IMPORT] 画像 ${i} (displayOrder: ${displayOrder}) をZIPから取得: ${imagePath} (${imageBuffer.length} bytes)`);
-                                break;
+                        // 方法1: images/image_0.png 形式で検索
+                        if (imagesFolder) {
+                            for (const ext of extensions) {
+                                const imagePath = `image_${i}.${ext}`;
+                                const imageFile = imagesFolder.file(imagePath);
+                                if (imageFile) {
+                                    imageBuffer = await imageFile.async('nodebuffer');
+                                    foundExtension = ext;
+                                    foundPath = `images/${imagePath}`;
+                                    console.log(`[IMPORT] 画像 ${i} (displayOrder: ${displayOrder}) をZIPから取得: ${foundPath} (${imageBuffer.length} bytes)`);
+                                    break;
+                                }
                             }
                         }
                         
-                        if (imageBuffer && foundExtension) {
+                        // 方法2: 全ファイルから直接検索 (images/image_0.png など)
+                        if (!imageBuffer) {
+                            for (const ext of extensions) {
+                                const possiblePaths = [
+                                    `images/image_${i}.${ext}`,
+                                    `image_${i}.${ext}`,
+                                    `images/${i}.${ext}`,
+                                    `${i}.${ext}`,
+                                ];
+                                
+                                for (const imagePath of possiblePaths) {
+                                    const imageFile = zip.file(imagePath);
+                                    if (imageFile) {
+                                        imageBuffer = await imageFile.async('nodebuffer');
+                                        foundExtension = ext;
+                                        foundPath = imagePath;
+                                        console.log(`[IMPORT] 画像 ${i} (displayOrder: ${displayOrder}) をZIPから取得 (直接検索): ${foundPath} (${imageBuffer.length} bytes)`);
+                                        break;
+                                    }
+                                }
+                                if (imageBuffer) break;
+                            }
+                        }
+                        
+                        if (imageBuffer && foundExtension && foundPath) {
                             imageMap.set(displayOrder, imageBuffer);
                         } else {
-                            console.warn(`[IMPORT] 画像 ${i} (displayOrder: ${displayOrder}) が見つかりません (image_${i}.png/jpg/jpeg/webp)`);
+                            console.warn(`[IMPORT] 画像 ${i} (displayOrder: ${displayOrder}) が見つかりません`);
+                            console.warn(`[IMPORT] 試行したパス: image_${i}.{png,jpg,jpeg,webp,gif} (images/ フォルダ内)`);
+                            console.warn(`[IMPORT] 試行したパス: images/image_${i}.{png,jpg,jpeg,webp,gif} (直接検索)`);
                         }
                     }
                 }
