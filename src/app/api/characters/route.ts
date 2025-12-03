@@ -765,12 +765,16 @@ export async function POST(request: Request) {
                             
                             // Unique constraint 에러가 id 필드에서 발생한 경우 시퀀스 수정 시도
                             const errorMessage = prismaError.message || (dbError instanceof Error ? dbError.message : '');
+                            const isIdFieldError = prismaError.meta && 
+                                typeof prismaError.meta === 'object' && 
+                                prismaError.meta !== null &&
+                                'target' in prismaError.meta && 
+                                Array.isArray((prismaError.meta as { target?: unknown }).target) &&
+                                ((prismaError.meta as { target: unknown[] }).target.includes('id'));
+                            
                             if (prismaError.code === 'P2002' && 
                                 (errorMessage.includes('Unique constraint failed on the fields: (`id`)') ||
-                                 (prismaError.meta && typeof prismaError.meta === 'object' && 
-                                  'target' in prismaError.meta && 
-                                  Array.isArray(prismaError.meta.target) &&
-                                  prismaError.meta.target.includes('id'))) {
+                                 isIdFieldError)) {
                                 console.log('[POST] ⚠️ Sequence out of sync detected. Attempting to fix...');
                                 try {
                                     // 현재 최대 id 확인
