@@ -26,19 +26,24 @@ function getVertexAI(): VertexAI {
   let projectId = process.env.GOOGLE_PROJECT_ID;
   
   // サービスアカウントJSONからproject_idを取得（環境変数より優先）
+  // 注意: この関数は同期的である必要があるため、非同期読み込みは行わない
+  // 代わりに、ensureGcpCreds()が既にファイルを作成していることを前提とする
   const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
   if (credPath) {
     try {
-      // 同期的に読み込む（Node.js環境でのみ）
-      const fs = require('fs');
-      if (fs.existsSync(credPath)) {
-        const saContent = fs.readFileSync(credPath, 'utf8');
-        const saJson = JSON.parse(saContent);
-        if (saJson.project_id) {
-          projectId = saJson.project_id;
-          console.log(`[getVertexAI] ✅ サービスアカウントJSONからプロジェクトIDを取得: ${projectId}`);
-          if (process.env.GOOGLE_PROJECT_ID && process.env.GOOGLE_PROJECT_ID !== projectId) {
-            console.warn(`[getVertexAI] ⚠️ 環境変数GOOGLE_PROJECT_ID(${process.env.GOOGLE_PROJECT_ID})とサービスアカウントのproject_id(${projectId})が異なります。サービスアカウントのproject_idを使用します。`);
+      // Node.js環境でのみ実行（ブラウザ環境ではスキップ）
+      if (typeof process !== 'undefined' && process.versions?.node) {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs = require('fs');
+        if (fs.existsSync(credPath)) {
+          const saContent = fs.readFileSync(credPath, 'utf8');
+          const saJson = JSON.parse(saContent);
+          if (saJson.project_id) {
+            projectId = saJson.project_id;
+            console.log(`[getVertexAI] ✅ サービスアカウントJSONからプロジェクトIDを取得: ${projectId}`);
+            if (process.env.GOOGLE_PROJECT_ID && process.env.GOOGLE_PROJECT_ID !== projectId) {
+              console.warn(`[getVertexAI] ⚠️ 環境変数GOOGLE_PROJECT_ID(${process.env.GOOGLE_PROJECT_ID})とサービスアカウントのproject_id(${projectId})が異なります。サービスアカウントのproject_idを使用します。`);
+            }
           }
         }
       }
