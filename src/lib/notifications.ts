@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 export type NotificationType =
   | "FOLLOWER_CHARACTER" // フォロワーがキャラクターを作成
@@ -20,7 +21,7 @@ interface CreateNotificationParams {
 }
 
 /**
- * 通知を作成する
+ * 通知を作成する（시퀀스 문제 자동 해결 포함）
  */
 export async function createNotification(params: CreateNotificationParams) {
   try {
@@ -29,20 +30,70 @@ export async function createNotification(params: CreateNotificationParams) {
       return null;
     }
 
-    const notification = await prisma.notifications.create({
-      data: {
-        userId: params.userId,
-        type: params.type,
-        title: params.title,
-        content: params.content,
-        link: params.link,
-        actorId: params.actorId,
-        characterId: params.characterId,
-        commentId: params.commentId,
-        reportId: params.reportId,
-      },
-    });
+    const createNotificationWithRetry = async (): Promise<typeof notification> => {
+      try {
+        return await prisma.notifications.create({
+          data: {
+            userId: params.userId,
+            type: params.type,
+            title: params.title,
+            content: params.content,
+            link: params.link,
+            actorId: params.actorId,
+            characterId: params.characterId,
+            commentId: params.commentId,
+            reportId: params.reportId,
+          },
+        });
+      } catch (error) {
+        // Unique constraint 에러가 id 필드에서 발생한 경우 시퀀스 수정 후 재시도
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          const isIdFieldError = error.meta && 
+            typeof error.meta === 'object' && 
+            error.meta !== null &&
+            'target' in error.meta && 
+            Array.isArray((error.meta as { target?: unknown }).target) &&
+            ((error.meta as { target: unknown[] }).target.includes('id'));
+          
+          if (isIdFieldError) {
+            console.log('[notifications] ⚠️ Sequence out of sync detected. Fixing...');
+            try {
+              const maxResult = await prisma.$queryRaw<Array<{ max: bigint | null }>>`
+                SELECT MAX(id) as max FROM notifications
+              `;
+              const maxId = maxResult[0]?.max ? Number(maxResult[0].max) : 0;
+              
+              await prisma.$executeRawUnsafe(`
+                SELECT setval('notifications_id_seq', ${maxId + 1}, false)
+              `);
+              
+              console.log(`[notifications] ✅ Sequence fixed. Max ID: ${maxId}, Sequence set to: ${maxId + 1}`);
+              
+              // 재시도
+              return await prisma.notifications.create({
+                data: {
+                  userId: params.userId,
+                  type: params.type,
+                  title: params.title,
+                  content: params.content,
+                  link: params.link,
+                  actorId: params.actorId,
+                  characterId: params.characterId,
+                  commentId: params.commentId,
+                  reportId: params.reportId,
+                },
+              });
+            } catch (retryError) {
+              console.error('[notifications] ❌ Sequence fix and retry failed:', retryError);
+              throw error; // 원래 에러를 다시 throw
+            }
+          }
+        }
+        throw error;
+      }
+    };
 
+    const notification = await createNotificationWithRetry();
     return notification;
   } catch (error) {
     console.error("通知作成エラー:", error);
