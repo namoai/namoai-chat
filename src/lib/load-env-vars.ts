@@ -199,25 +199,33 @@ async function loadFromParameterStore(variableKeys: string[], type: 'required' |
       
       // 여러 가능한 형식 시도
       // Try multiple possible formats
-      // 형식 1: amplify-{appId}-{branch}-{functionName}
-      // Format 1: amplify-{appId}-{branch}-{functionName}
-      let match = functionName.match(/^amplify-([a-z0-9]+)-/);
+      // 형식 1: Compute-{appId}-{hash} (Amplify Next.js 자동 생성 형식)
+      // Format 1: Compute-{appId}-{hash} (Amplify Next.js auto-generated format)
+      let match = functionName.match(/^Compute-([a-z0-9]+)-/);
       if (match && match[1]) {
         amplifyAppId = match[1];
-        console.log(`[load-env-vars] ✅ Extracted App ID from Lambda function name (format 1): ${amplifyAppId}`);
+        console.log(`[load-env-vars] ✅ Extracted App ID from Lambda function name (Compute format): ${amplifyAppId}`);
       } else {
-        // 형식 2: {appId}-{branch}-{functionName} (amplify 접두사 없음)
-        // Format 2: {appId}-{branch}-{functionName} (no amplify prefix)
-        match = functionName.match(/^([a-z0-9]{13,})-/);
-        if (match && match[1] && match[1].length >= 13) {
-          // App ID는 보통 13자 이상의 영숫자 문자열
-          // App ID is usually a 13+ character alphanumeric string
+        // 형식 2: amplify-{appId}-{branch}-{functionName}
+        // Format 2: amplify-{appId}-{branch}-{functionName}
+        match = functionName.match(/^amplify-([a-z0-9]+)-/);
+        if (match && match[1]) {
           amplifyAppId = match[1];
-          console.log(`[load-env-vars] ✅ Extracted App ID from Lambda function name (format 2): ${amplifyAppId}`);
+          console.log(`[load-env-vars] ✅ Extracted App ID from Lambda function name (amplify format): ${amplifyAppId}`);
         } else {
-          console.log(`[load-env-vars] ⚠️ Lambda function name does not match any expected format`);
-          console.log(`[load-env-vars] ⚠️ Function name: ${functionName}`);
-          console.log(`[load-env-vars] ⚠️ Please set AMPLIFY_APP_ID environment variable manually.`);
+          // 형식 3: {appId}-{branch}-{functionName} (amplify 접두사 없음)
+          // Format 3: {appId}-{branch}-{functionName} (no amplify prefix)
+          match = functionName.match(/^([a-z0-9]{13,})-/);
+          if (match && match[1] && match[1].length >= 13) {
+            // App ID는 보통 13자 이상의 영숫자 문자열
+            // App ID is usually a 13+ character alphanumeric string
+            amplifyAppId = match[1];
+            console.log(`[load-env-vars] ✅ Extracted App ID from Lambda function name (format 3): ${amplifyAppId}`);
+          } else {
+            console.log(`[load-env-vars] ⚠️ Lambda function name does not match any expected format`);
+            console.log(`[load-env-vars] ⚠️ Function name: ${functionName}`);
+            console.log(`[load-env-vars] ⚠️ Please set AMPLIFY_APP_ID environment variable manually.`);
+          }
         }
       }
     }
