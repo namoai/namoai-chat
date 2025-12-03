@@ -81,15 +81,19 @@ export async function GET() {
     console.log('[IT-Environment] IT_DB_INSTANCE_IDENTIFIER:', IT_DB_INSTANCE_IDENTIFIER);
     console.log('[IT-Environment] AWS_REGION:', process.env.AWS_REGION || 'ap-northeast-1');
     console.log('[IT-Environment] AWS_BRANCH:', process.env.AWS_BRANCH || 'not set');
+    console.log('[IT-Environment] APP_ENV:', process.env.APP_ENV || 'not set');
     console.log('[IT-Environment] Environment variables:', {
       hasAWS_REGION: !!process.env.AWS_REGION,
       hasIT_RDS_INSTANCE_IDENTIFIER: !!process.env.IT_RDS_INSTANCE_IDENTIFIER,
       AWS_BRANCH: process.env.AWS_BRANCH,
+      APP_ENV: process.env.APP_ENV,
     });
     
-    // develop 브랜치에서 실행 중인 경우 IT_RDS_INSTANCE_IDENTIFIER가 없을 수 있으므로 기본값 사용
+    // IT_RDS_INSTANCE_IDENTIFIER가 없으면 기본값 사용 (모든 환경에서 동일하게 IT 환경 RDS 제어)
+    // If IT_RDS_INSTANCE_IDENTIFIER is not set, use default (control IT environment RDS from any environment)
     if (!process.env.IT_RDS_INSTANCE_IDENTIFIER) {
       console.log('[IT-Environment] IT_RDS_INSTANCE_IDENTIFIER not set, using default: namos-chat-it');
+      console.log('[IT-Environment] Note: This API controls IT environment RDS regardless of current environment');
     }
     
     const session = await getServerSession(authOptions);
