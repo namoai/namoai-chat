@@ -18,13 +18,22 @@ import { ensureGcpCreds } from "@/utils/ensureGcpCreds";
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
 
-// VertexAIクライアントの初期化（遅延初期化）
+// VertexAIクライアントの初期化（遅延初期化、ランタイム環境変数対応）
 let vertex_ai: VertexAI | null = null;
 
 function getVertexAI(): VertexAI {
-  if (!vertex_ai) {
+  // 環境変数がロードされているか確認
+  const projectId = process.env.GOOGLE_PROJECT_ID;
+  if (!projectId) {
+    console.error('[getVertexAI] ❌ GOOGLE_PROJECT_ID が設定されていません');
+    throw new Error('GOOGLE_PROJECT_ID 環境変数が設定されていません。');
+  }
+  
+  // プロジェクトIDが変更された場合は再初期化
+  if (!vertex_ai || (vertex_ai as any).project !== projectId) {
+    console.log(`[getVertexAI] VertexAI クライアントを初期化: project=${projectId}`);
     vertex_ai = new VertexAI({
-      project: process.env.GOOGLE_PROJECT_ID,
+      project: projectId,
       location: "asia-northeast1",
     });
   }
@@ -875,8 +884,13 @@ ${statusWindowInstruction}${userDirectiveInstruction}
                     await ensureGcpCreds();
                     
                     // Vertex AIで要約
+                    const summaryProjectId = process.env.GOOGLE_PROJECT_ID;
+                    if (!summaryProjectId) {
+                      console.error('[要約] ❌ GOOGLE_PROJECT_ID が設定されていません');
+                      throw new Error('GOOGLE_PROJECT_ID 環境変数が設定されていません。');
+                    }
                     const summaryVertexAI = new VertexAI({
-                      project: process.env.GOOGLE_PROJECT_ID || '',
+                      project: summaryProjectId,
                       location: 'asia-northeast1',
                     });
 
@@ -1040,8 +1054,13 @@ ${conversationText}`;
                     await ensureGcpCreds();
                     
                     // Vertex AIで要約
+                    const summaryProjectId = process.env.GOOGLE_PROJECT_ID;
+                    if (!summaryProjectId) {
+                      console.error('[要約] ❌ GOOGLE_PROJECT_ID が設定されていません');
+                      throw new Error('GOOGLE_PROJECT_ID 環境変数が設定されていません。');
+                    }
                     const summaryVertexAI = new VertexAI({
-                      project: process.env.GOOGLE_PROJECT_ID || '',
+                      project: summaryProjectId,
                       location: 'us-central1', // ★ Pro用にus-central1に変更
                     });
 

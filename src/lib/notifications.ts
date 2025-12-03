@@ -72,18 +72,18 @@ export async function createNotification(params: CreateNotificationParams) {
               
               // 再試行
               return await prisma.notifications.create({
-                data: {
-                  userId: params.userId,
-                  type: params.type,
-                  title: params.title,
-                  content: params.content,
-                  link: params.link,
-                  actorId: params.actorId,
-                  characterId: params.characterId,
-                  commentId: params.commentId,
-                  reportId: params.reportId,
-                },
-              });
+      data: {
+        userId: params.userId,
+        type: params.type,
+        title: params.title,
+        content: params.content,
+        link: params.link,
+        actorId: params.actorId,
+        characterId: params.characterId,
+        commentId: params.commentId,
+        reportId: params.reportId,
+      },
+    });
             } catch (retryError) {
               console.error('[notifications] ❌ Sequence fix and retry failed:', retryError);
               throw error; // 元のエラーを再度 throw

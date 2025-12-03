@@ -450,31 +450,65 @@ export function getAuthOptions(): NextAuthOptions {
 
 // 後方互換性のため、authOptionsもエクスポート（getAuthOptions()を呼び出す）
 // For backward compatibility, also export authOptions (calls getAuthOptions())
-export const authOptions: NextAuthOptions = getAuthOptions();
-
-// Lambda 환경에서 실제 사용 시점에 환경 변수 검증
-// authOptions가 사용되기 전에 호출되어야 함
-if (typeof process !== 'undefined' && (
+// Lambda環境を検出
+const isLambda = typeof process !== 'undefined' && (
   process.env.AWS_LAMBDA_FUNCTION_NAME ||
   process.env.AWS_EXECUTION_ENV ||
   process.env.LAMBDA_TASK_ROOT
-)) {
-  // Lambda 환경에서는 getter/setter를 통해 실제 사용 시점에 검증
-  // NextAuth가 secret을 설정하려고 할 때도 처리할 수 있도록 setter 추가
-  let secretValue = authOptions.secret;
-  Object.defineProperty(authOptions, 'secret', {
-    get() {
-      validateAuthEnvAtRuntime();
-      // 환경 변수가 런타임에 로드되었을 수 있으므로 최신 값을 반환
-      return process.env.NEXTAUTH_SECRET || secretValue;
-    },
-    set(value: string | undefined) {
-      secretValue = value;
-    },
-    configurable: true,
-    enumerable: true,
-  });
+);
+
+// キャッシュされたauthOptions（遅延初期化）
+let cachedAuthOptions: NextAuthOptions | null = null;
+
+function getCachedAuthOptions(): NextAuthOptions {
+  if (!cachedAuthOptions) {
+    // Lambda環境では環境変数がロードされていることを確認
+    if (isLambda) {
+      // 環境変数がロードされていない場合はエラーをスローしない（NextAuthが処理する）
+      // ただし、ログには記録する
+      try {
+        validateAuthEnvAtRuntime();
+      } catch (error) {
+        console.warn('[authOptions] 環境変数の検証に失敗しましたが、続行します:', error);
+      }
+    }
+    cachedAuthOptions = getAuthOptions();
+  }
+  return cachedAuthOptions;
 }
 
-// 환경 변수 검증 실행 (모듈 로드 시 즉시 실행)
-validateAuthEnv();
+// Proxyを使用してauthOptionsのすべてのプロパティアクセスをインターセプト
+// これにより、実際の使用時にgetAuthOptions()が呼び出されます
+export const authOptions = new Proxy({} as NextAuthOptions, {
+  get(_target, prop: string | symbol) {
+    const options = getCachedAuthOptions();
+    const value = (options as any)[prop];
+    // 関数の場合はthisをバインド
+    if (typeof value === 'function') {
+      return value.bind(options);
+    }
+    return value;
+  },
+  set(_target, prop: string | symbol, value: any) {
+    const options = getCachedAuthOptions();
+    (options as any)[prop] = value;
+    return true;
+  },
+  has(_target, prop: string | symbol) {
+    const options = getCachedAuthOptions();
+    return prop in options;
+  },
+  ownKeys(_target) {
+    const options = getCachedAuthOptions();
+    return Object.keys(options);
+  },
+  getOwnPropertyDescriptor(_target, prop: string | symbol) {
+    const options = getCachedAuthOptions();
+    return Object.getOwnPropertyDescriptor(options, prop);
+  },
+});
+
+// 非Lambda環境では環境変数を検証（Lambda環境では遅延検証）
+if (!isLambda) {
+  validateAuthEnv();
+}
