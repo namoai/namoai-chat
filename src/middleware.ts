@@ -28,11 +28,27 @@ export function middleware(request: NextRequest) {
     // POST/PUT/DELETE/PATCHリクエストのみCSRFチェック
     if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method)) {
       if (!cookieToken || !headerToken || cookieToken.split(':')[0] !== headerToken) {
+        // ▼▼▼ 디버깅: CSRF 토큰 검증 실패 상세 정보 ▼▼▼
+        const hasCookie = !!cookieToken;
+        const hasHeader = !!headerToken;
+        const cookieParts = cookieToken ? cookieToken.split(':') : [];
+        const tokenMatch = cookieToken && headerToken ? cookieToken.split(':')[0] === headerToken : false;
+        
         logger.warn('CSRF token validation failed', {
           ip: getClientIp(request),
           path: pathname,
           method: request.method,
+          hasCookie,
+          hasHeader,
+          cookieTokenLength: cookieToken?.length || 0,
+          headerTokenLength: headerToken?.length || 0,
+          cookiePartsCount: cookieParts.length,
+          tokenMatch,
+          cookieTokenPrefix: cookieToken ? cookieToken.substring(0, 20) + '...' : 'none',
+          headerTokenPrefix: headerToken ? headerToken.substring(0, 20) + '...' : 'none',
         });
+        // ▲▲▲
+        
         return createErrorResponse(
           ErrorCode.CSRF_TOKEN_INVALID,
           'CSRFトークンが無効です。',
