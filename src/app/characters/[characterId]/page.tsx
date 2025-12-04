@@ -824,7 +824,7 @@ export default function CharacterDetailPage({
                         prev === 0 ? character.characterImages.length - 1 : prev - 1
                       );
                     }}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white p-2 rounded-full transition-all opacity-0 group-hover:opacity-100 z-10"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white p-2 rounded-full transition-all opacity-0 group-hover:opacity-100 z-10 cursor-pointer"
                     aria-label="前の画像"
                   >
                     <ChevronLeft size={24} />
@@ -840,7 +840,7 @@ export default function CharacterDetailPage({
                         prev === character.characterImages.length - 1 ? 0 : prev + 1
                       );
                     }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white p-2 rounded-full transition-all opacity-0 group-hover:opacity-100 z-10"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white p-2 rounded-full transition-all opacity-0 group-hover:opacity-100 z-10 cursor-pointer"
                     aria-label="次の画像"
                   >
                     <ChevronRight size={24} />
