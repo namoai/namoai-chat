@@ -193,6 +193,7 @@ const KebabMenu = ({
     { label: "修正", icon: Edit, action: "edit" },
     { label: "削除", icon: Trash2, action: "delete" },
     { label: "コピー", icon: Copy, action: "copy" },
+    { label: "コピーから新規作成", icon: Copy, action: "clone" },
     { label: "インポート", icon: Upload, action: "import" },
   ];
 
@@ -351,6 +352,24 @@ export default function CharacterManagementPage() {
           {
           console.error(error);
           showNotification("エラー: コピーに失敗しました。", "error");
+        }
+        break;
+      case "clone":
+        try {
+          const response = await fetchWithCsrf(`/api/characters/${char.id}/clone`, {
+            method: "POST",
+          });
+          if (!response.ok) {
+            const errorResult = await response.json();
+            throw new Error(errorResult.error || "複製に失敗しました。");
+          }
+          const result = await response.json();
+          showNotification(`「${char.name}」から新しいキャラクター「${result.character.name}」を作成しました。`, "success");
+          // 新しいキャラクターも一覧に反映
+          fetchCharacters();
+        } catch (error) {
+          console.error(error);
+          showNotification("エラー: 複製に失敗しました。", "error");
         }
         break;
       // ▼▼▼【修正】インポート処理を同期的（ブロッキング）に変更します ▼▼▼

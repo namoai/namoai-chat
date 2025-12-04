@@ -69,8 +69,9 @@ export async function GET(
     // ZIPファイルを作成
     console.log(`[Export] ZIPファイルを作成中...`);
     const zip = new JSZip();
-    // 現在はレスポンスサイズ(413)回避のため画像バイナリを含めない軽量エクスポートのみ使用する
-    const skipImages = true;
+    // 画像も含めてエクスポートするが、レスポンスサイズ(413)を避けるため枚数を制限する
+    const skipImages = false;
+    const MAX_EXPORT_IMAGES = 12; // エクスポートに含める最大画像枚数
 
     // キャラクター情報をJSONとして保存
     const characterData = {
@@ -106,7 +107,12 @@ export async function GET(
     const imagesFolder = zip.folder('images');
     if (!skipImages && imagesFolder && character.characterImages.length > 0) {
       // displayOrder順にソート（既にorderByでソートされているが、念のため）
-      const sortedImages = [...character.characterImages].sort((a, b) => a.displayOrder - b.displayOrder);
+      let sortedImages = [...character.characterImages].sort((a, b) => a.displayOrder - b.displayOrder);
+
+      if (sortedImages.length > MAX_EXPORT_IMAGES) {
+        console.log(`[Export] 画像が ${sortedImages.length} 枚ありますが、サイズ制限のため先頭 ${MAX_EXPORT_IMAGES} 枚のみエクスポートします。`);
+        sortedImages = sortedImages.slice(0, MAX_EXPORT_IMAGES);
+      }
       
       console.log(`[Export] ${sortedImages.length} 枚の画像をダウンロード開始...`);
       
