@@ -535,7 +535,18 @@ export default function CharacterForm({ isEditMode, initialData, session, status
     
     try {
       const draft = JSON.parse(savedDraft);
-      if (draft.form) setForm(draft.form);
+      if (draft.form) {
+        // 現在のformの値を保持しつつ、draft.formの値で上書き（欠損フィールドを防ぐ）
+        setForm((prev) => ({
+          ...prev,
+          ...draft.form,
+          // 日付と場所が空文字列인 경우も明示的に設定
+          firstSituationDate: draft.form.firstSituationDate ?? prev.firstSituationDate ?? "",
+          firstSituationPlace: draft.form.firstSituationPlace ?? prev.firstSituationPlace ?? "",
+          statusWindowPrompt: draft.form.statusWindowPrompt ?? prev.statusWindowPrompt ?? "",
+          statusWindowDescription: draft.form.statusWindowDescription ?? prev.statusWindowDescription ?? "",
+        }));
+      }
       if (draft.lorebooks) setLorebooks(draft.lorebooks);
       if (draft.images) {
         // 現在の画像でFileオブジェクトがあるもの（新規アップロード）は保持
@@ -554,7 +565,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         title: '読み込み完了', 
         message: `一時保存データを読み込みました。\n保存日時: ${draft.savedAt ? new Date(draft.savedAt).toLocaleString('ja-JP') : '不明'}\n\n注意: 新規アップロードした画像は保持されています。` 
       });
-      console.log('[一時保存読み込み] 完了');
+      console.log('[一時保存読み込み] 完了', { draftForm: draft.form });
     } catch (e) {
       console.error('[一時保存読み込み] 失敗:', e);
       setModalState({ 
