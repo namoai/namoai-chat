@@ -399,6 +399,8 @@ export async function POST(request: Request) {
                     detailSetting?: string | null;
                     statusWindowPrompt?: string | null;
                     statusWindowDescription?: string | null;
+                    firstSituationDate?: string | Date | null;
+                    firstSituationPlace?: string | null;
                     characterImages?: Array<{
                         imageUrl: string;
                         keyword: string | null;
@@ -593,6 +595,12 @@ export async function POST(request: Request) {
                             detailSetting: sourceCharacterData.detailSetting ?? null,
                             statusWindowPrompt: sourceCharacterData.statusWindowPrompt ?? null,
                             statusWindowDescription: sourceCharacterData.statusWindowDescription ?? null,
+                            firstSituationDate: sourceCharacterData.firstSituationDate 
+                                ? (typeof sourceCharacterData.firstSituationDate === 'string' 
+                                    ? new Date(sourceCharacterData.firstSituationDate) 
+                                    : sourceCharacterData.firstSituationDate)
+                                : null,
+                            firstSituationPlace: sourceCharacterData.firstSituationPlace ?? null,
                             author: { connect: { id: currentUserId } },
                         }
                     });

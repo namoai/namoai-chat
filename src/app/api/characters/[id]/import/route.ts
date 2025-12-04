@@ -75,6 +75,10 @@ export async function POST(request: NextRequest) {
             category?: string | null;
             hashtags?: string[];
             detailSetting?: string | null;
+            statusWindowPrompt?: string | null;
+            statusWindowDescription?: string | null;
+            firstSituationDate?: string | Date | null;
+            firstSituationPlace?: string | null;
             characterImages?: (SourceImageData & { _zipImageBuffer?: Buffer })[];
             lorebooks?: LorebookData[];
         };
@@ -242,6 +246,14 @@ export async function POST(request: NextRequest) {
                 category: sourceCharacterData.category,
                 hashtags: sourceCharacterData.hashtags,
                 detailSetting: sourceCharacterData.detailSetting,
+                statusWindowPrompt: sourceCharacterData.statusWindowPrompt,
+                statusWindowDescription: sourceCharacterData.statusWindowDescription,
+                firstSituationDate: sourceCharacterData.firstSituationDate 
+                    ? (typeof sourceCharacterData.firstSituationDate === 'string' 
+                        ? new Date(sourceCharacterData.firstSituationDate) 
+                        : sourceCharacterData.firstSituationDate)
+                    : null,
+                firstSituationPlace: sourceCharacterData.firstSituationPlace,
             };
 
             await tx.characters.update({
