@@ -97,12 +97,12 @@ export async function POST(
         });
       }
 
-      // ロアブックコピー（embedding もそのままコピー）
+      // ロアブックコピー（embedding列はPrisma型で非対応のためコピーせず、再生成前提でcontent/keywordsのみコピー）
       if (source.lorebooks?.length) {
         for (const lore of source.lorebooks) {
           await tx.$executeRaw`
-            INSERT INTO "lorebooks" ("content", "keywords", "characterId", "embedding")
-            VALUES (${lore.content}, ${lore.keywords}::text[], ${clonedCharacter.id}, ${lore.embedding}::vector)
+            INSERT INTO "lorebooks" ("content", "keywords", "characterId")
+            VALUES (${lore.content}, ${lore.keywords}::text[], ${clonedCharacter.id})
           `;
         }
       }
