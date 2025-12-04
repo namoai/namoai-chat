@@ -386,6 +386,18 @@ export default function CharacterManagementPage() {
                 throw new Error(errorResult.error || "インポートに失敗しました。");
               }
               
+              // ▼▼▼【追加】インポート後に該当キャラクターの一時保存データを削除 ▼▼▼
+              try {
+                if (typeof window !== "undefined") {
+                  const draftKey = `character_draft_${char.id}`;
+                  localStorage.removeItem(draftKey);
+                  console.log("[CharacterManagement] インポート後に一時保存データを削除:", draftKey);
+                }
+              } catch (e) {
+                console.warn("[CharacterManagement] 一時保存データ削除に失敗:", e);
+              }
+              // ▲▲▲【追加ここまで】▲▲▲
+
               setAlertModal({
                   isOpen: true,
                   title: "成功",
