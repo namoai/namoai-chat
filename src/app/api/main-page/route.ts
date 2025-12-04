@@ -131,7 +131,43 @@ export async function GET() {
             20
         );
 
-        const trendingCharacters = await getCharactersWithMainImage(baseWhere, [{ favorites: { _count: 'desc' } }], 10);
+        // 現在ユーザーが対話中のキャラクターを取得
+        let activeChatCharacters: any[] = [];
+        if (currentUserId) {
+          const userChats = await prisma.chat.findMany({
+            where: {
+              userId: currentUserId,
+              characters: {
+                ...baseWhere,
+              },
+            },
+            orderBy: { updatedAt: 'desc' },
+            take: 10,
+            include: {
+              characters: {
+                include: {
+                  characterImages: {
+                    orderBy: { displayOrder: 'asc' },
+                  },
+                },
+              },
+            },
+          });
+          
+          // チャットからキャラクター情報を抽出し、代表画像を設定
+          activeChatCharacters = userChats.map(chat => {
+            const char = chat.characters;
+            let mainImage = char.characterImages.find(img => img.isMain);
+            if (!mainImage && char.characterImages.length > 0) {
+              mainImage = char.characterImages[0];
+            }
+            return {
+              ...char,
+              characterImages: mainImage ? [mainImage] : [],
+            };
+          });
+        }
+        const trendingCharacters = activeChatCharacters;
         
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);

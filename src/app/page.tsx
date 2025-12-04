@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, User, Trophy, Users, Sparkles, TrendingUp, Star, ArrowRight, Bell } from "lucide-react";
+import { Search, User, Trophy, Users, Sparkles, TrendingUp, Star, ArrowRight, Bell, MessageSquare } from "lucide-react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 
@@ -384,11 +384,11 @@ export default function HomePage() {
 
           {/* キャラクターセクション */}
           <CharacterRow
-            title="今話題のキャラクター"
+            title="対話中のキャラクター"
             characters={pageData.trendingCharacters}
             moreLink="/chatlist"
-            icon={TrendingUp}
-            gradient="bg-gradient-to-br from-orange-500/20 to-pink-500/20"
+            icon={MessageSquare}
+            gradient="bg-gradient-to-br from-blue-500/20 to-purple-500/20"
           />
           <CharacterRow
             title="ホットな新作TOP10"
