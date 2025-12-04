@@ -454,7 +454,12 @@ export async function POST(request: NextRequest) {
             .join('\n');
         
         const imageInstruction = imageList 
-            ? `# Images\nAvailable: ${imageList}\nUsage: Insert {img:N} at appropriate moments in narration.`
+            ? `# Images
+Available: ${imageList}
+Usage: Insert {img:N} at appropriate moments in narration.
+**CRITICAL**: NEVER place {img:N} tags inside dialogue brackets (「」). Images must ALWAYS be outside dialogue brackets.
+- **CORRECT**: "彼女は微笑んだ {img:2} 「こんにちは」と挨拶した。部屋に入ると {img:5}"
+- **WRONG**: 「こんにちは {img:2}」 (DO NOT DO THIS)`
             : "";
         // ▲▲▲
         
