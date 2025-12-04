@@ -82,17 +82,30 @@ export default function CharListPage() {
   const [activeSort, setActiveSort] = useState<SortOption>(sortOptions[0]);
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`/api/charlist?tag=${activeTag}&sort=${activeSort.key}`, { cache: 'no-store' }); // キャッシュを無効化
+        const params = new URLSearchParams({
+          tag: activeTag,
+          sort: activeSort.key,
+          page: String(page),
+        });
+        const response = await fetch(`/api/charlist?${params.toString()}`, { cache: 'no-store' }); // キャッシュを無効化
         if (!response.ok) throw new Error('データ取得失敗');
         const data = await response.json();
         setCharacters(data.characters || []);
         if (data.tags) {
           setTags(data.tags);
+        }
+        if (typeof data.page === 'number') {
+          setPage(data.page);
+        }
+        if (typeof data.totalPages === 'number') {
+          setTotalPages(data.totalPages || 1);
         }
       } catch (error) {
         console.error(error);
@@ -101,11 +114,12 @@ export default function CharListPage() {
       }
     };
     fetchData();
-  }, [activeTag, activeSort]);
+  }, [activeTag, activeSort, page]);
 
   const handleSortChange = (option: SortOption) => {
     setActiveSort(option);
     setIsSortMenuOpen(false);
+    setPage(1);
   };
 
   return (
@@ -130,7 +144,10 @@ export default function CharListPage() {
               {tags.map(tag => (
                 <button
                   key={tag}
-                  onClick={() => setActiveTag(tag)}
+                  onClick={() => {
+                    setActiveTag(tag);
+                    setPage(1);
+                  }}
                   className={`inline-block px-4 py-2 mr-2 rounded-full text-sm font-semibold transition-all ${
                     activeTag === tag 
                       ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg shadow-pink-500/30' 
@@ -178,11 +195,35 @@ export default function CharListPage() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-              {characters.map(char => (
-                <CharacterImageCard key={char.id} character={char} />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                {characters.map((char) => (
+                  <CharacterImageCard key={char.id} character={char} />
+                ))}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-4 mt-8 mb-4">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1 || loading}
+                    className="px-4 py-2 bg-gray-800/50 hover:bg-gray-700/50 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all border border-gray-700/50"
+                  >
+                    前へ
+                  </button>
+                  <span className="font-semibold px-4">
+                    {page} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages || loading}
+                    className="px-4 py-2 bg-gray-800/50 hover:bg-gray-700/50 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all border border-gray-700/50"
+                  >
+                    次へ
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
