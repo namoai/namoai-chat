@@ -437,6 +437,8 @@ export async function PUT(
             detailSetting: formFields.detailSetting ?? null,
             statusWindowPrompt: formFields.statusWindowPrompt ?? null,
             statusWindowDescription: formFields.statusWindowDescription ?? null,
+            firstSituationDate: formFields.firstSituationDate ? new Date(formFields.firstSituationDate) : null,
+            firstSituationPlace: formFields.firstSituationPlace ?? null,
           }
         });
         

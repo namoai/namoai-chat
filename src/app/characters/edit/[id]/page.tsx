@@ -23,6 +23,8 @@ type CharacterData = {
   detailSetting: string | null;
   statusWindowPrompt: string | null;
   statusWindowDescription: string | null;
+  firstSituationDate: string | null;
+  firstSituationPlace: string | null;
   author_id: number | null;
   characterImages: { id: number; imageUrl: string; keyword: string | null }[];
   lorebooks: { id: number; content: string; keywords: string[] }[];
@@ -133,6 +135,8 @@ export default function CharacterEditPage() {
       detailSetting: initialData.detailSetting ?? undefined,
       statusWindowPrompt: initialData.statusWindowPrompt ?? undefined,
       statusWindowDescription: initialData.statusWindowDescription ?? undefined,
+      firstSituationDate: initialData.firstSituationDate ? new Date(initialData.firstSituationDate).toISOString().split('T')[0] : undefined,
+      firstSituationPlace: initialData.firstSituationPlace ?? undefined,
     };
 
     return (

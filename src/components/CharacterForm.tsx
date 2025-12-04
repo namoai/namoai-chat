@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { X, Plus, Trash2, GripVertical, ArrowLeft } from "lucide-react";
+import { X, Plus, Trash2, GripVertical, ArrowLeft, Save, Download } from "lucide-react";
 import { uploadImageToStorage } from "@/lib/supabase-client";
 import { fetchWithCsrf } from "@/lib/csrf-client";
 
@@ -289,43 +289,116 @@ export default function CharacterForm({ isEditMode, initialData, session, status
   // ▼▼▼【修正】initialDataを1回だけ読み込むためのフラグ ▼▼▼
   const [isInitialized, setIsInitialized] = useState(false);
   // ▲▲▲
+  
+  // ▼▼▼【自動保存・一時保存】▼▼▼
+  const [lastAutoSaveTime, setLastAutoSaveTime] = useState<Date | null>(null);
+  const [hasDraft, setHasDraft] = useState(false);
+  const STORAGE_KEY = isEditMode && initialData?.id 
+    ? `character_draft_${initialData.id}` 
+    : 'character_draft_new';
+  // ▲▲▲
 
   useEffect(() => {
     // 初回のみinitialDataからロード（画像を上書きしないように）
     if (isEditMode && initialData && !isInitialized) {
-      setForm({
-        name: initialData.name || "",
-        description: initialData.description || "",
-        systemTemplate: initialData.systemTemplate || "",
-        detailSetting: initialData.detailSetting || "",
-        firstSituation: initialData.firstSituation || "",
-        firstMessage: initialData.firstMessage || "",
-        visibility: (initialData.visibility as FormState['visibility']) || "public",
-        safetyFilter: initialData.safetyFilter ?? true,
-        category: initialData.category || "",
-        hashtags: initialData.hashtags || [],
-        firstSituationDate: initialData.firstSituationDate ? new Date(initialData.firstSituationDate).toISOString().split('T')[0] : "",
-        firstSituationPlace: initialData.firstSituationPlace || "",
-        statusWindowPrompt: initialData.statusWindowPrompt || "",
-        statusWindowDescription: initialData.statusWindowDescription || "",
-      });
-      
-      // 編集モードの場合のみ既存画像をロード（新規作成時は空のまま）
-      if (initialData.characterImages && initialData.characterImages.length > 0) {
-        setImages(
-          initialData.characterImages.map((img) => ({
-            id: img.id,
-            imageUrl: img.imageUrl,
-            keyword: img.keyword || "",
-          }))
-        );
+      // 一時保存データを確認
+      const savedDraft = localStorage.getItem(STORAGE_KEY);
+      if (savedDraft) {
+        try {
+          const draft = JSON.parse(savedDraft);
+          setForm({
+            name: draft.form?.name || initialData.name || "",
+            description: draft.form?.description || initialData.description || "",
+            systemTemplate: draft.form?.systemTemplate || initialData.systemTemplate || "",
+            detailSetting: draft.form?.detailSetting || initialData.detailSetting || "",
+            firstSituation: draft.form?.firstSituation || initialData.firstSituation || "",
+            firstMessage: draft.form?.firstMessage || initialData.firstMessage || "",
+            visibility: (draft.form?.visibility as FormState['visibility']) || (initialData.visibility as FormState['visibility']) || "public",
+            safetyFilter: draft.form?.safetyFilter ?? initialData.safetyFilter ?? true,
+            category: draft.form?.category || initialData.category || "",
+            hashtags: draft.form?.hashtags || initialData.hashtags || [],
+            firstSituationDate: draft.form?.firstSituationDate || (initialData.firstSituationDate ? new Date(initialData.firstSituationDate).toISOString().split('T')[0] : ""),
+            firstSituationPlace: draft.form?.firstSituationPlace || initialData.firstSituationPlace || "",
+            statusWindowPrompt: draft.form?.statusWindowPrompt || initialData.statusWindowPrompt || "",
+            statusWindowDescription: draft.form?.statusWindowDescription || initialData.statusWindowDescription || "",
+          });
+          
+          if (draft.lorebooks) {
+            setLorebooks(draft.lorebooks);
+          } else {
+            setLorebooks(initialData.lorebooks || []);
+          }
+          
+          if (draft.images) {
+            setImages(draft.images);
+          } else if (initialData.characterImages && initialData.characterImages.length > 0) {
+            setImages(
+              initialData.characterImages.map((img) => ({
+                id: img.id,
+                imageUrl: img.imageUrl,
+                keyword: img.keyword || "",
+              }))
+            );
+          }
+          
+          setHasDraft(true);
+          console.log('[初期化] 一時保存データから読み込み完了');
+        } catch (e) {
+          console.error('[初期化] 一時保存データの読み込みに失敗:', e);
+          // 一時保存データが壊れている場合は初期データを使用
+        }
+      } else {
+        // 一時保存がない場合は初期データを使用
+        setForm({
+          name: initialData.name || "",
+          description: initialData.description || "",
+          systemTemplate: initialData.systemTemplate || "",
+          detailSetting: initialData.detailSetting || "",
+          firstSituation: initialData.firstSituation || "",
+          firstMessage: initialData.firstMessage || "",
+          visibility: (initialData.visibility as FormState['visibility']) || "public",
+          safetyFilter: initialData.safetyFilter ?? true,
+          category: initialData.category || "",
+          hashtags: initialData.hashtags || [],
+          firstSituationDate: initialData.firstSituationDate ? new Date(initialData.firstSituationDate).toISOString().split('T')[0] : "",
+          firstSituationPlace: initialData.firstSituationPlace || "",
+          statusWindowPrompt: initialData.statusWindowPrompt || "",
+          statusWindowDescription: initialData.statusWindowDescription || "",
+        });
+        
+        if (initialData.characterImages && initialData.characterImages.length > 0) {
+          setImages(
+            initialData.characterImages.map((img) => ({
+              id: img.id,
+              imageUrl: img.imageUrl,
+              keyword: img.keyword || "",
+            }))
+          );
+        }
+        
+        setLorebooks(initialData.lorebooks || []);
       }
       
-      setLorebooks(initialData.lorebooks || []);
       setIsInitialized(true);
       console.log('[初期化] initialDataから読み込み完了');
+    } else if (!isEditMode && !isInitialized) {
+      // 新規作成モードでも一時保存を確認
+      const savedDraft = localStorage.getItem(STORAGE_KEY);
+      if (savedDraft) {
+        try {
+          const draft = JSON.parse(savedDraft);
+          setForm(draft.form || form);
+          if (draft.lorebooks) setLorebooks(draft.lorebooks);
+          if (draft.images) setImages(draft.images);
+          setHasDraft(true);
+          console.log('[初期化] 新規作成の一時保存データから読み込み完了');
+        } catch (e) {
+          console.error('[初期化] 一時保存データの読み込みに失敗:', e);
+        }
+      }
+      setIsInitialized(true);
     }
-  }, [isEditMode, initialData, isInitialized]);
+  }, [isEditMode, initialData, isInitialized, STORAGE_KEY]);
 
   // ▼▼▼【ページ離脱防止】作成中のデータがある場合は警告を表示 ▼▼▼
   useEffect(() => {
@@ -371,6 +444,116 @@ export default function CharacterForm({ isEditMode, initialData, session, status
     };
   }, [form.name, form.description, images, lorebooks, isSubmitting]);
   // ▲▲▲【ページ離脱防止 終了】▲▲▲
+
+  // ▼▼▼【自動保存】3分ごとに自動保存 ▼▼▼
+  useEffect(() => {
+    if (!isInitialized) return;
+    
+    const autoSaveInterval = setInterval(() => {
+      const draftData = {
+        form,
+        lorebooks,
+        images: images.map(img => ({
+          id: img.id,
+          imageUrl: img.imageUrl,
+          keyword: img.keyword,
+          // fileは保存しない（Blobは保存できないため）
+        })),
+        savedAt: new Date().toISOString(),
+      };
+      
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(draftData));
+        setLastAutoSaveTime(new Date());
+        console.log('[自動保存] 一時保存完了');
+      } catch (e) {
+        console.error('[自動保存] 一時保存に失敗:', e);
+      }
+    }, 3 * 60 * 1000); // 3分
+    
+    return () => clearInterval(autoSaveInterval);
+  }, [form, lorebooks, images, isInitialized, STORAGE_KEY]);
+  // ▲▲▲【自動保存 終了】▲▲▲
+
+  // ▼▼▼【一時保存】手動一時保存 ▼▼▼
+  const handleSaveDraft = () => {
+    const draftData = {
+      form,
+      lorebooks,
+      images: images.map(img => ({
+        id: img.id,
+        imageUrl: img.imageUrl,
+        keyword: img.keyword,
+      })),
+      savedAt: new Date().toISOString(),
+    };
+    
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(draftData));
+      setLastAutoSaveTime(new Date());
+      setHasDraft(true);
+      setModalState({ 
+        isOpen: true, 
+        title: '一時保存完了', 
+        message: '一時保存が完了しました。' 
+      });
+      console.log('[一時保存] 手動保存完了');
+    } catch (e) {
+      console.error('[一時保存] 手動保存に失敗:', e);
+      setModalState({ 
+        isOpen: true, 
+        title: 'エラー', 
+        message: '一時保存に失敗しました。' 
+      });
+    }
+  };
+
+  // ▼▼▼【一時保存読み込み】▼▼▼
+  const handleLoadDraft = () => {
+    const savedDraft = localStorage.getItem(STORAGE_KEY);
+    if (!savedDraft) {
+      setModalState({ 
+        isOpen: true, 
+        title: '一時保存なし', 
+        message: '読み込む一時保存データがありません。' 
+      });
+      return;
+    }
+    
+    try {
+      const draft = JSON.parse(savedDraft);
+      if (draft.form) setForm(draft.form);
+      if (draft.lorebooks) setLorebooks(draft.lorebooks);
+      if (draft.images) {
+        setImages(draft.images.map((img: any) => ({
+          id: img.id,
+          imageUrl: img.imageUrl,
+          keyword: img.keyword || "",
+        })));
+      }
+      setModalState({ 
+        isOpen: true, 
+        title: '読み込み完了', 
+        message: `一時保存データを読み込みました。\n保存日時: ${draft.savedAt ? new Date(draft.savedAt).toLocaleString('ja-JP') : '不明'}` 
+      });
+      console.log('[一時保存読み込み] 完了');
+    } catch (e) {
+      console.error('[一時保存読み込み] 失敗:', e);
+      setModalState({ 
+        isOpen: true, 
+        title: 'エラー', 
+        message: '一時保存データの読み込みに失敗しました。' 
+      });
+    }
+  };
+
+  // ▼▼▼【一時保存削除】保存成功時に一時保存を削除 ▼▼▼
+  const clearDraft = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setHasDraft(false);
+    setLastAutoSaveTime(null);
+  };
+  // ▲▲▲【一時保存 終了】▲▲▲
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -826,6 +1009,9 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       const responseData = await response.json();
       const characterId = responseData.character?.id || responseData.id;
 
+      // 保存成功時に一時保存を削除
+      clearDraft();
+
       // IT環境の場合は混紡環境への移行オプションを追加
       // Add staging migration option if in IT environment
       // クライアント側で環境を判定（ホスト名または環境変数から）
@@ -931,9 +1117,36 @@ export default function CharacterForm({ isEditMode, initialData, session, status
               >
                 <ArrowLeft size={24} />
               </button>
-              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent flex-1">
                 {isEditMode ? "キャラクター修正" : "キャラクター作成"}
               </h1>
+              <div className="flex items-center gap-2">
+                {hasDraft && (
+                  <span className="text-xs text-gray-400 hidden sm:inline">
+                    {lastAutoSaveTime ? `最終保存: ${lastAutoSaveTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}` : '一時保存あり'}
+                  </span>
+                )}
+                <Button
+                  onClick={handleLoadDraft}
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-xl"
+                  title="一時保存を読み込む"
+                >
+                  <Download size={18} />
+                  <span className="hidden sm:inline ml-1">読み込み</span>
+                </Button>
+                <Button
+                  onClick={handleSaveDraft}
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-400 hover:text-pink-400 hover:bg-pink-500/10 rounded-xl"
+                  title="一時保存"
+                >
+                  <Save size={18} />
+                  <span className="hidden sm:inline ml-1">一時保存</span>
+                </Button>
+              </div>
             </header>
 
         {/* モバイル: ドロップダウン, デスクトップ: タブ */}
