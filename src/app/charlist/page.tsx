@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 // Next.jsのナビゲーション機能とImageコンポーネントをインポートします
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ChevronDown, Heart, MessageSquare, ArrowLeft } from 'lucide-react';
 
 // キャラクターのデータ型を定義します。
@@ -12,6 +13,7 @@ type Character = {
   name: string;
   description: string | null;
   hashtags: string[];
+  characterImages: { imageUrl: string }[];
   _count?: { // APIからの応答に_countが含まれない場合も考慮し、オプショナルにします
     favorites: number;
     interactions: number;
@@ -30,33 +32,40 @@ const sortOptions: SortOption[] = [
   { key: 'likes', label: 'いいね数順' },
 ];
 
-// キャラクターカードコンポーネント（画像なし）
-function CharacterCard({ character }: { character: Character }) {
+// キャラクター画像カードコンポーネント（画像エラー処理付き）
+function CharacterImageCard({ character }: { character: Character }) {
+  const [imageError, setImageError] = useState(false);
+  const originalSrc = character.characterImages[0]?.imageUrl;
+  const placeholderSrc = 'https://placehold.co/300x400/1a1a1a/ffffff?text=?';
+  const src = imageError || !originalSrc ? placeholderSrc : originalSrc;
+  
   return (
-    <Link href={`/characters/${character.id}`} className="group block">
-      <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/50 rounded-xl p-4 border border-gray-800/50 hover:border-pink-500/30 transition-all">
-        <h3 className="font-semibold text-white mb-2 truncate group-hover:text-pink-400 transition-colors">
-          {character.name}
-        </h3>
-        <p className="text-sm text-gray-400 line-clamp-3 mb-3 min-h-[3rem]">{character.description || '説明なし'}</p>
-        {character.hashtags && character.hashtags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
-            {character.hashtags.slice(0, 3).map((tag, idx) => (
-              <span key={idx} className="px-2 py-0.5 text-xs bg-pink-500/20 text-pink-300 rounded-full">
-                #{tag}
-              </span>
-            ))}
-          </div>
-        )}
-        <div className="flex items-center gap-4 text-xs text-gray-500">
-          <div className="flex items-center gap-1">
-            <MessageSquare size={12} /> 
-            <span>{character._count?.interactions ?? 0}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Heart size={12} /> 
-            <span>{character._count?.favorites ?? 0}</span>
-          </div>
+    <Link href={`/characters/${character.id}`} className="group">
+      <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl overflow-hidden mb-3">
+        <Image
+          src={src}
+          alt={character.name}
+          fill
+          className="object-cover group-hover:scale-110 transition-transform duration-500"
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+          onError={() => setImageError(true)}
+        />
+        {/* ホバー時のグラデーションオーバーレイ */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute inset-0 bg-gradient-to-br from-pink-500/0 via-purple-500/0 to-pink-500/0 group-hover:from-pink-500/20 group-hover:via-purple-500/10 group-hover:to-pink-500/20 transition-all duration-500" />
+      </div>
+      <h3 className="font-semibold text-white mb-1 truncate group-hover:text-pink-400 transition-colors">
+        {character.name}
+      </h3>
+      <p className="text-sm text-gray-400 truncate line-clamp-2 mb-2">{character.description}</p>
+      <div className="flex items-center gap-3 text-xs text-gray-500">
+        <div className="flex items-center gap-1">
+          <MessageSquare size={12} /> 
+          <span>{character._count?.interactions ?? 0}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Heart size={12} /> 
+          <span>{character._count?.favorites ?? 0}</span>
         </div>
       </div>
     </Link>
@@ -187,9 +196,9 @@ export default function CharListPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
                 {characters.map((char) => (
-                  <CharacterCard key={char.id} character={char} />
+                  <CharacterImageCard key={char.id} character={char} />
                 ))}
               </div>
 
