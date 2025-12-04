@@ -508,7 +508,7 @@ export default function AdminCharactersPage() {
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-4 py-2 bg-gray-800/50 hover:bg-gray-700/50 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all border border-gray-700/50"
+                className="px-4 py-2 bg-gray-800/50 hover:bg-gray-700/50 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all border border-gray-700/50 cursor-pointer"
               >
                 前へ
               </button>
@@ -516,7 +516,7 @@ export default function AdminCharactersPage() {
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 bg-gray-800/50 hover:bg-gray-700/50 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all border border-gray-700/50"
+                className="px-4 py-2 bg-gray-800/50 hover:bg-gray-700/50 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all border border-gray-700/50 cursor-pointer"
               >
                 次へ
               </button>
