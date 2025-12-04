@@ -24,6 +24,9 @@ export interface CharacterInfo {
   firstMessage?: string;
   // 画像リスト（先頭はアイコン相当、それ以降は本文内 {img:n} で参照）
   characterImages: CharacterImageInfo[];
+  // 状態窓設定
+  statusWindowPrompt?: string | null;
+  statusWindowDescription?: string | null;
 }
 
 export interface DbMessage {

@@ -15,6 +15,7 @@ export type ChatMessageParserProps = {
   isMultiImage: boolean;
   onImageClick?: (url: string) => void;
   userNickname?: string; // {{user}}置換用
+  hasStatusWindow?: boolean; // 状態窓設定があるかどうか
 };
 
 /**
@@ -35,6 +36,7 @@ export default function ChatMessageParser({
   isMultiImage,
   onImageClick,
   userNickname,
+  hasStatusWindow = false, // デフォルトはfalse（状態窓設定がない場合）
 }: ChatMessageParserProps): ReactElement {
   // {{user}}をユーザーのニックネームに置換
   const processedContent = userNickname 
@@ -64,15 +66,22 @@ export default function ChatMessageParser({
       elements.push(...parseTextContent(textBefore, blockIndex * 1000, characterImages, showImage, isMultiImage, onImageClick));
     }
 
-    // コードブロックを状態窓スタイルで表示
-    elements.push(
-      <div
-        key={`codeblock-${blockIndex}`}
-        className="mt-3 mb-3 bg-gray-900/80 border border-gray-700 rounded-lg p-3 font-mono text-sm text-gray-300 whitespace-pre-wrap"
-      >
-        {block.content}
-      </div>
-    );
+    // コードブロックを状態窓スタイルで表示（状態窓設定がある場合のみ）
+    if (hasStatusWindow) {
+      elements.push(
+        <div
+          key={`codeblock-${blockIndex}`}
+          className="mt-3 mb-3 bg-gray-900/80 border border-gray-700 rounded-lg p-3 font-mono text-sm text-gray-300 whitespace-pre-wrap"
+        >
+          {block.content}
+        </div>
+      );
+    } else {
+      // 状態窓設定がない場合は、コードブロックを通常のテキストとして表示（非表示）
+      // または、コードブロックの内容を通常テキストとして処理
+      const textParts = parseTextContent(block.content, blockIndex * 1000 + 500, characterImages, showImage, isMultiImage, onImageClick);
+      elements.push(...textParts);
+    }
 
     lastIndex = block.end;
   });

@@ -122,6 +122,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                     isMultiImage={isMultiImage}
                     onImageClick={setLightboxImage}
                     userNickname={userNickname}
+                    hasStatusWindow={!!(characterInfo.statusWindowPrompt || characterInfo.statusWindowDescription)}
                   />
                 </div>
               </div>
@@ -138,6 +139,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                   isMultiImage={isMultiImage}
                   onImageClick={setLightboxImage}
                   userNickname={userNickname}
+                  hasStatusWindow={!!(characterInfo.statusWindowPrompt || characterInfo.statusWindowDescription)}
                 />
               </div>
             </div>
@@ -178,6 +180,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                       isMultiImage={isMultiImage}
                       onImageClick={setLightboxImage}
                       userNickname={userNickname}
+                      hasStatusWindow={!!(characterInfo.statusWindowPrompt || characterInfo.statusWindowDescription)}
                     />
                   )}
                 </div>
@@ -217,6 +220,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                         isMultiImage={isMultiImage}
                         onImageClick={setLightboxImage}
                         userNickname={userNickname}
+                        hasStatusWindow={!!(characterInfo.statusWindowPrompt || characterInfo.statusWindowDescription)}
                       />
                     )}
                   </div>
