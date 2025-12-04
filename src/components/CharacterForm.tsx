@@ -673,8 +673,8 @@ export default function CharacterForm({ isEditMode, initialData, session, status
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + images.length > 10) {
-      setModalState({ isOpen: true, title: 'アップロード上限', message: '画像は最大10枚までアップロードできます。' });
+    if (files.length + images.length > 100) {
+      setModalState({ isOpen: true, title: 'アップロード上限', message: '画像は最大100枚までアップロードできます。' });
       return;
     }
 
@@ -1041,13 +1041,13 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                 <div className="p-3 sm:p-4 bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700/50 mb-4">
                     <h3 className="font-bold text-lg mb-2">キャラクター画像</h3>
                     <p className="text-sm text-gray-400">
-                        キャラクターの画像をアップロードします。最大10枚まで登録可能です。<br />
+                        キャラクターの画像をアップロードします。最大100枚まで登録可能です。<br />
                         <span className="text-pink-400 font-semibold">最初の画像が基本画像として使用され、2枚目以降はキーワード（感情や状況など）を設定することで、特定の状況で表示される画像として使用できます。</span>
                     </p>
                 </div>
                 <label className="block text-sm sm:text-base font-semibold text-gray-200 mb-3 sm:mb-4">画像アップロード</label>
                 <input type="file" accept="image/*" multiple onChange={handleImageChange} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gradient-to-r file:from-pink-500 file:to-purple-600 hover:file:from-pink-600 hover:file:to-purple-700 file:text-white file:cursor-pointer cursor-pointer file:shadow-lg file:shadow-pink-500/30 transition-all" />
-                <p className="text-xs text-gray-500 mt-2">画像ファイルを選択してください（最大10枚まで）。</p>
+                <p className="text-xs text-gray-500 mt-2">画像ファイルを選択してください（最大100枚まで）。</p>
                 <div className="mt-4 sm:mt-6 flex flex-wrap gap-3 sm:gap-4">
                 {images.map((img, idx) => (
                     <div key={img.id || `new-${idx}`} className="relative w-20 h-20 sm:w-24 sm:h-24 group">
