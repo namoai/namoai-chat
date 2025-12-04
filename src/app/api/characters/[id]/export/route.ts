@@ -69,9 +69,10 @@ export async function GET(
     // ZIPファイルを作成
     console.log(`[Export] ZIPファイルを作成中...`);
     const zip = new JSZip();
-    // 画像も含めてエクスポートするが、レスポンスサイズ(413)を避けるため枚数をかなり厳しめに制限する
-    const skipImages = false;
-    const MAX_EXPORT_IMAGES = 4; // 画像が大きくても安全側になるように少なめに設定
+    // ✅ 413エラーを確実に回避するため、画像バイナリはZIPに含めない
+    //    画像のメタデータ（URL, keyword など）は JSON に残すので、インポート側で再取得できます。
+    const skipImages = true;
+    const MAX_EXPORT_IMAGES = 0; // 画像はエクスポートしない（将来のために定数は残す）
 
     // キャラクター情報をJSONとして保存
     const characterData = {
@@ -103,7 +104,7 @@ export async function GET(
 
     zip.file('character.json', JSON.stringify(characterData, null, 2));
 
-    // 画像をダウンロードしてZIPに追加
+    // 画像をダウンロードしてZIPに追加（現在はスキップ設定）
     const imagesFolder = zip.folder('images');
     if (!skipImages && imagesFolder && character.characterImages.length > 0) {
       // displayOrder順にソート（既にorderByでソートされているが、念のため）
