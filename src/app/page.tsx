@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, User, Trophy, Users, Sparkles, TrendingUp, Star, ArrowRight, Bell, MessageSquare } from "lucide-react";
+import { Search, User, Trophy, Users, Sparkles, Star, ArrowRight, Bell, MessageSquare } from "lucide-react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 
