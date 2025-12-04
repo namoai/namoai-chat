@@ -12,7 +12,6 @@ type CharacterItem = {
   id: number;
   name: string;
   description: string | null;
-  characterImages: { imageUrl: string }[];
   hashtags: string[];
   createdAt: string;
   counts: {
@@ -103,10 +102,6 @@ export async function GET(request: NextRequest) {
           description: true,
           hashtags: true,
           createdAt: true,
-          characterImages: {
-            select: { imageUrl: true },
-            take: 1,
-          },
           _count: {
             select: {
               interactions: true,
@@ -131,7 +126,6 @@ export async function GET(request: NextRequest) {
       id: r.id,
       name: r.name,
       description: r.description ?? null,
-      characterImages: r.characterImages ?? [],
       hashtags: r.hashtags ?? [],
       createdAt: r.createdAt.toISOString(),
       counts: {
