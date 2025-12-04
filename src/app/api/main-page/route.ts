@@ -132,7 +132,7 @@ export async function GET() {
         );
 
         // 現在ユーザーが対話中のキャラクターを取得
-        let activeChatCharacters: any[] = [];
+        let activeChatCharacters: Awaited<ReturnType<typeof getCharactersWithMainImage>> = [];
         if (currentUserId) {
           const userChats = await prisma.chat.findMany({
             where: {
