@@ -69,9 +69,9 @@ export async function GET(
     // ZIPファイルを作成
     console.log(`[Export] ZIPファイルを作成中...`);
     const zip = new JSZip();
-    // 画像も含めてエクスポートするが、レスポンスサイズ(413)を避けるため枚数を制限する
+    // 画像も含めてエクスポートするが、レスポンスサイズ(413)を避けるため枚数をかなり厳しめに制限する
     const skipImages = false;
-    const MAX_EXPORT_IMAGES = 12; // エクスポートに含める最大画像枚数
+    const MAX_EXPORT_IMAGES = 4; // 画像が大きくても安全側になるように少なめに設定
 
     // キャラクター情報をJSONとして保存
     const characterData = {
