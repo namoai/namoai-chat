@@ -570,21 +570,20 @@ export async function POST(request: Request, context: { params: Promise<{ chatId
       .join('\n');
 
     const imageInstruction = imageList
-      ? `# Images (MANDATORY)
+      ? `# Images
 Available Images:
 ${imageList}
 
-**CRITICAL INSTRUCTIONS**:
-- Use MULTIPLE images throughout your response based on the scene and context
-- Insert {img:N} tags at APPROPRIATE MOMENTS when describing scenes, emotions, actions, or character expressions
+**INSTRUCTIONS**:
+- Insert {img:N} tags at appropriate moments when they enhance the narrative (scenes, emotions, actions, character expressions)
 - **NEVER place {img:N} tags inside dialogue brackets (「」). Images must ALWAYS be outside dialogue brackets.**
 - **CORRECT**: "彼女は微笑んだ {img:2} 「こんにちは」と挨拶した。部屋に入ると {img:5}"
 - **WRONG**: 「こんにちは {img:2}」 (DO NOT DO THIS)
 - Match image keywords with your narrative content
-- Place images naturally THROUGHOUT the story, NOT clustered or only at the end
-- Use as many different images as the scene naturally calls for (could be 2, 3, 5, or more depending on scene complexity)
+- Use images naturally when they add value to the story - it's fine to use one image, multiple images, or no images depending on what fits the scene
+- Don't force images if they don't naturally fit the narrative flow
 - Example: "彼女は微笑んだ {img:2} 「こんにちは」と挨拶した。部屋に入ると {img:5} 彼が振り返った {img:3}"
-- The richer the visual storytelling with varied appropriate images, the better the experience`
+- Quality over quantity: use images that genuinely enhance the storytelling experience`
       : "";
     // ▲▲▲
 

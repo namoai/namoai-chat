@@ -456,10 +456,12 @@ export async function POST(request: NextRequest) {
         const imageInstruction = imageList 
             ? `# Images
 Available: ${imageList}
-Usage: Insert {img:N} at appropriate moments in narration.
-**CRITICAL**: NEVER place {img:N} tags inside dialogue brackets (「」). Images must ALWAYS be outside dialogue brackets.
+Usage: Insert {img:N} at appropriate moments in narration when they enhance the story.
+- Use images naturally when they add value - it's fine to use one, multiple, or no images depending on what fits the scene
+- **CRITICAL**: NEVER place {img:N} tags inside dialogue brackets (「」). Images must ALWAYS be outside dialogue brackets.
 - **CORRECT**: "彼女は微笑んだ {img:2} 「こんにちは」と挨拶した。部屋に入ると {img:5}"
-- **WRONG**: 「こんにちは {img:2}」 (DO NOT DO THIS)`
+- **WRONG**: 「こんにちは {img:2}」 (DO NOT DO THIS)
+- Quality over quantity: use images that genuinely enhance the storytelling experience`
             : "";
         // ▲▲▲
         
