@@ -88,6 +88,8 @@ export async function GET(
       detailSetting: character.detailSetting,
       statusWindowPrompt: character.statusWindowPrompt,
       statusWindowDescription: character.statusWindowDescription,
+      firstSituationDate: character.firstSituationDate ? character.firstSituationDate.toISOString() : null,
+      firstSituationPlace: character.firstSituationPlace,
       characterImages: character.characterImages.map(img => ({
         imageUrl: img.imageUrl,
         keyword: img.keyword,

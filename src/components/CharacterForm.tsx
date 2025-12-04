@@ -1112,17 +1112,17 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       {/* ▼▼▼【アップロード進行状況表示】▼▼▼ */}
       {uploadProgress && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-gray-900/95 backdrop-blur-xl p-8 rounded-xl max-w-md w-full border border-gray-700/50 shadow-2xl">
-            <h3 className="text-xl font-bold mb-4 text-center">画像をアップロード中...</h3>
+          <div className="bg-blue-600/95 backdrop-blur-xl p-8 rounded-xl max-w-md w-full border border-blue-400/50 shadow-2xl">
+            <h3 className="text-xl font-bold mb-4 text-center text-white">画像をアップロード中...</h3>
             <div className="mb-4">
-              <div className="w-full bg-gray-700 rounded-full h-4 overflow-hidden">
+              <div className="w-full bg-blue-800/50 rounded-full h-4 overflow-hidden">
                 <div 
-                  className="bg-pink-500 h-full transition-all duration-300"
+                  className="bg-white h-full transition-all duration-300"
                   style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
                 />
               </div>
             </div>
-            <p className="text-center text-gray-400">
+            <p className="text-center text-white">
               {uploadProgress.current} / {uploadProgress.total} 枚完了
             </p>
           </div>
