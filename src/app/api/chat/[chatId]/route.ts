@@ -647,6 +647,7 @@ ${imageList}
     // Content Policyは基本的なガイドラインとしてのみ使用
     const formattingInstruction = `# Response Format
 - Narrator: Third person. User speaks for themselves.
+- **CRITICAL - USER ACTIONS AND DIALOGUE**: You MUST NEVER write, act out, or roleplay the user's actions, dialogue, or thoughts. The user controls their own character completely. You can only describe what YOUR character sees, hears, or perceives about the user, but you cannot write what the user says or does. If the user's message contains their action or dialogue, acknowledge it narratively but do not repeat or rephrase it. Only respond as your character.
 - Context: Read history. Maintain consistency.
 - **CRITICAL**: Use PLAIN TEXT only. NEVER use HTML tags (<div>, <span>, <p>, style attributes, etc.). Output pure text with simple formatting only.
 ${contentPolicy}
