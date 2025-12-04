@@ -329,13 +329,15 @@ export default function CharacterForm({ isEditMode, initialData, session, status
             setLorebooks(initialData.lorebooks || []);
           }
           
-          if (draft.images) {
+          if (draft.images && draft.images.length > 0) {
+            // 一時保存の画像を使用
             setImages(draft.images.map((img: Omit<DisplayImage, 'file'>) => ({
               id: img.id,
               imageUrl: img.imageUrl,
               keyword: img.keyword || "",
             })));
           } else if (initialData.characterImages && initialData.characterImages.length > 0) {
+            // 一時保存がない場合は初期データを使用
             setImages(
               initialData.characterImages.map((img) => ({
                 id: img.id,
@@ -393,7 +395,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
           const draft = JSON.parse(savedDraft);
           if (draft.form) setForm(draft.form);
           if (draft.lorebooks) setLorebooks(draft.lorebooks);
-          if (draft.images) {
+          if (draft.images && draft.images.length > 0) {
             setImages(draft.images.map((img: Omit<DisplayImage, 'file'>) => ({
               id: img.id,
               imageUrl: img.imageUrl,
@@ -536,16 +538,21 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       if (draft.form) setForm(draft.form);
       if (draft.lorebooks) setLorebooks(draft.lorebooks);
       if (draft.images) {
-        setImages(draft.images.map((img: Omit<DisplayImage, 'file'>) => ({
+        // 現在の画像でFileオブジェクトがあるもの（新規アップロード）は保持
+        const currentImagesWithFiles = images.filter(img => img.file);
+        // 一時保存の画像と現在のFileオブジェクトがある画像をマージ
+        const draftImages = draft.images.map((img: Omit<DisplayImage, 'file'>) => ({
           id: img.id,
           imageUrl: img.imageUrl,
           keyword: img.keyword || "",
-        })));
+        }));
+        // Fileオブジェクトがある画像を先頭に、その後一時保存の画像を追加
+        setImages([...currentImagesWithFiles, ...draftImages]);
       }
       setModalState({ 
         isOpen: true, 
         title: '読み込み完了', 
-        message: `一時保存データを読み込みました。\n保存日時: ${draft.savedAt ? new Date(draft.savedAt).toLocaleString('ja-JP') : '不明'}` 
+        message: `一時保存データを読み込みました。\n保存日時: ${draft.savedAt ? new Date(draft.savedAt).toLocaleString('ja-JP') : '不明'}\n\n注意: 新規アップロードした画像は保持されています。` 
       });
       console.log('[一時保存読み込み] 完了');
     } catch (e) {
