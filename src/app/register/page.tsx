@@ -29,7 +29,11 @@ export default function SignUpPage() {
   const validate = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const nameRegex = /^[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}ー\s]+$/u;
-    const phoneRegex = /^070-\d{4}-\d{4}$/;
+    // 電話番号検証: 数字、ハイフン、括弧、プラス記号、スペースのみ許可（英字やその他の文字は不可）
+    // 例: 070-1234-5678, 03-1234-5678, +81-90-1234-5678, (03)1234-5678, 09012345678 など
+    const phoneRegex = /^[\d\s\-+()]+$/;
+    // 数字が少なくとも1つは含まれていることを確認
+    const phoneHasDigits = /\d/.test(form.phone);
     const nicknameRegex = /^.{2,12}$/;
 
     if (!emailRegex.test(form.email)) {
@@ -66,8 +70,23 @@ export default function SignUpPage() {
       alert("氏名はひらがな・カタカナ・漢字のみ使用できます。");
       return false;
     }
+    // 電話番号の最小長をチェック（5文字以上、30文字以下）
+    if (form.phone.length < 5) {
+      alert("電話番号は5文字以上で入力してください。");
+      return false;
+    }
+    if (form.phone.length > 30) {
+      alert("電話番号は30文字以下で入力してください。");
+      return false;
+    }
+    // 数字、ハイフン、括弧、プラス記号、スペース以外の文字が含まれていないかチェック
     if (!phoneRegex.test(form.phone)) {
-      alert("電話番号は070-1234-5678の形式で入力してください。");
+      alert("電話番号は数字、ハイフン(-)、括弧()、プラス記号(+)、スペースのみ使用できます。英字やその他の文字は使用できません。");
+      return false;
+    }
+    // 数字が少なくとも1つは含まれていることを確認
+    if (!phoneHasDigits) {
+      alert("電話番号には少なくとも1つの数字が必要です。");
       return false;
     }
     if (!nicknameRegex.test(form.nickname)) {

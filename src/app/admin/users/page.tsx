@@ -163,7 +163,11 @@ export default function AdminUsersPage() {
         fetchUsers(searchQuery);
       } else {
         const data = await response.json();
-        setModalState({ isOpen: true, title: 'エラー', message: `更新に失敗しました: ${data.error}`, isAlert: true });
+        // エラーメッセージを適切に処理
+        const errorMessage = typeof data.error === 'string' 
+          ? data.error 
+          : data.error?.message || data.message || '不明なエラーが発生しました。';
+        setModalState({ isOpen: true, title: 'エラー', message: `更新に失敗しました: ${errorMessage}`, isAlert: true });
       }
   };
 
@@ -315,7 +319,11 @@ export default function AdminUsersPage() {
         fetchUsers(searchQuery);
       } else {
         const data = await response.json();
-        setModalState({ isOpen: true, title: 'エラー', message: `更新に失敗しました: ${data.error}`, isAlert: true });
+        // エラーメッセージを適切に処理
+        const errorMessage = typeof data.error === 'string' 
+          ? data.error 
+          : data.error?.message || data.message || '不明なエラーが発生しました。';
+        setModalState({ isOpen: true, title: 'エラー', message: `更新に失敗しました: ${errorMessage}`, isAlert: true });
       }
     } catch (error) {
       console.error('更新エラー:', error);
