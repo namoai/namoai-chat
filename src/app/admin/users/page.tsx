@@ -4,6 +4,7 @@ import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation'; // useRouterをインポート
 import Link from 'next/link'; // Linkをインポート
 import { ArrowLeft, Search } from 'lucide-react';
+import { apiPut, ApiErrorResponse } from '@/lib/api-client';
 
 // Role Enumをクライアントサイドで定義
 enum Role {
@@ -152,21 +153,15 @@ export default function AdminUsersPage() {
   };
 
   const handleRoleChange = async (userId: number, newRole: Role) => {
-      const response = await fetch('/api/admin/users', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, newRole }),
-      });
-
-      if (response.ok) {
+      try {
+        await apiPut('/api/admin/users', { userId, newRole });
         setModalState({ isOpen: true, title: '成功', message: '役割を更新しました。', isAlert: true });
         fetchUsers(searchQuery);
-      } else {
-        const data = await response.json();
+      } catch (error) {
         // エラーメッセージを適切に処理
-        const errorMessage = typeof data.error === 'string' 
-          ? data.error 
-          : data.error?.message || data.message || '不明なエラーが発生しました。';
+        const errorMessage = error instanceof ApiErrorResponse
+          ? error.message
+          : '不明なエラーが発生しました。';
         setModalState({ isOpen: true, title: 'エラー', message: `更新に失敗しました: ${errorMessage}`, isAlert: true });
       }
   };
@@ -304,30 +299,20 @@ export default function AdminUsersPage() {
     if (!editModal.userId || !editModal.userData) return;
 
     try {
-      const response = await fetch('/api/admin/users/edit', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId: editModal.userId,
-          ...editModal.userData
-        }),
+      await apiPut('/api/admin/users/edit', {
+        userId: editModal.userId,
+        ...editModal.userData
       });
-
-      if (response.ok) {
-        setModalState({ isOpen: true, title: '成功', message: 'ユーザー情報を更新しました。', isAlert: true });
-        setEditModal({ isOpen: false, userId: null, userData: null });
-        fetchUsers(searchQuery);
-      } else {
-        const data = await response.json();
-        // エラーメッセージを適切に処理
-        const errorMessage = typeof data.error === 'string' 
-          ? data.error 
-          : data.error?.message || data.message || '不明なエラーが発生しました。';
-        setModalState({ isOpen: true, title: 'エラー', message: `更新に失敗しました: ${errorMessage}`, isAlert: true });
-      }
+      setModalState({ isOpen: true, title: '成功', message: 'ユーザー情報を更新しました。', isAlert: true });
+      setEditModal({ isOpen: false, userId: null, userData: null });
+      fetchUsers(searchQuery);
     } catch (error) {
       console.error('更新エラー:', error);
-      setModalState({ isOpen: true, title: 'エラー', message: '更新処理中にエラーが発生しました。', isAlert: true });
+      // エラーメッセージを適切に処理
+      const errorMessage = error instanceof ApiErrorResponse
+        ? error.message
+        : '更新処理中にエラーが発生しました。';
+      setModalState({ isOpen: true, title: 'エラー', message: `更新に失敗しました: ${errorMessage}`, isAlert: true });
     }
   };
   // ▲▲▲ 編集機能完了 ▲▲▲
