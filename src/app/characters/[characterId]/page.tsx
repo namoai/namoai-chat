@@ -3,7 +3,7 @@
 import React, { useState, useEffect, FormEvent, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Heart, MoreVertical, ArrowLeft, Send, Edit, Trash2, ShieldBan, Flag, HelpCircle } from 'lucide-react';
+import { Heart, MoreVertical, ArrowLeft, Send, Edit, Trash2, ShieldBan, Flag, HelpCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import HelpModal from '@/components/HelpModal';
 import { fetchWithCsrf } from "@/lib/csrf-client";
 
@@ -327,6 +327,7 @@ export default function CharacterDetailPage({
   const [reportContent, setReportContent] = useState('');
   const [showReportConfirm, setShowReportConfirm] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -375,6 +376,7 @@ export default function CharacterDetailPage({
         }
 
         setCharacter(data);
+        setCurrentImageIndex(0); // キャラクターデータが読み込まれたら画像インデックスをリセット
       } catch (e) {
         setError(e instanceof Error ? e.message : '不明なエラーが発生しました。');
       } finally {
@@ -384,6 +386,26 @@ export default function CharacterDetailPage({
     fetchCharacter();
   // ❗️依存性もparams.characterId → characterId に置き換え
   }, [characterId]);
+
+  // キーボードで画像を切り替え
+  useEffect(() => {
+    if (!character || character.characterImages.length <= 1) return;
+
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        setCurrentImageIndex((prev) => 
+          prev === 0 ? character.characterImages.length - 1 : prev - 1
+        );
+      } else if (e.key === 'ArrowRight') {
+        setCurrentImageIndex((prev) => 
+          prev === character.characterImages.length - 1 ? 0 : prev + 1
+        );
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [character]);
 
   // ▼▼▼【メニュー外クリックで閉じる】▼▼▼
   useEffect(() => {
@@ -775,16 +797,89 @@ export default function CharacterDetailPage({
         
         <div className="pb-28 pt-20"> 
           <div className="max-w-4xl mx-auto px-4 md:px-6">
-            <div className="relative w-full max-w-2xl mx-auto aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 mb-6">
-              <Image 
-                src={character.characterImages[0]?.imageUrl || 'https://placehold.co/640x640/1a1a1a/ffffff?text=?'} 
-                alt={character.name} 
-                fill
-                className="object-contain"
-                sizes="(max-width: 768px) 100vw, 640px"
-                priority
-              />
-            </div>
+            {character.characterImages && character.characterImages.length > 0 ? (
+              <div className="relative w-full max-w-2xl mx-auto aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 mb-6 group">
+                <Image 
+                  src={character.characterImages[currentImageIndex]?.imageUrl || 'https://placehold.co/640x640/1a1a1a/ffffff?text=?'} 
+                  alt={`${character.name} - ${currentImageIndex + 1}`} 
+                  fill
+                  className="object-contain transition-opacity duration-300"
+                  sizes="(max-width: 768px) 100vw, 640px"
+                  priority={currentImageIndex === 0}
+                />
+                
+                {/* 画像カウンター */}
+                {character.characterImages.length > 1 && (
+                  <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full text-white text-sm font-medium z-10">
+                    {currentImageIndex + 1} | {character.characterImages.length}
+                  </div>
+                )}
+
+                {/* 左矢印 */}
+                {character.characterImages.length > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentImageIndex((prev) => 
+                        prev === 0 ? character.characterImages.length - 1 : prev - 1
+                      );
+                    }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white p-2 rounded-full transition-all opacity-0 group-hover:opacity-100 z-10"
+                    aria-label="前の画像"
+                  >
+                    <ChevronLeft size={24} />
+                  </button>
+                )}
+
+                {/* 右矢印 */}
+                {character.characterImages.length > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentImageIndex((prev) => 
+                        prev === character.characterImages.length - 1 ? 0 : prev + 1
+                      );
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white p-2 rounded-full transition-all opacity-0 group-hover:opacity-100 z-10"
+                    aria-label="次の画像"
+                  >
+                    <ChevronRight size={24} />
+                  </button>
+                )}
+
+                {/* 画像インジケーター（ドット） */}
+                {character.characterImages.length > 1 && character.characterImages.length <= 10 && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                    {character.characterImages.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentImageIndex(index);
+                        }}
+                        className={`w-2 h-2 rounded-full transition-all ${
+                          index === currentImageIndex 
+                            ? 'bg-pink-500 w-6' 
+                            : 'bg-white/40 hover:bg-white/60'
+                        }`}
+                        aria-label={`画像 ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="relative w-full max-w-2xl mx-auto aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 mb-6">
+                <Image 
+                  src="https://placehold.co/640x640/1a1a1a/ffffff?text=?" 
+                  alt={character.name} 
+                  fill
+                  className="object-contain"
+                  sizes="(max-width: 768px) 100vw, 640px"
+                  priority
+                />
+              </div>
+            )}
 
             <main className="max-w-2xl mx-auto relative z-10">
               <div className="text-center mb-6">
