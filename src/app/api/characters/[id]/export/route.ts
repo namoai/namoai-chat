@@ -69,6 +69,8 @@ export async function GET(
     // ZIPファイルを作成
     console.log(`[Export] ZIPファイルを作成中...`);
     const zip = new JSZip();
+    // 現在はレスポンスサイズ(413)回避のため画像バイナリを含めない軽量エクスポートのみ使用する
+    const skipImages = true;
 
     // キャラクター情報をJSONとして保存
     const characterData = {
@@ -102,7 +104,7 @@ export async function GET(
 
     // 画像をダウンロードしてZIPに追加
     const imagesFolder = zip.folder('images');
-    if (imagesFolder && character.characterImages.length > 0) {
+    if (!skipImages && imagesFolder && character.characterImages.length > 0) {
       // displayOrder順にソート（既にorderByでソートされているが、念のため）
       const sortedImages = [...character.characterImages].sort((a, b) => a.displayOrder - b.displayOrder);
       
