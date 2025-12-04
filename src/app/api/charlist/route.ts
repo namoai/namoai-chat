@@ -66,41 +66,66 @@ export async function GET(request: NextRequest) {
     let orderBy: Prisma.charactersOrderByWithRelationInput;
     switch (sortParam) {
       case "popular":
-        orderBy = { interactions: { _count: "desc" } } as unknown as Prisma.charactersOrderByWithRelationInput;
+        orderBy = {
+          interactions: { _count: "desc" },
+        } as unknown as Prisma.charactersOrderByWithRelationInput;
         break;
       case "likes":
-        orderBy = { favorites: { _count: "desc" } } as unknown as Prisma.charactersOrderByWithRelationInput;
+        orderBy = {
+          favorites: { _count: "desc" },
+        } as unknown as Prisma.charactersOrderByWithRelationInput;
         break;
       default:
         orderBy = { createdAt: "desc" };
         break;
     }
 
-    const rows = await prisma.characters.findMany({
-      where: {
-          ...tagWhere,
-          ...safetyWhereClause,
-          ...blockWhereClause,
-      },
-      orderBy,
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        hashtags: true,
-        createdAt: true,
-        characterImages: {
-          select: { imageUrl: true },
-          take: 1,
-        },
-        _count: {
-          select: {
-            interactions: true,
-            favorites: true,
+    const pageParam = searchParams.get("page");
+    const page = Math.max(1, Number(pageParam) || 1);
+    const PAGE_SIZE = 30;
+    const skip = (page - 1) * PAGE_SIZE;
+
+    const where: Prisma.charactersWhereInput = {
+      ...tagWhere,
+      ...safetyWhereClause,
+      ...blockWhereClause,
+    };
+
+    const [rows, totalCount, allTagRows] = await Promise.all([
+      prisma.characters.findMany({
+        where,
+        orderBy,
+        skip,
+        take: PAGE_SIZE,
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          hashtags: true,
+          createdAt: true,
+          characterImages: {
+            select: { imageUrl: true },
+            take: 1,
+          },
+          _count: {
+            select: {
+              interactions: true,
+              favorites: true,
+            },
           },
         },
-      },
-    });
+      }),
+      prisma.characters.count({ where }),
+      prisma.characters.findMany({
+        where: {
+          ...safetyWhereClause,
+          ...blockWhereClause,
+        },
+        select: { hashtags: true },
+      }),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
     const characters: CharacterItem[] = rows.map((r) => ({
       id: r.id,
@@ -116,10 +141,16 @@ export async function GET(request: NextRequest) {
     }));
 
     const uniqueTags = Array.from(
-      new Set(rows.flatMap((c) => c.hashtags ?? []))
+      new Set(allTagRows.flatMap((c) => c.hashtags ?? []))
     );
 
-    return NextResponse.json({ characters, tags: ["全体", ...uniqueTags] });
+    return NextResponse.json({
+      characters,
+      tags: ["全体", ...uniqueTags],
+      page,
+      totalPages,
+      totalCount,
+    });
   } catch (error) {
     console.error("キャラクター一覧APIエラー:", error);
     return NextResponse.json(
