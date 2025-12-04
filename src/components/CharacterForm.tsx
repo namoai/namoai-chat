@@ -330,7 +330,11 @@ export default function CharacterForm({ isEditMode, initialData, session, status
           }
           
           if (draft.images) {
-            setImages(draft.images);
+            setImages(draft.images.map((img: Omit<DisplayImage, 'file'>) => ({
+              id: img.id,
+              imageUrl: img.imageUrl,
+              keyword: img.keyword || "",
+            })));
           } else if (initialData.characterImages && initialData.characterImages.length > 0) {
             setImages(
               initialData.characterImages.map((img) => ({
@@ -387,9 +391,15 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       if (savedDraft) {
         try {
           const draft = JSON.parse(savedDraft);
-          setForm(draft.form || form);
+          if (draft.form) setForm(draft.form);
           if (draft.lorebooks) setLorebooks(draft.lorebooks);
-          if (draft.images) setImages(draft.images);
+          if (draft.images) {
+            setImages(draft.images.map((img: Omit<DisplayImage, 'file'>) => ({
+              id: img.id,
+              imageUrl: img.imageUrl,
+              keyword: img.keyword || "",
+            })));
+          }
           setHasDraft(true);
           console.log('[初期化] 新規作成の一時保存データから読み込み完了');
         } catch (e) {
@@ -398,6 +408,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       }
       setIsInitialized(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode, initialData, isInitialized, STORAGE_KEY]);
 
   // ▼▼▼【ページ離脱防止】作成中のデータがある場合は警告を表示 ▼▼▼
@@ -525,7 +536,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       if (draft.form) setForm(draft.form);
       if (draft.lorebooks) setLorebooks(draft.lorebooks);
       if (draft.images) {
-        setImages(draft.images.map((img: any) => ({
+        setImages(draft.images.map((img: Omit<DisplayImage, 'file'>) => ({
           id: img.id,
           imageUrl: img.imageUrl,
           keyword: img.keyword || "",
