@@ -303,14 +303,21 @@ export async function GET(request: Request) {
                     orderBy: { displayOrder: 'asc' },
                 },
                 _count: {
-                    select: { favorites: true, chat: true },
+                    select: { favorites: true },
                 },
             },
             take: 20
         });
 
-        // メイン画像のみを返す（なければ先頭）
-        const characters = charactersRaw.map(char => {
+        // 各キャラクターの実際のメッセージ数を計算
+        const charactersWithMessageCount = await Promise.all(
+          charactersRaw.map(async (char) => {
+            const messageCount = await prisma.chat_message.count({
+              where: {
+                chat: { characterId: char.id },
+                isActive: true,
+              },
+            });
             let mainImage = char.characterImages.find(img => img.isMain);
             if (!mainImage && char.characterImages.length > 0) {
                 mainImage = char.characterImages[0];
@@ -318,8 +325,15 @@ export async function GET(request: Request) {
             return {
                 ...char,
                 characterImages: mainImage ? [mainImage] : [],
+                _count: {
+                    ...char._count,
+                    chat: messageCount,
+                },
             };
-        });
+          })
+        );
+
+        const characters = charactersWithMessageCount;
 
         console.log(`[GET] キャラクター取得件数: ${characters.length}`);
         return NextResponse.json(characters);

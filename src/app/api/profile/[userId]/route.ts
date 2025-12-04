@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
             ],
             take: 1 
           },
-          _count: { select: { favorites: true, chat: true } },
+          _count: { select: { favorites: true } },
         },
       }),
       prisma.chat_message.count({
@@ -149,6 +149,25 @@ export async function GET(request: NextRequest) {
         : Promise.resolve(null),
     ]);
 
+    // 各キャラクターの実際のメッセージ数を計算
+    const charactersWithMessageCount = await Promise.all(
+      characters.map(async (char) => {
+        const messageCount = await prisma.chat_message.count({
+          where: {
+            chat: { characterId: char.id },
+            isActive: true,
+          },
+        });
+        return {
+          ...char,
+          _count: {
+            ...char._count,
+            chat: messageCount,
+          },
+        };
+      })
+    );
+
     const profileData = {
       id: user.id,
       name: user.name,
@@ -156,7 +175,7 @@ export async function GET(request: NextRequest) {
       image_url: user.image_url,
       bio: user.bio,
       hasPassword: !!user.password, // パスワードが設定されているかどうか（本人確認用）
-      characters,
+      characters: charactersWithMessageCount,
       totalMessageCount,
       _count: { followers: followerCount, following: followingCount },
       isFollowing: !!followRelation,

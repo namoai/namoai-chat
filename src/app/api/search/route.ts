@@ -65,12 +65,32 @@ export async function GET(request: NextRequest) {
         include: {
           characterImages: { where: { isMain: true }, take: 1 },
            _count: {
-             select: { favorites: true, chat: true }
+             select: { favorites: true }
            }
         },
         take: 30,
       });
-      return NextResponse.json(searchResults);
+
+      // 各キャラクターの実際のメッセージ数を計算
+      const searchResultsWithMessageCount = await Promise.all(
+        searchResults.map(async (char) => {
+          const messageCount = await prisma.chat_message.count({
+            where: {
+              chat: { characterId: char.id },
+              isActive: true,
+            },
+          });
+          return {
+            ...char,
+            _count: {
+              ...char._count,
+              chat: messageCount,
+            },
+          };
+        })
+      );
+
+      return NextResponse.json(searchResultsWithMessageCount);
     } 
     
     // クエリがない場合は、フィルターを適用して人気検索語を返します。

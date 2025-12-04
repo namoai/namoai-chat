@@ -71,26 +71,37 @@ export async function GET(request: NextRequest) {
         },
         _count: {
           select: {
-            chat: {
-              where: startDate ? { createdAt: { gte: startDate } } : undefined,
-            },
+            favorites: true,
           },
         },
       },
     });
 
-    const rankedCharacters = characters
-      .map(char => ({
-        id: char.id,
-        name: char.name,
-        description: char.description,
-        characterImages: char.characterImages,
-        chatCount: char._count.chat, 
-      }))
+    // 各キャラクターの実際のメッセージ数を計算
+    const rankedCharacters = await Promise.all(
+      characters.map(async (char) => {
+        const messageCount = await prisma.chat_message.count({
+          where: {
+            chat: { characterId: char.id },
+            isActive: true,
+            ...(startDate ? { createdAt: { gte: startDate } } : {}),
+          },
+        });
+        return {
+          id: char.id,
+          name: char.name,
+          description: char.description,
+          characterImages: char.characterImages,
+          chatCount: messageCount,
+        };
+      })
+    );
+
+    const sortedCharacters = rankedCharacters
       .sort((a, b) => b.chatCount - a.chatCount)
       .slice(0, 50);
 
-    return NextResponse.json(rankedCharacters);
+    return NextResponse.json(sortedCharacters);
 
   } catch (error) {
     console.error("ランキングデータの取得エラー:", error);

@@ -217,10 +217,20 @@ export async function GET(
           } 
         },
         author: { select: { id: true, name: true, nickname: true, image_url: true } },
-        _count: { select: { favorites: true, chat: true } },
+        _count: { select: { favorites: true } },
         lorebooks: true,
       }
     });
+
+    // 実際のメッセージ数を計算
+    const messageCount = character 
+      ? await prisma.chat_message.count({
+          where: {
+            chat: { characterId: characterId },
+            isActive: true,
+          },
+        })
+      : 0;
 
     if (!character) {
       console.log(`[GET /api/characters/${characterId}] エラー: キャラクターが見つかりませんでした。`);
@@ -292,6 +302,10 @@ export async function GET(
     const responseData = {
       ...character,
       isFavorited,
+      _count: {
+        ...character._count,
+        chat: messageCount,
+      },
     };
     
     console.log(`[GET /api/characters/${characterId}] クライアントへのレスポンスを送信します。画像数: ${responseData.characterImages?.length || 0}枚`);
