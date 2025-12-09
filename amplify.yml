@@ -13,7 +13,7 @@ frontend:
         - npx prisma generate
         - echo "Building Next.js app..."
         - rm -rf .next
-        - npm run build
+        - npm run build 2>&1 | tee build.log || (echo "Build failed!" && cat build.log && exit 1)
         - echo "=== Build Output Debug ==="
         - ls -la .next/ || echo ".next directory not found"
         - ls -la .next/standalone/ || echo ".next/standalone directory not found"
