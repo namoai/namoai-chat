@@ -20,7 +20,7 @@ frontend:
         - find . -name "required-server-files.json" || echo "required-server-files.json not found"
         - echo "=== End Debug ==="
   artifacts:
-    baseDirectory: ./
+    baseDirectory: .next
     files:
       - '**/*'
   cache:
