@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'; // useRouterをインポート
 import Link from 'next/link'; // Linkをインポート
 import { ArrowLeft, Search } from 'lucide-react';
 import { apiPut, ApiErrorResponse } from '@/lib/api-client';
-import { fetchWithCsrf } from '@/lib/csrf-client';
 
 // Role Enumをクライアントサイドで定義
 enum Role {
@@ -59,6 +58,8 @@ type EditModalState = {
     freePoints: number;
     paidPoints: number;
     isSocialLogin: boolean;
+    birthdate: string | null;
+    isMinor: boolean;
   } | null;
 };
 
@@ -181,7 +182,7 @@ export default function AdminUsersPage() {
     }
 
     try {
-      const response = await fetchWithCsrf('/api/admin/users/suspend', {
+      const response = await fetch('/api/admin/users/suspend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -213,7 +214,7 @@ export default function AdminUsersPage() {
       confirmText: '解除',
       onConfirm: async () => {
         try {
-          const response = await fetchWithCsrf('/api/admin/users/suspend', {
+          const response = await fetch('/api/admin/users/suspend', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId }),
@@ -244,7 +245,7 @@ export default function AdminUsersPage() {
       confirmText: '削除',
       onConfirm: async () => {
         try {
-          const response = await fetchWithCsrf('/api/admin/users/delete', {
+          const response = await fetch('/api/admin/users/delete', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId }),
@@ -285,6 +286,8 @@ export default function AdminUsersPage() {
             freePoints: data.points?.free_points || 0,
             paidPoints: data.points?.paid_points || 0,
             isSocialLogin: data.accounts && data.accounts.length > 0,
+            birthdate: data.birthdate || null,
+            isMinor: data.isMinor || false,
           }
         });
       } else {
@@ -476,6 +479,28 @@ export default function AdminUsersPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">生年月日</label>
+                <input
+                  type="date"
+                  value={editModal.userData.birthdate || ''}
+                  onChange={(e) => setEditModal({...editModal, userData: {...editModal.userData!, birthdate: e.target.value}})}
+                  className="w-full bg-gray-700 text-white rounded-lg p-2"
+                />
+              </div>
+
+              <div className="flex items-center">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editModal.userData.isMinor}
+                    onChange={(e) => setEditModal({...editModal, userData: {...editModal.userData!, isMinor: e.target.checked}})}
+                    className="w-5 h-5 text-pink-600 bg-gray-700 border-gray-600 rounded focus:ring-pink-500 mr-2"
+                  />
+                  <span className="text-sm font-medium text-gray-300">18歳未満として扱う</span>
+                </label>
               </div>
 
               <div className="md:col-span-2">

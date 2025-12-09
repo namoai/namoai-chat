@@ -43,7 +43,21 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "ユーザーが見つかりません。" }, { status: 404 });
         }
 
-        return NextResponse.json(user);
+        // 生年月日から未成年かどうかを判定
+        let isMinor = false;
+        if (user.birthdate) {
+            const birthDate = new Date(user.birthdate);
+            const today = new Date();
+            const age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            const dayDiff = today.getDate() - birthDate.getDate();
+            
+            // 誕生日がまだ来ていない場合は年齢を1引く
+            const actualAge = (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) ? age - 1 : age;
+            isMinor = actualAge < 18;
+        }
+
+        return NextResponse.json({ ...user, isMinor });
     } catch (error) {
         console.error("ユーザー情報取得エラー:", error);
         return NextResponse.json({ error: "取得処理中にエラーが発生しました。" }, { status: 500 });
@@ -62,9 +76,9 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: "権限がありません。" }, { status: 403 });
         }
 
-        const parseResult = await safeJsonParse<{ userId: number; name?: string; nickname?: string; email?: string; phone?: string; bio?: string; role?: string; freePoints?: number; paidPoints?: number }>(request);
+        const parseResult = await safeJsonParse<{ userId: number; name?: string; nickname?: string; email?: string; phone?: string; bio?: string; role?: string; freePoints?: number; paidPoints?: number; birthdate?: string | null; isMinor?: boolean }>(request);
         if (!parseResult.success) return parseResult.error;
-        const { userId, name, nickname, email, phone, bio, role, freePoints, paidPoints } = parseResult.data;
+        const { userId, name, nickname, email, phone, bio, role, freePoints, paidPoints, birthdate, isMinor } = parseResult.data;
 
         if (!userId) {
             return NextResponse.json({ error: "ユーザーIDが必要です。" }, { status: 400 });
@@ -90,6 +104,7 @@ export async function PUT(request: NextRequest) {
                 phone?: string | null;
                 bio?: string | null;
                 role?: Role;
+                birthdate?: Date | null;
             } = {};
             
             if (name !== undefined) updateData.name = name;
@@ -98,6 +113,22 @@ export async function PUT(request: NextRequest) {
             if (phone !== undefined) updateData.phone = phone || null;
             if (bio !== undefined) updateData.bio = bio || null;
             if (roleValue !== undefined) updateData.role = roleValue;
+            
+            // 生年月日の処理
+            if (birthdate !== undefined) {
+                if (birthdate === null || birthdate === '') {
+                    updateData.birthdate = null;
+                } else {
+                    updateData.birthdate = new Date(birthdate);
+                }
+            }
+            
+            // isMinorがtrueの場合、生年月日を17歳に設定（birthdate未設定の場合のみ）
+            if (isMinor === true && birthdate === undefined) {
+                const today = new Date();
+                const minorDate = new Date(today.getFullYear() - 17, today.getMonth(), today.getDate());
+                updateData.birthdate = minorDate;
+            }
 
             await tx.users.update({
                 where: { id: userId },
