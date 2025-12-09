@@ -92,6 +92,13 @@ const nextConfig: NextConfig = {
         ...config.resolve.alias,
         '@/lib/load-env-vars': false,
       };
+      // 특정 모듈을 아예 무시하여 번들에 포함되지 않도록 함
+      const webpack = require('webpack');
+      config.plugins.push(
+        new webpack.IgnorePlugin({
+          resourceRegExp: /@google-cloud\/secret-manager|@aws-sdk\/client-secrets-manager|load-env-vars/,
+        })
+      );
       // externals에 추가하여 클라이언트 번들에서 제외
       // Add to externals to exclude from client bundle
       if (!config.externals) {
