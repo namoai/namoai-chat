@@ -1,20 +1,22 @@
 'use server';
 import 'server-only';
 
-import fs from 'fs';
-import path from 'path';
-import * as dotenv from 'dotenv';
-
 let loaded = false;
 
 /**
  * Lambda/Amplify 런타임で環境変数を遅延ロードする。
  * - Amplify 環境変数が既に設定されていれば何もしない
  * - 同期的に .env 系ファイルを順に読み込み、未設定のキーだけ埋める
- * - ビルド時にも読み込まれないよう「use server」+ server-only にしている
+ * - Edge/ブラウザビルドで node:fs などを解決しないよう動的 import にする
  */
 export async function ensureEnvVarsLoaded(): Promise<void> {
   if (loaded) return;
+
+  // Node ランタイムでない（edge/ブラウザ）場合は何もしない
+  if (typeof process === 'undefined' || !process.versions?.node) {
+    loaded = true;
+    return;
+  }
 
   const hasDatabaseUrl = !!process.env.DATABASE_URL;
   const hasNextAuthSecret = !!process.env.NEXTAUTH_SECRET;
@@ -24,6 +26,11 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
     loaded = true;
     return;
   }
+
+  // 動的 import で Node 組み込みを読み込む（edge バンドルを回避）
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const dotenv = await import('dotenv');
 
   const candidates = [
     process.env.LAMBDA_TASK_ROOT && path.join(process.env.LAMBDA_TASK_ROOT, '.env'),
