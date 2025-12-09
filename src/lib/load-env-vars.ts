@@ -27,8 +27,9 @@ async function loadFromAwsSecretsManager(secretName: string): Promise<string | n
     }
     
     return null;
-  } catch (error: any) {
-    console.warn(`[load-env-vars] ⚠️ Failed to load ${secretName} from AWS Secrets Manager:`, error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.warn(`[load-env-vars] ⚠️ Failed to load ${secretName} from AWS Secrets Manager:`, errorMessage);
     return null;
   }
 }
@@ -60,8 +61,9 @@ async function loadFromGcpSecretManager(secretName: string): Promise<string | nu
     }
     
     return null;
-  } catch (error: any) {
-    console.warn(`[load-env-vars] ⚠️ Failed to load ${secretName} from GCP Secret Manager:`, error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.warn(`[load-env-vars] ⚠️ Failed to load ${secretName} from GCP Secret Manager:`, errorMessage);
     return null;
   }
 }
@@ -135,8 +137,9 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
         loadSecret('GOOGLE_CLIENT_ID'),
         loadSecret('GOOGLE_CLIENT_SECRET'),
       ]);
-    } catch (error: any) {
-      console.error('[load-env-vars] ❌ Error loading secrets:', error.message);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[load-env-vars] ❌ Error loading secrets:', errorMessage);
     }
   }
 
