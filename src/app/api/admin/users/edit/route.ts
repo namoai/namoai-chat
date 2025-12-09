@@ -43,10 +43,10 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "ユーザーが見つかりません。" }, { status: 404 });
         }
 
-        // 生年月日から未成年かどうかを判定
+        // 生年月日(dateOfBirth)から未成年かどうかを判定
         let isMinor = false;
-        if (user.birthdate) {
-            const birthDate = new Date(user.birthdate);
+        if (user.dateOfBirth) {
+            const birthDate = new Date(user.dateOfBirth);
             const today = new Date();
             const age = today.getFullYear() - birthDate.getFullYear();
             const monthDiff = today.getMonth() - birthDate.getMonth();
@@ -76,9 +76,9 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: "権限がありません。" }, { status: 403 });
         }
 
-        const parseResult = await safeJsonParse<{ userId: number; name?: string; nickname?: string; email?: string; phone?: string; bio?: string; role?: string; freePoints?: number; paidPoints?: number; birthdate?: string | null; isMinor?: boolean }>(request);
+        const parseResult = await safeJsonParse<{ userId: number; name?: string; nickname?: string; email?: string; phone?: string; bio?: string; role?: string; freePoints?: number; paidPoints?: number; dateOfBirth?: string | null; isMinor?: boolean }>(request);
         if (!parseResult.success) return parseResult.error;
-        const { userId, name, nickname, email, phone, bio, role, freePoints, paidPoints, birthdate, isMinor } = parseResult.data;
+        const { userId, name, nickname, email, phone, bio, role, freePoints, paidPoints, dateOfBirth, isMinor } = parseResult.data;
 
         if (!userId) {
             return NextResponse.json({ error: "ユーザーIDが必要です。" }, { status: 400 });
@@ -104,7 +104,7 @@ export async function PUT(request: NextRequest) {
                 phone?: string | null;
                 bio?: string | null;
                 role?: Role;
-                birthdate?: Date | null;
+                dateOfBirth?: Date | null;
             } = {};
             
             if (name !== undefined) updateData.name = name;
@@ -115,19 +115,19 @@ export async function PUT(request: NextRequest) {
             if (roleValue !== undefined) updateData.role = roleValue;
             
             // 生年月日の処理
-            if (birthdate !== undefined) {
-                if (birthdate === null || birthdate === '') {
-                    updateData.birthdate = null;
+            if (dateOfBirth !== undefined) {
+                if (dateOfBirth === null || dateOfBirth === '') {
+                    updateData.dateOfBirth = null;
                 } else {
-                    updateData.birthdate = new Date(birthdate);
+                    updateData.dateOfBirth = new Date(dateOfBirth);
                 }
             }
             
             // isMinorがtrueの場合、生年月日を17歳に設定（birthdate未設定の場合のみ）
-            if (isMinor === true && birthdate === undefined) {
+            if (isMinor === true && dateOfBirth === undefined) {
                 const today = new Date();
                 const minorDate = new Date(today.getFullYear() - 17, today.getMonth(), today.getDate());
-                updateData.birthdate = minorDate;
+                updateData.dateOfBirth = minorDate;
             }
 
             await tx.users.update({

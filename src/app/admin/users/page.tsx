@@ -58,7 +58,7 @@ type EditModalState = {
     freePoints: number;
     paidPoints: number;
     isSocialLogin: boolean;
-    birthdate: string | null;
+    dateOfBirth: string | null;
     isMinor: boolean;
   } | null;
 };
@@ -286,7 +286,9 @@ export default function AdminUsersPage() {
             freePoints: data.points?.free_points || 0,
             paidPoints: data.points?.paid_points || 0,
             isSocialLogin: data.accounts && data.accounts.length > 0,
-            birthdate: data.birthdate || null,
+            dateOfBirth: data.dateOfBirth
+              ? new Date(data.dateOfBirth).toISOString().slice(0, 10)
+              : null,
             isMinor: data.isMinor || false,
           }
         });
@@ -485,8 +487,8 @@ export default function AdminUsersPage() {
                 <label className="block text-sm font-medium text-gray-300 mb-2">生年月日</label>
                 <input
                   type="date"
-                  value={editModal.userData.birthdate || ''}
-                  onChange={(e) => setEditModal({...editModal, userData: {...editModal.userData!, birthdate: e.target.value}})}
+                  value={editModal.userData.dateOfBirth || ''}
+                  onChange={(e) => setEditModal({...editModal, userData: {...editModal.userData!, dateOfBirth: e.target.value || null}})}
                   className="w-full bg-gray-700 text-white rounded-lg p-2"
                 />
               </div>
