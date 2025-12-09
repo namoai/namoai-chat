@@ -22,6 +22,11 @@ export const registerSchema = z.object({
   name: z.string().min(1, "名前は必須です。").max(100, "名前は100文字以下である必要があります。"),
   phone: z.string().min(5, "電話番号は5文字以上である必要があります。").max(30, "電話番号は30文字以下である必要があります。"),
   nickname: z.string().min(2, "ニックネームは2文字以上である必要があります。").max(50, "ニックネームは50文字以下である必要があります。"),
+  birthdate: z
+    .string()
+    .optional()
+    .refine((value) => !value || !isNaN(Date.parse(value)), "生年月日が不正です。"),
+  ageConfirmation: z.enum(["adult", "minor"], "年齢区分を選択してください。"),
 });
 
 // パスワード変更用スキーマ

@@ -63,6 +63,8 @@ export async function POST(req: Request) {
       name: sanitizeString(parsed.data.name),
       phone: sanitizeString(parsed.data.phone),
       nickname: sanitizeString(parsed.data.nickname),
+      birthdate: parsed.data.birthdate,
+      ageConfirmation: parsed.data.ageConfirmation,
     };
 
     const prisma = await getPrisma();
@@ -100,6 +102,32 @@ export async function POST(req: Request) {
     // パスワードをハッシュ化して保存
     const hashedPassword = await bcrypt.hash(sanitized.password, 12); // bcrypt roundsを12に増加（より安全）
 
+    const birthdateValue = sanitized.birthdate ? new Date(sanitized.birthdate) : null;
+    if (birthdateValue && (isNaN(birthdateValue.getTime()) || birthdateValue > new Date())) {
+      return NextResponse.json(
+        { error: "生年月日が不正です。" },
+        { status: 400, headers: buildRateLimitHeaders(rateResult) }
+      );
+    }
+    let declaredAdult = sanitized.ageConfirmation === "adult";
+    if (birthdateValue) {
+      const today = new Date();
+      let age = today.getFullYear() - birthdateValue.getFullYear();
+      const monthDiff = today.getMonth() - birthdateValue.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthdateValue.getDate())) {
+        age -= 1;
+      }
+      if (age < 0 || age > 120) {
+        return NextResponse.json(
+          { error: "生年月日が不正です。" },
+          { status: 400, headers: buildRateLimitHeaders(rateResult) }
+        );
+      }
+      if (age < 18) {
+        declaredAdult = false;
+      }
+    }
+
     // ✅ ユーザーとポイントレコードを同時に作成
     const newUser = await prisma.users.create({
       data: {
@@ -108,6 +136,10 @@ export async function POST(req: Request) {
         name: sanitized.name,
         phone: sanitized.phone,
         nickname: sanitized.nickname,
+        dateOfBirth: birthdateValue,
+        declaredAdult,
+        needsProfileCompletion: false,
+        safetyFilter: true, // 初期値は必ずON
         // 👇 ユーザーを作成する際に、関連するpointsレコードも一緒に作成するという意味です
         points: {
           create: {

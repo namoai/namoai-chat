@@ -6,6 +6,7 @@ import { getPrisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
+import { getUserSafetyContext } from '@/lib/age';
 
 export async function GET(request: NextRequest) {
   if (isBuildTime()) return buildTimeResponse();
@@ -19,15 +20,9 @@ export async function GET(request: NextRequest) {
     const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
 
     // ▼▼▼【追加】セーフティフィルターとブロック機能の共通ロジック ▼▼▼
-    // nullの場合はtrue（フィルターON）として処理（デフォルト動作）
-    let userSafetyFilter = true;
-    if (currentUserId) {
-      const user = await prisma.users.findUnique({
-        where: { id: currentUserId },
-        select: { safetyFilter: true }
-      });
-      userSafetyFilter = user?.safetyFilter ?? true;
-    }
+    const { safetyFilter: userSafetyFilter } = currentUserId
+      ? await getUserSafetyContext(prisma, currentUserId)
+      : { safetyFilter: true };
     const safetyWhereClause = userSafetyFilter ? { safetyFilter: { not: false } } : {}; // nullも許可（未設定）
 
     let blockedAuthorIds: number[] = [];

@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Search, User, Trophy, Users, Sparkles, Star, ArrowRight, Bell, MessageSquare } from "lucide-react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 // キャラクターのデータ型
 type Character = {
@@ -166,6 +167,15 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const { data: session } = useSession();
   const [unreadCount, setUnreadCount] = useState(0);
+  const router = useRouter();
+
+  // ✅ プロフィール未完了チェック - JWT発行後にリダイレクト
+  useEffect(() => {
+    if (session?.user && (session.user as any).needsProfileCompletion === true) {
+      console.log('[HomePage] needsProfileCompletion detected, redirecting to /complete-profile');
+      router.push('/complete-profile');
+    }
+  }, [session, router]);
 
   useEffect(() => {
     const fetchData = async () => {

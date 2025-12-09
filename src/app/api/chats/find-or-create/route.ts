@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/nextauth";
 import { getPrisma } from "@/lib/prisma";
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
+import { getUserSafetyContext } from '@/lib/age';
 
 // ▼▼▼【追加】リクエストボディの型を定義します ▼▼▼
 type RequestBody = {
@@ -43,11 +44,7 @@ export async function POST(req: Request) {
     const userId = Number(session.user.id);
 
     // ▼▼▼【追加】セーフティフィルター: ユーザーのセーフティフィルター設定を取得
-    const user = await prisma.users.findUnique({
-      where: { id: userId },
-      select: { safetyFilter: true },
-    });
-    const userSafetyFilter = user?.safetyFilter ?? true; // デフォルトはtrue（フィルターON）
+    const { safetyFilter: userSafetyFilter } = await getUserSafetyContext(prisma, userId);
     // ▲▲▲
 
     // --- 入力 ---

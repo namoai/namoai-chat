@@ -8,66 +8,70 @@ datasource db {
 }
 
 model characters {
-  id                  Int                @id @default(autoincrement())
-  name                String
-  description         String?
-  systemTemplate      String?
-  firstSituation      String?
-  firstMessage        String?
-  visibility          String?
-  safetyFilter        Boolean?
-  category            String?
-  hashtags            String[]
-  detailSetting       String?
-  author_id           Int?
-  isOfficial          Boolean            @default(false)
-  createdAt           DateTime           @default(now()) @db.Timestamptz(6)
-  updatedAt           DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
-  firstSituationDate  DateTime?          @db.Timestamptz(6)
-  firstSituationPlace String?
-  statusWindowPrompt  String?            @db.Text
-  statusWindowDescription String?         @db.Text
-  characterImages     character_images[]
-  author              users?             @relation(fields: [author_id], references: [id])
-  chat                chat[]
-  comments            comments[]
-  embeddings          embeddings[]
-  favorites           favorites[]
-  interactions        interactions[]
-  lorebooks           lorebooks[]
-  reports             reports[]
+  id                      Int                @id @default(autoincrement())
+  name                    String
+  description             String?
+  systemTemplate          String?
+  firstSituation          String?
+  firstMessage            String?
+  visibility              String?
+  safetyFilter            Boolean?
+  category                String?
+  hashtags                String[]
+  detailSetting           String?
+  author_id               Int?
+  isOfficial              Boolean            @default(false)
+  createdAt               DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
+  firstSituationDate      DateTime?          @db.Timestamptz(6)
+  firstSituationPlace     String?
+  statusWindowPrompt      String?            @db.Text
+  statusWindowDescription String?            @db.Text
+  characterImages         character_images[]
+  author                  users?             @relation(fields: [author_id], references: [id])
+  chat                    chat[]
+  comments                comments[]
+  embeddings              embeddings[]
+  favorites               favorites[]
+  interactions            interactions[]
+  lorebooks               lorebooks[]
+  reports                 reports[]
 }
 
 model users {
-  id                            Int            @id @default(autoincrement())
-  email                         String         @unique
+  id                            Int             @id @default(autoincrement())
+  email                         String          @unique
   password                      String?
   name                          String
-  phone                         String?        @unique
-  nickname                      String         @unique
-  created_at                    DateTime?      @default(now()) @db.Timestamp(6)
+  phone                         String?         @unique
+  nickname                      String          @unique
+  dateOfBirth                   DateTime?
+  declaredAdult                 Boolean?
+  needsProfileCompletion        Boolean         @default(false)
+  created_at                    DateTime?       @default(now()) @db.Timestamp(6)
   image_url                     String?
   bio                           String?
-  safetyFilter                  Boolean        @default(true)
+  safetyFilter                  Boolean         @default(true)
   defaultPersonaId              Int?
-  role                          Role           @default(USER)
+  role                          Role            @default(USER)
   emailVerified                 DateTime?
   suspendedUntil                DateTime? // ユーザー停止期限
   suspensionReason              String? // 停止理由
-  accounts                      Account[]      @relation("UserAccounts")
-  Block_Block_blockerIdTousers  Block[]        @relation("Block_blockerIdTousers")
-  Block_Block_blockingIdTousers Block[]        @relation("Block_blockingIdTousers")
-  sessions                      Session[]      @relation("UserSessions")
+  accounts                      Account[]       @relation("UserAccounts")
+  Block_Block_blockerIdTousers  Block[]         @relation("Block_blockerIdTousers")
+  Block_Block_blockingIdTousers Block[]         @relation("Block_blockingIdTousers")
+  sessions                      Session[]       @relation("UserSessions")
   characters                    characters[]
   chat                          chat[]
   comments                      comments[]
   favorites                     favorites[]
-  following                     follows[]      @relation("follower")
-  followers                     follows[]      @relation("following")
+  following                     follows[]       @relation("follower")
+  followers                     follows[]       @relation("following")
   interactions                  interactions[]
   personas                      personas[]
   points                        points?
-  reports                       reports[]      @relation("Reporter")
+  payments                      payments[]
+  reports                       reports[]       @relation("Reporter")
   notifications                 notifications[] @relation("NotificationReceiver")
   notificationsSent             notifications[] @relation("NotificationActor")
   // ▼▼▼【修正】エラーを引き起こす重複した'sessions'フィールドを削除しました。▼▼▼
@@ -116,18 +120,39 @@ model points {
   users          users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
+model payments {
+  id                Int       @id @default(autoincrement())
+  user_id           Int
+  stripe_payment_id String?   @unique
+  stripe_session_id String?   @unique
+  amount            Int // 金額（円単位）
+  points            Int // 付与ポイント数
+  status            String    @default("pending") // pending, completed, failed, refunded
+  currency          String    @default("jpy")
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  completed_at      DateTime? @db.Timestamptz(6)
+  users             users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([stripe_payment_id])
+  @@index([stripe_session_id])
+  @@index([status])
+  @@index([created_at])
+}
+
 model chat {
-  id                  Int                 @id @default(autoincrement())
+  id                  Int                    @id @default(autoincrement())
   userId              Int
   characterId         Int
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
   userNote            String?
-  backMemory          String?             @db.Text
+  backMemory          String?                @db.Text
   backMemoryEmbedding Unsupported("vector")?
-  autoSummarize       Boolean             @default(true)
-  characters          characters          @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  users               users               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  autoSummarize       Boolean                @default(true)
+  characters          characters             @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  users               users                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   chat_message        chat_message[]
   detailed_memories   detailed_memories[]
 
@@ -136,21 +161,21 @@ model chat {
 }
 
 model chat_message {
-  id        Int      @id @default(autoincrement())
+  id        Int                    @id @default(autoincrement())
   chatId    Int
-  role      String   @db.VarChar(255)
+  role      String                 @db.VarChar(255)
   content   String
-  createdAt DateTime @default(now())
+  createdAt DateTime               @default(now())
   turnId    Int?
-  version   Int      @default(1)
-  isActive  Boolean  @default(true)
+  version   Int                    @default(1)
+  isActive  Boolean                @default(true)
   embedding Unsupported("vector")?
-  chat      chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  chat      chat                   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  // Note: embedding index is created manually via SQL (ivfflat)
+  // @@index([embedding]) - removed to use ivfflat index
 
   @@index([chatId, turnId, isActive])
   @@index([chatId, isActive, createdAt], map: "chat_message_chatId_isActive_createdAt_idx")
-  // Note: embedding index is created manually via SQL (ivfflat)
-  // @@index([embedding]) - removed to use ivfflat index
 }
 
 model follows {
@@ -279,39 +304,39 @@ model embeddings {
 }
 
 model detailed_memories {
-  id          Int       @id @default(autoincrement())
+  id          Int                    @id @default(autoincrement())
   chatId      Int
-  content     String    @db.Text
+  content     String                 @db.Text
   keywords    String[] // キーワード配列
   embedding   Unsupported("vector")?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
   lastApplied DateTime? // 最後に適用された時刻
-  chat        chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
-
-  @@index([chatId, createdAt])
+  chat        chat                   @relation(fields: [chatId], references: [id], onDelete: Cascade)
   // Note: embedding index is created manually via SQL (ivfflat)
   // @@index([embedding]) - removed to use ivfflat index
+
+  @@index([chatId, createdAt])
 }
 
 // ▼▼▼【修正】不要で重複エラーを引き起こす'sessions'モデルを削除しました。▼▼▼
 
 model reports {
-  id            Int       @id @default(autoincrement())
-  type          String    // CHARACTER_REPORT, SUGGESTION, INQUIRY, SYSTEM_ISSUE, REFUND_REQUEST, FEATURE_REQUEST, BUG_REPORT, OTHER
-  characterId   Int?
-  reporterId    Int
-  title         String?   @db.VarChar(255)
-  reason        String
-  content       String    @db.Text
-  status        String    @default("PENDING") // PENDING, REVIEWED, RESOLVED, REJECTED
-  adminNotes    String?   @db.Text
-  reviewedBy    Int?
-  reviewedAt    DateTime? @db.Timestamptz(6)
-  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime  @updatedAt @db.Timestamptz(6)
-  characters    characters? @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  reporter      users     @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  id          Int         @id @default(autoincrement())
+  type        String // CHARACTER_REPORT, SUGGESTION, INQUIRY, SYSTEM_ISSUE, REFUND_REQUEST, FEATURE_REQUEST, BUG_REPORT, OTHER
+  characterId Int?
+  reporterId  Int
+  title       String?     @db.VarChar(255)
+  reason      String
+  content     String      @db.Text
+  status      String      @default("PENDING") // PENDING, REVIEWED, RESOLVED, REJECTED
+  adminNotes  String?     @db.Text
+  reviewedBy  Int?
+  reviewedAt  DateTime?   @db.Timestamptz(6)
+  createdAt   DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(6)
+  characters  characters? @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  reporter    users       @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
 
   @@index([characterId])
   @@index([reporterId])
@@ -321,20 +346,20 @@ model reports {
 }
 
 model notifications {
-  id          Int       @id @default(autoincrement())
-  userId      Int       // 通知を受け取るユーザー
-  type        String    // FOLLOWER_CHARACTER, LIKE, COMMENT, INQUIRY_RESPONSE, FOLLOW
-  title       String    @db.VarChar(255)
-  content     String    @db.Text
-  link        String?   // 通知クリック時の遷移先URL
-  isRead      Boolean   @default(false)
-  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
-  actorId     Int?      // アクションを実行したユーザーID
-  characterId Int?      // 関連キャラクターID
-  commentId   Int?      // 関連コメントID
-  reportId    Int?      // 関連レポートID
-  user        users     @relation("NotificationReceiver", fields: [userId], references: [id], onDelete: Cascade)
-  actor       users?    @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  id          Int      @id @default(autoincrement())
+  userId      Int // 通知を受け取るユーザー
+  type        String // FOLLOWER_CHARACTER, LIKE, COMMENT, INQUIRY_RESPONSE, FOLLOW
+  title       String   @db.VarChar(255)
+  content     String   @db.Text
+  link        String? // 通知クリック時の遷移先URL
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  actorId     Int? // アクションを実行したユーザーID
+  characterId Int? // 関連キャラクターID
+  commentId   Int? // 関連コメントID
+  reportId    Int? // 関連レポートID
+  user        users    @relation("NotificationReceiver", fields: [userId], references: [id], onDelete: Cascade)
+  actor       users?   @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead, createdAt])
   @@index([userId, createdAt])

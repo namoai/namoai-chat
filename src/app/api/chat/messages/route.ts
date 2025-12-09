@@ -9,6 +9,7 @@ import { authOptions } from "@/lib/nextauth";
 import { getEmbedding } from "@/lib/embeddings";
 import { searchSimilarDetailedMemories } from "@/lib/vector-search"; 
 import { rateLimit, buildRateLimitHeaders } from "@/lib/rateLimit";
+import { getUserSafetyContext } from '@/lib/age';
 
 // VertexAIクライアントの初期化
 const vertex_ai = new VertexAI({
@@ -125,12 +126,8 @@ export async function POST(request: NextRequest) {
         );
     }
 
-    // ▼▼▼【追加】ユーザーのセーフティフィルター設定を取得
-    const user = await prisma.users.findUnique({
-        where: { id: userId },
-        select: { safetyFilter: true },
-    });
-    const userSafetyFilter = user?.safetyFilter ?? true; // デフォルトはtrue（フィルターON）
+    // ▼▼▼【追加】ユーザーのセーフティフィルター設定を取得（未成年は強制ON）
+    const { safetyFilter: userSafetyFilter } = await getUserSafetyContext(prisma, userId);
     // ▲▲▲
 
     const { chatId, turnId, settings, activeVersions } = await request.json();

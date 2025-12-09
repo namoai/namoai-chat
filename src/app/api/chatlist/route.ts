@@ -5,6 +5,7 @@ import { getPrisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/nextauth";
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
+import { getUserSafetyContext } from '@/lib/age';
 
 export async function GET() {
   if (isBuildTime()) return buildTimeResponse();
@@ -18,11 +19,7 @@ export async function GET() {
   try {
     const prisma = await getPrisma();
     // ▼▼▼【追加】セーフティフィルターとブロック機能のロジック ▼▼▼
-    const user = await prisma.users.findUnique({
-      where: { id: userId },
-      select: { safetyFilter: true },
-    });
-    const userSafetyFilter = user?.safetyFilter ?? true; // デフォルトはtrue（フィルターON）
+    const { safetyFilter: userSafetyFilter } = await getUserSafetyContext(prisma, userId);
 
     let blockedAuthorIds: number[] = [];
     const blocks = await prisma.block.findMany({

@@ -7,6 +7,7 @@ import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { isBuildTime, buildTimeResponse, safeJsonParse } from '@/lib/api-helpers';
+import { getUserSafetyContext } from '@/lib/age';
 
 // GET: 現在のポイントと出席状況を取得します。
 export async function GET() {
@@ -40,7 +41,9 @@ export async function GET() {
       new Date(userPoints.lastAttendedAt).setHours(0, 0, 0, 0) === today.getTime() : 
       false;
 
-    return NextResponse.json({ ...userPoints, attendedToday });
+    const { ageStatus } = await getUserSafetyContext(prisma, userId);
+
+    return NextResponse.json({ ...userPoints, attendedToday, isMinor: ageStatus.isMinor });
   } catch (error) {
     console.error("ポイント情報の取得エラー:", error);
     return NextResponse.json({ error: "サーバーエラー" }, { status: 500 });

@@ -6,6 +6,7 @@ import { VertexAI, HarmCategory, HarmBlockThreshold } from '@google-cloud/vertex
 import { getEmbedding } from '@/lib/embeddings';
 import { ensureGcpCreds } from '@/utils/ensureGcpCreds';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
+import { getUserSafetyContext } from '@/lib/age';
 
 // 安全性設定（ユーザー設定に基づいて動的に変更される）
 const getSafetySettings = (safetyFilterEnabled: boolean) => {
@@ -185,13 +186,9 @@ export async function POST(
       return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
     }
 
-    // ▼▼▼【追加】ユーザーのセーフティフィルター設定を取得
+    // ▼▼▼【追加】ユーザーのセーフティフィルター設定を取得（未成年は強制ON）
     const userId = parseInt(session.user.id);
-    const user = await prisma.users.findUnique({
-      where: { id: userId },
-      select: { safetyFilter: true },
-    });
-    const userSafetyFilter = user?.safetyFilter ?? true; // デフォルトはtrue（フィルターON）
+    const { safetyFilter: userSafetyFilter } = await getUserSafetyContext(prisma, userId);
     const safetySettings = getSafetySettings(userSafetyFilter);
     // ▲▲▲
 

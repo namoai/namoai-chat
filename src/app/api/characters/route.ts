@@ -17,6 +17,7 @@ import { uploadImageBufferToCloudflare } from '@/lib/cloudflare-images';
 import { withSequenceSyncInTransaction } from '@/lib/sequence-sync';
 import JSZip from 'jszip';
 import { randomUUID } from 'crypto';
+import { getUserSafetyContext } from '@/lib/age';
 
 // =================================================================================
 //  型定義 (Type Definitions)
@@ -241,15 +242,9 @@ export async function GET(request: Request) {
         }
 
         // ▼▼▼【追加】セーフティフィルター: ユーザーのセーフティフィルターがONの場合は、キャラクターのセーフティフィルターがOFFのものを除外
-        // nullの場合はtrue（フィルターON）として処理（デフォルト動作）
-        let userSafetyFilter = true;
-        if (currentUserId) {
-            const user = await prisma.users.findUnique({
-                where: { id: currentUserId },
-                select: { safetyFilter: true }
-            });
-            userSafetyFilter = user?.safetyFilter ?? true;
-        }
+        const { safetyFilter: userSafetyFilter } = currentUserId
+            ? await getUserSafetyContext(prisma, currentUserId)
+            : { safetyFilter: true };
         // ▲▲▲
 
         // 自分のキャラクターのみ or 公開＋自分のキャラクター

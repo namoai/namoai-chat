@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { getPrisma } from '@/lib/prisma';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
+import { getUserSafetyContext } from '@/lib/age';
 
 /**
  * 【修正】常に新しいチャットセッションを開始する (POST)
@@ -30,11 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ▼▼▼【追加】セーフティフィルター: ユーザーのセーフティフィルターがONで、キャラクターのセーフティフィルターがOFFの場合はチャット作成を拒否
-    const user = await prisma.users.findUnique({
-      where: { id: userId },
-      select: { safetyFilter: true },
-    });
-    const userSafetyFilter = user?.safetyFilter ?? true; // デフォルトはtrue（フィルターON）
+    const { safetyFilter: userSafetyFilter } = await getUserSafetyContext(prisma, userId);
 
     const character = await prisma.characters.findUnique({
       where: { id: characterId },
