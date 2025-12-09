@@ -1,6 +1,7 @@
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 // 修正1: 未使用の 'NextAuth' のインポートを削除しました。
 import { type NextAuthOptions } from "next-auth";
+import { type JWT } from "next-auth/jwt";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { getPrisma } from '@/lib/prisma';
@@ -406,15 +407,21 @@ export function getAuthOptions(): NextAuthOptions {
 
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
+        const typedToken = token as JWT & {
+          id?: string;
+          nickname?: string;
+          role?: string;
+          needsProfileCompletion?: boolean;
+        };
+        typedToken.id = user.id;
         const prisma = await getPrismaInstance();
         const dbUser = await prisma.users.findUnique({
           where: { id: parseInt(user.id, 10) },
         });
         if (dbUser) {
-            token.nickname = dbUser.nickname;
-            token.role = dbUser.role;
-            (token as any).needsProfileCompletion = dbUser.needsProfileCompletion;
+            typedToken.nickname = dbUser.nickname;
+            typedToken.role = dbUser.role;
+            typedToken.needsProfileCompletion = dbUser.needsProfileCompletion;
         }
       }
       // remember me 정보는 user 객체에서 전달받을 수 없으므로,
@@ -424,18 +431,24 @@ export function getAuthOptions(): NextAuthOptions {
 
     async session({ session, token }) {
       if (session.user) {
+        const typedToken = token as JWT & {
+          id?: string;
+          nickname?: string;
+          role?: string;
+          needsProfileCompletion?: boolean;
+        };
         // トークンからユーザー情報を取得
-        session.user.id = token.id;
-        session.user.nickname = token.nickname;
-        session.user.role = token.role;
-        session.user.name = token.nickname as string;
-        (session.user as any).needsProfileCompletion = (token as any).needsProfileCompletion;
+        session.user.id = typedToken.id;
+        session.user.nickname = typedToken.nickname;
+        session.user.role = typedToken.role;
+        session.user.name = typedToken.nickname as string;
+        session.user.needsProfileCompletion = typedToken.needsProfileCompletion;
 
         // ユーザーがまだデータベースに存在するか確認（削除済みアカウント対策）
         try {
           const prisma = await getPrismaInstance();
           const dbUser = await prisma.users.findUnique({
-            where: { id: parseInt(token.id as string, 10) },
+            where: { id: parseInt(typedToken.id as string, 10) },
           });
 
           if (!dbUser) {
@@ -499,21 +512,18 @@ function getCachedAuthOptions(): NextAuthOptions {
 // これにより、実際の使用時にgetAuthOptions()が呼び出されます
 export const authOptions = new Proxy({} as NextAuthOptions, {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  get(_target, prop: string | symbol): any {
+  get(_target, prop: string | symbol): unknown {
     const options = getCachedAuthOptions();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const value = (options as Record<string | symbol, any>)[prop];
+    const value = (options as Record<string | symbol, unknown>)[prop];
     // 関数の場合はthisをバインド
     if (typeof value === 'function') {
       return value.bind(options);
     }
     return value;
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  set(_target, prop: string | symbol, value: any): boolean {
+  set(_target, prop: string | symbol, value: unknown): boolean {
     const options = getCachedAuthOptions();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (options as Record<string | symbol, any>)[prop] = value;
+    (options as Record<string | symbol, unknown>)[prop] = value;
     return true;
   },
   has(_target, prop: string | symbol): boolean {

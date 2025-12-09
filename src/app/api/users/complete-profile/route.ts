@@ -113,8 +113,8 @@ export async function PUT(request: Request) {
     });
 
     return NextResponse.json({ success: true, userId: updated.id });
-  } catch (error: any) {
-    if (error?.code === 'P2002') {
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && (error as { code?: string }).code === 'P2002') {
       return NextResponse.json({ error: 'ニックネームまたは電話番号が既に使用されています。' }, { status: 409 });
     }
     console.error('プロフィール更新エラー:', error);

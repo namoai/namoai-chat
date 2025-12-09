@@ -34,7 +34,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
   }
 
-  const userId = parseInt(session.user.id, 10);
   const searchParams = request.nextUrl.searchParams;
   const sessionId = searchParams.get('session_id');
 

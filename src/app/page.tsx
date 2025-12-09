@@ -171,7 +171,13 @@ export default function HomePage() {
 
   // ✅ プロフィール未完了チェック - JWT発行後にリダイレクト
   useEffect(() => {
-    if (session?.user && (session.user as any).needsProfileCompletion === true) {
+    const needsProfileCompletion =
+      typeof session?.user === 'object' &&
+      session?.user &&
+      'needsProfileCompletion' in session.user &&
+      (session.user as { needsProfileCompletion?: boolean }).needsProfileCompletion === true;
+
+    if (needsProfileCompletion) {
       console.log('[HomePage] needsProfileCompletion detected, redirecting to /complete-profile');
       router.push('/complete-profile');
     }

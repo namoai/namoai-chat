@@ -410,7 +410,6 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       }
       setIsInitialized(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode, initialData, isInitialized, STORAGE_KEY]);
 
   // ▼▼▼【ページ離脱防止】作成中のデータがある場合は警告を表示 ▼▼▼

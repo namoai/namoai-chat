@@ -107,7 +107,7 @@ export default function PointPage() {
     if (typeof window !== 'undefined' && (paymentSuccess || paymentCancelled || sessionId)) {
       window.history.replaceState(null, '', '/points');
     }
-  }, [searchParams]);
+  }, [searchParams, fetchPoints]);
 
   const fetchPoints = useCallback(async () => {
     setLoading(true);

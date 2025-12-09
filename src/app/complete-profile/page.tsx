@@ -44,14 +44,15 @@ export default function CompleteProfilePage() {
           birthdate: data.birthdate || "",
           ageConfirmation: data.ageConfirmation || "adult",
         });
-      } catch (e: any) {
-        setError(e.message || "エラーが発生しました。");
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : "エラーが発生しました。";
+        setError(message);
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, []);
+  }, [router]);
 
   const handleChange = (field: keyof FormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -72,8 +73,9 @@ export default function CompleteProfilePage() {
       }
       alert("プロフィールを更新しました。");
       router.replace("/");
-    } catch (e: any) {
-      setError(e.message || "エラーが発生しました。");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "エラーが発生しました。";
+      setError(message);
     } finally {
       setSaving(false);
     }
