@@ -11,6 +11,12 @@ export async function register() {
   });
   
   // サーバ環境でのみ実行（Edge/クライアントでは実行しない）
+  const runtime = (process as any)?.env?.NEXT_RUNTIME;
+  // Edge ランタイムでは node:fs 等を扱えないためスキップ
+  if (runtime === 'edge') {
+    return;
+  }
+
   // AWS Amplify/Lambda 環境では process.versions.node が存在
   if (typeof window === "undefined" && typeof process !== "undefined" && process.versions?.node) {
     // AWS Amplify Lambda 환경에서 환경 변수 로드
