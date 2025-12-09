@@ -12,7 +12,7 @@ let loaded = false;
 export async function ensureEnvVarsLoaded(): Promise<void> {
   if (loaded) return;
 
-  const runtime = (process as any)?.env?.NEXT_RUNTIME;
+  const runtime: string | undefined = process.env.NEXT_RUNTIME;
   // Edge やブラウザ、ビルド時はスキップ
   if (runtime === 'edge' || typeof process === 'undefined' || !process.versions?.node) {
     loaded = true;

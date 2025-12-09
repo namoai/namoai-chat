@@ -11,7 +11,7 @@ export async function register() {
   });
   
   // サーバ環境でのみ実行（Edge/クライアントでは実行しない）
-  const runtime = (process as any)?.env?.NEXT_RUNTIME;
+  const runtime: string | undefined = process.env.NEXT_RUNTIME;
   // Edge ランタイムでは node:fs 等を扱えないためスキップ
   if (runtime === 'edge') {
     return;
