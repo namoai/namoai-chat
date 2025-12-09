@@ -460,9 +460,9 @@ export function getAuthOptions(): NextAuthOptions {
           // 最新のユーザー情報でセッションを更新
           session.user.name = dbUser.nickname;
           session.user.nickname = dbUser.nickname;
-          session.user.role = dbUser.role;
-          session.user.image = dbUser.image_url || undefined;
-          (session.user as any).needsProfileCompletion = dbUser.needsProfileCompletion;
+        session.user.role = dbUser.role;
+        session.user.image = dbUser.image_url || undefined;
+        session.user.needsProfileCompletion = dbUser.needsProfileCompletion;
         } catch (error) {
           console.error('セッション取得中にエラーが発生しました:', error);
         }
@@ -511,10 +511,9 @@ function getCachedAuthOptions(): NextAuthOptions {
 // Proxyを使用してauthOptionsのすべてのプロパティアクセスをインターセプト
 // これにより、実際の使用時にgetAuthOptions()が呼び出されます
 export const authOptions = new Proxy({} as NextAuthOptions, {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   get(_target, prop: string | symbol): unknown {
     const options = getCachedAuthOptions();
-    const value = (options as Record<string | symbol, unknown>)[prop];
+    const value = (options as unknown as Record<string | symbol, unknown>)[prop];
     // 関数の場合はthisをバインド
     if (typeof value === 'function') {
       return value.bind(options);
@@ -523,12 +522,12 @@ export const authOptions = new Proxy({} as NextAuthOptions, {
   },
   set(_target, prop: string | symbol, value: unknown): boolean {
     const options = getCachedAuthOptions();
-    (options as Record<string | symbol, unknown>)[prop] = value;
+    (options as unknown as Record<string | symbol, unknown>)[prop] = value;
     return true;
   },
   has(_target, prop: string | symbol): boolean {
     const options = getCachedAuthOptions();
-    return prop in options;
+    return prop in (options as unknown as Record<string | symbol, unknown>);
   },
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ownKeys(_target): string[] {

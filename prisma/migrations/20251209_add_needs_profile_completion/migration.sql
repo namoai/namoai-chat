@@ -4,3 +4,4 @@ ADD COLUMN IF NOT EXISTS "needsProfileCompletion" BOOLEAN NOT NULL DEFAULT FALSE
 
 
 
+

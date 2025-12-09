@@ -8,6 +8,7 @@ declare module "next-auth/jwt" {
     id: string;
     nickname: string;
     role: string; // ✨ roleプロパティを追加
+    needsProfileCompletion?: boolean;
   }
 }
 
@@ -18,6 +19,7 @@ declare module "next-auth" {
       id: string;
       nickname: string;
       role: string; // ✨ roleプロパティを追加
+      needsProfileCompletion?: boolean;
     } & DefaultSession["user"]; // name, email, imageプロパティは維持
   }
 

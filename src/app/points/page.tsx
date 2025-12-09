@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 // ▼▼▼【修正点】useRouterをインポートします ▼▼▼
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Gift, CheckCircle, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Gift, CheckCircle, HelpCircle, Loader2 } from 'lucide-react';
 import HelpModal from '@/components/HelpModal';
 import { fetchWithCsrf } from "@/lib/csrf-client";
 
@@ -53,7 +53,7 @@ const CustomModal = ({ isOpen, onClose, title, message }: ModalProps) => {
   );
 };
 
-export default function PointPage() {
+function PointPageContent() {
   // ▼▼▼【修正点】useRouterを使用します ▼▼▼
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -67,6 +67,28 @@ export default function PointPage() {
   const [isMinor, setIsMinor] = useState(false);
 
   const closeModal = () => setModalState({ isOpen: false, title: '', message: '' });
+
+  const fetchPoints = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/points');
+      if (response.ok) {
+        const data = await response.json();
+        setPointsData(data);
+        setIsMinor(!!data.isMinor);
+      } else {
+        throw new Error('ポイントデータの取得に失敗しました。');
+      }
+    } catch (error) {
+      console.error(error);
+      const message = error instanceof Error ? error.message : 'ポイントデータの取得に失敗しました。';
+      setError(message);
+      setPointsData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // 決済成功後のリダイレクトパラメータを処理
   useEffect(() => {
@@ -108,28 +130,6 @@ export default function PointPage() {
       window.history.replaceState(null, '', '/points');
     }
   }, [searchParams, fetchPoints]);
-
-  const fetchPoints = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('/api/points');
-      if (response.ok) {
-        const data = await response.json();
-        setPointsData(data);
-        setIsMinor(!!data.isMinor);
-      } else {
-        throw new Error('ポイントデータの取得に失敗しました。');
-      }
-    } catch (error) {
-      console.error(error);
-      const message = error instanceof Error ? error.message : 'ポイントデータの取得に失敗しました。';
-      setError(message);
-      setPointsData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
     fetchPoints();
@@ -416,5 +416,22 @@ export default function PointPage() {
         }
       />
     </>
+  );
+}
+
+export default function PointPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-black text-white">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-12 h-12 text-pink-500 animate-spin" />
+            <p className="text-gray-400">ポイント情報を読み込み中...</p>
+          </div>
+        </div>
+      }
+    >
+      <PointPageContent />
+    </Suspense>
   );
 }
