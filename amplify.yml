@@ -14,6 +14,11 @@ frontend:
         - echo "Building Next.js app..."
         - rm -rf .next
         - npm run build
+        - echo "=== Build Output Debug ==="
+        - ls -la .next/ || echo ".next directory not found"
+        - ls -la .next/standalone/ || echo ".next/standalone directory not found"
+        - find . -name "required-server-files.json" || echo "required-server-files.json not found"
+        - echo "=== End Debug ==="
   artifacts:
     baseDirectory: ./
     files:
