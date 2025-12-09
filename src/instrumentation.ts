@@ -10,6 +10,14 @@ export async function register() {
     isLambda: !!(process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.AWS_EXECUTION_ENV || process.env.LAMBDA_TASK_ROOT),
   });
   
+  // ▼▼▼【重要】ビルド時はスキップ ▼▼▼
+  const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build';
+  if (isBuildTime) {
+    console.log('[instrumentation] Build time detected, skipping runtime initialization');
+    return;
+  }
+  // ▲▲▲
+  
   // サーバ環境でのみ実行（Edge/クライアントでは実行しない）
   const runtime: string | undefined = process.env.NEXT_RUNTIME;
   // Edge ランタイムでは node:fs 等を扱えないためスキップ

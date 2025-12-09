@@ -98,6 +98,30 @@ const nextConfig: NextConfig = {
         config.externals.push('@/lib/load-env-vars');
       }
     } else {
+      // ▼▼▼【重要】서버 사이드에서 AWS/GCP SDK를 external로 처리 ▼▼▼
+      // AWS SDK와 Google Cloud SDK를 번들링하지 않고 외부 모듈로 처리
+      // This prevents webpack from trying to bundle Node.js-only modules
+      const sdkExternals = [
+        '@google-cloud/secret-manager',
+        '@aws-sdk/client-secrets-manager',
+        'google-gax',
+        'google-auth-library',
+        'gaxios',
+      ];
+      
+      // externals를 함수로 설정하여 조건부 처리
+      const originalExternals = config.externals || [];
+      config.externals = [
+        ...Array.isArray(originalExternals) ? originalExternals : [originalExternals],
+        ({ request }: { request?: string }) => {
+          if (request && sdkExternals.some(ext => request.startsWith(ext))) {
+            return `commonjs ${request}`;
+          }
+          return;
+        }
+      ];
+      // ▲▲▲
+      
       // 서버 사이드에서는 node: 프리픽스를 처리하기 위한 설정
       // Server-side configuration to handle node: prefix
       config.resolve.alias = {
