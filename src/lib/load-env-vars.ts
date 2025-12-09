@@ -17,6 +17,19 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
     loaded = true;
     return;
   }
+  // ビルド時は .env 読み込みをスキップ（Amplify はランタイムで環境変数を注入）
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    loaded = true;
+    return;
+  }
+<<<<<<< HEAD
+=======
+  // ビルド時は .env 読み込みをスキップ（Amplify はランタイムで環境変数を注入）
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    loaded = true;
+    return;
+  }
+>>>>>>> main
 
   const hasDatabaseUrl = !!process.env.DATABASE_URL;
   const hasNextAuthSecret = !!process.env.NEXTAUTH_SECRET;
@@ -28,8 +41,13 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
   }
 
   // 動的 import で Node 組み込みを読み込む（edge バンドルを回避）
-  const fs = await import('node:fs');
-  const path = await import('node:path');
+<<<<<<< HEAD
+  const fs = await import('fs');
+  const path = await import('path');
+=======
+  const fs = await import('fs');
+  const path = await import('path');
+>>>>>>> main
   const dotenv = await import('dotenv');
 
   const candidates = [
