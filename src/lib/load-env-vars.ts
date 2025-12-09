@@ -105,64 +105,11 @@ async function loadSecret(envVarName: string, secretName?: string): Promise<void
  */
 export async function ensureEnvVarsLoaded(): Promise<void> {
   if (loaded) return;
-
-  const runtime: string | undefined = process.env.NEXT_RUNTIME;
-  // Edge やブラウザ、ビルド時はスキップ
-  if (runtime === 'edge' || typeof process === 'undefined' || !process.versions?.node) {
-    loaded = true;
-    return;
-  }
-  if (process.env.NEXT_PHASE === 'phase-production-build') {
-    loaded = true;
-    return;
-  }
-
-  console.log('[load-env-vars] 🔄 Loading environment variables from secret managers...');
   
-  // AWS Lambda 환경 감지
-  const isLambda = !!(
-    process.env.AWS_LAMBDA_FUNCTION_NAME ||
-    process.env.AWS_EXECUTION_ENV ||
-    process.env.LAMBDA_TASK_ROOT
-  );
+  // AWS Amplify 환경변수가 자동으로 Lambda에 전달됨
+  // Secrets Manager를 사용하지 않고 직접 환경변수 사용
+  console.log('[load-env-vars] ✅ Using AWS Amplify environment variables (no secret manager loading)');
   
-  if (isLambda) {
-    console.log('[load-env-vars] 🚀 Lambda environment detected, attempting to load secrets...');
-    
-    try {
-      // 필수 환경변수 로드 시도
-      await Promise.all([
-        loadSecret('DATABASE_URL'),
-        loadSecret('NEXTAUTH_SECRET'),
-        loadSecret('GOOGLE_CLIENT_ID'),
-        loadSecret('GOOGLE_CLIENT_SECRET'),
-      ]);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[load-env-vars] ❌ Error loading secrets:', errorMessage);
-    }
-  }
-
-  // 최종 확인
-  const missing: string[] = [];
-  const requiredVars = ['DATABASE_URL', 'NEXTAUTH_SECRET', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
-  
-  for (const varName of requiredVars) {
-    if (!process.env[varName]) {
-      missing.push(varName);
-    }
-  }
-  
-  if (missing.length > 0) {
-    console.error('[load-env-vars] ❌ Missing required environment variables:', missing);
-    console.error('[load-env-vars] 💡 Solution:');
-    console.error('[load-env-vars]    1. Set them in AWS Amplify Console → Environment variables');
-    console.error('[load-env-vars]    2. Or store them in AWS Secrets Manager');
-    console.error('[load-env-vars]    3. Or store them in GCP Secret Manager (set GOOGLE_PROJECT_ID)');
-  } else {
-    console.log('[load-env-vars] ✅ All required environment variables are loaded');
-  }
-
   loaded = true;
 }
 
