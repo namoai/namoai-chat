@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 // ▼▼▼【修正点】useRouterをインポートします ▼▼▼
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Gift, CheckCircle, HelpCircle } from 'lucide-react';
 import HelpModal from '@/components/HelpModal';
 import { fetchWithCsrf } from "@/lib/csrf-client";
@@ -56,14 +56,58 @@ const CustomModal = ({ isOpen, onClose, title, message }: ModalProps) => {
 export default function PointPage() {
   // ▼▼▼【修正点】useRouterを使用します ▼▼▼
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [pointsData, setPointsData] = useState<PointsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // ▼▼▼【修正点】モーダル用のstateを追加 ▼▼▼
   const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '' });
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [isMinor, setIsMinor] = useState(false);
 
   const closeModal = () => setModalState({ isOpen: false, title: '', message: '' });
+
+  // 決済成功後のリダイレクトパラメータを処理
+  useEffect(() => {
+    const paymentSuccess = searchParams.get('payment_success');
+    const sessionId = searchParams.get('session_id');
+    const paymentCancelled = searchParams.get('payment_cancelled');
+
+    if (paymentSuccess === 'true' && sessionId) {
+      // 決済成功を確認してポイントを更新
+      const verifyPayment = async () => {
+        try {
+          const sessionResponse = await fetch(`/api/stripe/verify-session?session_id=${sessionId}`);
+          if (sessionResponse.ok) {
+            const sessionData = await sessionResponse.json();
+            if (sessionData.completed) {
+              // ポイント情報を更新
+              await fetchPoints();
+              // 成功メッセージを表示
+              setShowPaymentSuccess(true);
+            }
+          }
+        } catch (error) {
+          console.error('決済確認エラー:', error);
+        }
+      };
+      verifyPayment();
+    }
+
+    if (paymentCancelled === 'true') {
+      setModalState({
+        isOpen: true,
+        title: 'お知らせ',
+        message: '決済がキャンセルされました。'
+      });
+    }
+
+    // URLパラメータをクリーンアップ（ヒストリーから削除）
+    if (typeof window !== 'undefined' && (paymentSuccess || paymentCancelled || sessionId)) {
+      window.history.replaceState(null, '', '/points');
+    }
+  }, [searchParams]);
 
   const fetchPoints = useCallback(async () => {
     setLoading(true);
@@ -73,6 +117,7 @@ export default function PointPage() {
       if (response.ok) {
         const data = await response.json();
         setPointsData(data);
+        setIsMinor(!!data.isMinor);
       } else {
         throw new Error('ポイントデータの取得に失敗しました。');
       }
@@ -109,21 +154,45 @@ export default function PointPage() {
     }
   };
   
-  const handleCharge = async (amount: number) => {
+  const handleCharge = async (points: number) => {
+    if (isMinor) {
+      setModalState({
+        isOpen: true,
+        title: '未成年の決済はできません',
+        message: '18歳未満のアカウントではポイント購入ができません。購入する場合は親権者の同意が必要です。',
+      });
+      return;
+    }
     try {
-      const response = await fetchWithCsrf('/api/points', {
+      setLoading(true);
+      const response = await fetchWithCsrf('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'charge', amount: amount }),
+        body: JSON.stringify({ points }),
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMsg = errorData.details 
+          ? `${errorData.error}\n詳細: ${errorData.details}` 
+          : errorData.error || '決済セッションの作成に失敗しました。';
+        console.error('決済エラー:', errorData);
+        throw new Error(errorMsg);
+      }
+
       const data = await response.json();
-      setModalState({ isOpen: true, title: 'お知らせ', message: data.message });
-      if (response.ok) {
-        fetchPoints(); // ポイント情報を更新
+      
+      // Stripe Checkoutページへリダイレクト
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('決済URLが取得できませんでした。');
       }
     } catch (error) {
-       console.error('ポイント課金処理エラー:', error);
-       setModalState({ isOpen: true, title: 'エラー', message: 'エラーが発生しました。' });
+      console.error('ポイント課金処理エラー:', error);
+      const message = error instanceof Error ? error.message : 'エラーが発生しました。';
+      setModalState({ isOpen: true, title: 'エラー', message });
+      setLoading(false);
     }
   };
 
@@ -143,6 +212,42 @@ export default function PointPage() {
   return (
     <>
       <CustomModal {...modalState} onClose={closeModal} />
+      {/* 決済成功確認モーダル */}
+      {showPaymentSuccess && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
+          <div className="bg-gray-800 text-white rounded-lg p-6 w-full max-w-sm mx-4">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-10 h-10 text-green-400" />
+              </div>
+            </div>
+            <h2 className="text-xl font-bold mb-4 text-center">決済が完了しました</h2>
+            <p className="text-sm text-gray-300 mb-6 text-center">
+              ポイントがアカウントに追加されました。
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setShowPaymentSuccess(false);
+                  // このページに留まる
+                }}
+                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
+              >
+                このページに留まる
+              </button>
+              <button
+                onClick={() => {
+                  setShowPaymentSuccess(false);
+                  router.push('/');
+                }}
+                className="border border-gray-700 hover:border-pink-400 text-white font-semibold py-3 px-6 rounded-xl transition-all"
+              >
+                ホームへ戻る
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="bg-black min-h-screen text-white">
         {/* 背景装飾 */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
@@ -212,6 +317,10 @@ export default function PointPage() {
                   <h2 className="text-xl font-bold mb-6 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
                     ポイント購入
                   </h2>
+                  <div className="text-sm text-gray-400 mb-4 space-y-1">
+                    <p>決済には親権者（法定代理人）の同意が必要です。</p>
+                    <p>{isMinor ? '18歳未満のアカウントではポイント購入はできません。' : '18歳未満の方は購入できません。'}</p>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {pointPackages.map(pkg => (
                       <div key={pkg.yen} className="bg-gray-900/50 backdrop-blur-sm p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4 border border-gray-800/50 hover:border-pink-500/30 transition-all">
@@ -225,9 +334,10 @@ export default function PointPage() {
                         </div>
                         <button 
                           onClick={() => handleCharge(pkg.points)}
-                          className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-2 px-6 rounded-xl transition-all shadow-lg shadow-pink-500/30 whitespace-nowrap"
+                          disabled={loading || isMinor}
+                          className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2 px-6 rounded-xl transition-all shadow-lg shadow-pink-500/30 whitespace-nowrap"
                         >
-                          ￥{pkg.yen.toLocaleString()}
+                          {loading ? '処理中...' : `￥${pkg.yen.toLocaleString()}`}
                         </button>
                       </div>
                     ))}

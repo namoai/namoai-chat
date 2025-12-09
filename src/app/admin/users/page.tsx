@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'; // useRouterをインポート
 import Link from 'next/link'; // Linkをインポート
 import { ArrowLeft, Search } from 'lucide-react';
 import { apiPut, ApiErrorResponse } from '@/lib/api-client';
+import { fetchWithCsrf } from '@/lib/csrf-client';
 
 // Role Enumをクライアントサイドで定義
 enum Role {
@@ -180,7 +181,7 @@ export default function AdminUsersPage() {
     }
 
     try {
-      const response = await fetch('/api/admin/users/suspend', {
+      const response = await fetchWithCsrf('/api/admin/users/suspend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -212,7 +213,7 @@ export default function AdminUsersPage() {
       confirmText: '解除',
       onConfirm: async () => {
         try {
-          const response = await fetch('/api/admin/users/suspend', {
+          const response = await fetchWithCsrf('/api/admin/users/suspend', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId }),
@@ -243,7 +244,7 @@ export default function AdminUsersPage() {
       confirmText: '削除',
       onConfirm: async () => {
         try {
-          const response = await fetch('/api/admin/users/delete', {
+          const response = await fetchWithCsrf('/api/admin/users/delete', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId }),

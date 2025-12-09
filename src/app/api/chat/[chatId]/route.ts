@@ -17,6 +17,7 @@ import { createDetailedMemories, updateMemoriesWithAIKeywords } from "@/lib/chat
 import { ensureGcpCreds } from "@/utils/ensureGcpCreds";
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
+import { getUserSafetyContext } from '@/lib/age';
 
 // VertexAIクライアントの初期化（遅延初期化、ランタイム環境変数対応）
 let vertex_ai: VertexAI | null = null;
@@ -97,11 +98,7 @@ export async function POST(request: Request, context: { params: Promise<{ chatId
 
   const prisma = await getPrisma();
   // ▼▼▼【追加】ユーザーのセーフティフィルター設定を取得
-  const user = await prisma.users.findUnique({
-    where: { id: userId },
-    select: { safetyFilter: true },
-  });
-  const userSafetyFilter = user?.safetyFilter ?? true; // デフォルトはtrue（フィルターON）
+  const { safetyFilter: userSafetyFilter } = await getUserSafetyContext(prisma, userId);
   // ▲▲▲
 
   const { message, settings, isRegeneration, turnId, activeVersions } = await request.json();

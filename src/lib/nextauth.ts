@@ -311,7 +311,9 @@ export function getAuthOptions(): NextAuthOptions {
       name: `next-auth.session-token`,
       options: {
         httpOnly: true, // XSS対策: JavaScriptからアクセス不可
-        sameSite: 'strict', // CSRF対策強化: strictに変更（laxから）
+        // OAuth リダイレクトはクロスサイトになるため strict だと state/callback
+        // cookie が送られず「State cookie was missing」になる。Lax に戻す。
+        sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production', // HTTPSのみ（本番環境）
         // maxAgeは動的に設定できないため、デフォルトで30日間
@@ -322,7 +324,7 @@ export function getAuthOptions(): NextAuthOptions {
       name: `next-auth.callback-url`,
       options: {
         httpOnly: true,
-        sameSite: 'strict',
+        sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
       },
@@ -331,7 +333,7 @@ export function getAuthOptions(): NextAuthOptions {
       name: `next-auth.csrf-token`,
       options: {
         httpOnly: true,
-        sameSite: 'strict',
+        sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
       },
@@ -369,8 +371,16 @@ export function getAuthOptions(): NextAuthOptions {
               nickname: newNickname,
               image_url: image,
               emailVerified: new Date(),
+              safetyFilter: true,
+              declaredAdult: null,
+              dateOfBirth: null,
+              needsProfileCompletion: true,
             },
           });
+          // ✅ 修正: URL文字列ではなくtrueを返してJWT/セッション生成を許可
+          // リダイレクトはクライアント側で needsProfileCompletion をチェックして実施
+          console.log(`[signIn] New user created: ${email}, needsProfileCompletion=true`);
+          return true;
         } else {
           // ▼▼▼【新機能】OAuth ログイン時の停止チェック ▼▼▼
           if (dbUser.suspendedUntil) {
@@ -383,6 +393,11 @@ export function getAuthOptions(): NextAuthOptions {
             }
           }
           // ▲▲▲ 停止チェック完了 ▲▲▲
+        }
+        // ✅ 修正: プロフィール未完了でも true を返す（JWT発行を許可）
+        // リダイレクトはクライアント側で処理
+        if (dbUser?.needsProfileCompletion) {
+          console.log(`[signIn] Existing user login: ${email}, needsProfileCompletion=true`);
         }
         return true;
       }
@@ -399,6 +414,7 @@ export function getAuthOptions(): NextAuthOptions {
         if (dbUser) {
             token.nickname = dbUser.nickname;
             token.role = dbUser.role;
+            (token as any).needsProfileCompletion = dbUser.needsProfileCompletion;
         }
       }
       // remember me 정보는 user 객체에서 전달받을 수 없으므로,
@@ -413,6 +429,7 @@ export function getAuthOptions(): NextAuthOptions {
         session.user.nickname = token.nickname;
         session.user.role = token.role;
         session.user.name = token.nickname as string;
+        (session.user as any).needsProfileCompletion = (token as any).needsProfileCompletion;
 
         // ユーザーがまだデータベースに存在するか確認（削除済みアカウント対策）
         try {
@@ -432,6 +449,7 @@ export function getAuthOptions(): NextAuthOptions {
           session.user.nickname = dbUser.nickname;
           session.user.role = dbUser.role;
           session.user.image = dbUser.image_url || undefined;
+          (session.user as any).needsProfileCompletion = dbUser.needsProfileCompletion;
         } catch (error) {
           console.error('セッション取得中にエラーが発生しました:', error);
         }

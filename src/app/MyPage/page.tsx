@@ -56,6 +56,7 @@ type MenuItem = {
 const LoggedInView = ({ session }: { session: Session }) => {
   const [points, setPoints] = useState<{ total: number; loading: boolean }>({ total: 0, loading: true });
   const [isSafetyFilterOn, setIsSafetyFilterOn] = useState<boolean | null>(null); // null = ローディング中
+  const [ageStatus, setAgeStatus] = useState<{ isMinor: boolean; source?: string } | null>(null);
   const [modalState, setModalState] = useState<Omit<ModalProps, 'onClose'>>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
@@ -94,9 +95,11 @@ const LoggedInView = ({ session }: { session: Session }) => {
           const filterData = await filterRes.json();
           // nullの場合はtrue（フィルターON）として処理、即座に反映
           setIsSafetyFilterOn(filterData.safetyFilter ?? true);
+          setAgeStatus({ isMinor: !!filterData.isMinor, source: filterData.ageSource });
         } else {
           // API呼び出し失敗時はデフォルト値で設定
           setIsSafetyFilterOn(true);
+          setAgeStatus(null);
         }
 
       } catch (error) {
@@ -152,6 +155,16 @@ const LoggedInView = ({ session }: { session: Session }) => {
   const handleSafetyFilterToggle = () => {
     // ローディング中ならクリック無視
     if (isSafetyFilterOn === null) return;
+    if (ageStatus?.isMinor) {
+      setModalState({
+        isOpen: true,
+        title: "未成年のため変更できません",
+        message: "18歳未満のアカウントではセーフティフィルターは常にONになります。",
+        onConfirm: closeModal,
+        isAlert: true,
+      });
+      return;
+    }
     
     if (isSafetyFilterOn) {
       // ON → OFF: 年齢確認 + 法律上の確認
@@ -199,7 +212,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
     {
       icon: <ShieldCheck size={20} className="text-pink-400" />,
       text: "セーフティフィルター",
-      badge: isSafetyFilterOn === null ? "" : (isSafetyFilterOn ? "ON" : "OFF"),
+      badge: isSafetyFilterOn === null ? "" : (ageStatus?.isMinor ? "ON" : (isSafetyFilterOn ? "ON" : "OFF")),
       action: handleSafetyFilterToggle
     },
     { icon: <BrainCircuit size={20} className="text-pink-400" />, text: "ペルソナ設定", action: "/persona/list" },

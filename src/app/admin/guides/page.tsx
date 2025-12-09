@@ -4,6 +4,7 @@ import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation'; // useRouterをインポート
 import Link from 'next/link'; // Linkをインポート
 import { ArrowLeft } from 'lucide-react';
+import { fetchWithCsrf } from '@/lib/csrf-client';
 
 // 型定義
 type Guide = {
@@ -128,7 +129,7 @@ export default function AdminGuidesPage() {
     e.preventDefault();
     const method = isEditing ? 'PUT' : 'POST';
     const body = isEditing ? JSON.stringify({ ...formData, id: isEditing.id }) : JSON.stringify(formData);
-    const response = await fetch('/api/admin/guides', { method, headers: { 'Content-Type': 'application/json' }, body });
+    const response = await fetchWithCsrf('/api/admin/guides', { method, headers: { 'Content-Type': 'application/json' }, body });
 
     if (response.ok) {
       setModalState({ isOpen: true, title: '成功', message: isEditing ? 'ガイドを更新しました。' : 'ガイドを作成しました。', isAlert: true });
@@ -159,7 +160,7 @@ export default function AdminGuidesPage() {
       message: 'このガイドを本当に削除しますか？この操作は元に戻せません。',
       confirmText: '削除',
       onConfirm: async () => {
-        const response = await fetch('/api/admin/guides', {
+        const response = await fetchWithCsrf('/api/admin/guides', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id }),

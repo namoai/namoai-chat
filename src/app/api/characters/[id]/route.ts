@@ -17,6 +17,7 @@ import { checkFieldsForSexualContent } from '@/lib/content-filter';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { validateImageFile } from '@/lib/upload/validateImage';
 import { uploadImageBufferToCloudflare, deleteImageFromCloudflare, isCloudflareImageUrl } from '@/lib/cloudflare-images';
+import { getUserSafetyContext } from '@/lib/age';
 
 // =================================================================================
 //  型定義 (Type Definitions)
@@ -242,11 +243,7 @@ export async function GET(
 
     // ▼▼▼【追加】セーフティフィルター: ユーザーのセーフティフィルターがONで、キャラクターのセーフティフィルターがOFFの場合はアクセス拒否
     if (currentUserId) {
-      const user = await prisma.users.findUnique({
-        where: { id: currentUserId },
-        select: { safetyFilter: true }
-      });
-      const userSafetyFilter = user?.safetyFilter ?? true; // デフォルトはtrue（フィルターON）
+      const { safetyFilter: userSafetyFilter } = await getUserSafetyContext(prisma, currentUserId);
       
       // ユーザーのセーフティフィルターがONで、キャラクターのセーフティフィルターがOFF（falseまたはnull）の場合
       if (userSafetyFilter && character.safetyFilter === false) {

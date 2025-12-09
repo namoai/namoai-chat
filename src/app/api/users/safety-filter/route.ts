@@ -6,6 +6,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { getPrisma } from "@/lib/prisma";
 import { isBuildTime, buildTimeResponse, safeJsonParse } from '@/lib/api-helpers';
+import { resolveSafetyFilter } from '@/lib/age';
 
 // GET: 現在のユーザーのセーフティフィルター設定を取得します
 export async function GET() {
@@ -21,15 +22,14 @@ export async function GET() {
     const prisma = await getPrisma();
     const user = await prisma.users.findUnique({
       where: { id: userId },
-      select: { safetyFilter: true },
+      select: { safetyFilter: true, dateOfBirth: true, declaredAdult: true },
     });
 
     if (!user) {
       return NextResponse.json({ error: 'ユーザーが見つかりません。' }, { status: 404 });
     }
-    // nullの場合はtrue（フィルターON）を返す（デフォルト動作）
-    const safetyFilter = user.safetyFilter ?? true;
-    return NextResponse.json({ safetyFilter });
+    const { safetyFilter, ageStatus } = resolveSafetyFilter(user);
+    return NextResponse.json({ safetyFilter, isMinor: ageStatus.isMinor, ageSource: ageStatus.source });
   } catch (error) {
     // ▼▼▼ 変更点: console.errorを追加してエラー内容をログに出力 ▼▼▼
     console.error('フィルター取得エラー:', error);
@@ -57,6 +57,21 @@ export async function PUT(request: NextRequest) {
     }
 
     const prisma = await getPrisma();
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      select: { safetyFilter: true, dateOfBirth: true, declaredAdult: true },
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'ユーザーが見つかりません。' }, { status: 404 });
+    }
+    const { ageStatus } = resolveSafetyFilter(user);
+    if (ageStatus.isMinor) {
+      return NextResponse.json(
+        { error: '未成年のためセーフティフィルターをOFFにできません。' },
+        { status: 403 }
+      );
+    }
+
     await prisma.users.update({
       where: { id: userId },
       data: { safetyFilter: safetyFilter },

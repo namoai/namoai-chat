@@ -10,6 +10,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
+import { getUserSafetyContext } from '@/lib/age';
 
 // 代表画像を取得する共通ヘルパー関数
 // ▼▼▼【修正】orderByの型名を、Prismaが生成する正しい型名に修正します ▼▼▼
@@ -97,15 +98,9 @@ export async function GET() {
     const currentUserId = session?.user?.id ? parseInt(session.user.id, 10) : null;
 
     // ▼▼▼【修正】セーフティフィルター: nullの場合はtrue（フィルターON）として処理
-    let userSafetyFilter = true;
-    if (currentUserId) {
-        const user = await prisma.users.findUnique({
-            where: { id: currentUserId },
-            select: { safetyFilter: true }
-        });
-        // nullの場合はtrue（フィルターON）として処理（デフォルト動作）
-        userSafetyFilter = user?.safetyFilter ?? true;
-    }
+    const { safetyFilter: userSafetyFilter } = currentUserId
+        ? await getUserSafetyContext(prisma, currentUserId)
+        : { safetyFilter: true };
     const safetyWhereClause = userSafetyFilter ? { safetyFilter: { not: false } } : {}; // nullも許可（未設定）
     // ▲▲▲
 

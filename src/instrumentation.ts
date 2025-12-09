@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 // Next.js がサーバ起動時に実行されるフック
 export async function register() {
   console.log('[instrumentation] register() called');

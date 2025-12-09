@@ -17,6 +17,8 @@ export default function SignUpPage() {
     name: "",
     phone: "",
     nickname: "",
+    birthdate: "",
+    ageConfirmation: "",
   });
 
   const [agreed, setAgreed] = useState(false);
@@ -92,6 +94,33 @@ export default function SignUpPage() {
     if (!nicknameRegex.test(form.nickname)) {
       alert("ニックネームは2〜12文字で入力してください。");
       return false;
+    }
+    if (!form.ageConfirmation) {
+      alert("18歳以上/未満のいずれかを選択してください。");
+      return false;
+    }
+    if (form.birthdate) {
+      const parsed = Date.parse(form.birthdate);
+      if (isNaN(parsed)) {
+        alert("生年月日が不正です。");
+        return false;
+      }
+      const today = new Date();
+      const birth = new Date(parsed);
+      let calculatedAge = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        calculatedAge -= 1;
+      }
+      if (calculatedAge < 0 || calculatedAge > 120) {
+        alert("生年月日が不正です。");
+        return false;
+      }
+      const isMinorFromBirth = calculatedAge < 18;
+      if (isMinorFromBirth && form.ageConfirmation === "adult") {
+        alert("入力された生年月日では18歳未満です。18歳未満を選択してください。");
+        return false;
+      }
     }
 
     if (!agreed) {
@@ -200,6 +229,13 @@ export default function SignUpPage() {
               label: "ニックネーム",
               field: "nickname",
               placeholder: "2〜12文字のニックネーム",
+            },
+            {
+              icon: <Smile size={18} className="text-pink-400" />,
+              label: "生年月日（任意）",
+              field: "birthdate",
+              placeholder: "",
+              type: "date",
             }].map(({ icon, label, field, placeholder, type = "text" }) => (
               <div className="space-y-2" key={field}>
                 <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
@@ -215,6 +251,32 @@ export default function SignUpPage() {
                 />
               </div>
             ))}
+
+            <div className="space-y-3 pt-2">
+              <p className="text-sm font-medium text-gray-300">年齢区分</p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: "adult", label: "18歳以上" },
+                  { value: "minor", label: "18歳未満" },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleChange("ageConfirmation", option.value)}
+                    className={`border rounded-xl p-3 text-sm font-semibold transition-all ${
+                      form.ageConfirmation === option.value
+                        ? "border-pink-500 bg-pink-500/10 text-pink-100"
+                        : "border-gray-700 bg-gray-800/50 text-gray-300 hover:border-pink-500/60"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400">
+                生年月日を入力すると自動判定されます。18歳未満を選択した場合は成人向けコンテンツが表示されません。
+              </p>
+            </div>
 
             <div className="flex items-start space-x-3 pt-2">
               <Checkbox
