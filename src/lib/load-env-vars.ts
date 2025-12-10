@@ -43,6 +43,7 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
     'OPENAI_API_KEY',
     'GOOGLE_PROJECT_ID',
     'STRIPE_SECRET_KEY',
+    'STRIPE_WEBHOOK_SECRET',
   ];
   const cloudflareVars = [
     // CLOUDFLARE_R2_ACCOUNT_ID는 CLOUDFLARE_ACCOUNT_ID의 fallback이므로 선택사항
@@ -62,11 +63,12 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
   ];
   const requiredVars = Array.from(new Set([...coreVars, ...cloudflareVars, ...redisVars]));
   
-  // 선택적 환경 변수 (GCP 인증용 + NextAuth URL)
+  // 선택적 환경 변수 (GCP 인증용 + NextAuth URL + App URL)
   const optionalVars = [
     'GOOGLE_APPLICATION_CREDENTIALS_JSON',
     'GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64',
     'NEXTAUTH_URL', // NextAuth 리디렉션 URL (없으면 요청 헤더에서 자동 감지)
+    'NEXT_PUBLIC_APP_URL', // 앱 URL (없으면 요청 헤더에서 자동 감지)
   ];
   const missingVars = requiredVars.filter(v => !process.env[v]);
 
