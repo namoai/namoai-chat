@@ -64,7 +64,6 @@ function PointPageContent() {
   const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '' });
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
-  const [isMinor, setIsMinor] = useState(false);
 
   const closeModal = () => setModalState({ isOpen: false, title: '', message: '' });
 
@@ -76,7 +75,6 @@ function PointPageContent() {
       if (response.ok) {
         const data = await response.json();
         setPointsData(data);
-        setIsMinor(!!data.isMinor);
       } else {
         throw new Error('ポイントデータの取得に失敗しました。');
       }
