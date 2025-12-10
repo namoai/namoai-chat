@@ -1,7 +1,7 @@
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
 import { getPrisma } from '@/lib/prisma';
@@ -14,7 +14,7 @@ import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
  * ログアウト時にrefresh tokenを明示的に無効化します。
  * NextAuthのevents.signOutがJWT戦略で正しく動作しない場合のフォールバックとして使用。
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
   if (isBuildTime()) return buildTimeResponse();
   
   try {
