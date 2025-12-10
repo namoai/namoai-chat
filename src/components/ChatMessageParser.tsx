@@ -20,7 +20,9 @@ export type ChatMessageParserProps = {
 
 /**
  * 複数のマークダウン形式を検出し、対応するReact要素に変換するコンポーネント
- * - コードブロック (```...```) -> 状態窓スタイルで表示
+ * - コードブロック (```...```)
+ *   - 状態窓設定あり: 状態窓スタイルで表示
+ *   - 状態窓設定なし: 非表示（ステータス未設定時の誤表示を防止）
  * - 「セリフ」 -> <span className="text-white">...</span> (白文字)
  * - 通常テキスト -> <span className="text-gray-400">...</span> (デフォルトは灰色)
  * - ![](URL) -> 外部画像
@@ -66,8 +68,7 @@ export default function ChatMessageParser({
       elements.push(...parseTextContent(textBefore, blockIndex * 1000, characterImages, showImage, isMultiImage, onImageClick));
     }
 
-    // ステータスウィンドウ設定がある場合のみ、コードブロックを状態窓スタイルで表示
-    // 設定がない場合は通常テキストとして処理
+    // ステータスウィンドウ設定がある場合のみ表示。ない場合はコードブロックをスキップして非表示。
     if (hasStatusWindow) {
       elements.push(
         <div
@@ -77,10 +78,6 @@ export default function ChatMessageParser({
           {block.content}
         </div>
       );
-    } else {
-      // ステータス設定がない場合は、コードブロックを通常テキストとして処理
-      const codeBlockText = `\`\`\`\n${block.content}\n\`\`\``;
-      elements.push(...parseTextContent(codeBlockText, blockIndex * 1000, characterImages, showImage, isMultiImage, onImageClick));
     }
 
     lastIndex = block.end;
