@@ -116,6 +116,11 @@ export function useSessionTimeout() {
         // 세션 타임아웃 처리
         const timeoutMinutes = Math.round(currentTimeout / 60000);
         console.log(`[세션 타임아웃] ⏱️ ${timeoutMinutes}분 비활성으로 세션이 만료되었습니다. 자동 로그아웃합니다.`);
+        // ログアウト前にrefresh tokenを無効化
+        fetch('/api/auth/logout', { method: 'POST' }).catch((error) => {
+          console.error('ログアウトAPI呼び出しエラー:', error);
+          // エラーが発生してもログアウト処理は続行
+        });
         signOut({ 
           redirect: false,
           callbackUrl: '/login?timeout=true'
@@ -175,6 +180,11 @@ export function useSessionTimeout() {
           if (timeSinceLastActivity >= currentTimeout) {
             // 이미 타임아웃되었으면 로그아웃
             console.log('탭 전환/사이트 재방문 시 세션이 만료되었습니다.');
+            // ログアウト前にrefresh tokenを無効化
+            fetch('/api/auth/logout', { method: 'POST' }).catch((error) => {
+              console.error('ログアウトAPI呼び出しエラー:', error);
+              // エラーが発生してもログアウト処理は続行
+            });
             signOut({ 
               redirect: false,
               callbackUrl: '/login?timeout=true'

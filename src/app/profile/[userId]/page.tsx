@@ -474,9 +474,16 @@ export default function UserProfilePage() {
               )}
               {(deleteAccountModal.stage === 'success' || deleteAccountModal.stage === 'error') && (
                 <button 
-                  onClick={() => {
+                  onClick={async () => {
                     setDeleteAccountModal({ ...deleteAccountModal, isOpen: false });
                     if (deleteAccountModal.stage === 'success') {
+                      // ログアウト前にrefresh tokenを無効化
+                      try {
+                        await fetch('/api/auth/logout', { method: 'POST' });
+                      } catch (error) {
+                        console.error('ログアウトAPI呼び出しエラー:', error);
+                        // エラーが発生してもログアウト処理は続行
+                      }
                       signOut({ callbackUrl: '/' });
                     }
                   }}
@@ -502,20 +509,20 @@ export default function UserProfilePage() {
 
         <div className="relative z-10" style={{ overflow: 'visible' }}>
           <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-24" style={{ overflow: 'visible' }}>
-            <header className="flex items-center justify-between mb-6 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50" style={{ overflow: 'visible' }}>
-              <button onClick={() => window.history.back()} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
-                <ArrowLeft size={24} />
+            <header className="flex items-center justify-between mb-6 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50 gap-2" style={{ overflow: 'visible' }}>
+              <button onClick={() => window.history.back()} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all flex-shrink-0">
+                <ArrowLeft size={20} className="sm:w-6 sm:h-6" />
               </button>
-              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <h1 className="text-base sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent truncate flex-1 text-center px-2">
                 製作者プロフィール
               </h1>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                 <button
                   onClick={() => setIsHelpOpen(true)}
                   className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
                   aria-label="ヘルプ"
                 >
-                  <HelpCircle size={24} />
+                  <HelpCircle size={20} className="sm:w-6 sm:h-6" />
                 </button>
                 <div className="relative" style={{ overflow: 'visible' }}>
                   <button 
@@ -523,7 +530,7 @@ export default function UserProfilePage() {
                     onClick={() => setShowMenu(!showMenu)} 
                     className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
                   >
-                    <MoreVertical size={24} />
+                    <MoreVertical size={20} className="sm:w-6 sm:h-6" />
                   </button>
                 </div>
               </div>

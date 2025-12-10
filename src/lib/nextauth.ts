@@ -471,6 +471,40 @@ export function getAuthOptions(): NextAuthOptions {
     },
   },
 
+  // ▼▼▼【追加】ログアウト時のrefresh token無効化 ▼▼▼
+  events: {
+    async signOut({ session, token }) {
+      try {
+        const prisma = await getPrismaInstance();
+        // sessionまたはtokenからuserIdを取得
+        const userId = session?.user?.id || token?.sub || token?.id;
+        
+        if (userId) {
+          const userIdNum = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+          
+          if (!isNaN(userIdNum)) {
+            // ユーザーのAccountレコードからrefresh tokenを無効化
+            const updateResult = await prisma.account.updateMany({
+              where: { userId: userIdNum },
+              data: { 
+                refresh_token: null,
+                access_token: null,
+                expires_at: null,
+              },
+            });
+            console.log(`[signOut] ユーザー ID ${userIdNum} のrefresh tokenを無効化しました (更新件数: ${updateResult.count})`);
+          }
+        } else {
+          console.warn('[signOut] userIdを取得できませんでした。session:', session?.user?.id, 'token:', token?.sub || token?.id);
+        }
+      } catch (error) {
+        // エラーが発生してもログアウト処理は続行
+        console.error('[signOut] refresh token無効化エラー:', error);
+      }
+    },
+  },
+  // ▲▲▲
+
     pages: {
       signIn: "/login",
     },

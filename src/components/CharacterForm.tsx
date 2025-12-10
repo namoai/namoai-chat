@@ -598,48 +598,84 @@ export default function CharacterForm({ isEditMode, initialData, session, status
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // ▼▼▼【自動生成】プロフィール自動生成 ▼▼▼
+  // ▼▼▼【自動生成】プロフィール自動生成（再試行機能付き）▼▼▼
   const handleGenerateProfile = async () => {
     setIsGeneratingProfile(true);
-    try {
-      const response = await fetchWithCsrf('/api/characters/generate-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          genre: form.category || undefined,
-          characterType: undefined,
-        }),
-      });
+    const maxRetries = 2; // 最大2回再試行（合計3回）
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetchWithCsrf('/api/characters/generate-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            genre: form.category || undefined,
+            characterType: undefined,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error('プロフィール生成に失敗しました');
-      }
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'プロフィール生成に失敗しました' }));
+          throw new Error(errorData.error || 'プロフィール生成に失敗しました');
+        }
 
-      const data = await response.json();
-      if (data.success) {
-        handleChange('name', data.name || '');
-        handleChange('description', data.description || '');
+        const data = await response.json();
+        if (data.success) {
+          handleChange('name', data.name || '');
+          handleChange('description', data.description || '');
+          setModalState({
+            isOpen: true,
+            title: '成功',
+            message: attempt > 0 ? `プロフィールが自動生成されました。（${attempt + 1}回目の試行で成功）` : 'プロフィールが自動生成されました。',
+          });
+          return; // 成功したら終了
+        } else {
+          throw new Error(data.error || 'プロフィール生成に失敗しました');
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('不明なエラー');
+        console.error(`プロフィール生成エラー (試行 ${attempt + 1}/${maxRetries + 1}):`, error);
+        
+        // 最後の試行でない場合、再試行可能なエラーの場合は少し待ってから再試行
+        if (attempt < maxRetries) {
+          const isRetryableError = lastError.message.includes('タイムアウト') || 
+                                   lastError.message.includes('timeout') ||
+                                   lastError.message.includes('ネットワーク') ||
+                                   lastError.message.includes('network') ||
+                                   lastError.message.includes('fetch');
+          
+          if (isRetryableError) {
+            // 1秒待ってから再試行
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+          }
+        }
+        
+        // 再試行不可能なエラー、または最後の試行の場合はエラーを表示
+        let errorMessage = 'プロフィール生成に失敗しました。';
+        if (lastError instanceof Error) {
+          if (lastError.message.includes('タイムアウト') || lastError.message.includes('timeout')) {
+            errorMessage = '生成に時間がかかりすぎました。もう一度お試しください。';
+          } else if (lastError.message.includes('ネットワーク') || lastError.message.includes('network') || lastError.message.includes('fetch')) {
+            errorMessage = 'ネットワークエラーが発生しました。インターネット接続を確認してください。';
+          } else {
+            errorMessage = lastError.message;
+          }
+        }
         setModalState({
           isOpen: true,
-          title: '成功',
-          message: 'プロフィールが自動生成されました。',
+          title: 'エラー',
+          message: errorMessage,
         });
-      } else {
-        throw new Error(data.error || 'プロフィール生成に失敗しました');
+        break;
       }
-    } catch (error) {
-      console.error('プロフィール生成エラー:', error);
-      setModalState({
-        isOpen: true,
-        title: 'エラー',
-        message: error instanceof Error ? error.message : 'プロフィール生成に失敗しました。',
-      });
-    } finally {
-      setIsGeneratingProfile(false);
     }
+    
+    setIsGeneratingProfile(false);
   };
 
-  // ▼▼▼【自動生成】詳細設定自動生成 ▼▼▼
+  // ▼▼▼【自動生成】詳細設定自動生成（再試行機能付き）▼▼▼
   const handleGenerateDetail = async () => {
     if (!form.name && !form.description) {
       setModalState({
@@ -651,44 +687,80 @@ export default function CharacterForm({ isEditMode, initialData, session, status
     }
 
     setIsGeneratingDetail(true);
-    try {
-      const response = await fetchWithCsrf('/api/characters/generate-detail', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: form.name,
-          description: form.description,
-        }),
-      });
+    const maxRetries = 2; // 最大2回再試行（合計3回）
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetchWithCsrf('/api/characters/generate-detail', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: form.name,
+            description: form.description,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error('詳細設定生成に失敗しました');
-      }
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: '詳細設定生成に失敗しました' }));
+          throw new Error(errorData.error || '詳細設定生成に失敗しました');
+        }
 
-      const data = await response.json();
-      if (data.success) {
-        handleChange('detailSetting', data.detailSetting || '');
+        const data = await response.json();
+        if (data.success) {
+          handleChange('detailSetting', data.detailSetting || '');
+          setModalState({
+            isOpen: true,
+            title: '成功',
+            message: attempt > 0 ? `詳細設定が自動生成されました。（${attempt + 1}回目の試行で成功）` : '詳細設定が自動生成されました。',
+          });
+          return; // 成功したら終了
+        } else {
+          throw new Error(data.error || '詳細設定生成に失敗しました');
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('不明なエラー');
+        console.error(`詳細設定生成エラー (試行 ${attempt + 1}/${maxRetries + 1}):`, error);
+        
+        // 最後の試行でない場合、再試行可能なエラーの場合は少し待ってから再試行
+        if (attempt < maxRetries) {
+          const isRetryableError = lastError.message.includes('タイムアウト') || 
+                                   lastError.message.includes('timeout') ||
+                                   lastError.message.includes('ネットワーク') ||
+                                   lastError.message.includes('network') ||
+                                   lastError.message.includes('fetch');
+          
+          if (isRetryableError) {
+            // 1秒待ってから再試行
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+          }
+        }
+        
+        // 再試行不可能なエラー、または最後の試行の場合はエラーを表示
+        let errorMessage = '詳細設定生成に失敗しました。';
+        if (lastError instanceof Error) {
+          if (lastError.message.includes('タイムアウト') || lastError.message.includes('timeout')) {
+            errorMessage = '生成に時間がかかりすぎました。もう一度お試しください。';
+          } else if (lastError.message.includes('ネットワーク') || lastError.message.includes('network') || lastError.message.includes('fetch')) {
+            errorMessage = 'ネットワークエラーが発生しました。インターネット接続を確認してください。';
+          } else {
+            errorMessage = lastError.message;
+          }
+        }
         setModalState({
           isOpen: true,
-          title: '成功',
-          message: '詳細設定が自動生成されました。',
+          title: 'エラー',
+          message: errorMessage,
         });
-      } else {
-        throw new Error(data.error || '詳細設定生成に失敗しました');
+        break;
       }
-    } catch (error) {
-      console.error('詳細設定生成エラー:', error);
-      setModalState({
-        isOpen: true,
-        title: 'エラー',
-        message: error instanceof Error ? error.message : '詳細設定生成に失敗しました。',
-      });
-    } finally {
-      setIsGeneratingDetail(false);
     }
+    
+    setIsGeneratingDetail(false);
   };
 
-  // ▼▼▼【自動生成】開始状況自動生成 ▼▼▼
+  // ▼▼▼【自動生成】開始状況自動生成（再試行機能付き）▼▼▼
   const handleGenerateSituation = async () => {
     if (!form.detailSetting) {
       setModalState({
@@ -700,46 +772,82 @@ export default function CharacterForm({ isEditMode, initialData, session, status
     }
 
     setIsGeneratingSituation(true);
-    try {
-      const response = await fetchWithCsrf('/api/characters/generate-situation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: form.name,
-          description: form.description,
-          detailSetting: form.detailSetting,
-        }),
-      });
+    const maxRetries = 2; // 最大2回再試行（合計3回）
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetchWithCsrf('/api/characters/generate-situation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: form.name,
+            description: form.description,
+            detailSetting: form.detailSetting,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error('開始状況生成に失敗しました');
-      }
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: '開始状況生成に失敗しました' }));
+          throw new Error(errorData.error || '開始状況生成に失敗しました');
+        }
 
-      const data = await response.json();
-      if (data.success) {
-        handleChange('firstSituation', data.firstSituation || '');
-        handleChange('firstMessage', data.firstMessage || '');
+        const data = await response.json();
+        if (data.success) {
+          handleChange('firstSituation', data.firstSituation || '');
+          handleChange('firstMessage', data.firstMessage || '');
+          setModalState({
+            isOpen: true,
+            title: '成功',
+            message: attempt > 0 ? `開始状況と最初のメッセージが自動生成されました。（${attempt + 1}回目の試行で成功）` : '開始状況と最初のメッセージが自動生成されました。',
+          });
+          return; // 成功したら終了
+        } else {
+          throw new Error(data.error || '開始状況生成に失敗しました');
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('不明なエラー');
+        console.error(`開始状況生成エラー (試行 ${attempt + 1}/${maxRetries + 1}):`, error);
+        
+        // 最後の試行でない場合、再試行可能なエラーの場合は少し待ってから再試行
+        if (attempt < maxRetries) {
+          const isRetryableError = lastError.message.includes('タイムアウト') || 
+                                   lastError.message.includes('timeout') ||
+                                   lastError.message.includes('ネットワーク') ||
+                                   lastError.message.includes('network') ||
+                                   lastError.message.includes('fetch');
+          
+          if (isRetryableError) {
+            // 1秒待ってから再試行
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+          }
+        }
+        
+        // 再試行不可能なエラー、または最後の試行の場合はエラーを表示
+        let errorMessage = '開始状況生成に失敗しました。';
+        if (lastError instanceof Error) {
+          if (lastError.message.includes('タイムアウト') || lastError.message.includes('timeout')) {
+            errorMessage = '生成に時間がかかりすぎました。もう一度お試しください。';
+          } else if (lastError.message.includes('ネットワーク') || lastError.message.includes('network') || lastError.message.includes('fetch')) {
+            errorMessage = 'ネットワークエラーが発生しました。インターネット接続を確認してください。';
+          } else {
+            errorMessage = lastError.message;
+          }
+        }
         setModalState({
           isOpen: true,
-          title: '成功',
-          message: '開始状況と最初のメッセージが自動生成されました。',
+          title: 'エラー',
+          message: errorMessage,
         });
-      } else {
-        throw new Error(data.error || '開始状況生成に失敗しました');
+        break;
       }
-    } catch (error) {
-      console.error('開始状況生成エラー:', error);
-      setModalState({
-        isOpen: true,
-        title: 'エラー',
-        message: error instanceof Error ? error.message : '開始状況生成に失敗しました。',
-      });
-    } finally {
-      setIsGeneratingSituation(false);
     }
+    
+    setIsGeneratingSituation(false);
   };
 
-  // ▼▼▼【自動生成】日付・場所自動生成 ▼▼▼
+  // ▼▼▼【自動生成】日付・場所自動生成（再試行機能付き）▼▼▼
   const handleGenerateDatePlace = async () => {
     if (!form.firstSituation) {
       setModalState({
@@ -751,41 +859,77 @@ export default function CharacterForm({ isEditMode, initialData, session, status
     }
 
     setIsGeneratingDatePlace(true);
-    try {
-      const response = await fetchWithCsrf('/api/characters/generate-date-place', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstSituation: form.firstSituation,
-        }),
-      });
+    const maxRetries = 2; // 最大2回再試行（合計3回）
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetchWithCsrf('/api/characters/generate-date-place', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            firstSituation: form.firstSituation,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error('日付・場所生成に失敗しました');
-      }
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: '日付・場所生成に失敗しました' }));
+          throw new Error(errorData.error || '日付・場所生成に失敗しました');
+        }
 
-      const data = await response.json();
-      if (data.success) {
-        handleChange('firstSituationDate', data.date || '');
-        handleChange('firstSituationPlace', data.place || '');
+        const data = await response.json();
+        if (data.success) {
+          handleChange('firstSituationDate', data.date || '');
+          handleChange('firstSituationPlace', data.place || '');
+          setModalState({
+            isOpen: true,
+            title: '成功',
+            message: attempt > 0 ? `日付と場所が自動生成されました。（${attempt + 1}回目の試行で成功）` : '日付と場所が自動生成されました。',
+          });
+          return; // 成功したら終了
+        } else {
+          throw new Error(data.error || '日付・場所生成に失敗しました');
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('不明なエラー');
+        console.error(`日付・場所生成エラー (試行 ${attempt + 1}/${maxRetries + 1}):`, error);
+        
+        // 最後の試行でない場合、再試行可能なエラーの場合は少し待ってから再試行
+        if (attempt < maxRetries) {
+          const isRetryableError = lastError.message.includes('タイムアウト') || 
+                                   lastError.message.includes('timeout') ||
+                                   lastError.message.includes('ネットワーク') ||
+                                   lastError.message.includes('network') ||
+                                   lastError.message.includes('fetch');
+          
+          if (isRetryableError) {
+            // 1秒待ってから再試行
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+          }
+        }
+        
+        // 再試行不可能なエラー、または最後の試行の場合はエラーを表示
+        let errorMessage = '日付・場所生成に失敗しました。';
+        if (lastError instanceof Error) {
+          if (lastError.message.includes('タイムアウト') || lastError.message.includes('timeout')) {
+            errorMessage = '生成に時間がかかりすぎました。もう一度お試しください。';
+          } else if (lastError.message.includes('ネットワーク') || lastError.message.includes('network') || lastError.message.includes('fetch')) {
+            errorMessage = 'ネットワークエラーが発生しました。インターネット接続を確認してください。';
+          } else {
+            errorMessage = lastError.message;
+          }
+        }
         setModalState({
           isOpen: true,
-          title: '成功',
-          message: '日付と場所が自動生成されました。',
+          title: 'エラー',
+          message: errorMessage,
         });
-      } else {
-        throw new Error(data.error || '日付・場所生成に失敗しました');
+        break;
       }
-    } catch (error) {
-      console.error('日付・場所生成エラー:', error);
-      setModalState({
-        isOpen: true,
-        title: 'エラー',
-        message: error instanceof Error ? error.message : '日付・場所生成に失敗しました。',
-      });
-    } finally {
-      setIsGeneratingDatePlace(false);
     }
+    
+    setIsGeneratingDatePlace(false);
   };
   // ▲▲▲
   

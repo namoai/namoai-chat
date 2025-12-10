@@ -24,9 +24,7 @@ export default function AdminDashboardPage() {
           setStatus('authenticated');
 
           if (sessionData.user?.role === 'USER') {
-            // alertはユーザー体験を損なう可能性があるため、実際にはモーダル等への置き換えを推奨します
-            alert('管理者権限がありません。');
-            // ▼▼▼【修正点】router.pushでページ遷移します ▼▼▼
+            // 管理者権限がない場合はホームページにリダイレクト（モーダルは表示しない）
             router.push('/'); 
           }
         } else {

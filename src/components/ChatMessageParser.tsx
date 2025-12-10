@@ -66,7 +66,8 @@ export default function ChatMessageParser({
       elements.push(...parseTextContent(textBefore, blockIndex * 1000, characterImages, showImage, isMultiImage, onImageClick));
     }
 
-    // コードブロックを状態窓スタイルで表示（状態窓設定がある場合のみ）
+    // ステータスウィンドウ設定がある場合のみ、コードブロックを状態窓スタイルで表示
+    // 設定がない場合は通常テキストとして処理
     if (hasStatusWindow) {
       elements.push(
         <div
@@ -77,10 +78,9 @@ export default function ChatMessageParser({
         </div>
       );
     } else {
-      // 状態窓設定がない場合は、コードブロックを通常のテキストとして表示（非表示）
-      // または、コードブロックの内容を通常テキストとして処理
-      const textParts = parseTextContent(block.content, blockIndex * 1000 + 500, characterImages, showImage, isMultiImage, onImageClick);
-      elements.push(...textParts);
+      // ステータス設定がない場合は、コードブロックを通常テキストとして処理
+      const codeBlockText = `\`\`\`\n${block.content}\n\`\`\``;
+      elements.push(...parseTextContent(codeBlockText, blockIndex * 1000, characterImages, showImage, isMultiImage, onImageClick));
     }
 
     lastIndex = block.end;

@@ -82,17 +82,36 @@ export default function ChatListPage() {
     const fetchChats = async () => {
       try {
         const response = await fetch("/api/chatlist");
-        if (!response.ok) throw new Error("データ取得失敗");
+        if (!response.ok) {
+          if (response.status === 401) {
+            // ログインしていない場合はログインページにリダイレクト
+            router.push('/login?redirect=/chatlist');
+            return;
+          }
+          const errorData = await response.json().catch(() => ({ error: "データ取得失敗" }));
+          throw new Error(errorData.error || "データ取得失敗");
+        }
         const data = await response.json();
         setChats(data);
       } catch (error) {
         console.error(error);
+        setModalState({
+          isOpen: true,
+          title: 'エラー',
+          message: error instanceof Error ? error.message : 'チャットリストの取得に失敗しました。',
+          isAlert: true,
+          onConfirm: () => {
+            if (error instanceof Error && error.message.includes('認証')) {
+              router.push('/login?redirect=/chatlist');
+            }
+          }
+        });
       } finally {
         setLoading(false);
       }
     };
     fetchChats();
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

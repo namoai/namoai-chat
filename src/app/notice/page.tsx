@@ -76,25 +76,25 @@ export default function NoticesPage() {
 
       <div className="relative z-10">
         <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-24">
-          <header className="flex items-center justify-between mb-6 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50">
+          <header className="flex items-center justify-between mb-6 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50 gap-2">
             <button 
               onClick={() => router.push('/MyPage')}
-              className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+              className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all flex-shrink-0"
             >
-              <ArrowLeft size={24} />
+              <ArrowLeft size={20} className="sm:w-6 sm:h-6" />
             </button>
-            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+            <h1 className="text-base sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent flex-1 text-center px-2 truncate">
               お知らせ
             </h1>
             {canCreateNotice ? (
               <button 
                 onClick={() => router.push('/notice/admin')}
-                className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+                className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all flex-shrink-0"
               >
-                <PlusCircle size={24} />
+                <PlusCircle size={20} className="sm:w-6 sm:h-6" />
               </button>
             ) : (
-              <div className="w-10 h-10"></div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0"></div>
             )}
           </header>
 

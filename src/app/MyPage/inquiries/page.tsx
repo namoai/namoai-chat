@@ -324,25 +324,25 @@ export default function InquiriesPage() {
           content={helpContent}
         />
         <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-24">
-          <header className="flex items-center gap-4 mb-8 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50">
-            <button onClick={() => router.push('/MyPage')} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
-              <ArrowLeft size={24} />
+          <header className="flex items-center gap-2 sm:gap-4 mb-8 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50">
+            <button onClick={() => router.push('/MyPage')} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all flex-shrink-0">
+              <ArrowLeft size={20} className="sm:w-6 sm:h-6" />
             </button>
-            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent flex-1">
+            <h1 className="text-base sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent flex-1 truncate px-2">
               お問い合わせ
             </h1>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
               <button
                 onClick={() => setIsHelpOpen(true)}
                 className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
               >
-                <HelpCircle size={24} />
+                <HelpCircle size={20} className="sm:w-6 sm:h-6" />
               </button>
               <button
                 onClick={() => setShowInquiryModal(true)}
-                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white p-3 rounded-xl transition-all shadow-lg shadow-pink-500/30"
+                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white p-2 sm:p-3 rounded-xl transition-all shadow-lg shadow-pink-500/30"
               >
-                <Plus size={24} />
+                <Plus size={20} className="sm:w-6 sm:h-6" />
               </button>
             </div>
           </header>

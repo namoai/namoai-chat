@@ -40,6 +40,13 @@ function SuspendedContent() {
   }, [searchParams]);
 
   const handleLogout = async () => {
+    // ログアウト前にrefresh tokenを無効化
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (error) {
+      console.error('ログアウトAPI呼び出しエラー:', error);
+      // エラーが発生してもログアウト処理は続行
+    }
     await signOut({ redirect: false });
     router.replace('/login');
   };

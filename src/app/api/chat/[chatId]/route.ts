@@ -630,6 +630,7 @@ ${imageList}
   2. Values ONLY change if conversation explicitly requires it.
   3. Default: NO CHANGE unless clear reason exists.`;
     }
+    // ステータス設定がない場合は指示を追加しない（statusWindowInstructionは空文字列のまま）
     // ▲▲▲
 
     // ▼▼▼【ユーザー指示優先】ユーザーが時間スキップや状況変更を要求した場合、即座に適用

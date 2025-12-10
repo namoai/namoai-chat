@@ -472,7 +472,10 @@ export default function ChatSettings({
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={onClose}>
       <div className="fixed top-0 right-0 h-full w-80 bg-gray-900/95 backdrop-blur-xl text-white shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out border-l border-gray-800/50" style={{ transform: isOpen ? 'translateX(0)' : 'translateX(100%)' }} onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all z-30"><X size={24} /></button>
+        {/* サブモーダルが開いている時はメインのXボタンを非表示（重複回避） */}
+        {!(isNoteModalOpen || isSaveModalOpen || isStyleModalOpen) && (
+          <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all z-30"><X size={24} /></button>
+        )}
         <>
             <div className="p-6 border-b border-gray-800/50">
                 <h2 className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent mb-2">チャットルーム管理</h2>

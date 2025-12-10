@@ -202,7 +202,17 @@ const LoggedInView = ({ session }: { session: Session }) => {
       message: "本当にログアウトしますか？",
       confirmText: "はい",
       cancelText: "いいえ",
-      onConfirm: () => signOut({ callbackUrl: '/' }),
+      onConfirm: async () => {
+        // ログアウト前にrefresh tokenを無効化
+        try {
+          await fetch('/api/auth/logout', { method: 'POST' });
+        } catch (error) {
+          console.error('ログアウトAPI呼び出しエラー:', error);
+          // エラーが発生してもログアウト処理は続行
+        }
+        // NextAuthのsignOutを実行（events.signOutも呼び出される）
+        signOut({ callbackUrl: '/' });
+      },
     });
   };
 
@@ -270,13 +280,13 @@ const LoggedInView = ({ session }: { session: Session }) => {
   return (
     <>
       <CustomModal {...modalState} onClose={closeModal} />
-      <div className="fixed top-4 right-4 z-10">
+      <div className="fixed top-4 right-4 z-10 sm:top-4 sm:right-4">
         <button
           onClick={() => setIsHelpOpen(true)}
-          className="p-3 rounded-xl bg-gray-900/80 backdrop-blur-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all border border-gray-800/50 shadow-lg"
+          className="p-2 sm:p-3 rounded-xl bg-gray-900/80 backdrop-blur-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all border border-gray-800/50 shadow-lg"
           aria-label="ヘルプ"
         >
-          <HelpCircle size={24} />
+          <HelpCircle size={20} className="sm:w-6 sm:h-6" />
         </button>
       </div>
       <HelpModal
@@ -313,8 +323,8 @@ const LoggedInView = ({ session }: { session: Session }) => {
         }
       />
       <main className="flex flex-col gap-6">
-        <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl flex items-center border border-gray-800/50 hover:border-pink-500/30 transition-all">
-          <div className="mr-4">
+        <div className="bg-gray-900/50 backdrop-blur-sm p-4 sm:p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-4 border border-gray-800/50 hover:border-pink-500/30 transition-all">
+          <div className="flex-shrink-0">
             {session.user?.image ? (
               <div className="relative w-16 h-16 rounded-full overflow-hidden ring-2 ring-pink-500/30">
                 <Image
@@ -331,22 +341,22 @@ const LoggedInView = ({ session }: { session: Session }) => {
               </div>
             )}
           </div>
-          <div className="flex-grow">
-            <div className="flex items-center gap-2 mb-1">
-              <p className="font-bold text-xl bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+          <div className="flex-grow min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <p className="font-bold text-lg sm:text-xl bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent truncate">
                 {session.user?.name || "ユーザー"}
               </p>
               {isAdmin && (
-                <span className="text-xs bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold py-1 px-3 rounded-full">
+                <span className="text-xs bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold py-1 px-3 rounded-full flex-shrink-0">
                   {userRole}
                 </span>
               )}
             </div>
-            <p className="text-sm text-gray-400">{session.user?.email}</p>
+            <p className="text-sm text-gray-400 truncate">{session.user?.email}</p>
           </div>
           <Link
             href={`/profile/${session.user?.id}`}
-            className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-sm font-semibold py-2 px-4 rounded-xl transition-all shadow-lg shadow-pink-500/30"
+            className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-sm font-semibold py-2 px-4 rounded-xl transition-all shadow-lg shadow-pink-500/30 w-full sm:w-auto text-center flex-shrink-0"
           >
             マイプロフィール
           </Link>

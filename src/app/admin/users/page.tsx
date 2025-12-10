@@ -587,7 +587,7 @@ export default function AdminUsersPage() {
         </form>
 
         <div className="bg-gray-900 rounded-lg overflow-x-auto">
-          <table className="w-full text-left min-w-[1000px]">
+          <table className="w-full text-left min-w-[1000px] table-auto">
             <thead className="bg-gray-800">
               <tr>
                 <th className="p-4">ID</th>
@@ -604,11 +604,19 @@ export default function AdminUsersPage() {
                 const isSuspended = user.suspendedUntil && new Date(user.suspendedUntil) > new Date();
                 return (
                   <tr key={user.id} className="border-b border-gray-800 hover:bg-gray-800/50">
-                    <td className="p-4">{user.id}</td>
-                    <td className="p-4">{user.name} (@{user.nickname})</td>
-                    <td className="p-4">{user.email}</td>
-                    <td className="p-4">{new Date(user.created_at).toLocaleDateString('ja-JP')}</td>
-                    <td className="p-4">
+                    <td className="p-4 whitespace-nowrap">{user.id}</td>
+                    <td className="p-4 min-w-[200px] max-w-[300px]">
+                      <div className="truncate" title={`${user.name} (@${user.nickname})`}>
+                        {user.name} (@{user.nickname})
+                      </div>
+                    </td>
+                    <td className="p-4 min-w-[200px] max-w-[300px]">
+                      <div className="truncate" title={user.email}>
+                        {user.email}
+                      </div>
+                    </td>
+                    <td className="p-4 whitespace-nowrap">{new Date(user.created_at).toLocaleDateString('ja-JP')}</td>
+                    <td className="p-4 whitespace-nowrap">
                       <select 
                         value={user.role}
                         onChange={(e) => handleRoleChange(user.id, e.target.value as Role)}
@@ -621,7 +629,7 @@ export default function AdminUsersPage() {
                         ))}
                       </select>
                     </td>
-                    <td className="p-4">
+                    <td className="p-4 whitespace-nowrap">
                       {isSuspended ? (
                         <span className="text-xs bg-red-600 text-white px-2 py-1 rounded-full">停止中</span>
                       ) : (
@@ -629,31 +637,31 @@ export default function AdminUsersPage() {
                       )}
                     </td>
                     <td className="p-4">
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-nowrap min-w-[200px]">
                         <button 
                           onClick={() => openEditModal(user)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 rounded"
+                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap flex-shrink-0"
                         >
                           編集
                         </button>
                         {isSuspended ? (
                           <button 
                             onClick={() => handleUnsuspend(user.id)}
-                            className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 rounded"
+                            className="bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap flex-shrink-0"
                           >
                             解除
                           </button>
                         ) : (
                           <button 
                             onClick={() => openSuspendModal(user)}
-                            className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1 rounded"
+                            className="bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap flex-shrink-0"
                           >
                             停止
                           </button>
                         )}
                         <button 
                           onClick={() => handleDeleteUser(user.id, user.name)}
-                          className="bg-gray-700 hover:bg-gray-800 text-white text-xs px-3 py-1 rounded"
+                          className="bg-gray-700 hover:bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap flex-shrink-0"
                         >
                           削除
                         </button>

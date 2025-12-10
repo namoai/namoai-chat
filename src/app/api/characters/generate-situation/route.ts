@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse, NextRequest } from 'next/server';
 import { VertexAI, HarmCategory, HarmBlockThreshold } from "@google-cloud/vertexai";
+import { ensureGcpCreds } from "@/utils/ensureGcpCreds";
 
 // VertexAIクライアントの初期化
 const vertex_ai = new VertexAI({
@@ -19,6 +20,9 @@ const safetySettings = [
 
 export async function POST(request: NextRequest) {
   try {
+    // GCP認証情報を確保
+    await ensureGcpCreds();
+    
     const { name, description, detailSetting } = await request.json();
 
     if (!detailSetting) {
@@ -54,8 +58,16 @@ ${detailSetting}
 - ユーザーがすぐに会話に入りやすいような導入にしてください
 - すべて日本語で記述してください`;
 
-    const result = await model.generateContent(prompt);
+    // ▼▼▼【タイムアウト対策】タイムアウト設定を追加（Netlify環境でのタイムアウト対策）▼▼▼
+    const timeoutMs = 25000; // 25秒（Netlifyのデフォルトタイムアウトより短く設定）
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('タイムアウトエラー: 生成に時間がかかりすぎました。')), timeoutMs);
+    });
+    
+    const generatePromise = model.generateContent(prompt);
+    const result = await Promise.race([generatePromise, timeoutPromise]) as Awaited<ReturnType<typeof model.generateContent>>;
     const text = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // ▲▲▲
 
     if (!text) {
       return NextResponse.json(
@@ -100,8 +112,23 @@ ${detailSetting}
     }
   } catch (error) {
     console.error('開始状況生成エラー:', error);
+    
+    // エラーの種類に応じて適切なメッセージを返す
+    let errorMessage = '不明なエラー';
+    if (error instanceof Error) {
+      if (error.message.includes('タイムアウト') || error.message.includes('timeout') || error.message.includes('TIMEOUT')) {
+        errorMessage = 'タイムアウトエラー: 生成に時間がかかりすぎました。もう一度お試しください。';
+      } else if (error.message.includes('quota') || error.message.includes('QUOTA')) {
+        errorMessage = 'クォータエラー: APIの利用制限に達しました。しばらく待ってから再度お試しください。';
+      } else if (error.message.includes('network') || error.message.includes('fetch') || error.message.includes('ECONNREFUSED')) {
+        errorMessage = 'ネットワークエラー: 接続に問題があります。インターネット接続を確認してください。';
+      } else {
+        errorMessage = `生成エラー: ${error.message}`;
+      }
+    }
+    
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '不明なエラー' },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }

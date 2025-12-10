@@ -67,8 +67,16 @@ ${characterType ? `キャラクタータイプ: ${characterType}` : 'キャラ�
 
 このような形式で、創造的で魅力的なキャラクターを作成してください。`;
 
-    const result = await model.generateContent(prompt);
+    // ▼▼▼【タイムアウト対策】タイムアウト設定を追加（Netlify環境でのタイムアウト対策）▼▼▼
+    const timeoutMs = 25000; // 25秒（Netlifyのデフォルトタイムアウトより短く設定）
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('タイムアウトエラー: 生成に時間がかかりすぎました。')), timeoutMs);
+    });
+    
+    const generatePromise = model.generateContent(prompt);
+    const result = await Promise.race([generatePromise, timeoutPromise]) as Awaited<ReturnType<typeof model.generateContent>>;
     const text = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // ▲▲▲
 
     if (!text) {
       return NextResponse.json(
@@ -142,8 +150,23 @@ ${characterType ? `キャラクタータイプ: ${characterType}` : 'キャラ�
     }
   } catch (error) {
     console.error('プロフィール生成エラー:', error);
+    
+    // エラーの種類に応じて適切なメッセージを返す
+    let errorMessage = '不明なエラー';
+    if (error instanceof Error) {
+      if (error.message.includes('timeout') || error.message.includes('TIMEOUT')) {
+        errorMessage = 'タイムアウトエラー: 生成に時間がかかりすぎました。もう一度お試しください。';
+      } else if (error.message.includes('quota') || error.message.includes('QUOTA')) {
+        errorMessage = 'クォータエラー: APIの利用制限に達しました。しばらく待ってから再度お試しください。';
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        errorMessage = 'ネットワークエラー: 接続に問題があります。インターネット接続を確認してください。';
+      } else {
+        errorMessage = `生成エラー: ${error.message}`;
+      }
+    }
+    
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '不明なエラー' },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }
