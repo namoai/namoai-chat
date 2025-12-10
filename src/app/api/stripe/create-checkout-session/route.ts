@@ -8,7 +8,6 @@ import { getPrisma } from '@/lib/prisma';
 import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
 import { isBuildTime, buildTimeResponse, safeJsonParse } from '@/lib/api-helpers';
 import Stripe from 'stripe';
-import { getUserSafetyContext } from '@/lib/age';
 
 // Stripeインスタンス初期化
 let stripeInstance: Stripe | null = null;
@@ -60,13 +59,6 @@ export async function POST(request: NextRequest) {
 
   try {
     const prisma = await getPrisma();
-    const { ageStatus } = await getUserSafetyContext(prisma, userId);
-    if (ageStatus.isMinor) {
-      return NextResponse.json(
-        { error: '未成年のため決済できません。ポイント購入には親権者の同意が必要です。' },
-        { status: 403 }
-      );
-    }
     const stripe = getStripe();
 
     // 決済レコード作成

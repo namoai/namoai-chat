@@ -155,14 +155,6 @@ function PointPageContent() {
   };
   
   const handleCharge = async (points: number) => {
-    if (isMinor) {
-      setModalState({
-        isOpen: true,
-        title: '未成年の決済はできません',
-        message: '18歳未満のアカウントではポイント購入ができません。購入する場合は親権者の同意が必要です。',
-      });
-      return;
-    }
     try {
       setLoading(true);
       const response = await fetchWithCsrf('/api/stripe/create-checkout-session', {
@@ -319,7 +311,6 @@ function PointPageContent() {
                   </h2>
                   <div className="text-sm text-gray-400 mb-4 space-y-1">
                     <p>決済には親権者（法定代理人）の同意が必要です。</p>
-                    <p>{isMinor ? '18歳未満のアカウントではポイント購入はできません。' : '18歳未満の方は購入できません。'}</p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {pointPackages.map(pkg => (
@@ -334,7 +325,7 @@ function PointPageContent() {
                         </div>
                         <button 
                           onClick={() => handleCharge(pkg.points)}
-                          disabled={loading || isMinor}
+                          disabled={loading}
                           className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2 px-6 rounded-xl transition-all shadow-lg shadow-pink-500/30 whitespace-nowrap"
                         >
                           {loading ? '処理中...' : `￥${pkg.yen.toLocaleString()}`}
