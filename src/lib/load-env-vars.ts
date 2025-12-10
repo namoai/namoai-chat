@@ -42,6 +42,7 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
     'SUPABASE_SERVICE_ROLE_KEY',
     'OPENAI_API_KEY',
     'GOOGLE_PROJECT_ID',
+    'STRIPE_SECRET_KEY',
   ];
   const cloudflareVars = [
     // CLOUDFLARE_R2_ACCOUNT_ID는 CLOUDFLARE_ACCOUNT_ID의 fallback이므로 선택사항
