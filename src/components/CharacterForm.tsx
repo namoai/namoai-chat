@@ -1228,7 +1228,10 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         const merged = [...prev, ...data.imageUrls];
         setSelectedCandidateIndexes((prevSel) => {
           const next = new Set(prevSel);
-          data.imageUrls.forEach((_, idx) => next.add(offset + idx));
+          data.imageUrls.forEach((url, idx) => {
+            // url is unused but kept for clarity; idx is used
+            next.add(offset + idx);
+          });
           return next;
         });
         setPreviewCandidateIndex((prevPreview) =>
