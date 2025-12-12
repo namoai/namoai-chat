@@ -8,3 +8,10 @@ ADD COLUMN IF NOT EXISTS "declaredAdult" BOOLEAN;
 
 
 
+
+
+
+
+
+
+

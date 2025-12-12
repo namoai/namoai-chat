@@ -14,9 +14,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { X, Plus, Trash2, GripVertical, ArrowLeft, Save, Download } from "lucide-react";
+import { X, Plus, Trash2, GripVertical, ArrowLeft, Save, Download, Sparkles } from "lucide-react";
 import { uploadImageToStorage } from "@/lib/supabase-client";
 import { fetchWithCsrf } from "@/lib/csrf-client";
+import { PromptKeywordSelector } from "@/components/ImagePromptKeywords";
 
 // --- 定数と型定義（共通） ---
 const CATEGORIES = [
@@ -123,8 +124,8 @@ const NotificationModal = ({ modalState, setModalState }: { modalState: ModalSta
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex justify-center items-center">
-            <div className="bg-gray-800/95 backdrop-blur-xl rounded-xl p-6 w-full max-w-sm m-4 border border-gray-700/50 shadow-2xl">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex justify-center items-center pointer-events-auto">
+            <div className="bg-gray-800/95 backdrop-blur-xl rounded-xl p-6 w-full max-w-sm m-4 border border-gray-700/50 shadow-2xl pointer-events-auto">
                 <h2 className="text-xl font-bold mb-4 text-white">{modalState.title}</h2>
                 <p className="text-gray-200 mb-6">{modalState.message}</p>
                 <div className="flex flex-col gap-3">
@@ -285,6 +286,25 @@ export default function CharacterForm({ isEditMode, initialData, session, status
   const [isGeneratingSituation, setIsGeneratingSituation] = useState(false);
   const [isGeneratingDatePlace, setIsGeneratingDatePlace] = useState(false);
   // ▲▲▲
+  // ▼▼▼【AI画像生成】▼▼▼
+  const [isImageGenerateModalOpen, setIsImageGenerateModalOpen] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [generatePrompt, setGeneratePrompt] = useState('');
+  const [imageStyle] = useState<'2D'>('2D'); // 2D専用
+  const [generatedCandidates, setGeneratedCandidates] = useState<string[]>([]);
+  const [selectedCandidateIndexes, setSelectedCandidateIndexes] = useState<Set<number>>(new Set());
+  const [previewCandidateIndex, setPreviewCandidateIndex] = useState<number | null>(null);
+  const MODEL_OPTIONS = [
+    {
+      key: 'animagine-xl-3.1',
+      label: 'Animagine XL 3.1（高品質・約6秒/枚）',
+      version: '9002fb360703f03d899ab0c078253519ae30c595a3903c1be58fba00a7434555',
+      note: 'アニメ高品質（約6秒、$0.0014/枚 ≈ ¥0.21）',
+    },
+  ];
+  const [selectedModelKey, setSelectedModelKey] = useState<string>('animagine-xl-3.1');
+  const [customModelVersion] = useState<string>(''); // not used
+  // ▲▲▲
 
   // ▼▼▼【修正】initialDataを1回だけ読み込むためのフラグ ▼▼▼
   const [isInitialized, setIsInitialized] = useState(false);
@@ -411,6 +431,26 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       setIsInitialized(true);
     }
   }, [isEditMode, initialData, isInitialized, STORAGE_KEY]);
+
+  // 画像が追加されたら即座にドラフト保存（リロード対策）
+  useEffect(() => {
+    if (!isInitialized) return;
+    const draftData = {
+      form,
+      lorebooks,
+      images: images.map(img => ({
+        id: img.id,
+        imageUrl: img.imageUrl,
+        keyword: img.keyword,
+      })),
+      savedAt: new Date().toISOString(),
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(draftData));
+    } catch (e) {
+      console.error('[ドラフト保存] 画像更新時の保存に失敗:', e);
+    }
+  }, [images, form, lorebooks, isInitialized, STORAGE_KEY]);
 
   // ▼▼▼【ページ離脱防止】作成中のデータがある場合は警告を表示 ▼▼▼
   useEffect(() => {
@@ -1041,6 +1081,36 @@ export default function CharacterForm({ isEditMode, initialData, session, status
     // ▲▲▲
   };
 
+  const handleAddSelectedGeneratedImages = () => {
+    if (generatedCandidates.length === 0) return;
+    // 選択がなければ全選択
+    const selectedSet =
+      selectedCandidateIndexes.size === 0
+        ? new Set(generatedCandidates.map((_, idx) => idx))
+        : selectedCandidateIndexes;
+    const selected = Array.from(selectedSet).sort((a, b) => a - b);
+    const newImages: DisplayImage[] = selected.map((idx) => ({
+      imageUrl: generatedCandidates[idx],
+      keyword: '',
+    }));
+    setImages((prev) => [...prev, ...newImages]);
+    // 生成履歴は残したまま、選択だけリセット
+    setSelectedCandidateIndexes(new Set());
+    setPreviewCandidateIndex(selected.length > 0 ? selected[selected.length - 1] : null);
+  };
+
+  const handleToggleCandidate = (index: number) => {
+    setSelectedCandidateIndexes((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
   const handleImageDelete = (indexToDelete: number) => {
     const imageToDelete = images[indexToDelete];
     if (imageToDelete.id) {
@@ -1065,6 +1135,143 @@ export default function CharacterForm({ isEditMode, initialData, session, status
     setImages((prev) =>
       prev.map((img, i) => (i === selectedIndex ? { ...img, keyword: value } : img))
     );
+  };
+
+  // ▼▼▼【AI画像生成】▼▼▼
+  const handleGenerateImage = async () => {
+    if (!generatePrompt.trim()) {
+      setModalState({
+        isOpen: true,
+        title: '入力エラー',
+        message: 'プロンプトを入力してください。',
+      });
+      return;
+    }
+
+    if (images.length >= 100) {
+      setModalState({
+        isOpen: true,
+        title: 'アップロード上限',
+        message: '画像は最大100枚までアップロードできます。',
+      });
+      return;
+    }
+
+    setIsGeneratingImage(true);
+    try {
+      const selectedModel = MODEL_OPTIONS.find((m) => m.key === selectedModelKey);
+      const modelVersionToUse =
+        selectedModel?.key === 'custom'
+          ? (customModelVersion && customModelVersion.trim())
+          : (selectedModel?.version && selectedModel.version.trim());
+
+      if (!selectedModel || !modelVersionToUse) {
+        setModalState({
+          isOpen: true,
+          title: 'モデル未指定',
+          message: 'モデルの version ID を入力してください。',
+        });
+        setIsGeneratingImage(false);
+        return;
+      }
+
+      // タイムアウト設定（6分 = 360秒、バックエンドの5分タイムアウトより長く設定）
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 360000); // 6分
+
+      let response: Response;
+      try {
+        response = await fetchWithCsrf('/api/images/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: generatePrompt,
+            negativePrompt: '', // ネガティブプロンプトはバックエンドで自動生成
+            width: 512,
+            height: 512,
+            imageStyle: imageStyle, // 2D専用
+            modelVersion: modelVersionToUse,
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: '画像生成に失敗しました。' }));
+          const errorMessage = errorData.error || '画像生成に失敗しました。';
+          
+          // タイムアウトエラーの場合は特別なメッセージ
+          if (response.status === 504 || errorMessage.includes('タイムアウト') || errorMessage.includes('時間がかかり')) {
+            throw new Error('画像生成に時間がかかりすぎています。サーバーが混雑している可能性があります。しばらく待ってから再試行してください。');
+          }
+          
+          throw new Error(errorMessage);
+        }
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          throw new Error('画像生成に時間がかかりすぎています。サーバーが混雑している可能性があります。しばらく待ってから再試行してください。');
+        }
+        throw fetchError;
+      }
+
+      const data = await response.json();
+      
+      if (!data.success || !data.imageUrls || data.imageUrls.length === 0) {
+        throw new Error('画像生成に失敗しました。');
+      }
+
+      // 生成履歴に追加（モーダルは開いたまま）
+      setGeneratedCandidates((prev) => {
+        const offset = prev.length;
+        const merged = [...prev, ...data.imageUrls];
+        setSelectedCandidateIndexes((prevSel) => {
+          const next = new Set(prevSel);
+          data.imageUrls.forEach((_, idx) => next.add(offset + idx));
+          return next;
+        });
+        setPreviewCandidateIndex((prevPreview) =>
+          prevPreview !== null ? prevPreview : offset
+        );
+        return merged;
+      });
+    } catch (error) {
+      console.error('画像生成エラー:', error);
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: error instanceof Error ? error.message : '画像生成に失敗しました。',
+      });
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
+  // ▲▲▲【AI画像生成 終了】▲▲▲
+
+  const handleImageGenerateModalOpenChange = (open: boolean) => {
+    if (open) {
+      setIsImageGenerateModalOpen(true);
+      if (generatedCandidates.length > 0 && previewCandidateIndex === null) {
+        setPreviewCandidateIndex(0);
+      }
+      return;
+    }
+    if (generatedCandidates.length > 0) {
+      const confirmed = window.confirm('今まで生成した画像は保存されていません。閉じてもよろしいですか？');
+      if (!confirmed) {
+        setIsImageGenerateModalOpen(true);
+        return;
+      }
+      setGeneratedCandidates([]);
+      setSelectedCandidateIndexes(new Set());
+      setGeneratePrompt('');
+      setPreviewCandidateIndex(null);
+    } else {
+      // 画像が生成されていない場合もリセット
+      setGeneratePrompt('');
+    }
+    setIsImageGenerateModalOpen(false);
   };
 
   const handleSubmit = async () => {
@@ -1430,9 +1637,22 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                         <span className="text-pink-400 font-semibold">最初の画像が基本画像として使用され、2枚目以降はキーワード（感情や状況など）を設定することで、特定の状況で表示される画像として使用できます。</span>
                     </p>
                 </div>
-                <label className="block text-sm sm:text-base font-semibold text-gray-200 mb-3 sm:mb-4">画像アップロード</label>
+                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-3 sm:mb-4">
+                   <div>
+                     <label className="block text-sm sm:text-base font-semibold text-gray-200">画像アップロード</label>
+                     <p className="text-xs text-gray-400 mt-1">AI生成は1回1枚・1ポイントで最速設定です。</p>
+                   </div>
+                   <Button
+                     onClick={() => setIsImageGenerateModalOpen(true)}
+                     className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white px-4 py-2 rounded-xl shadow-lg shadow-blue-500/30 font-semibold whitespace-nowrap text-xs sm:text-sm"
+                     title="1回の生成で1枚、1ポイント消費します。"
+                   >
+                     <Sparkles className="mr-2 h-4 w-4" />
+                     AI生成 (1P/1枚)
+                   </Button>
+                 </div>
                 <input type="file" accept="image/*" multiple onChange={handleImageChange} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gradient-to-r file:from-pink-500 file:to-purple-600 hover:file:from-pink-600 hover:file:to-purple-700 file:text-white file:cursor-pointer cursor-pointer file:shadow-lg file:shadow-pink-500/30 transition-all" />
-                <p className="text-xs text-gray-500 mt-2">画像ファイルを選択してください（最大100枚まで）。</p>
+                <p className="text-xs text-gray-500 mt-2">画像ファイルを選択するか、AI生成ボタンで2D画像を生成できます（最大100枚まで）。</p>
                 <div className="mt-4 sm:mt-6 flex flex-wrap gap-3 sm:gap-4">
                 {images.map((img, idx) => (
                     <div key={img.id || `new-${idx}`} className="relative w-20 h-20 sm:w-24 sm:h-24 group">
@@ -1743,6 +1963,150 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         </Dialog>
 
       <HashtagModal isOpen={isHashtagModalOpen} onClose={() => setIsHashtagModalOpen(false)} initialHashtags={form.hashtags} onComplete={(newHashtags) => { handleChange("hashtags", newHashtags); }} />
+
+      {/* ▼▼▼【AI画像生成モーダル】▼▼▼ */}
+      <Dialog open={isImageGenerateModalOpen} onOpenChange={handleImageGenerateModalOpenChange}>
+        <DialogContent className="sm:max-w-[900px] bg-gray-800/95 backdrop-blur-xl text-white border-gray-700/50 rounded-xl">
+          <DialogHeader>
+            <DialogTitle>AI画像生成</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-4 items-start">
+            {/* 左カラム: 入力フォーム */}
+            <div className="space-y-4">
+              {/* 스타일 선택 탭 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-2">
+                  画像スタイル
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="flex-1 px-4 py-2 rounded-xl transition-all font-semibold bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg shadow-pink-500/30 cursor-default"
+                  >
+                    2D/アニメ専用
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">
+                  本機能は2D/アニメスタイル専用です。半実写・実写は生成されません。
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-2">
+                  プロンプト（必須）
+                </label>
+                
+                <PromptKeywordSelector
+                  prompt={generatePrompt}
+                  onPromptChange={setGeneratePrompt}
+                />
+                
+                <Textarea
+                  placeholder="例: cute anime girl, pink hair, school uniform, detailed, high quality"
+                  value={generatePrompt}
+                  onChange={(e) => setGeneratePrompt(e.target.value)}
+                  className="bg-gray-900/50 backdrop-blur-sm border-gray-600/50 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 rounded-xl transition-all min-h-[100px] text-white"
+                  maxLength={500}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  生成したい画像を説明してください。上のキーワードボタンから選択するか、英語で直接入力してください。
+                </p>
+                <p className="text-xs text-right text-gray-500 mt-1">
+                  {generatePrompt.length} / 500
+                </p>
+              </div>
+
+            </div>
+
+            {/* 右カラム: プレビュー + 履歴 */}
+            <div className="space-y-4">
+              <div className="bg-gray-900/60 border border-gray-700/60 rounded-xl p-3 h-[320px] lg:h-[360px] flex flex-col gap-3">
+                <p className="text-sm font-semibold text-gray-200">プレビュー</p>
+                <div className="flex-1 rounded-lg overflow-hidden bg-black/40 border border-gray-700/60 flex items-center justify-center">
+                  {previewCandidateIndex !== null && generatedCandidates[previewCandidateIndex] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={generatedCandidates[previewCandidateIndex]}
+                      alt="preview"
+                      className="max-h-full w-full object-contain"
+                    />
+                  ) : (
+                    <p className="text-gray-500 text-sm text-center px-4">
+                      生成した画像を選択するとここに表示されます。
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-gray-900/60 border border-gray-700/60 rounded-xl p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-200">生成履歴</p>
+                  <p className="text-xs text-gray-400">
+                    {selectedCandidateIndexes.size} / {generatedCandidates.length} 選択中
+                  </p>
+                </div>
+                {generatedCandidates.length === 0 ? (
+                  <p className="text-xs text-gray-500">生成するとここに表示されます。</p>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {generatedCandidates.map((url, idx) => {
+                      const selected = selectedCandidateIndexes.has(idx);
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            handleToggleCandidate(idx);
+                            setPreviewCandidateIndex(idx);
+                          }}
+                          className={`relative rounded-xl overflow-hidden border transition-all ${
+                            selected
+                              ? 'border-blue-400 ring-2 ring-blue-400/60'
+                              : 'border-gray-700 hover:border-gray-500'
+                          }`}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt={`candidate-${idx}`} className="w-full h-24 object-cover" />
+                          <div className={`absolute inset-0 ${selected ? 'bg-blue-500/15' : 'bg-black/10'}`} />
+                          <div className="absolute top-1 right-1 bg-black/60 text-white text-[10px] px-2 py-1 rounded-full">
+                            {selected ? '選択中' : 'タップで選択'}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex flex-wrap gap-2 justify-end">
+            <Button
+              onClick={() => handleImageGenerateModalOpenChange(false)}
+              variant="ghost"
+              className="text-gray-400 hover:text-white"
+            >
+              キャンセル
+            </Button>
+            <Button
+              onClick={handleGenerateImage}
+              disabled={isGeneratingImage || !generatePrompt.trim()}
+              className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 shadow-lg shadow-blue-500/30 rounded-xl disabled:opacity-50"
+            >
+              {isGeneratingImage ? '生成中...' : '生成する'}
+            </Button>
+            {generatedCandidates.length > 0 && (
+              <Button
+                onClick={handleAddSelectedGeneratedImages}
+                disabled={selectedCandidateIndexes.size === 0}
+                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 shadow-lg shadow-pink-500/30 rounded-xl disabled:opacity-50"
+              >
+                選択した画像を追加
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* ▲▲▲【AI画像生成モーダル 終了】▲▲▲ */}
     </>
   );
 }

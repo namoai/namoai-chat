@@ -154,8 +154,9 @@ const CharacterRow = ({
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-        {characters.map((char) => (
-          <CharacterCard key={char.id} character={char} />
+        {characters.map((char, idx) => (
+          // key 충돌 방지: 동일 id가 중복될 때 index를 추가해 고유 키를 보장
+          <CharacterCard key={`${char.id}-${idx}`} character={char} />
         ))}
       </div>
     </section>
