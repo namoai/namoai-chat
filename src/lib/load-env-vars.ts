@@ -3,9 +3,9 @@
 // サーバーサイド専用（Node.jsモジュールを使用）
 // Server-side only (uses Node.js modules)
 
-// This module must only run on the server (uses Node built-ins)
-import 'server-only';
 'use server';
+import 'server-only';
+// This module must only run on the server (uses Node built-ins)
 
 let envVarsLoaded = false;
 
