@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
 import { getPrisma } from '@/lib/prisma';
+import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
 
 /**
  * AI画像生成 API (Replicate 使用)
@@ -13,6 +14,9 @@ import { getPrisma } from '@/lib/prisma';
 export async function POST(request: NextRequest) {
   console.log('[API] /api/images/generate POST start');
   try {
+    // Ensure server env vars (e.g., REPLICATE_API_TOKEN) are loaded in Lambda/Amplify
+    await ensureEnvVarsLoaded();
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
