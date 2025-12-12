@@ -1138,6 +1138,32 @@ export default function CharacterForm({ isEditMode, initialData, session, status
   };
 
   // ▼▼▼【AI画像生成】▼▼▼
+  const pollPredictionStatus = async (predictionId: string, attempt = 0): Promise<string[]> => {
+    const MAX_ATTEMPTS = 120; // 約6分
+    const intervalMs = 3000;
+    if (attempt >= MAX_ATTEMPTS) {
+      throw new Error('画像生成に時間がかかりすぎています。しばらく待ってから再試行してください。');
+    }
+    const res = await fetchWithCsrf(`/api/images/generate?predictionId=${predictionId}`, {
+      method: 'GET',
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || '画像生成に失敗しました。');
+    }
+    const data = await res.json();
+    if (data.success && data.imageUrls?.length) {
+      return data.imageUrls as string[];
+    }
+    if (data.status === 'failed' || data.status === 'canceled') {
+      throw new Error(data.error || '画像生成に失敗しました。');
+    }
+    // processing 中
+    await new Promise((r) => setTimeout(r, intervalMs));
+    return pollPredictionStatus(predictionId, attempt + 1);
+  };
+
   const handleGenerateImage = async () => {
     if (!generatePrompt.trim()) {
       setModalState({
@@ -1218,17 +1244,19 @@ export default function CharacterForm({ isEditMode, initialData, session, status
 
       const data = await response.json();
       
-      if (!data.success || !data.imageUrls || data.imageUrls.length === 0) {
-        throw new Error('画像生成に失敗しました。');
+      if (!data.success || !data.predictionId) {
+        throw new Error(data.error || '画像生成に失敗しました。');
       }
 
-      // 生成履歴に追加（モーダルは開いたまま）
+      // ステータスをポーリングして完了まで待つ（短いリクエストでLambda 30秒制限を回避）
+      const imageUrls = await pollPredictionStatus(data.predictionId);
+
       setGeneratedCandidates((prev) => {
         const offset = prev.length;
-        const merged = [...prev, ...data.imageUrls];
+        const merged = [...prev, ...imageUrls];
         setSelectedCandidateIndexes((prevSel) => {
           const next = new Set(prevSel);
-          (data.imageUrls as string[]).forEach((_url: string, idx: number) => {
+          imageUrls.forEach((_url: string, idx: number) => {
             next.add(offset + idx);
           });
           return next;
