@@ -1228,8 +1228,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
         const merged = [...prev, ...data.imageUrls];
         setSelectedCandidateIndexes((prevSel) => {
           const next = new Set(prevSel);
-          data.imageUrls.forEach((url, idx) => {
-            // url is unused but kept for clarity; idx is used
+          (data.imageUrls as string[]).forEach((_url: string, idx: number) => {
             next.add(offset + idx);
           });
           return next;

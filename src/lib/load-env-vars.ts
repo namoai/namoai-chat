@@ -80,6 +80,13 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
     return;
   }
 
+  // Edge 런타임에서는 fs/path를 사용할 수 없으므로 즉시 종료
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    console.log('[load-env-vars] Detected edge runtime, skipping filesystem env load');
+    envVarsLoaded = true;
+    return;
+  }
+
   console.log(`[load-env-vars] Missing ${missingVars.length} variables: ${missingVars.join(', ')}`);
 
   // 1. .env.production.local 파일에서 로드 시도
