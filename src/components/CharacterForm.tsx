@@ -302,7 +302,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       note: 'アニメ高品質（約6秒、$0.0014/枚 ≈ ¥0.21）',
     },
   ];
-  const [selectedModelKey, setSelectedModelKey] = useState<string>('animagine-xl-3.1');
+  const [selectedModelKey] = useState<string>('animagine-xl-3.1');
   const [customModelVersion] = useState<string>(''); // not used
   // ▲▲▲
 

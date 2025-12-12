@@ -88,8 +88,8 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
       // 動的インポートでサーバーサイドでのみロード
       // Dynamic import to load only on server side
       // Node.js 組み込みモジュールを動的 import（サーバー側のみ）
-      const fs = await import('fs');
-      const path = await import('path');
+      const fs = await import('node:fs');
+      const path = await import('node:path');
     
       const possiblePaths = [
         path.join(process.cwd(), '.env.production.local'),
