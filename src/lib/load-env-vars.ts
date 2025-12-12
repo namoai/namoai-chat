@@ -46,6 +46,7 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
     'GOOGLE_PROJECT_ID',
     'STRIPE_SECRET_KEY',
     'STRIPE_WEBHOOK_SECRET',
+    'REPLICATE_API_TOKEN',
   ];
   const cloudflareVars = [
     // CLOUDFLARE_R2_ACCOUNT_ID는 CLOUDFLARE_ACCOUNT_ID의 fallback이므로 선택사항
