@@ -39,41 +39,50 @@ model characters {
 }
 
 model users {
-  id                            Int             @id @default(autoincrement())
-  email                         String          @unique
+  id                            Int                         @id @default(autoincrement())
+  email                         String                      @unique
   password                      String?
   name                          String
-  phone                         String?         @unique
-  nickname                      String          @unique
+  phone                         String?                     @unique
+  nickname                      String                      @unique
   dateOfBirth                   DateTime?
   declaredAdult                 Boolean?
-  needsProfileCompletion        Boolean         @default(false)
-  created_at                    DateTime?       @default(now()) @db.Timestamp(6)
+  needsProfileCompletion        Boolean                     @default(false)
+  created_at                    DateTime?                   @default(now()) @db.Timestamp(6)
   image_url                     String?
   bio                           String?
-  safetyFilter                  Boolean         @default(true)
+  safetyFilter                  Boolean                     @default(true)
   defaultPersonaId              Int?
-  role                          Role            @default(USER)
+  role                          Role                        @default(USER)
   emailVerified                 DateTime?
   suspendedUntil                DateTime? // ユーザー停止期限
   suspensionReason              String? // 停止理由
-  accounts                      Account[]       @relation("UserAccounts")
-  Block_Block_blockerIdTousers  Block[]         @relation("Block_blockerIdTousers")
-  Block_Block_blockingIdTousers Block[]         @relation("Block_blockingIdTousers")
-  sessions                      Session[]       @relation("UserSessions")
+  loginAttempts                 Int                         @default(0) // ログイン失敗回数
+  lockedUntil                   DateTime? // アカウントロック期限
+  twoFactorEnabled              Boolean                     @default(false) // 2FA有効化フラグ
+  twoFactorSecret               String? // TOTPシークレット（ハッシュ化推奨）
+  twoFactorBackupCodes          String[]                    @default([]) // バックアップコード（ハッシュ化）
+  adultVerificationDate          DateTime? @db.Timestamptz(6) // 成人認証実施日時（証明文書用）
+  adultVerificationBirthdate     DateTime? @db.Timestamptz(6) // 成人認証時に入力した生年月日（証明文書用）
+  adultVerificationAgreed        Boolean? // 成人認証時の同意内容（証明文書用）
+  accounts                      Account[]                   @relation("UserAccounts")
+  Block_Block_blockerIdTousers  Block[]                     @relation("Block_blockerIdTousers")
+  Block_Block_blockingIdTousers Block[]                     @relation("Block_blockingIdTousers")
+  sessions                      Session[]                   @relation("UserSessions")
   characters                    characters[]
   chat                          chat[]
   comments                      comments[]
   favorites                     favorites[]
-  following                     follows[]       @relation("follower")
-  followers                     follows[]       @relation("following")
+  following                     follows[]                   @relation("follower")
+  followers                     follows[]                   @relation("following")
   interactions                  interactions[]
   personas                      personas[]
   points                        points?
   payments                      payments[]
-  reports                       reports[]       @relation("Reporter")
-  notifications                 notifications[] @relation("NotificationReceiver")
-  notificationsSent             notifications[] @relation("NotificationActor")
+  reports                       reports[]                   @relation("Reporter")
+  notifications                 notifications[]             @relation("NotificationReceiver")
+  notificationsSent             notifications[]             @relation("NotificationActor")
+  emailVerificationTokens       email_verification_tokens[]
   // ▼▼▼【修正】エラーを引き起こす重複した'sessions'フィールドを削除しました。▼▼▼
 }
 
@@ -290,6 +299,21 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model email_verification_tokens {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  users     users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@index([email])
+  @@index([expires])
 }
 
 model embeddings {

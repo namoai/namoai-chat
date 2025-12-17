@@ -4,7 +4,14 @@
  */
 
 import { randomBytes, createHash } from 'crypto';
+import { authenticator, totp } from 'otplib';
 import { logger } from './logger';
+
+// TOTP設定
+authenticator.options = {
+  window: [1, 1], // 前後1ステップ（30秒×2 = ±30秒）の許容範囲
+  step: 30, // 30秒ごとにコード更新
+};
 
 /**
  * 2FA設定の状態
@@ -42,10 +49,8 @@ export function hashBackupCode(code: string): string {
  * TOTPシークレットを生成
  */
 export function generateTotpSecret(): string {
-  // 32バイトのランダムデータをBase32エンコード
-  // 実際の実装では、otplibなどのライブラリを使用することを推奨
-  const bytes = randomBytes(20);
-  return bytes.toString('base64').replace(/[^A-Z2-7]/g, '').substring(0, 32);
+  // otplibのauthenticator.generateSecret()を使用
+  return authenticator.generateSecret();
 }
 
 /**
@@ -54,32 +59,24 @@ export function generateTotpSecret(): string {
 export function generateTotpUri(
   secret: string,
   accountName: string,
-  issuer: string = 'Namos Chat'
+  issuer: string = 'NAMOSAI'
 ): string {
-  // otpauth://totp/{issuer}:{accountName}?secret={secret}&issuer={issuer}
-  const encodedIssuer = encodeURIComponent(issuer);
-  const encodedAccount = encodeURIComponent(accountName);
-  return `otpauth://totp/${encodedIssuer}:${encodedAccount}?secret=${secret}&issuer=${encodedIssuer}`;
+  // otplibのauthenticator.keyuri()を使用
+  return authenticator.keyuri(accountName, issuer, secret);
 }
 
 /**
  * TOTPコードを検証
- * 注意: 実際の実装では、otplibなどのライブラリを使用してください
  */
 export function verifyTotpCode(secret: string, code: string): boolean {
-  // 実際の実装では、otplibのauthenticator.verify()を使用
-  // ここでは概念実装として示します
-  
-  // const authenticator = require('otplib').authenticator;
-  // return authenticator.verify({ token: code, secret, window });
-  
-  logger.warn('TOTP verification: Library not implemented yet', {
-    metadata: {
-      secretLength: secret.length,
-      codeLength: code.length,
-    },
-  });
-  return false;
+  try {
+    return authenticator.verify({ token: code, secret });
+  } catch (error) {
+    logger.warn('TOTP verification failed', {
+      metadata: { error: error instanceof Error ? error.message : String(error) },
+    });
+    return false;
+  }
 }
 
 /**
@@ -90,31 +87,37 @@ export async function enable2FA(
   method: 'totp' | 'sms',
   secret?: string
 ): Promise<{ secret?: string; backupCodes: string[]; qrCodeUri?: string }> {
-  // 実際の実装では、データベースに2FA設定を保存
-  // ここでは概念実装として示します
+  const { getPrisma } = await import('./prisma');
+  const prisma = await getPrisma();
   
   const backupCodes = generateBackupCodes(8);
-  
-  // データベースに保存する処理
-  // await prisma.users.update({
-  //   where: { id: userId },
-  //   data: {
-  //     twoFactorEnabled: true,
-  //     twoFactorMethod: method,
-  //     twoFactorSecret: method === 'totp' ? secret : null,
-  //     twoFactorBackupCodes: hashedBackupCodes,
-  //   },
-  // });
+  const hashedBackupCodes = backupCodes.map(code => hashBackupCode(code));
   
   let qrCodeUri: string | undefined;
-  if (method === 'totp' && secret) {
-    qrCodeUri = generateTotpUri(secret, `user_${userId}`, 'Namos Chat');
+  let finalSecret = secret;
+  
+  if (method === 'totp') {
+    if (!finalSecret) {
+      finalSecret = generateTotpSecret();
+    }
+    const user = await prisma.users.findUnique({ where: { id: userId }, select: { email: true } });
+    qrCodeUri = generateTotpUri(finalSecret, user?.email || `user_${userId}`, 'NAMOSAI');
   }
+  
+  // データベースに保存
+  await prisma.users.update({
+    where: { id: userId },
+    data: {
+      twoFactorEnabled: true,
+      twoFactorSecret: method === 'totp' ? finalSecret : null,
+      twoFactorBackupCodes: hashedBackupCodes,
+    },
+  });
   
   logger.info('2FA enabled', { userId: String(userId), metadata: { method } });
   
   return {
-    secret: method === 'totp' ? secret : undefined,
+    secret: method === 'totp' ? finalSecret : undefined,
     backupCodes,
     qrCodeUri,
   };
@@ -124,16 +127,17 @@ export async function enable2FA(
  * 2FA設定を無効化
  */
 export async function disable2FA(userId: number): Promise<void> {
-  // 実際の実装では、データベースから2FA設定を削除
-  // await prisma.users.update({
-  //   where: { id: userId },
-  //   data: {
-  //     twoFactorEnabled: false,
-  //     twoFactorMethod: null,
-  //     twoFactorSecret: null,
-  //     twoFactorBackupCodes: [],
-  //   },
-  // });
+  const { getPrisma } = await import('./prisma');
+  const prisma = await getPrisma();
+  
+  await prisma.users.update({
+    where: { id: userId },
+    data: {
+      twoFactorEnabled: false,
+      twoFactorSecret: null,
+      twoFactorBackupCodes: [],
+    },
+  });
   
   logger.info('2FA disabled', { userId: String(userId) });
 }
@@ -145,43 +149,43 @@ export async function verify2FACode(
   userId: number,
   code: string
 ): Promise<{ valid: boolean; usedBackupCode?: boolean }> {
-  // 実際の実装では、データベースから2FA設定を取得
-  // const user = await prisma.users.findUnique({
-  //   where: { id: userId },
-  //   select: {
-  //     twoFactorEnabled: true,
-  //     twoFactorMethod: true,
-  //     twoFactorSecret: true,
-  //     twoFactorBackupCodes: true,
-  //   },
-  // });
+  const { getPrisma } = await import('./prisma');
+  const prisma = await getPrisma();
   
-  // if (!user?.twoFactorEnabled) {
-  //   return { valid: false };
-  // }
-  
-  // if (user.twoFactorMethod === 'totp' && user.twoFactorSecret) {
-  //   const isValid = verifyTotpCode(user.twoFactorSecret, code);
-  //   return { valid: isValid };
-  // }
-  
-  // // バックアップコードの検証
-  // const codeHash = hashBackupCode(code);
-  // const backupCodeIndex = user.twoFactorBackupCodes.indexOf(codeHash);
-  // if (backupCodeIndex !== -1) {
-  //   // 使用したバックアップコードを削除
-  //   const updatedCodes = user.twoFactorBackupCodes.filter((_, i) => i !== backupCodeIndex);
-  //   await prisma.users.update({
-  //     where: { id: userId },
-  //     data: { twoFactorBackupCodes: updatedCodes },
-  //   });
-  //   return { valid: true, usedBackupCode: true };
-  // }
-  
-  logger.warn('2FA verification: Database implementation not available', {
-    userId: String(userId),
-    metadata: { codeLength: code.length },
+  const user = await prisma.users.findUnique({
+    where: { id: userId },
+    select: {
+      twoFactorEnabled: true,
+      twoFactorSecret: true,
+      twoFactorBackupCodes: true,
+    },
   });
+  
+  if (!user?.twoFactorEnabled) {
+    return { valid: false };
+  }
+  
+  // TOTPコードの検証
+  if (user.twoFactorSecret) {
+    const isValid = verifyTotpCode(user.twoFactorSecret, code);
+    if (isValid) {
+      return { valid: true };
+    }
+  }
+  
+  // バックアップコードの検証
+  const codeHash = hashBackupCode(code);
+  const backupCodeIndex = user.twoFactorBackupCodes.indexOf(codeHash);
+  if (backupCodeIndex !== -1) {
+    // 使用したバックアップコードを削除
+    const updatedCodes = user.twoFactorBackupCodes.filter((_, i) => i !== backupCodeIndex);
+    await prisma.users.update({
+      where: { id: userId },
+      data: { twoFactorBackupCodes: updatedCodes },
+    });
+    return { valid: true, usedBackupCode: true };
+  }
+  
   return { valid: false };
 }
 

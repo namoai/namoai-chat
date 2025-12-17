@@ -260,6 +260,25 @@ export function getAuthOptions(): NextAuthOptions {
             return null;
           }
 
+          // ▼▼▼【新機能】アカウントロックチェック ▼▼▼
+          const now = new Date();
+          if (user.lockedUntil && user.lockedUntil > now) {
+            const lockedMinutes = Math.ceil((user.lockedUntil.getTime() - now.getTime()) / 60000);
+            console.log(`認証失敗: ユーザー ${user.email} はロック中です (残り ${lockedMinutes} 分)`);
+            throw new Error(`LOCKED:アカウントがロックされています。${lockedMinutes}分後に再試行してください。`);
+          }
+          // ▲▲▲ ロックチェック完了 ▲▲▲
+
+          // ▼▼▼【新機能】メール認証チェック ▼▼▼
+          // 環境変数 REQUIRE_EMAIL_VERIFICATION が "true" の場合のみチェック（デフォルト: false）
+          const requireEmailVerification = process.env.REQUIRE_EMAIL_VERIFICATION === 'true';
+          
+          if (requireEmailVerification && !user.emailVerified) {
+            console.log(`認証失敗: ユーザー ${user.email} のメールアドレスが認証されていません`);
+            throw new Error('EMAIL_NOT_VERIFIED:メールアドレスの認証が完了していません。メール内のリンクをクリックして認証を完了してください。');
+          }
+          // ▲▲▲ メール認証チェック完了 ▲▲▲
+
           // パスワードの検証
           const isPasswordValid = await bcrypt.compare(
             credentials.password,
@@ -267,23 +286,58 @@ export function getAuthOptions(): NextAuthOptions {
           );
 
           if (!isPasswordValid) {
-            console.log(`認証失敗: パスワードが正しくありません (ユーザー: ${user.email})`);
+            // ログイン失敗回数を増加
+            const newAttempts = (user.loginAttempts || 0) + 1;
+            const maxAttempts = 10; // 10回失敗でロック
+            const lockDurationMinutes = 15; // 15分間ロック
+
+            const updateData: { loginAttempts: number; lockedUntil?: Date } = {
+              loginAttempts: newAttempts,
+            };
+
+            // 10回以上失敗した場合はアカウントをロック
+            if (newAttempts >= maxAttempts) {
+              const lockedUntil = new Date(now.getTime() + lockDurationMinutes * 60 * 1000);
+              updateData.lockedUntil = lockedUntil;
+              console.log(`認証失敗: ユーザー ${user.email} は ${newAttempts} 回失敗したためロックされました (期限: ${lockedUntil})`);
+            } else {
+              console.log(`認証失敗: パスワードが正しくありません (ユーザー: ${user.email}, 失敗回数: ${newAttempts}/${maxAttempts})`);
+            }
+
+            await prisma.users.update({
+              where: { id: user.id },
+              data: updateData,
+            });
+
             return null;
           }
 
           // ▼▼▼【新機能】ユーザー停止チェック ▼▼▼
-          if (user.suspendedUntil) {
-            const now = new Date();
-            if (user.suspendedUntil > now) {
-              console.log(`認証失敗: ユーザー ${user.email} は停止中です (期限: ${user.suspendedUntil})`);
-              // 停止情報をエラーとして返す
-              throw new Error(`SUSPENDED:${user.suspensionReason || '不明な理由'}:${user.suspendedUntil.toISOString()}`);
-            }
+          if (user.suspendedUntil && user.suspendedUntil > now) {
+            console.log(`認証失敗: ユーザー ${user.email} は停止中です (期限: ${user.suspendedUntil})`);
+            // 停止情報をエラーとして返す
+            throw new Error(`SUSPENDED:${user.suspensionReason || '不明な理由'}:${user.suspendedUntil.toISOString()}`);
           }
           // ▲▲▲ 停止チェック完了 ▲▲▲
 
+          // 認証成功: ログイン失敗回数とロック状態をリセット
+          if (user.loginAttempts > 0 || user.lockedUntil) {
+            await prisma.users.update({
+              where: { id: user.id },
+              data: {
+                loginAttempts: 0,
+                lockedUntil: null,
+              },
+            });
+          }
+
           // 認証成功
           console.log(`認証成功: ユーザー ${user.email} がログインしました`);
+          
+          // ログイン通知を送信（非同期、エラーは無視）
+          // 注意: リクエストオブジェクトは利用できないため、通知は別途APIエンドポイントで処理
+          // クライアント側で /api/auth/login-notification を呼び出すことを推奨
+          
           return {
             id: user.id.toString(),
             email: user.email,
@@ -293,7 +347,7 @@ export function getAuthOptions(): NextAuthOptions {
           };
         } catch (error) {
           console.error('認証処理中にエラーが発生しました:', error);
-          // エラーを再スロー (停止エラーはクライアント側で処理)
+          // エラーを再スロー (停止エラー、ロックエラー、メール認証エラーはクライアント側で処理)
           throw error;
         }
       },
@@ -365,6 +419,14 @@ export function getAuthOptions(): NextAuthOptions {
             newNickname = `${newNickname}_${randomBytes(4).toString('hex')}`;
           }
 
+          // 管理者メールアドレスリスト（環境変数で設定可能）
+          const adminEmails = (process.env.ADMIN_EMAILS || 'sc9985@naver.com,namoai.namos@gmail.com')
+            .split(',')
+            .map(e => e.trim().toLowerCase());
+          
+          // メールアドレスが管理者リストに含まれているかチェック
+          const isAdmin = adminEmails.includes(email.toLowerCase());
+
           await prisma.users.create({
             data: {
               email,
@@ -376,8 +438,10 @@ export function getAuthOptions(): NextAuthOptions {
               declaredAdult: null,
               dateOfBirth: null,
               needsProfileCompletion: true,
+              role: isAdmin ? 'ADMIN' : 'USER', // ✅ 管理者として設定
             },
           });
+          console.log(`[signIn] New user created: ${email}, role: ${isAdmin ? 'ADMIN' : 'USER'}, needsProfileCompletion=true`);
           // ✅ 修正: URL文字列ではなくtrueを返してJWT/セッション生成を許可
           // リダイレクトはクライアント側で needsProfileCompletion をチェックして実施
           console.log(`[signIn] New user created: ${email}, needsProfileCompletion=true`);
@@ -417,11 +481,18 @@ export function getAuthOptions(): NextAuthOptions {
         const prisma = await getPrismaInstance();
         const dbUser = await prisma.users.findUnique({
           where: { id: parseInt(user.id, 10) },
+          select: {
+            nickname: true,
+            role: true,
+            needsProfileCompletion: true,
+            twoFactorEnabled: true,
+          },
         });
         if (dbUser) {
             typedToken.nickname = dbUser.nickname;
             typedToken.role = dbUser.role;
             typedToken.needsProfileCompletion = dbUser.needsProfileCompletion;
+            typedToken.twoFactorEnabled = dbUser.twoFactorEnabled;
         }
       }
       // remember me 정보는 user 객체에서 전달받을 수 없으므로,
@@ -436,6 +507,7 @@ export function getAuthOptions(): NextAuthOptions {
           nickname?: string;
           role?: string;
           needsProfileCompletion?: boolean;
+          twoFactorEnabled?: boolean;
         };
         // トークンからユーザー情報を取得
         session.user.id = typedToken.id;

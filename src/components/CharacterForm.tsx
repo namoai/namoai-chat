@@ -15,7 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { X, Plus, Trash2, GripVertical, ArrowLeft, Save, Download, Sparkles } from "lucide-react";
-import { uploadImageToStorage } from "@/lib/supabase-client";
+import { uploadImageToStorage } from "@/lib/cloudflare-images";
 import { fetchWithCsrf } from "@/lib/csrf-client";
 import { PromptKeywordSelector } from "@/components/ImagePromptKeywords";
 

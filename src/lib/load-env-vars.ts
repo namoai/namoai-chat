@@ -4,8 +4,24 @@
 // Server-side only (uses Node.js modules)
 
 'use server';
-import 'server-only';
-// This module must only run on the server (uses Node built-ins)
+
+// サーバーサイドでのみ実行されることを保証
+// Ensure this only runs on the server
+if (typeof window !== 'undefined') {
+  throw new Error('load-env-vars.ts is server-only and cannot be imported in client components');
+}
+
+// server-only パッケージがインストールされている場合のみインポート
+// Only import server-only package if installed
+try {
+  require('server-only');
+} catch {
+  // server-only パッケージがない場合は警告のみ
+  // Only warn if server-only package is not installed
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('[load-env-vars] server-only package not found, but this is server-only code');
+  }
+}
 
 let envVarsLoaded = false;
 
@@ -40,8 +56,6 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
     'GOOGLE_CLIENT_SECRET', 
     'NEXTAUTH_SECRET', 
     'DATABASE_URL',
-    'SUPABASE_URL',
-    'SUPABASE_SERVICE_ROLE_KEY',
     'OPENAI_API_KEY',
     'GOOGLE_PROJECT_ID',
     'STRIPE_SECRET_KEY',

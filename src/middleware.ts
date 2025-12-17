@@ -3,10 +3,29 @@ import { NextResponse } from "next/server";
 import { applyCorsHeaders, handlePreflight, isApiRoute } from "@/lib/cors";
 import { logger } from "@/lib/logger";
 import { createErrorResponse, ErrorCode } from "@/lib/error-handler";
+import { checkAdminAccess } from "@/lib/security/ip-restriction";
+import { isIpBlocked } from "@/lib/security/suspicious-ip";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const startTime = Date.now();
+
+  // 管理者ページへのアクセス制限（Basic認証のみ）
+  if (pathname.startsWith('/admin')) {
+    const adminCheck = checkAdminAccess(request);
+    if (adminCheck) {
+      return adminCheck;
+    }
+  }
+
+  // 疑わしいIPアドレスのブロックチェック
+  const ip = getClientIp(request);
+  if (await isIpBlocked(ip)) {
+    return NextResponse.json(
+      { error: 'アクセスが拒否されました。' },
+      { status: 403 }
+    );
+  }
 
   // APIルート以外はスキップ
   if (!isApiRoute(pathname)) {

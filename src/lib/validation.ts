@@ -26,7 +26,6 @@ export const registerSchema = z.object({
     .string()
     .optional()
     .refine((value) => !value || !isNaN(Date.parse(value)), "生年月日が不正です。"),
-  ageConfirmation: z.enum(["adult", "minor"], { required_error: "年齢区分を選択してください。" }),
 });
 
 // パスワード変更用スキーマ

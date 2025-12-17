@@ -14,8 +14,10 @@ type ModalState = {
   isOpen: boolean;
   title: string;
   message: string;
-  onConfirm?: () => void;
+  onConfirm?: () => void | Promise<void>;
+  onCancel?: () => void;
   confirmText?: string;
+  cancelText?: string;
   isAlert?: boolean;
 };
 
@@ -31,8 +33,19 @@ const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalSta
     <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex justify-center items-center">
       <div className="bg-gray-800 rounded-lg p-6 w-full max-w-sm m-4">
         <h2 className="text-xl font-bold mb-4 text-white">{modalState.title}</h2>
-        <p className="text-gray-200 mb-6">{modalState.message}</p>
+        <p className="text-gray-200 mb-6 whitespace-pre-line">{modalState.message}</p>
         <div className="flex justify-end gap-4">
+          {!modalState.isAlert && modalState.onCancel && (
+            <button 
+              onClick={() => {
+                modalState.onCancel?.();
+                setModalState({ ...modalState, isOpen: false });
+              }}
+              className="px-4 py-2 bg-gray-600 text-white hover:bg-gray-500 rounded-lg transition-colors"
+            >
+              {modalState.cancelText || 'キャンセル'}
+            </button>
+          )}
           <button 
             onClick={handleConfirm} 
             className="px-4 py-2 bg-pink-600 text-white hover:bg-pink-500 rounded-lg transition-colors"
@@ -58,6 +71,23 @@ function LoginComponent() {
   useEffect(() => {
     const error = searchParams.get("error");
     const timeout = searchParams.get("timeout");
+    const verified = searchParams.get("verified");
+    
+    // メール認証完了の処理
+    if (verified === "true") {
+      setModalState({
+        isOpen: true,
+        title: "メール認証完了",
+        message: "メールアドレスの認証が完了しました。\nログインしてサービスをご利用ください。",
+        isAlert: true,
+        confirmText: "OK",
+        onConfirm: () => {
+          // URLからverifiedパラメータを削除
+          router.replace('/login', { scroll: false });
+        }
+      });
+      return;
+    }
     
     // セッションタイムアウトの処理
     if (timeout === "true") {
@@ -148,6 +178,81 @@ function LoginComponent() {
           return;
         }
         // ▲▲▲ 停止エラー処理完了 ▲▲▲
+
+        // ▼▼▼【新機能】アカウントロックエラーの処理 ▼▼▼
+        if (result.error.startsWith('LOCKED:')) {
+          const message = result.error.replace('LOCKED:', '');
+          setModalState({
+            isOpen: true,
+            title: "アカウントがロックされました",
+            message: `${message}\n\nセキュリティのため、ログインに複数回失敗した場合、一時的にアカウントがロックされます。`,
+            isAlert: true,
+            confirmText: "OK",
+            onConfirm: () => {
+              setModalState({ ...modalState, isOpen: false });
+            }
+          });
+          return;
+        }
+        // ▲▲▲ ロックエラー処理完了 ▲▲▲
+
+        // ▼▼▼【新機能】メール認証エラーの処理（再送信機能付き）▼▼▼
+        if (result.error.startsWith('EMAIL_NOT_VERIFIED:')) {
+          const message = result.error.replace('EMAIL_NOT_VERIFIED:', '');
+          setModalState({
+            isOpen: true,
+            title: "メールアドレス認証が必要です",
+            message: `${message}\n\n認証メールが届いていない場合は、再送信をお試しください。`,
+            isAlert: false,
+            confirmText: "再送信",
+            cancelText: "閉じる",
+            onConfirm: async () => {
+              // 認証メール再送信
+              try {
+                const resendResponse = await fetch('/api/auth/verify-email', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email }),
+                });
+                const resendData = await resendResponse.json();
+                if (resendResponse.ok) {
+                  setModalState({
+                    isOpen: true,
+                    title: "認証メールを再送信しました",
+                    message: "メールボックスを確認してください。",
+                    isAlert: true,
+                    confirmText: "OK",
+                    onConfirm: () => setModalState({ ...modalState, isOpen: false }),
+                  });
+                } else {
+                  setModalState({
+                    isOpen: true,
+                    title: "エラー",
+                    message: resendData.error || "認証メールの再送信に失敗しました。",
+                    isAlert: true,
+                    confirmText: "OK",
+                    onConfirm: () => setModalState({ ...modalState, isOpen: false }),
+                  });
+                }
+              } catch (error) {
+                console.error('再送信エラー:', error);
+                setModalState({
+                  isOpen: true,
+                  title: "エラー",
+                  message: "認証メールの再送信に失敗しました。",
+                  isAlert: true,
+                  confirmText: "OK",
+                  onConfirm: () => setModalState({ ...modalState, isOpen: false }),
+                });
+              }
+            },
+            onCancel: () => {
+              setModalState({ ...modalState, isOpen: false });
+            }
+          });
+          return;
+        }
+        // ▲▲▲ メール認証エラー処理完了 ▲▲▲
         
         // 通常の認証失敗の場合
         setModalState({

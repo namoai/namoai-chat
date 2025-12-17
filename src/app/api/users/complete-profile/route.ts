@@ -76,11 +76,15 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: '不正なリクエストです。' }, { status: 400 });
   }
 
+  const name = sanitizeString(payload.name || '');
   const nickname = sanitizeString(payload.nickname || '');
   const phone = sanitizeString(payload.phone || '');
   const ageConfirmation = payload.ageConfirmation;
   const birthdate = payload.birthdate || null;
 
+  if (!name || name.trim().length === 0) {
+    return NextResponse.json({ error: '氏名を入力してください。' }, { status: 400 });
+  }
   if (!nickname || nickname.length < 2 || nickname.length > 12) {
     return NextResponse.json({ error: 'ニックネームは2〜12文字で入力してください。' }, { status: 400 });
   }
@@ -102,6 +106,7 @@ export async function PUT(request: Request) {
     const updated = await prisma.users.update({
       where: { id: userId },
       data: {
+        name,
         nickname,
         phone,
         dateOfBirth: ageInfo.date,

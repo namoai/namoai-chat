@@ -59,6 +59,9 @@ const LoggedInView = ({ session }: { session: Session }) => {
   const [ageStatus, setAgeStatus] = useState<{ isMinor: boolean; source?: string } | null>(null);
   const [modalState, setModalState] = useState<Omit<ModalProps, 'onClose'>>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  // 生年月日入力モーダル用の状態
+  const [showBirthdateModal, setShowBirthdateModal] = useState(false);
+  const [birthdate, setBirthdate] = useState({ year: '', month: '', day: '' });
 
   const userRole = session?.user?.role;
   const isAdmin = userRole && userRole !== 'USER';
@@ -114,15 +117,24 @@ const LoggedInView = ({ session }: { session: Session }) => {
 
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
-  const updateSafetyFilter = async (newStatus: boolean) => {
+  const updateSafetyFilter = async (newStatus: boolean, birthdateValue?: string) => {
     try {
+      const body: { safetyFilter: boolean; birthdate?: string } = { safetyFilter: newStatus };
+      if (birthdateValue) {
+        body.birthdate = birthdateValue;
+      }
+
       const response = await fetch('/api/users/safety-filter', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ safetyFilter: newStatus }),
+        body: JSON.stringify(body),
         cache: 'no-store', // キャッシュを無効化
       });
-      if (!response.ok) throw new Error('設定の変更に失敗しました。');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '設定の変更に失敗しました。');
+      }
 
       const data = await response.json();
       // nullの場合はtrue（フィルターON）として処理、即座に反映
@@ -142,10 +154,11 @@ const LoggedInView = ({ session }: { session: Session }) => {
       });
     } catch (error) {
       console.error(error);
+      const errorMessage = error instanceof Error ? error.message : 'エラーが発生しました。';
       setModalState({
         isOpen: true,
         title: 'エラー',
-        message: 'エラーが発生しました。',
+        message: errorMessage,
         onConfirm: closeModal,
         isAlert: true,
       });
@@ -167,16 +180,17 @@ const LoggedInView = ({ session }: { session: Session }) => {
     }
     
     if (isSafetyFilterOn) {
-      // ON → OFF: 年齢確認 + 法律上の確認
+      // ON → OFF: 年齢確認モーダル（画像のようにシンプルに）
       setModalState({
         isOpen: true,
-        title: "年齢確認および法律上の確認",
-        message: "あなたは成人ですか？\n\n「はい」を選択すると、成人向けコンテンツが表示される可能性があります。\n\n日本の法律に従い、18歳以上の成人であることを確認してください。この設定を変更することにより、成人向けコンテンツへのアクセスが可能になります。",
-        confirmText: "はい（18歳以上です）",
+        title: "年齢確認",
+        message: "あなたは18歳以上ですか？\n\n18歳未満の方は\n安心フィルターをオフできません",
+        confirmText: "はい",
         cancelText: "いいえ",
         onConfirm: () => {
           closeModal();
-          updateSafetyFilter(false);
+          // 生年月日入力モーダルを表示
+          setShowBirthdateModal(true);
         },
       });
     } else {
@@ -193,6 +207,77 @@ const LoggedInView = ({ session }: { session: Session }) => {
         },
       });
     }
+  };
+
+  const handleBirthdateSubmit = () => {
+    // バリデーション
+    const year = parseInt(birthdate.year, 10);
+    const month = parseInt(birthdate.month, 10);
+    const day = parseInt(birthdate.day, 10);
+
+    if (!year || !month || !day) {
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: '生年月日を正しく入力してください。',
+        onConfirm: closeModal,
+        isAlert: true,
+      });
+      return;
+    }
+
+    if (year < 1900 || year > new Date().getFullYear()) {
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: '年が不正です。',
+        onConfirm: closeModal,
+        isAlert: true,
+      });
+      return;
+    }
+
+    if (month < 1 || month > 12) {
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: '月が不正です。',
+        onConfirm: closeModal,
+        isAlert: true,
+      });
+      return;
+    }
+
+    if (day < 1 || day > 31) {
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: '日が不正です。',
+        onConfirm: closeModal,
+        isAlert: true,
+      });
+      return;
+    }
+
+    // 日付の妥当性チェック
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dateObj = new Date(dateStr);
+    if (isNaN(dateObj.getTime()) || dateObj > new Date()) {
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: '正しい生年月日を入力してください。',
+        onConfirm: closeModal,
+        isAlert: true,
+      });
+      return;
+    }
+
+    // 生年月日を送信
+    setShowBirthdateModal(false);
+    updateSafetyFilter(false, dateStr);
+    // リセット
+    setBirthdate({ year: '', month: '', day: '' });
   };
 
   const handleLogout = () => {
@@ -280,6 +365,83 @@ const LoggedInView = ({ session }: { session: Session }) => {
   return (
     <>
       <CustomModal {...modalState} onClose={closeModal} />
+      
+      {/* 生年月日入力モーダル */}
+      {showBirthdateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-black">年齢確認</h2>
+              <button
+                onClick={() => {
+                  setShowBirthdateModal(false);
+                  setBirthdate({ year: '', month: '', day: '' });
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            
+            <p className="text-sm text-gray-700 mb-4">
+              年齢確認のため、生年月日をご入力ください
+            </p>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                生年月日<span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="YYYY"
+                  maxLength={4}
+                  value={birthdate.year}
+                  onChange={(e) => setBirthdate({ ...birthdate, year: e.target.value.replace(/\D/g, '') })}
+                  className="flex-1 border border-gray-300 rounded px-3 py-2 text-gray-900 focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                />
+                <input
+                  type="text"
+                  placeholder="MM"
+                  maxLength={2}
+                  value={birthdate.month}
+                  onChange={(e) => setBirthdate({ ...birthdate, month: e.target.value.replace(/\D/g, '').slice(0, 2) })}
+                  className="w-20 border border-gray-300 rounded px-3 py-2 text-gray-900 focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                />
+                <input
+                  type="text"
+                  placeholder="DD"
+                  maxLength={2}
+                  value={birthdate.day}
+                  onChange={(e) => setBirthdate({ ...birthdate, day: e.target.value.replace(/\D/g, '').slice(0, 2) })}
+                  className="w-20 border border-gray-300 rounded px-3 py-2 text-gray-900 focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                />
+              </div>
+            </div>
+            
+            <div className="mb-6 space-y-3 text-xs text-gray-700 leading-relaxed">
+              <div className="flex items-start gap-2">
+                <span className="text-pink-500 font-bold mt-0.5">●</span>
+                <p className="flex-1">ご入力いただいた生年月日は、セーフティフィルター設定の変更に必要な情報として記録されます。一度登録した生年月日情報は、セキュリティ上の理由により、後から変更することはできません。</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-pink-500 font-bold mt-0.5">●</span>
+                <p className="flex-1">本サービスは、利用規約第9条に定めるとおり、年齢を偽って登録した場合、予告なくアカウントを削除する場合があります。年齢を偽って登録されたことにより生じた一切の不利益（サービス利用の制限、アカウント削除、法的責任等を含む）について、当社は責任を負いかねます。あらかじめご了承ください。</p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end">
+              <button
+                onClick={handleBirthdateSubmit}
+                className="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+              >
+                確認
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="fixed top-4 right-4 z-10 sm:top-4 sm:right-4">
         <button
           onClick={() => setIsHelpOpen(true)}

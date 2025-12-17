@@ -104,16 +104,12 @@ function ensurePreparedStatementsDisabled(url: string): string {
   // RDSを使用しているか確認（.rds.amazonaws.comドメイン）
   const isRDS = url.includes('.rds.amazonaws.com');
   
-  // Supabaseを使用しているか確認（.supabase.coドメイン）- 後方互換性のため
-  const isSupabase = url.includes('.supabase.co');
-  
   // Connection Poolingを使用しているか確認（ポート6543またはpgbouncer=true）
   const isConnectionPooling = url.includes(':6543') || url.includes('pgbouncer=true');
   
   console.log('[Prisma] Checking database connection:', {
     urlPreview: url.substring(0, 100) + '...',
     isRDS,
-    isSupabase,
     hasPort6543: url.includes(':6543'),
     hasPort5432: url.includes(':5432'),
     hasPgbouncer: url.includes('pgbouncer=true'),
@@ -121,8 +117,8 @@ function ensurePreparedStatementsDisabled(url: string): string {
   });
   
   // RDSの場合はSSL接続を推奨（必要に応じて設定）
-  // SupabaseまたはConnection Poolingを使用する場合、設定を追加
-  if (isSupabase || isConnectionPooling) {
+  // Connection Poolingを使用する場合、設定を追加
+  if (isConnectionPooling) {
     let newUrl = url;
     const separator = newUrl.includes('?') ? '&' : '?';
     
@@ -212,7 +208,6 @@ async function createPrisma(): Promise<PrismaClient> {
       const dbUrl = url.includes('@') ? url.split('@')[1] : url;
       console.error('[Prisma] ⚠️ Connection failed to:', dbUrl);
       console.error('[Prisma] 💡 Recommendation: Use Connection Pooling (port 6543) instead of direct connection (port 5432)');
-      console.error('[Prisma] 💡 Get Connection Pooling URL from Supabase Dashboard → Settings → Database → Connection string → Connection pooling');
     }
     
     await instance.$disconnect().catch(() => {}); // エラーを無視

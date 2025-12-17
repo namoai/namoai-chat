@@ -26,6 +26,9 @@ type User = {
   suspensionReason?: string | null;
   phone?: string | null;
   bio?: string | null;
+  emailVerified?: string | null; // ✅ メール認証状態を追加
+  lockedUntil?: string | null; // ✅ アカウントロック期限を追加
+  loginAttempts?: number; // ✅ ログイン失敗回数を追加
 };
 
 type ModalState = {
@@ -182,7 +185,9 @@ export default function AdminUsersPage() {
     }
 
     try {
-      const response = await fetch('/api/admin/users/suspend', {
+      // ✅ fetchWithCsrf を使用してCSRFトークンを自動的に含める
+      const { fetchWithCsrf } = await import('@/lib/csrf-client');
+      const response = await fetchWithCsrf('/api/admin/users/suspend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -214,7 +219,9 @@ export default function AdminUsersPage() {
       confirmText: '解除',
       onConfirm: async () => {
         try {
-          const response = await fetch('/api/admin/users/suspend', {
+          // ✅ fetchWithCsrf を使用してCSRFトークンを自動的に含める
+          const { fetchWithCsrf } = await import('@/lib/csrf-client');
+          const response = await fetchWithCsrf('/api/admin/users/suspend', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId }),
@@ -236,6 +243,74 @@ export default function AdminUsersPage() {
   };
   // ▲▲▲ 停止機能完了 ▲▲▲
 
+  // ▼▼▼【新機能】メール認証切り替え機能 ▼▼▼
+  const handleToggleEmailVerified = async (userId: number, currentlyVerified: boolean) => {
+    const action = currentlyVerified ? '未認証' : '認証済み';
+    setModalState({
+      isOpen: true,
+      title: '確認',
+      message: `このユーザーのメール認証状態を「${action}」に変更しますか？`,
+      confirmText: '変更',
+      onConfirm: async () => {
+        try {
+          // ✅ fetchWithCsrf を使用してCSRFトークンを自動的に含める
+          const { fetchWithCsrf } = await import('@/lib/csrf-client');
+          const response = await fetchWithCsrf('/api/admin/users/verify-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, verified: !currentlyVerified }),
+          });
+
+          if (response.ok) {
+            setModalState({ isOpen: true, title: '成功', message: `メール認証状態を「${action}」に変更しました。`, isAlert: true });
+            fetchUsers(searchQuery);
+          } else {
+            const data = await response.json();
+            setModalState({ isOpen: true, title: 'エラー', message: `変更に失敗しました: ${data.error}`, isAlert: true });
+          }
+        } catch (error) {
+          console.error('メール認証変更エラー:', error);
+          setModalState({ isOpen: true, title: 'エラー', message: 'メール認証変更処理中にエラーが発生しました。', isAlert: true });
+        }
+      },
+      onCancel: () => setModalState({ ...modalState, isOpen: false }),
+    });
+  };
+  // ▲▲▲ メール認証切り替え機能完了 ▲▲▲
+
+  // ▼▼▼【新機能】アカウントロック解除機能 ▼▼▼
+  const handleUnlock = async (userId: number, userName: string) => {
+    setModalState({
+      isOpen: true,
+      title: '確認',
+      message: `「${userName}」のアカウントロックを解除しますか？`,
+      confirmText: '解除',
+      onConfirm: async () => {
+        try {
+          const { fetchWithCsrf } = await import('@/lib/csrf-client');
+          const response = await fetchWithCsrf('/api/admin/users/unlock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+          });
+
+          if (response.ok) {
+            setModalState({ isOpen: true, title: '成功', message: 'アカウントのロックを解除しました。', isAlert: true });
+            fetchUsers(searchQuery);
+          } else {
+            const data = await response.json();
+            setModalState({ isOpen: true, title: 'エラー', message: `解除に失敗しました: ${data.error}`, isAlert: true });
+          }
+        } catch (error) {
+          console.error('ロック解除エラー:', error);
+          setModalState({ isOpen: true, title: 'エラー', message: '解除処理中にエラーが発生しました。', isAlert: true });
+        }
+      },
+      onCancel: () => setModalState({ ...modalState, isOpen: false }),
+    });
+  };
+  // ▲▲▲ アカウントロック解除機能完了 ▲▲▲
+
   // ▼▼▼【新機能】ユーザー削除機能 ▼▼▼
   const handleDeleteUser = async (userId: number, userName: string) => {
     setModalState({
@@ -245,7 +320,9 @@ export default function AdminUsersPage() {
       confirmText: '削除',
       onConfirm: async () => {
         try {
-          const response = await fetch('/api/admin/users/delete', {
+          // ✅ fetchWithCsrf を使用してCSRFトークンを自動的に含める
+          const { fetchWithCsrf } = await import('@/lib/csrf-client');
+          const response = await fetchWithCsrf('/api/admin/users/delete', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId }),
@@ -262,7 +339,9 @@ export default function AdminUsersPage() {
           console.error('ユーザー削除エラー:', error);
           setModalState({ isOpen: true, title: 'エラー', message: '削除処理中にエラーが発生しました。', isAlert: true });
         }
-      }
+      },
+      // ✅ キャンセルボタンも表示して、誤操作を防ぐ
+      onCancel: () => setModalState({ ...modalState, isOpen: false }),
     });
   };
   // ▲▲▲ 削除機能完了 ▲▲▲
@@ -595,6 +674,7 @@ export default function AdminUsersPage() {
                 <th className="p-4">メールアドレス</th>
                 <th className="p-4">登録日</th>
                 <th className="p-4">役割</th>
+                <th className="p-4">メール認証</th>
                 <th className="p-4">状態</th>
                 <th className="p-4">操作</th>
               </tr>
@@ -602,6 +682,7 @@ export default function AdminUsersPage() {
             <tbody>
               {users.map(user => {
                 const isSuspended = user.suspendedUntil && new Date(user.suspendedUntil) > new Date();
+                const isLocked = user.lockedUntil && new Date(user.lockedUntil) > new Date();
                 return (
                   <tr key={user.id} className="border-b border-gray-800 hover:bg-gray-800/50">
                     <td className="p-4 whitespace-nowrap">{user.id}</td>
@@ -630,11 +711,31 @@ export default function AdminUsersPage() {
                       </select>
                     </td>
                     <td className="p-4 whitespace-nowrap">
+                      <button
+                        onClick={() => handleToggleEmailVerified(user.id, !!user.emailVerified)}
+                        className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                          user.emailVerified
+                            ? 'bg-green-600 hover:bg-green-700 text-white'
+                            : 'bg-gray-600 hover:bg-gray-700 text-white'
+                        }`}
+                        title={user.emailVerified ? `認証済み: ${new Date(user.emailVerified).toLocaleDateString('ja-JP')}` : '未認証'}
+                      >
+                        {user.emailVerified ? '✓ 認証済み' : '未認証'}
+                      </button>
+                    </td>
+                    <td className="p-4 whitespace-nowrap">
+                      <div className="flex flex-col gap-1">
                       {isSuspended ? (
                         <span className="text-xs bg-red-600 text-white px-2 py-1 rounded-full">停止中</span>
                       ) : (
                         <span className="text-xs bg-green-600 text-white px-2 py-1 rounded-full">正常</span>
                       )}
+                        {isLocked && (
+                          <span className="text-xs bg-orange-600 text-white px-2 py-1 rounded-full" title={`ロック中 (失敗回数: ${user.loginAttempts || 0})`}>
+                            ロック中
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-4">
                       <div className="flex gap-2 flex-nowrap min-w-[200px]">
@@ -644,6 +745,15 @@ export default function AdminUsersPage() {
                         >
                           編集
                         </button>
+                        {isLocked && (
+                          <button 
+                            onClick={() => handleUnlock(user.id, user.name)}
+                            className="bg-orange-600 hover:bg-orange-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap flex-shrink-0"
+                            title="アカウントロックを解除"
+                          >
+                            ロック解除
+                          </button>
+                        )}
                         {isSuspended ? (
                           <button 
                             onClick={() => handleUnsuspend(user.id)}

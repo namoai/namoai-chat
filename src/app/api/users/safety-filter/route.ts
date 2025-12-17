@@ -48,9 +48,9 @@ export async function PUT(request: NextRequest) {
   const userId = parseInt(session.user.id, 10);
 
   try {
-    const parseResult = await safeJsonParse<{ safetyFilter: boolean }>(request);
+    const parseResult = await safeJsonParse<{ safetyFilter: boolean; birthdate?: string }>(request);
     if (!parseResult.success) return parseResult.error;
-    const { safetyFilter } = parseResult.data;
+    const { safetyFilter, birthdate } = parseResult.data;
     
     if (typeof safetyFilter !== 'boolean') {
       return NextResponse.json({ error: '無効な値です。' }, { status: 400 });
@@ -64,6 +64,50 @@ export async function PUT(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'ユーザーが見つかりません。' }, { status: 404 });
     }
+
+    // セーフティフィルターをOFFにする場合
+    if (safetyFilter === false) {
+      let birthdateValue: Date | null = null;
+      let declaredAdultValue: boolean | null = null;
+
+      // 生年月日が提供された場合
+      if (birthdate) {
+        birthdateValue = new Date(birthdate);
+        if (isNaN(birthdateValue.getTime()) || birthdateValue > new Date()) {
+          return NextResponse.json({ error: '生年月日が不正です。' }, { status: 400 });
+        }
+
+        // 年齢計算
+        const today = new Date();
+        let age = today.getFullYear() - birthdateValue.getFullYear();
+        const monthDiff = today.getMonth() - birthdateValue.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthdateValue.getDate())) {
+          age--;
+        }
+
+        if (age < 18) {
+          return NextResponse.json(
+            { error: '18歳未満のためセーフティフィルターをOFFにできません。' },
+            { status: 403 }
+          );
+        }
+
+        declaredAdultValue = true;
+
+        // ✅ 成人認証情報を保存（証明文書用）
+        await prisma.users.update({
+          where: { id: userId },
+          data: {
+            safetyFilter: false,
+            dateOfBirth: birthdateValue,
+            declaredAdult: declaredAdultValue,
+            adultVerificationDate: new Date(), // 成人認証実施日時
+            adultVerificationBirthdate: birthdateValue, // 成人認証時に入力した生年月日
+            adultVerificationAgreed: true, // 成人認証時の同意内容
+          },
+        });
+      } else {
+        // 生年月日が提供されていない場合、既存の情報を確認
     const { ageStatus } = resolveSafetyFilter(user);
     if (ageStatus.isMinor) {
       return NextResponse.json(
@@ -71,11 +115,21 @@ export async function PUT(request: NextRequest) {
         { status: 403 }
       );
     }
-
+        // 既存の情報を使用（既に成人認証済みの場合）
+        await prisma.users.update({
+          where: { id: userId },
+          data: {
+            safetyFilter: false,
+          },
+        });
+      }
+    } else {
+      // セーフティフィルターをONにする場合（既存のロジック）
     await prisma.users.update({
       where: { id: userId },
-      data: { safetyFilter: safetyFilter },
+        data: { safetyFilter: true },
     });
+    }
 
     return NextResponse.json({ success: true, safetyFilter });
   } catch (error) {

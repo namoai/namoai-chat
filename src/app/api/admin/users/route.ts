@@ -46,6 +46,9 @@ export async function GET(request: NextRequest) {
         suspensionReason: true,
         phone: true,
         bio: true,
+        emailVerified: true, // ✅ メール認証状態を追加
+        lockedUntil: true, // ✅ アカウントロック期限を追加
+        loginAttempts: true, // ✅ ログイン失敗回数を追加
       },
     });
     return NextResponse.json(users);

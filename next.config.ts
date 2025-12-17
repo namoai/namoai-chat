@@ -6,7 +6,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline';",
   "img-src 'self' data: blob: https:;",
   "font-src 'self' data:;",
-  "connect-src 'self' https://*.supabase.co https://*.upstash.io https://*.googleapis.com https://accounts.google.com https://www.googleapis.com https://vertex.googleapis.com ws:;",
+  "connect-src 'self' https://*.upstash.io https://*.googleapis.com https://accounts.google.com https://www.googleapis.com https://vertex.googleapis.com ws:;",
   "media-src 'self' blob: data:;",
   "frame-src 'self' https://accounts.google.com;",
   "object-src 'none';",
@@ -78,35 +78,13 @@ const nextConfig: NextConfig = {
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
-        'fs/promises': false,
         path: false,
-        'node:fs': false,
-        'node:fs/promises': false,
-        'node:path': false,
       };
-      // load-env-vars.ts를 클라이언트 번들에서 완전히 제외
-      // Completely exclude load-env-vars.ts from client bundle
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        '@/lib/load-env-vars': false,
-      };
-      // externals에 추가하여 클라이언트 번들에서 제외
-      // Add to externals to exclude from client bundle
-      if (!config.externals) {
-        config.externals = [];
-      }
-      if (Array.isArray(config.externals)) {
-        config.externals.push('@/lib/load-env-vars');
-      }
-    } else {
-      // 서버 사이드에서는 node: 프리픽스를 처리하기 위한 설정
-      // Server-side configuration to handle node: prefix
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        'node:fs': 'fs',
-        'node:fs/promises': 'fs/promises',
-        'node:path': 'path',
-      };
+      // Ignore warnings for fs/path in client bundle (they're server-only)
+      config.ignoreWarnings = [
+        ...(config.ignoreWarnings || []),
+        { message: /Can't resolve '(fs|path)'/ },
+      ];
     }
     return config;
   },
