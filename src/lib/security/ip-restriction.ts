@@ -127,5 +127,9 @@ export function getClientIp(request: NextRequest): string {
     return realIp.trim();
   }
   
-  return request.ip || 'unknown';
+  // NOTE:
+  // Some platforms may populate `request.ip` at runtime, but NextRequest's public TypeScript type
+  // does not include it, which breaks `next build` type-checking in CI (e.g. Amplify).
+  // Stick to header-based extraction to keep builds stable.
+  return 'unknown';
 }
