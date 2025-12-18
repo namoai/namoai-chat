@@ -8,6 +8,13 @@ import { authOptions } from '@/lib/nextauth';
 import { Role } from '@prisma/client';
 import { getClientIpFromRequest, isLocalOrPrivateIp } from '@/lib/security/client-ip';
 
+function pickHeader(request: NextRequest, name: string): string | null {
+  const v = request.headers.get(name);
+  if (!v) return null;
+  const t = v.trim();
+  return t.length > 0 ? t : null;
+}
+
 /**
  * IP観察データを取得
  * GET /api/admin/ip-monitor
@@ -27,6 +34,23 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '100', 10);
 
     const prisma = await getPrisma();
+
+    const resolvedIp = getClientIpFromRequest(request);
+    const ipDebug = {
+      resolvedIp,
+      // Common proxy/CDN headers
+      cfConnectingIp: pickHeader(request, 'cf-connecting-ip'),
+      trueClientIp: pickHeader(request, 'true-client-ip'),
+      xForwardedFor: pickHeader(request, 'x-forwarded-for'),
+      xRealIp: pickHeader(request, 'x-real-ip'),
+      forwarded: pickHeader(request, 'forwarded'),
+      cloudfrontViewerAddress: pickHeader(request, 'cloudfront-viewer-address'),
+      // AWS/CloudFront hints (safe)
+      via: pickHeader(request, 'via'),
+      xAmznTraceId: pickHeader(request, 'x-amzn-trace-id'),
+      xAmzCfId: pickHeader(request, 'x-amz-cf-id'),
+      host: pickHeader(request, 'host'),
+    };
 
     // ユーザー検索（ID、メール、ニックネームで検索）
     if (userId || email || nickname || searchQuery) {
@@ -105,7 +129,7 @@ export async function GET(request: NextRequest) {
       });
 
       // NOTE: This is the IP of the *admin's current request*, not the searched user's IP.
-      const currentIp = getClientIpFromRequest(request);
+      const currentIp = resolvedIp;
 
       return NextResponse.json({
         user: {
@@ -121,6 +145,7 @@ export async function GET(request: NextRequest) {
           createdAt: s.expires, // 簡易実装
         })),
         currentIp, // 現在のリクエストIP
+        ipDebug,
         // Access logs are stored by middleware in api_access_logs
         accessLogs: [], // filled below (best-effort)
         message: 'セッション情報を表示しています。',
@@ -213,6 +238,7 @@ export async function GET(request: NextRequest) {
         })),
         ipStats,
         internalIpStats,
+        ipDebug,
         message: '現在アクティブなセッション情報と、直近24時間のAPIアクセスIP統計を表示しています。',
       });
     }

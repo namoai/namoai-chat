@@ -24,6 +24,19 @@ type UserIPInfo = {
     createdAt: string;
   }>;
   currentIp?: string;
+  ipDebug?: {
+    resolvedIp: string;
+    cfConnectingIp: string | null;
+    trueClientIp: string | null;
+    xForwardedFor: string | null;
+    xRealIp: string | null;
+    forwarded: string | null;
+    cloudfrontViewerAddress: string | null;
+    via: string | null;
+    xAmznTraceId: string | null;
+    xAmzCfId: string | null;
+    host: string | null;
+  };
   accessLogs: AccessLog[];
   message?: string;
 };
@@ -61,6 +74,7 @@ export default function IPMonitorPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [recentSessions, setRecentSessions] = useState<SessionInfo[]>([]);
   const [showUserList, setShowUserList] = useState(false);
+  const [ipDebug, setIpDebug] = useState<UserIPInfo['ipDebug'] | null>(null);
 
   useEffect(() => {
     fetchIPStats();
@@ -75,6 +89,7 @@ export default function IPMonitorPage() {
         setIpStats(data.ipStats || []);
         setInternalIpStats(data.internalIpStats || []);
         setRecentSessions(data.recentSessions || []);
+        setIpDebug(data.ipDebug || null);
       }
     } catch (error) {
       console.error('IP統計取得エラー:', error);
@@ -111,10 +126,12 @@ export default function IPMonitorPage() {
           setUsers(data.users);
           setShowUserList(true);
           setUserIPInfo(null);
+          setIpDebug(data.ipDebug || null);
         } else {
           // 特定ユーザー情報が返された場合
           setUserIPInfo(data);
           setShowUserList(false);
+          setIpDebug(data.ipDebug || null);
         }
       } else {
         const errorData = await response.json();
@@ -122,6 +139,7 @@ export default function IPMonitorPage() {
         setUserIPInfo(null);
         setUsers([]);
         setShowUserList(false);
+        setIpDebug(null);
       }
     } catch (error) {
       console.error('ユーザーIP取得エラー:', error);
@@ -157,6 +175,62 @@ export default function IPMonitorPage() {
             個人情報保護法に準拠しています。適切に管理してください。
           </p>
         </div>
+
+        {/* IPヘッダーデバッグ（管理者の現在リクエスト） */}
+        {ipDebug && (
+          <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50 mb-6">
+            <h2 className="text-xl font-bold mb-3">IPヘッダーデバッグ（現在の管理者リクエスト）</h2>
+            <p className="text-sm text-gray-400 mb-4">
+              公開IPが出ない場合、ここに <code>x-forwarded-for</code> 等のヘッダが入っているか確認してください。
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-gray-400">resolvedIp</p>
+                <p className="font-mono">{ipDebug.resolvedIp}</p>
+              </div>
+              <div>
+                <p className="text-gray-400">host</p>
+                <p className="font-mono break-all">{ipDebug.host ?? '-'}</p>
+              </div>
+              <div>
+                <p className="text-gray-400">x-forwarded-for</p>
+                <p className="font-mono break-all">{ipDebug.xForwardedFor ?? '-'}</p>
+              </div>
+              <div>
+                <p className="text-gray-400">x-real-ip</p>
+                <p className="font-mono break-all">{ipDebug.xRealIp ?? '-'}</p>
+              </div>
+              <div>
+                <p className="text-gray-400">cloudfront-viewer-address</p>
+                <p className="font-mono break-all">{ipDebug.cloudfrontViewerAddress ?? '-'}</p>
+              </div>
+              <div>
+                <p className="text-gray-400">true-client-ip</p>
+                <p className="font-mono break-all">{ipDebug.trueClientIp ?? '-'}</p>
+              </div>
+              <div>
+                <p className="text-gray-400">cf-connecting-ip</p>
+                <p className="font-mono break-all">{ipDebug.cfConnectingIp ?? '-'}</p>
+              </div>
+              <div>
+                <p className="text-gray-400">forwarded</p>
+                <p className="font-mono break-all">{ipDebug.forwarded ?? '-'}</p>
+              </div>
+              <div>
+                <p className="text-gray-400">via</p>
+                <p className="font-mono break-all">{ipDebug.via ?? '-'}</p>
+              </div>
+              <div>
+                <p className="text-gray-400">x-amz-cf-id</p>
+                <p className="font-mono break-all">{ipDebug.xAmzCfId ?? '-'}</p>
+              </div>
+              <div className="md:col-span-2">
+                <p className="text-gray-400">x-amzn-trace-id</p>
+                <p className="font-mono break-all">{ipDebug.xAmznTraceId ?? '-'}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ユーザー検索 */}
         <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50 mb-6">
