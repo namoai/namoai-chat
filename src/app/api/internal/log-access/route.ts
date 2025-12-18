@@ -4,8 +4,19 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { safeJsonParse } from '@/lib/api-helpers';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/nextauth';
+
+function pickCookie(cookieHeader: string, name: string): string | null {
+  // Very small parser: split by ';', then by '='.
+  const parts = cookieHeader.split(/;\s*/).filter(Boolean);
+  for (const p of parts) {
+    const eq = p.indexOf('=');
+    if (eq <= 0) continue;
+    const k = p.slice(0, eq).trim();
+    if (k !== name) continue;
+    return p.slice(eq + 1).trim() || null;
+  }
+  return null;
+}
 
 /**
  * Internal endpoint used by middleware to persist API access logs for admin IP monitor.
@@ -24,16 +35,27 @@ export async function POST(request: NextRequest) {
   const { ip, userAgent, path, method, statusCode, duration } = parseResult.data;
 
   try {
-    const session = await getServerSession(authOptions);
-    const userId =
-      typeof session?.user?.id === 'number'
-        ? session.user.id
-        : typeof session?.user?.id === 'string'
-          ? Number(session.user.id)
-          : null;
-    const normalizedUserId = Number.isFinite(userId) ? Number(userId) : null;
-
     const prisma = await getPrisma();
+
+    // Resolve userId from NextAuth session cookie (works even when getServerSession isn't reliable here)
+    let normalizedUserId: number | null = null;
+    try {
+      const cookieHeader = request.headers.get('cookie') || '';
+      const token =
+        pickCookie(cookieHeader, '__Secure-next-auth.session-token') ??
+        pickCookie(cookieHeader, 'next-auth.session-token') ??
+        null;
+
+      if (token) {
+        const sessionRow = await prisma.session.findUnique({
+          where: { sessionToken: token },
+          select: { userId: true },
+        });
+        normalizedUserId = sessionRow?.userId ?? null;
+      }
+    } catch {
+      normalizedUserId = null;
+    }
 
     await prisma.$executeRawUnsafe(
       `CREATE TABLE IF NOT EXISTS "api_access_logs" (

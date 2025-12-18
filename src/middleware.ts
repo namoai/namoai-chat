@@ -275,7 +275,11 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
 }
 
 export const config = {
-  matcher: ["/api/:path*", "/admin", "/admin/:path*"],
+  // Run middleware for *all* routes so page navigations are logged too.
+  // Exclude Next.js internals and common static assets to avoid overhead/log spam.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.json|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|map|txt)$).*)",
+  ],
 };
 
 
