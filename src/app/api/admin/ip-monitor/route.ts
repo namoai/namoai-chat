@@ -6,6 +6,7 @@ import { getPrisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { Role } from '@prisma/client';
+import { getClientIpFromRequest, isLocalOrPrivateIp } from '@/lib/security/client-ip';
 
 /**
  * IP観察データを取得
@@ -26,21 +27,6 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '100', 10);
 
     const prisma = await getPrisma();
-
-    // IPアドレス取得関数
-    const getClientIp = (req: NextRequest): string => {
-      const forwarded = req.headers.get('x-forwarded-for');
-      if (forwarded) {
-        return forwarded.split(',')[0].trim();
-      }
-      const realIp = req.headers.get('x-real-ip');
-      if (realIp) {
-        return realIp.trim();
-      }
-      // NextRequest does not expose `ip` in its public TypeScript type.
-      // Treat unknown as unknown; rely on proxy headers in production.
-      return 'unknown';
-    };
 
     // ユーザー検索（ID、メール、ニックネームで検索）
     if (userId || email || nickname || searchQuery) {
@@ -118,8 +104,8 @@ export async function GET(request: NextRequest) {
         take: 10,
       });
 
-      // 現在のリクエストIP（セッションにはIPが保存されていないため、現在のIPを表示）
-      const currentIp = getClientIp(request);
+      // NOTE: This is the IP of the *admin's current request*, not the searched user's IP.
+      const currentIp = getClientIpFromRequest(request);
 
       return NextResponse.json({
         user: {
@@ -173,6 +159,7 @@ export async function GET(request: NextRequest) {
 
       // Pull recent access logs (best-effort). Table is created by internal logging route.
       let ipStats: Array<{ ip: string; count: number }> = [];
+      let internalIpStats: Array<{ ip: string; count: number }> = [];
       try {
         // Ensure table exists (so first-time admin visit doesn't silently show empty due to missing table)
         await prisma.$executeRawUnsafe(
@@ -199,12 +186,17 @@ export async function GET(request: NextRequest) {
           const key = String((row as { ip?: unknown }).ip || 'unknown');
           counts.set(key, (counts.get(key) || 0) + 1);
         }
-        ipStats = Array.from(counts.entries())
+        const all = Array.from(counts.entries())
           .map(([ip, count]) => ({ ip, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 30);
+          .sort((a, b) => b.count - a.count);
+
+        // Separate internal/loopback/private IPs so AWS environments don't look "broken"
+        // when most traffic comes from internal server-side fetches.
+        ipStats = all.filter((x) => !isLocalOrPrivateIp(x.ip)).slice(0, 30);
+        internalIpStats = all.filter((x) => isLocalOrPrivateIp(x.ip)).slice(0, 30);
       } catch {
         ipStats = [];
+        internalIpStats = [];
       }
 
       return NextResponse.json({
@@ -220,6 +212,7 @@ export async function GET(request: NextRequest) {
           expires: s.expires,
         })),
         ipStats,
+        internalIpStats,
         message: '現在アクティブなセッション情報と、直近24時間のAPIアクセスIP統計を表示しています。',
       });
     }

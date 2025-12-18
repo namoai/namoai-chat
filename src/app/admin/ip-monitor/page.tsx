@@ -57,6 +57,7 @@ export default function IPMonitorPage() {
   const [searchType, setSearchType] = useState<'id' | 'email' | 'nickname' | 'query'>('query');
   const [userIPInfo, setUserIPInfo] = useState<UserIPInfo | null>(null);
   const [ipStats, setIpStats] = useState<IPStat[]>([]);
+  const [internalIpStats, setInternalIpStats] = useState<IPStat[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [recentSessions, setRecentSessions] = useState<SessionInfo[]>([]);
   const [showUserList, setShowUserList] = useState(false);
@@ -72,6 +73,7 @@ export default function IPMonitorPage() {
       if (response.ok) {
         const data = await response.json();
         setIpStats(data.ipStats || []);
+        setInternalIpStats(data.internalIpStats || []);
         setRecentSessions(data.recentSessions || []);
       }
     } catch (error) {
@@ -389,9 +391,9 @@ export default function IPMonitorPage() {
             <div className="p-8 text-center text-gray-400">読み込み中...</div>
           ) : ipStats.length === 0 ? (
             <div className="p-8 text-center text-gray-400">
-              IP統計データは将来の実装で表示されます。
+              公開IPの統計がありません（直近24時間）。
               <br />
-              （アクセスログテーブルから集計）
+              ※サーバー内部/ローカルIPのアクセスが多い場合、下の「内部IP」側に集計されます。
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -414,6 +416,39 @@ export default function IPMonitorPage() {
             </div>
           )}
         </div>
+
+        {/* 内部IP統計（ローカル/プライベート） */}
+        {internalIpStats.length > 0 && (
+          <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800/50 overflow-hidden mt-6">
+            <div className="p-6 border-b border-gray-800">
+              <h2 className="text-xl font-bold flex items-center">
+                <Eye size={20} className="mr-2 text-gray-400" />
+                内部IPアクセス統計（localhost/プライベート）
+              </h2>
+              <p className="text-sm text-gray-400 mt-2">
+                サーバー内部のリクエストや開発環境のアクセスがここに集計されます。
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-800/50">
+                  <tr>
+                    <th className="p-4 text-left">IPアドレス</th>
+                    <th className="p-4 text-left">アクセス回数</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {internalIpStats.map((stat, index) => (
+                    <tr key={index} className="border-b border-gray-800 hover:bg-gray-800/30">
+                      <td className="p-4 font-mono">{stat.ip}</td>
+                      <td className="p-4">{stat.count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

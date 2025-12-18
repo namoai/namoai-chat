@@ -5,6 +5,7 @@ import { logger } from "@/lib/logger";
 import { createErrorResponse, ErrorCode } from "@/lib/error-handler";
 import { checkAdminAccessAlwaysPrompt } from "@/lib/security/ip-restriction";
 import { isIpBlocked } from "@/lib/security/suspicious-ip";
+import { getClientIpFromRequest } from "@/lib/security/client-ip";
 
 type AllowlistCache = { ips: string[]; fetchedAt: number };
 let adminAllowlistCache: AllowlistCache | null = null;
@@ -22,7 +23,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // 管理者ページへのアクセス制限（許可IP + Basic認証）
   if (pathname.startsWith('/admin')) {
     // 1) Admin IP allowlist (if configured)
-    const ip = getClientIp(request);
+    const ip = getClientIpFromRequest(request);
     console.log('[middleware] admin gate', { pathname, ip });
     const now = Date.now();
     let allowlist = adminAllowlistCache?.ips ?? [];
@@ -79,7 +80,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   }
 
   // 疑わしいIPアドレスのブロックチェック
-  const ip = getClientIp(request);
+  const ip = getClientIpFromRequest(request);
   if (await isIpBlocked(ip)) {
     return NextResponse.json(
       { error: 'アクセスが拒否されました。' },
@@ -117,7 +118,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
         
         // ▼▼▼ Lambda 환경에서도 로그가 출력되도록 console.log 추가 ▼▼▼
         console.error('[middleware] ❌ CSRF token validation failed', {
-          ip: getClientIp(request),
+          ip: getClientIpFromRequest(request),
           path: pathname,
           method: request.method,
           hasCookie,
@@ -132,7 +133,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
         // ▲▲▲
         
         logger.warn('CSRF token validation failed', {
-          ip: getClientIp(request),
+          ip: getClientIpFromRequest(request),
           path: pathname,
           method: request.method,
           hasCookie,
@@ -169,7 +170,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   event.waitUntil((async () => {
     const duration = Date.now() - startTime;
     const statusCode = corsResponse.status;
-    const ip = getClientIp(request);
+    const ip = getClientIpFromRequest(request);
     
     // Console/memory log
     logger.logAccess(request, statusCode);
@@ -204,23 +205,6 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   })());
 
   return corsResponse;
-}
-
-function getClientIp(request: NextRequest): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) {
-    return forwarded.split(',')[0].trim();
-  }
-  
-  const realIp = request.headers.get('x-real-ip');
-  if (realIp) {
-    return realIp;
-  }
-
-  // NOTE:
-  // Some platforms may expose `request.ip` at runtime, but it is not part of NextRequest's
-  // public TypeScript type, which breaks `next build` type-checking in CI (e.g. Amplify).
-  return 'unknown';
 }
 
 export const config = {

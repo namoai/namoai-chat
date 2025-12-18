@@ -4,6 +4,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { getClientIpFromRequest } from '@/lib/security/client-ip';
 
 export enum LogLevel {
   DEBUG = 'DEBUG',
@@ -198,18 +199,7 @@ class Logger {
   }
 
   private getClientIp(request: NextRequest): string {
-    // プロキシ経由の場合のIP取得
-    const forwarded = request.headers.get('x-forwarded-for');
-    if (forwarded) {
-      return forwarded.split(',')[0].trim();
-    }
-    
-    const realIp = request.headers.get('x-real-ip');
-    if (realIp) {
-      return realIp;
-    }
-    
-    return 'unknown';
+    return getClientIpFromRequest(request);
   }
 
   // ログを取得（デバッグ用）
