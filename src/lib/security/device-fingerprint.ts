@@ -95,6 +95,10 @@ export async function saveDeviceInfo(
  */
 export async function isKnownDevice(_userId: number, _fingerprint: string): Promise<boolean> {
   try {
+    // Keep signature for call sites, but avoid unused-vars build failures.
+    void _userId;
+    void _fingerprint;
+
     // 実際の実装では、データベースからチェック
     // const device = await prisma.deviceInfo.findFirst({
     //   where: {
