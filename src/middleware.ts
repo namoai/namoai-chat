@@ -217,11 +217,9 @@ function getClientIp(request: NextRequest): string {
     return realIp;
   }
 
-  // In local dev, Next may not set x-forwarded-for/x-real-ip.
-  // NextRequest.ip is sometimes available (can be "::1" on localhost).
-  const direct = request.ip;
-  if (direct && direct.trim()) return direct.trim();
-  
+  // NOTE:
+  // Some platforms may expose `request.ip` at runtime, but it is not part of NextRequest's
+  // public TypeScript type, which breaks `next build` type-checking in CI (e.g. Amplify).
   return 'unknown';
 }
 
