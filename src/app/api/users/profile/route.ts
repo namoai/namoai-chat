@@ -24,12 +24,17 @@ export async function GET() {
   try {
     const ユーザー = await prisma.users.findUnique({
       where: { id: ユーザーID },
-      select: { nickname: true, bio: true, image_url: true, },
+      // Prisma field name is `image` (mapped to DB column `image_url`)
+      select: { nickname: true, bio: true, image: true },
     });
     if (!ユーザー) {
       return NextResponse.json({ error: 'ユーザーが見つかりません。' }, { status: 404 });
     }
-    return NextResponse.json(ユーザー);
+    return NextResponse.json({
+      nickname: ユーザー.nickname,
+      bio: ユーザー.bio,
+      image_url: ユーザー.image ?? null,
+    });
   } catch (エラー) {
     console.error('プロファイル取得エラー:', エラー);
     return NextResponse.json({ error: 'サーバーエラー' }, { status: 500 });
@@ -84,7 +89,7 @@ export async function PUT(リクエスト: Request) {
         nickname: ニックネーム,
         bio: 自己紹介,
         // 画像URLが存在する場合のみ、データを更新
-        ...(画像URL ? { image_url: 画像URL } : {}),
+        ...(画像URL ? { image: 画像URL } : {}),
       },
     });
 

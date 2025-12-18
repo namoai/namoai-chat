@@ -50,10 +50,14 @@ export async function GET(request: NextRequest) {
       const followers = await prisma.follows.findMany({
         where: { followingId: profileUserId },
         select: {
-          follower: { select: { id: true, nickname: true, image_url: true } }
+          follower: { select: { id: true, nickname: true, image: true } }
         }
       });
-      const data = followers.map(f => f.follower);
+      const data = followers.map(f => ({
+        ...f.follower,
+        image_url: f.follower.image ?? null,
+        image: undefined,
+      }));
       return new NextResponse(JSON.stringify(data), {
         status: 200,
         headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
@@ -65,10 +69,14 @@ export async function GET(request: NextRequest) {
       const following = await prisma.follows.findMany({
         where: { followerId: profileUserId },
         select: {
-          following: { select: { id: true, nickname: true, image_url: true } }
+          following: { select: { id: true, nickname: true, image: true } }
         }
       });
-      const data = following.map(f => f.following);
+      const data = following.map(f => ({
+        ...f.following,
+        image_url: f.following.image ?? null,
+        image: undefined,
+      }));
       return new NextResponse(JSON.stringify(data), {
         status: 200,
         headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
@@ -85,7 +93,7 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         nickname: true,
-        image_url: true,
+        image: true,
         bio: true,
         password: true, // パスワードの有無を確認するため（値自体は返さない）
       }
@@ -172,7 +180,7 @@ export async function GET(request: NextRequest) {
       id: user.id,
       name: user.name,
       nickname: user.nickname,
-      image_url: user.image_url,
+      image_url: user.image ?? null,
       bio: user.bio,
       hasPassword: !!user.password, // パスワードが設定されているかどうか（本人確認用）
       characters: charactersWithMessageCount,

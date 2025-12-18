@@ -49,10 +49,18 @@ export async function GET(
       take,
       orderBy: { createdAt: 'asc' },
       include: {
-        users: { select: { id: true, nickname: true, image_url: true } },
+        // Prisma field name is `image` (mapped to DB column `image_url`)
+        users: { select: { id: true, nickname: true, image: true } },
       },
     });
-    return NextResponse.json({ comments });
+    // Keep API response shape: expose `image_url` key (legacy)
+    const normalized = comments.map((c) => ({
+      ...c,
+      users: c.users
+        ? { ...c.users, image_url: c.users.image ?? null, image: undefined }
+        : c.users,
+    }));
+    return NextResponse.json({ comments: normalized });
   } catch (error) {
     console.error('コメント一覧取得エラー:', error);
     return NextResponse.json({ error: 'コメント一覧の取得に失敗しました。' }, { status: 500 });
@@ -100,7 +108,8 @@ export async function POST(
         authorId: Number.parseInt(userId, 10),
       },
       include: {
-        users: { select: { id: true, nickname: true, image_url: true } },
+        // Prisma field name is `image` (mapped to DB column `image_url`)
+        users: { select: { id: true, nickname: true, image: true } },
       },
     });
     
@@ -109,7 +118,13 @@ export async function POST(
       console.error('通知作成エラー:', err)
     );
     
-    return NextResponse.json(created, { status: 201 });
+    const normalizedCreated = {
+      ...created,
+      users: created.users
+        ? { ...created.users, image_url: created.users.image ?? null, image: undefined }
+        : created.users,
+    };
+    return NextResponse.json(normalizedCreated, { status: 201 });
   } catch (error) {
     console.error('コメント作成エラー:', error);
     return NextResponse.json({ error: 'コメントの作成に失敗しました。' }, { status: 500 });

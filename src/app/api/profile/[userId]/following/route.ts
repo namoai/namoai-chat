@@ -42,15 +42,20 @@ export async function GET(_req: NextRequest, context: unknown) {
           select: {
             id: true,
             nickname: true,   // ニックネームを追加
-            image_url: true,  // プロフィール画像URLを追加
+            // Prisma field name is `image` (mapped to DB column `image_url`)
+            image: true,  // プロフィール画像URLを追加
           },
         },
       },
       orderBy: { followingId: 'asc' },
     });
 
-    // `items`からフォロー中のユーザー情報だけを抽出して新しい配列を作成
-    const following = items.map((item) => item.following);
+    // `items`からフォロー中のユーザー情報だけを抽出して新しい配列を作成（互換: image_url）
+    const following = items.map((item) => ({
+      ...item.following,
+      image_url: item.following.image ?? null,
+      image: undefined,
+    }));
 
     // 全体の件数を取得
     const count = await prisma.follows.count({

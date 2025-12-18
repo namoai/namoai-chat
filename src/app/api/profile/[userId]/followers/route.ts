@@ -21,13 +21,18 @@ export async function GET(_req: NextRequest, context: unknown) {
       where: { followingId: targetUserId },
       include: {
         follower: {
-          select: { id: true, nickname: true, image_url: true },
+          // Prisma field name is `image` (mapped to DB column `image_url`)
+          select: { id: true, nickname: true, image: true },
         },
       },
       orderBy: { followerId: 'asc' }, 
     });
 
-    const followers = items.map((item) => item.follower);
+    const followers = items.map((item) => ({
+      ...item.follower,
+      image_url: item.follower.image ?? null,
+      image: undefined,
+    }));
     const count = followers.length;
 
     return NextResponse.json({ userId: targetUserId, count, followers });

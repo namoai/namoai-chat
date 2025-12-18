@@ -44,7 +44,8 @@ export async function GET(req: NextRequest) {
           select: {
             id: true,
             nickname: true,
-            image_url: true,
+            // Prisma field name is `image` (mapped to DB column `image_url`)
+            image: true,
           },
         },
       },
@@ -55,8 +56,13 @@ export async function GET(req: NextRequest) {
       where: { userId, isRead: false },
     });
 
+    const normalized = notifications.map((n) => ({
+      ...n,
+      actor: n.actor ? { ...n.actor, image_url: n.actor.image ?? null, image: undefined } : n.actor,
+    }));
+
     return NextResponse.json({
-      notifications,
+      notifications: normalized,
       unreadCount,
       hasMore: notifications.length === limit,
     });

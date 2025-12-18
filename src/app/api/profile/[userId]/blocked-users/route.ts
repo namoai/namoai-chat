@@ -28,7 +28,8 @@ export async function GET() {
           select: {
             id: true,
             nickname: true,
-            image_url: true,
+            // Prisma field name is `image` (mapped to DB column `image_url`)
+            image: true,
           }
         }
       },
@@ -38,7 +39,11 @@ export async function GET() {
     });
 
     // `blocking`オブジェクトの配列に変換
-    const blockedUsers = blockedRelations.map(relation => relation.users_Block_blockingIdTousers);
+    const blockedUsers = blockedRelations.map((relation) => ({
+      ...relation.users_Block_blockingIdTousers,
+      image_url: relation.users_Block_blockingIdTousers.image ?? null,
+      image: undefined,
+    }));
 
     return NextResponse.json({ blockedUsers });
   } catch (error) {

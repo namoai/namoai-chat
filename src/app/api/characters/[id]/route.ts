@@ -217,7 +217,8 @@ export async function GET(
             displayOrder: 'asc' 
           } 
         },
-        author: { select: { id: true, name: true, nickname: true, image_url: true } },
+        // Prisma field name is `image` (mapped to DB column `image_url`)
+        author: { select: { id: true, name: true, nickname: true, image: true } },
         _count: { select: { favorites: true } },
         lorebooks: true,
       }
@@ -298,6 +299,10 @@ export async function GET(
 
     const responseData = {
       ...character,
+      // keep legacy key in response payload: author.image_url
+      author: character.author
+        ? { ...character.author, image_url: character.author.image ?? null, image: undefined }
+        : character.author,
       isFavorited,
       _count: {
         ...character._count,
