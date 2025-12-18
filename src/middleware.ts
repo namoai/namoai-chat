@@ -6,11 +6,31 @@ import { createErrorResponse, ErrorCode } from "@/lib/error-handler";
 import { checkAdminAccessAlwaysPrompt } from "@/lib/security/ip-restriction";
 import { isIpBlocked } from "@/lib/security/suspicious-ip";
 import { getClientIpFromRequest } from "@/lib/security/client-ip";
-import { isLocalOrPrivateIp } from "@/lib/security/client-ip";
 
 type AllowlistCache = { ips: string[]; fetchedAt: number };
 let adminAllowlistCache: AllowlistCache | null = null;
 const ADMIN_ALLOWLIST_CACHE_MS = 30_000;
+
+function shouldLogPath(pathname: string): boolean {
+  if (pathname === '/api/internal/log-access') return false;
+  if (pathname.startsWith('/_next')) return false;
+  if (pathname.startsWith('/favicon')) return false;
+  if (pathname.startsWith('/robots')) return false;
+  if (pathname.startsWith('/sitemap')) return false;
+  if (pathname.startsWith('/manifest')) return false;
+  if (pathname.endsWith('.png')) return false;
+  if (pathname.endsWith('.jpg')) return false;
+  if (pathname.endsWith('.jpeg')) return false;
+  if (pathname.endsWith('.gif')) return false;
+  if (pathname.endsWith('.webp')) return false;
+  if (pathname.endsWith('.svg')) return false;
+  if (pathname.endsWith('.ico')) return false;
+  if (pathname.endsWith('.css')) return false;
+  if (pathname.endsWith('.js')) return false;
+  if (pathname.endsWith('.map')) return false;
+  if (pathname.endsWith('.txt')) return false;
+  return true;
+}
 
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl;
@@ -89,29 +109,10 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     );
   }
 
-  // Persist public client IP accesses (best-effort)
-  // - Only when we can resolve a non-local/public IP (i.e. request came via CloudFront/proxy headers)
-  // - Avoid logging Next.js static assets and internal endpoints
-  const shouldPersistAccessLog =
-    !isLocalOrPrivateIp(ip) &&
-    ip !== 'unknown' &&
-    pathname !== '/api/internal/log-access' &&
-    !pathname.startsWith('/_next') &&
-    !pathname.startsWith('/favicon') &&
-    !pathname.startsWith('/robots') &&
-    !pathname.startsWith('/sitemap') &&
-    !pathname.startsWith('/manifest') &&
-    !pathname.endsWith('.png') &&
-    !pathname.endsWith('.jpg') &&
-    !pathname.endsWith('.jpeg') &&
-    !pathname.endsWith('.gif') &&
-    !pathname.endsWith('.webp') &&
-    !pathname.endsWith('.svg') &&
-    !pathname.endsWith('.ico') &&
-    !pathname.endsWith('.css') &&
-    !pathname.endsWith('.js') &&
-    !pathname.endsWith('.map') &&
-    !pathname.endsWith('.txt');
+  // Log every page/API access (best-effort), excluding static assets & internal endpoint.
+  // We pass cookies through so the internal endpoint can resolve userId from session.
+  const shouldPersistAccessLog = shouldLogPath(pathname);
+  const cookieHeader = request.headers.get('cookie') || '';
 
   // For non-API routes we don't know final status code in middleware reliably.
   // Still persist a best-effort row so user page visits show up in IP monitor.
@@ -130,7 +131,10 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
         try {
           await fetch(`${request.nextUrl.origin}/api/internal/log-access`, {
             method: 'POST',
-            headers: { 'content-type': 'application/json' },
+            headers: {
+              'content-type': 'application/json',
+              cookie: cookieHeader,
+            },
             body: JSON.stringify({
               ip,
               userAgent: request.headers.get('user-agent') || 'unknown',
@@ -238,7 +242,10 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
       try {
         await fetch(`${request.nextUrl.origin}/api/internal/log-access`, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          cookie: cookieHeader,
+        },
           body: JSON.stringify({
             ip,
             userAgent: request.headers.get('user-agent') || 'unknown',

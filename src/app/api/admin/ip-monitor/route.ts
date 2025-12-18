@@ -59,6 +59,7 @@ export async function GET(request: NextRequest) {
       await prisma.$executeRawUnsafe(
         `CREATE TABLE IF NOT EXISTS "api_access_logs" (
           "id" SERIAL PRIMARY KEY,
+          "userId" INTEGER,
           "ip" TEXT NOT NULL,
           "userAgent" TEXT NOT NULL,
           "path" TEXT NOT NULL,
@@ -68,13 +69,17 @@ export async function GET(request: NextRequest) {
           "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )`
       );
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "api_access_logs" ADD COLUMN IF NOT EXISTS "userId" INTEGER`
+      );
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_createdAt_idx" ON "api_access_logs" ("createdAt")`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_ip_idx" ON "api_access_logs" ("ip")`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_path_idx" ON "api_access_logs" ("path")`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_userId_idx" ON "api_access_logs" ("userId")`);
 
       await prisma.$executeRaw`
-        INSERT INTO "api_access_logs" ("ip","userAgent","path","method","statusCode","durationMs")
-        VALUES (${resolvedIp || 'unknown'}, ${request.headers.get('user-agent') || 'unknown'}, ${'/admin/ip-monitor'}, ${request.method || 'GET'}, ${200}, ${null})
+        INSERT INTO "api_access_logs" ("userId","ip","userAgent","path","method","statusCode","durationMs")
+        VALUES (${session?.user?.id ? Number(session.user.id) : null}, ${resolvedIp || 'unknown'}, ${request.headers.get('user-agent') || 'unknown'}, ${'/admin/ip-monitor'}, ${request.method || 'GET'}, ${200}, ${null})
       `;
     } catch {
       // ignore
@@ -159,6 +164,52 @@ export async function GET(request: NextRequest) {
       // NOTE: This is the IP of the *admin's current request*, not the searched user's IP.
       const currentIp = resolvedIp;
 
+      // Access logs by searched user (best-effort, requires middleware logging with cookies)
+      let accessLogs: Array<{ ip: string; timestamp: string; path: string }> = [];
+      let userIpStats: Array<{ ip: string; count: number }> = [];
+      try {
+        await prisma.$executeRawUnsafe(
+          `CREATE TABLE IF NOT EXISTS "api_access_logs" (
+            "id" SERIAL PRIMARY KEY,
+            "userId" INTEGER,
+            "ip" TEXT NOT NULL,
+            "userAgent" TEXT NOT NULL,
+            "path" TEXT NOT NULL,
+            "method" TEXT NOT NULL,
+            "statusCode" INTEGER NOT NULL,
+            "durationMs" INTEGER,
+            "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )`
+        );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "api_access_logs" ADD COLUMN IF NOT EXISTS "userId" INTEGER`
+        );
+
+        const rows: Array<{ ip: string; path: string; timestamp: string }> = await prisma.$queryRawUnsafe(
+          `SELECT "ip","path", to_char("createdAt", 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') as "timestamp"
+           FROM "api_access_logs"
+           WHERE "userId" = $1
+           ORDER BY "createdAt" DESC
+           LIMIT 200`,
+          user.id
+        );
+        accessLogs = rows.map((r) => ({
+          ip: String((r as { ip?: unknown }).ip || 'unknown'),
+          path: String((r as { path?: unknown }).path || 'unknown'),
+          timestamp: String((r as { timestamp?: unknown }).timestamp || ''),
+        }));
+
+        const counts = new Map<string, number>();
+        for (const r of accessLogs) counts.set(r.ip, (counts.get(r.ip) || 0) + 1);
+        userIpStats = Array.from(counts.entries())
+          .map(([ip, count]) => ({ ip, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 50);
+      } catch {
+        accessLogs = [];
+        userIpStats = [];
+      }
+
       return NextResponse.json({
         user: {
           id: user.id,
@@ -174,8 +225,9 @@ export async function GET(request: NextRequest) {
         })),
         currentIp, // 現在のリクエストIP
         ipDebug,
-        // Access logs are stored by middleware in api_access_logs
-        accessLogs: [], // filled below (best-effort)
+        // User-scoped access logs (requires middleware to forward cookies to internal/log-access)
+        accessLogs,
+        userIpStats,
         message: 'セッション情報を表示しています。',
       });
     } else {
@@ -220,6 +272,7 @@ export async function GET(request: NextRequest) {
         await prisma.$executeRawUnsafe(
           `CREATE TABLE IF NOT EXISTS "api_access_logs" (
             "id" SERIAL PRIMARY KEY,
+            "userId" INTEGER,
             "ip" TEXT NOT NULL,
             "userAgent" TEXT NOT NULL,
             "path" TEXT NOT NULL,
@@ -229,9 +282,13 @@ export async function GET(request: NextRequest) {
             "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
           )`
         );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "api_access_logs" ADD COLUMN IF NOT EXISTS "userId" INTEGER`
+        );
         await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_createdAt_idx" ON "api_access_logs" ("createdAt")`);
         await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_ip_idx" ON "api_access_logs" ("ip")`);
         await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_path_idx" ON "api_access_logs" ("path")`);
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_userId_idx" ON "api_access_logs" ("userId")`);
 
         const recent: Array<{ ip: string }> = await prisma.$queryRawUnsafe(
           `SELECT "ip" FROM "api_access_logs" WHERE "createdAt" > NOW() - INTERVAL '24 hours' ORDER BY "createdAt" DESC LIMIT 2000`

@@ -18,6 +18,10 @@ type UserIPInfo = {
     registeredAt: string;
     role?: string;
   };
+  userIpStats?: Array<{
+    ip: string;
+    count: number;
+  }>;
   sessions?: Array<{
     id: number;
     expires: string;
@@ -376,6 +380,29 @@ export default function IPMonitorPage() {
                           <td className="p-3 text-gray-400">
                             {new Date(session.expires).toLocaleString('ja-JP')}
                           </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
+            {userIPInfo.userIpStats && userIPInfo.userIpStats.length > 0 ? (
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold mb-2">ユーザーIP統計（ログ集計）</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-800/50">
+                      <tr>
+                        <th className="p-3 text-left">IP</th>
+                        <th className="p-3 text-right">count</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {userIPInfo.userIpStats.map((row, idx) => (
+                        <tr key={`${row.ip}-${idx}`} className="border-b border-gray-800 hover:bg-gray-800/30">
+                          <td className="p-3 font-mono">{row.ip}</td>
+                          <td className="p-3 text-right">{row.count}</td>
                         </tr>
                       ))}
                     </tbody>
