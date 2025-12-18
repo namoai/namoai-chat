@@ -27,8 +27,11 @@ export function getClientIp(request: NextRequest): string {
   const realIp = request.headers.get("x-real-ip");
   if (realIp) return realIp.trim();
 
-  // NextRequest.ip is sometimes available (varies by platform/runtime)
-  return request.ip || "unknown";
+  // NOTE:
+  // Some runtimes may expose `request.ip` at runtime, but NextRequest's public TypeScript type
+  // does not include it, which breaks `next build` type-checking in CI (e.g. Amplify).
+  // Stick to header-based extraction for build stability.
+  return "unknown";
 }
 
 /**
