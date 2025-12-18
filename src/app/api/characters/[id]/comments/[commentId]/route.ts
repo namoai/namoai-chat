@@ -37,7 +37,8 @@ export async function GET(
     const comment = await prisma.comments.findFirst({
       where: { id: commentIdNum, characterId },
       include: {
-        users: { select: { id: true, nickname: true, image_url: true } },
+        // Prisma field name is `image` (mapped to DB column `image_url`)
+        users: { select: { id: true, nickname: true, image: true } },
       },
     });
     if (!comment) {
