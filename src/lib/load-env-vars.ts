@@ -3,7 +3,9 @@
 // サーバーサイド専用（Node.jsモジュールを使用）
 // Server-side only (uses Node.js modules)
 
-'use server';
+// NOTE:
+// Do NOT mark this module with "use server". That directive can cause Next to treat it as a server-action
+// boundary and create client-side proxies, which breaks builds when Node-only modules (fs/path) exist.
 
 // Enforce server-only at bundling level (Next.js).
 import 'server-only';

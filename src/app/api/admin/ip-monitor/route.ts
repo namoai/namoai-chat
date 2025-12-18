@@ -194,7 +194,7 @@ export async function GET(request: NextRequest) {
         );
         const counts = new Map<string, number>();
         for (const row of recent) {
-          const key = String((row as any).ip || 'unknown');
+          const key = String((row as { ip?: unknown }).ip || 'unknown');
           counts.set(key, (counts.get(key) || 0) + 1);
         }
         ipStats = Array.from(counts.entries())

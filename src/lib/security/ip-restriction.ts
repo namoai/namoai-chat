@@ -11,8 +11,10 @@ function decodeBase64(input: string): string {
     return atob(input);
   }
   // Node fallback
-  // eslint-disable-next-line no-undef
-  return Buffer.from(input, 'base64').toString('utf-8');
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(input, 'base64').toString('utf-8');
+  }
+  throw new Error('Base64 decode is not supported in this runtime.');
 }
 
 /**

@@ -2,7 +2,6 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { Role } from '@prisma/client';
@@ -13,7 +12,7 @@ import { isSupportedPattern } from '@/lib/security/ip-match';
  * IPブロックリストを取得
  * GET /api/admin/ip-block
  */
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (session?.user?.role !== Role.SUPER_ADMIN) {
