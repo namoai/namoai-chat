@@ -52,6 +52,34 @@ export async function GET(request: NextRequest) {
       host: pickHeader(request, 'host'),
     };
 
+    // Best-effort: record THIS admin request with the resolved public IP.
+    // Many internal API calls in Next.js can appear as loopback (::1) due to server-side fetches,
+    // so writing one record here makes it obvious that public IP extraction works end-to-end.
+    try {
+      await prisma.$executeRawUnsafe(
+        `CREATE TABLE IF NOT EXISTS "api_access_logs" (
+          "id" SERIAL PRIMARY KEY,
+          "ip" TEXT NOT NULL,
+          "userAgent" TEXT NOT NULL,
+          "path" TEXT NOT NULL,
+          "method" TEXT NOT NULL,
+          "statusCode" INTEGER NOT NULL,
+          "durationMs" INTEGER,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`
+      );
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_createdAt_idx" ON "api_access_logs" ("createdAt")`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_ip_idx" ON "api_access_logs" ("ip")`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_path_idx" ON "api_access_logs" ("path")`);
+
+      await prisma.$executeRaw`
+        INSERT INTO "api_access_logs" ("ip","userAgent","path","method","statusCode","durationMs")
+        VALUES (${resolvedIp || 'unknown'}, ${request.headers.get('user-agent') || 'unknown'}, ${'/admin/ip-monitor'}, ${request.method || 'GET'}, ${200}, ${null})
+      `;
+    } catch {
+      // ignore
+    }
+
     // ユーザー検索（ID、メール、ニックネームで検索）
     if (userId || email || nickname || searchQuery) {
       let user;
