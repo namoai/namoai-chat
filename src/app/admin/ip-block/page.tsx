@@ -206,7 +206,6 @@ export default function IPBlockPage() {
           });
         }
       },
-      onCancel: () => setModalState({ ...modalState, isOpen: false }),
     });
   };
 

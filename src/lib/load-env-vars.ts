@@ -18,6 +18,13 @@ if (typeof window !== 'undefined') {
 
 let envVarsLoaded = false;
 
+// Avoid webpack trying to resolve Node built-ins during the build step.
+// We intentionally use `new Function` so bundlers cannot statically analyze/resolve the specifier.
+async function dynamicNodeImport<TModule = unknown>(specifier: string): Promise<TModule> {
+  const importer = new Function('s', 'return import(s);') as (s: string) => Promise<TModule>;
+  return importer(specifier);
+}
+
 /**
  * Lambda 런타임에서 환경 변수를 로드
  * 이 함수는 여러 번 호출되어도 한 번만 로드합니다 (캐싱)
@@ -100,11 +107,11 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
   // Only execute on server side (fs/path are Node.js only)
   if (typeof window === 'undefined') {
     try {
-      // Node.js built-ins must never be statically imported (can break edge/client bundling).
-      // IMPORTANT: Amplify/Next build webpack may not support "node:" URI scheme here.
-      // Use classic specifiers with dynamic import (server-only module ensures this doesn't hit client/edge bundles).
-      const fs = await import('fs');
-      const path = await import('path');
+      // IMPORTANT:
+      // - Using `import('fs')`/`import('path')` directly can still be picked up by webpack in Amplify builds.
+      // - Use dynamicNodeImport so the bundler doesn't try to resolve these modules at build-time.
+      const fs = await dynamicNodeImport<typeof import('fs')>('fs');
+      const path = await dynamicNodeImport<typeof import('path')>('path');
     
       const possiblePaths = [
         path.join(process.cwd(), '.env.production.local'),
