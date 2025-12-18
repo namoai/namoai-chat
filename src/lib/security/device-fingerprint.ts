@@ -68,9 +68,13 @@ export function extractDeviceInfo(request: NextRequest): DeviceInfo {
  */
 export async function saveDeviceInfo(
   userId: number,
-  deviceInfo: DeviceInfo
+  deviceInfo: DeviceInfo,
+  ipAddress?: string
 ): Promise<void> {
   try {
+    // Currently unused (future DB persistence); keep to match call sites without failing lint.
+    void ipAddress;
+
     // デバイス情報テーブルが存在する場合（将来の実装）
     // await prisma.deviceInfo.create({
     //   data: {
@@ -84,7 +88,9 @@ export async function saveDeviceInfo(
     //   },
     // });
     
-    console.log(`[Device Fingerprint] Saved device info for user ${userId}: ${deviceInfo.fingerprint}`);
+    console.log(
+      `[Device Fingerprint] Saved device info for user ${userId}: ${deviceInfo.fingerprint} (ip: ${ipAddress || 'unknown'})`
+    );
   } catch (error) {
     console.error('[Device Fingerprint] Error saving device info:', error);
   }
