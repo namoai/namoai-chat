@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       phone: sanitizeString(parsed.data.phone),
       nickname: sanitizeString(parsed.data.nickname),
       birthdate: parsed.data.birthdate,
-      ageConfirmation: parsed.data.ageConfirmation,
+      emailVerificationProof: parsed.data.emailVerificationProof,
     };
 
     const prisma = await getPrisma();
@@ -127,9 +127,35 @@ export async function POST(req: Request) {
       declaredAdult = age >= 18;
     }
 
-    // ✅ メールアドレスが既に認証されているか確認（認証コード検証APIで既にチェック済みだが、セキュリティのため再確認）
-    // 実際にはフロントエンドで認証コード検証を完了しているため、ここではメールアドレス認証済みとしてユーザーを作成
-    // 注意: 認証コード検証APIでトークンは削除されるため、ここでは追加チェックは不要
+    // ✅ メール認証proofの検証（verify-code APIで発行されたもの）
+    if (!sanitized.emailVerificationProof) {
+      return NextResponse.json(
+        { error: "メールアドレスの認証が必要です。（認証コードを確認してください）" },
+        { status: 400, headers: buildRateLimitHeaders(rateResult) }
+      );
+    }
+
+    const proofRecord = await prisma.verificationToken.findFirst({
+      where: {
+        identifier: `email_proof:${sanitized.email.toLowerCase()}`,
+        token: sanitized.emailVerificationProof,
+      },
+    });
+
+    if (!proofRecord || proofRecord.expires < new Date()) {
+      await prisma.verificationToken.deleteMany({
+        where: { identifier: `email_proof:${sanitized.email.toLowerCase()}` },
+      });
+      return NextResponse.json(
+        { error: "メール認証の有効期限が切れています。再度認証してください。" },
+        { status: 400, headers: buildRateLimitHeaders(rateResult) }
+      );
+    }
+
+    // Consume proof (one-time)
+    await prisma.verificationToken.deleteMany({
+      where: { identifier: `email_proof:${sanitized.email.toLowerCase()}` },
+    });
 
     // ✅ ユーザーとポイントレコードを同時に作成（メール認証済みとして）
     const newUser = await prisma.users.create({
@@ -143,7 +169,7 @@ export async function POST(req: Request) {
         declaredAdult,
         needsProfileCompletion: false,
         safetyFilter: true, // 初期値は必ずON
-        emailVerified: new Date(), // 認証コード検証が完了しているため、認証済みとして設定
+        emailVerified: new Date(), // proof検証が完了しているため、認証済みとして設定
         // 👇 ユーザーを作成する際に、関連するpointsレコードも一緒に作成するという意味です
         points: {
           create: {

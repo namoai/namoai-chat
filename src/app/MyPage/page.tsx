@@ -8,6 +8,7 @@ import {
 import HelpModal from "@/components/HelpModal";
 import { useState, useEffect, type ReactNode } from "react";
 import { signOut } from "next-auth/react";
+import { fetchWithCsrf } from "@/lib/csrf-client";
 import Image from "next/image";
 import Link from 'next/link';
 
@@ -124,7 +125,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
         body.birthdate = birthdateValue;
       }
 
-      const response = await fetch('/api/users/safety-filter', {
+      const response = await fetchWithCsrf('/api/users/safety-filter', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -494,6 +495,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
                   alt="User Avatar"
                   width={64}
                   height={64}
+                  unoptimized
                   className="rounded-full object-cover"
                 />
               </div>

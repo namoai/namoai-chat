@@ -30,6 +30,7 @@ export default function SignUpPage() {
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
+  const [emailVerificationProof, setEmailVerificationProof] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
   const [showVerificationInput, setShowVerificationInput] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
@@ -42,6 +43,7 @@ export default function SignUpPage() {
       setEmailVerified(false);
       setShowVerificationInput(false);
       setVerificationCode("");
+      setEmailVerificationProof(null);
     }
   };
 
@@ -100,6 +102,7 @@ export default function SignUpPage() {
       alert(data?.message || "メールアドレスの認証が完了しました。");
       setEmailVerified(true);
       setShowVerificationInput(false);
+      setEmailVerificationProof(data?.proof ?? null);
     } catch (error) {
       console.error("認証コード検証エラー:", error);
       alert("サーバーエラーが発生しました。");
@@ -266,7 +269,7 @@ export default function SignUpPage() {
       const response = await fetchWithCsrf("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, emailVerificationProof }),
       });
 
       const contentType = response.headers.get("content-type");

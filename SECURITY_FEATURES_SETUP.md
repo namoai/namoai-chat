@@ -15,6 +15,18 @@
 
 ## 🔧 環境変数設定
 
+### 0. メール送信（メール認証コード / ログイン通知）
+
+ローカルでメール送信を動かすには `.env.local` に以下が必要です：
+
+```bash
+# Gmail SMTP (Nodemailer)
+EMAIL_USER=your_gmail_address@gmail.com
+EMAIL_PASSWORD=your_gmail_app_password
+```
+
+※ Gmailの通常パスワードではなく **「アプリパスワード」** を使ってください。
+
 ### 1. Basic認証（オプション）
 
 ```bash
@@ -27,15 +39,7 @@ ADMIN_BASIC_AUTH_PASSWORD=your-secure-password
 # ADMIN_BASIC_AUTH_PASSWORD=
 ```
 
-### 2. IPブロックリスト
-
-```bash
-# 常にブロックするIPアドレス（カンマ区切り）
-IP_BLACKLIST=192.168.1.100,10.0.0.50
-
-# 常に許可するIPアドレス（カンマ区切り）
-IP_WHITELIST=127.0.0.1,::1
-```
+**重要**: IP制限は実装していません。従業員数が変動的で管理が困難なため、Basic認証のみで対応しています。これはStripeを使用する他のサイトでも一般的なアプローチです。
 
 ---
 
@@ -118,8 +122,10 @@ await fetch('/api/auth/login-notification', {
 - `src/app/api/admin/ip-monitor/route.ts` - IP観察API
 
 ### Basic認証
-- `src/lib/security/ip-restriction.ts` - Basic認証ミドルウェア
+- `src/lib/security/ip-restriction.ts` - Basic認証ミドルウェア（IP制限なし、Basic認証のみ）
 - `src/middleware.ts` - ミドルウェア統合
+
+**注意**: IP制限は実装していません。従業員数が変動的で管理が困難なため、Basic認証のみで対応しています。これはStripeを使用する他のサイトでも一般的なアプローチです。
 
 ### 疑わしいIP検出
 - `src/lib/security/suspicious-ip.ts` - IPブロック機能

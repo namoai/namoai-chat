@@ -36,7 +36,10 @@ type ModalState = {
   title: string;
   message: string;
   onConfirm?: () => void;
+  onCancel?: () => void;
   confirmText?: string;
+  cancelText?: string;
+  showCancelButton?: boolean;
   isAlert?: boolean;
 };
 
@@ -75,6 +78,14 @@ const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalSta
     modalState.onConfirm?.();
     handleClose();
   };
+  const handleCancel = () => {
+    modalState.onCancel?.();
+    handleClose();
+  };
+
+  const showCancel =
+    modalState.showCancelButton ??
+    (!!modalState.onConfirm && !modalState.isAlert); // confirmations default to showing Cancel
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex justify-center items-center">
@@ -82,6 +93,14 @@ const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalSta
         <h2 className="text-xl font-bold mb-4 text-white">{modalState.title}</h2>
         <p className="text-gray-200 mb-6">{modalState.message}</p>
         <div className="flex justify-end gap-4">
+          {showCancel && (
+            <button
+              onClick={handleCancel}
+              className="px-4 py-2 bg-gray-600 text-white hover:bg-gray-500 rounded-lg transition-colors"
+            >
+              {modalState.cancelText || 'キャンセル'}
+            </button>
+          )}
           <button 
             onClick={handleConfirm} 
             className="px-4 py-2 bg-pink-600 text-white hover:bg-pink-500 rounded-lg transition-colors"
@@ -665,7 +684,118 @@ export default function AdminUsersPage() {
           </button>
         </form>
 
-        <div className="bg-gray-900 rounded-lg overflow-x-auto">
+        {/* Mobile: 카드형 리스트 (가로 스크롤/잘림 방지) */}
+        <div className="md:hidden space-y-3">
+          {users.map((user) => {
+            const isSuspended = user.suspendedUntil && new Date(user.suspendedUntil) > new Date();
+            const isLocked = user.lockedUntil && new Date(user.lockedUntil) > new Date();
+            return (
+              <div key={user.id} className="bg-gray-900/70 border border-gray-800 rounded-2xl p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm text-gray-400">ID {user.id}</div>
+                    <div className="font-semibold truncate" title={`${user.name} (@${user.nickname})`}>
+                      {user.name} <span className="text-gray-400">(@{user.nickname})</span>
+                    </div>
+                    <div className="text-sm text-gray-300 truncate" title={user.email}>
+                      {user.email}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      登録日: {new Date(user.created_at).toLocaleDateString('ja-JP')}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                    <select
+                      value={user.role}
+                      onChange={(e) => handleRoleChange(user.id, e.target.value as Role)}
+                      className={`border-none text-xs font-semibold rounded-full px-2 py-1 ${getRoleStyle(user.role)}`}
+                    >
+                      {Object.values(Role).map((roleValue) => (
+                        <option key={roleValue} value={roleValue} className="bg-gray-800 text-white">
+                          {roleValue}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex flex-col gap-1 items-end">
+                      {isSuspended ? (
+                        <span className="text-xs bg-red-600 text-white px-2 py-1 rounded-full">停止中</span>
+                      ) : (
+                        <span className="text-xs bg-green-600 text-white px-2 py-1 rounded-full">正常</span>
+                      )}
+                      {isLocked && (
+                        <span
+                          className="text-xs bg-orange-600 text-white px-2 py-1 rounded-full"
+                          title={`ロック中 (失敗回数: ${user.loginAttempts || 0})`}
+                        >
+                          ロック中
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handleToggleEmailVerified(user.id, !!user.emailVerified)}
+                    className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                      user.emailVerified ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-600 hover:bg-gray-700 text-white'
+                    }`}
+                    title={user.emailVerified ? `認証済み: ${new Date(user.emailVerified).toLocaleDateString('ja-JP')}` : '未認証'}
+                  >
+                    {user.emailVerified ? '✓ 認証済み' : '未認証'}
+                  </button>
+
+                  <button
+                    onClick={() => openEditModal(user)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap"
+                  >
+                    編集
+                  </button>
+
+                  {isLocked && (
+                    <button
+                      onClick={() => handleUnlock(user.id, user.name)}
+                      className="bg-orange-600 hover:bg-orange-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap"
+                      title="アカウントロックを解除"
+                    >
+                      ロック解除
+                    </button>
+                  )}
+
+                  {isSuspended ? (
+                    <button
+                      onClick={() => handleUnsuspend(user.id)}
+                      className="bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap"
+                    >
+                      解除
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => openSuspendModal(user)}
+                      className="bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap"
+                    >
+                      停止
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => handleDeleteUser(user.id, user.name)}
+                    className="bg-gray-700 hover:bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap"
+                  >
+                    削除
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {users.length === 0 && !loading && (
+            <div className="text-center py-16 text-gray-500">検索結果に一致するユーザーがいません。</div>
+          )}
+        </div>
+
+        {/* Desktop/Tablet: 테이블 */}
+        <div className="hidden md:block bg-gray-900 rounded-lg overflow-x-auto">
           <table className="w-full text-left min-w-[1000px] table-auto">
             <thead className="bg-gray-800">
               <tr>

@@ -133,8 +133,9 @@ export async function GET(request: NextRequest) {
           createdAt: s.expires, // 簡易実装
         })),
         currentIp, // 現在のリクエストIP
-        accessLogs: [], // 将来の実装: アクセスログテーブルから取得
-        message: 'セッション情報を表示しています。IPアドレスは将来の実装でアクセスログテーブルから取得されます。',
+        // Access logs are stored by middleware in api_access_logs
+        accessLogs: [], // filled below (best-effort)
+        message: 'セッション情報を表示しています。',
       });
     } else {
       // 全体的なIP統計 - 現在アクティブなセッションから集計
@@ -168,6 +169,42 @@ export async function GET(request: NextRequest) {
         s.user.role === 'ADMIN' || s.user.role === 'SUPER_ADMIN'
       );
 
+      // Pull recent access logs (best-effort). Table is created by internal logging route.
+      let ipStats: Array<{ ip: string; count: number }> = [];
+      try {
+        // Ensure table exists (so first-time admin visit doesn't silently show empty due to missing table)
+        await prisma.$executeRawUnsafe(
+          `CREATE TABLE IF NOT EXISTS "api_access_logs" (
+            "id" SERIAL PRIMARY KEY,
+            "ip" TEXT NOT NULL,
+            "userAgent" TEXT NOT NULL,
+            "path" TEXT NOT NULL,
+            "method" TEXT NOT NULL,
+            "statusCode" INTEGER NOT NULL,
+            "durationMs" INTEGER,
+            "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )`
+        );
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_createdAt_idx" ON "api_access_logs" ("createdAt")`);
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_ip_idx" ON "api_access_logs" ("ip")`);
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_path_idx" ON "api_access_logs" ("path")`);
+
+        const recent: Array<{ ip: string }> = await prisma.$queryRawUnsafe(
+          `SELECT "ip" FROM "api_access_logs" WHERE "createdAt" > NOW() - INTERVAL '24 hours' ORDER BY "createdAt" DESC LIMIT 2000`
+        );
+        const counts = new Map<string, number>();
+        for (const row of recent) {
+          const key = String((row as any).ip || 'unknown');
+          counts.set(key, (counts.get(key) || 0) + 1);
+        }
+        ipStats = Array.from(counts.entries())
+          .map(([ip, count]) => ({ ip, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 30);
+      } catch {
+        ipStats = [];
+      }
+
       return NextResponse.json({
         totalUsers: await prisma.users.count(),
         activeSessions: activeSessions.length,
@@ -180,8 +217,8 @@ export async function GET(request: NextRequest) {
           sessionId: s.id,
           expires: s.expires,
         })),
-        ipStats: [], // 将来の実装: IP別統計
-        message: '現在アクティブなセッション情報を表示しています。IPアドレスは将来の実装でアクセスログテーブルから取得されます。',
+        ipStats,
+        message: '現在アクティブなセッション情報と、直近24時間のAPIアクセスIP統計を表示しています。',
       });
     }
   } catch (error) {

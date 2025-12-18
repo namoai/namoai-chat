@@ -7,6 +7,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
 import { Role } from '@prisma/client';
 import { safeJsonParse } from '@/lib/api-helpers';
+import { isSupportedPattern } from '@/lib/security/ip-match';
 
 /**
  * IPブロックリストを取得
@@ -59,10 +60,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'IPアドレスが必要です。' }, { status: 400 });
     }
 
-    // IP形式の簡易検証
-    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$|^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
-    if (!ipRegex.test(ip)) {
-      return NextResponse.json({ error: '無効なIPアドレスです。' }, { status: 400 });
+    // IP形式の検証（exact / wildcard / CIDR）
+    if (!isSupportedPattern(ip)) {
+      return NextResponse.json(
+        { error: '無効なIP形式です。（例: 111.111.111.* / 111.111.111.0/24 / 111.111.111.111）' },
+        { status: 400 }
+      );
     }
 
     // 現在のブラックリストを取得
@@ -134,4 +137,5 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: '解除に失敗しました。' }, { status: 500 });
   }
 }
+
 

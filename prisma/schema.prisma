@@ -49,7 +49,9 @@ model users {
   declaredAdult                 Boolean?
   needsProfileCompletion        Boolean                     @default(false)
   created_at                    DateTime?                   @default(now()) @db.Timestamp(6)
-  image_url                     String?
+  // NextAuth / PrismaAdapter compatibility: use standard field name `image`
+  // while keeping the existing DB column name `image_url`.
+  image                         String?                     @map("image_url")
   bio                           String?
   safetyFilter                  Boolean                     @default(true)
   defaultPersonaId              Int?

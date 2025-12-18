@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import { ArrowLeft, Camera, User } from 'lucide-react';
+import { fetchWithCsrf } from '@/lib/csrf-client';
 
 // 汎用モーダルコンポーネント
 type ModalProps = {
@@ -54,7 +55,7 @@ export default function ProfileEditPage() {
         const データ = await レスポンス.json();
         setニックネーム(データ.nickname || '');
         set自己紹介(データ.bio || '');
-        set画像プレビュー(データ.image_url || null);
+        set画像プレビュー(データ.image || null);
       } catch (エラー) {
         console.error(エラー);
         setモーダル状態({ isOpen: true, title: 'エラー', message: (エラー as Error).message });
@@ -87,14 +88,25 @@ export default function ProfileEditPage() {
     }
 
     try {
-      const レスポンス = await fetch('/api/users/profile', {
+      const レスポンス = await fetchWithCsrf('/api/users/profile', {
         method: 'PUT',
         body: フォームデータ,
       });
 
       if (!レスポンス.ok) {
-          const エラーデータ = await レスポンス.json();
-          throw new Error(エラーデータ.error || 'プロファイル更新失敗');
+          // エラーフォーマットが複数あり得るため安全に抽出
+          const エラーデータ = await レスポンス.json().catch(() => ({} as any));
+          const メッセージ =
+            typeof エラーデータ?.error === 'string'
+              ? エラーデータ.error
+              : typeof エラーデータ?.message === 'string'
+              ? エラーデータ.message
+              : typeof エラーデータ?.error?.message === 'string'
+              ? エラーデータ.error.message
+              : typeof エラーデータ?.error?.code === 'string'
+              ? `エラー: ${エラーデータ.error.code}`
+              : 'プロファイル更新失敗';
+          throw new Error(メッセージ);
       }
       
       const 更新後のプロフィール = await レスポンス.json();
@@ -102,7 +114,7 @@ export default function ProfileEditPage() {
       // Next-Authのセッション情報を更新
       await セッション更新({
         name: 更新後のプロフィール.user.nickname,
-        image: 更新後のプロフィール.user.image_url,
+        image: 更新後のプロフィール.user.image,
       });
       
       setモーダル状態({ 
@@ -166,6 +178,7 @@ export default function ProfileEditPage() {
                         src={画像プレビュー}
                         alt="Profile Preview"
                         fill
+                        unoptimized
                         className="object-cover"
                         sizes="128px"
                       />

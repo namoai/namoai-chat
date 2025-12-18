@@ -14,20 +14,20 @@ import { fetchWithCsrf } from "@/lib/csrf-client";
 type FollowUser = {
   id: number;
   nickname: string;
-  image_url: string | null;
+  image: string | null;
 };
 
 type BlockedUser = {
     id: number;
     nickname: string;
-    image_url: string | null;
+    image: string | null;
 };
 
 type ProfileData = {
   id: number;
   name: string;
   nickname: string;
-  image_url: string | null;
+  image: string | null;
   bio: string | null;
   hasPassword: boolean; // パスワードが設定されているか
   totalMessageCount: number;
@@ -92,10 +92,10 @@ const UserListModal = ({ title, users, onClose, isLoading, onUnblock, showUnbloc
                                     className="flex items-center gap-3 flex-grow min-w-0"
                                 >
                                     <div className="relative flex-shrink-0">
-                                        {user.image_url ? (
+                                        {user.image ? (
                                             <div className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-pink-500/20 group-hover:ring-pink-500/40 transition-all duration-300">
                                                 <Image 
-                                                    src={user.image_url} 
+                                                    src={user.image} 
                                                     alt={user.nickname} 
                                                     width={48} 
                                                     height={48} 
@@ -587,9 +587,16 @@ export default function UserProfilePage() {
             <main className="space-y-8">
               <section className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
                 <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
-                  {profile.image_url ? (
+                  {profile.image ? (
                     <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden ring-2 ring-pink-500/30 flex-shrink-0">
-                      <Image src={profile.image_url} alt={profile.nickname} fill className="object-cover" sizes="128px" />
+                      <Image
+                        src={profile.image}
+                        alt={profile.nickname}
+                        fill
+                        unoptimized
+                        className="object-cover"
+                        sizes="128px"
+                      />
                     </div>
                   ) : (
                     <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center ring-2 ring-pink-500/30 flex-shrink-0">

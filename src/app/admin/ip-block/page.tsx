@@ -12,6 +12,12 @@ type BlockedIP = {
   blockedAt: string;
 };
 
+type AllowedAdminIP = {
+  ip: string;
+  label: string | null;
+  createdAt: string;
+};
+
 type ModalState = {
   isOpen: boolean;
   title: string;
@@ -24,6 +30,7 @@ type ModalState = {
 export default function IPBlockPage() {
   const router = useRouter();
   const [blockedIPs, setBlockedIPs] = useState<BlockedIP[]>([]);
+  const [allowedAdminIPs, setAllowedAdminIPs] = useState<AllowedAdminIP[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalState, setModalState] = useState<ModalState>({
     isOpen: false,
@@ -32,9 +39,12 @@ export default function IPBlockPage() {
   });
   const [newIP, setNewIP] = useState('');
   const [newReason, setNewReason] = useState('');
+  const [newAdminIP, setNewAdminIP] = useState('');
+  const [newAdminLabel, setNewAdminLabel] = useState('');
 
   useEffect(() => {
     fetchBlockedIPs();
+    fetchAllowedAdminIPs();
   }, []);
 
   const fetchBlockedIPs = async () => {
@@ -49,6 +59,18 @@ export default function IPBlockPage() {
       console.error('IP取得エラー:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAllowedAdminIPs = async () => {
+    try {
+      const response = await fetch('/api/admin/ip-allowlist');
+      if (response.ok) {
+        const data = await response.json();
+        setAllowedAdminIPs(data.allowlist || []);
+      }
+    } catch (error) {
+      console.error('管理者IP取得エラー:', error);
     }
   };
 
@@ -98,6 +120,96 @@ export default function IPBlockPage() {
         isAlert: true,
       });
     }
+  };
+
+  const handleAddAdminIP = async () => {
+    if (!newAdminIP.trim()) {
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: '管理者IPを入力してください。',
+        isAlert: true,
+      });
+      return;
+    }
+    try {
+      const response = await fetchWithCsrf('/api/admin/ip-allowlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: newAdminIP.trim(), label: newAdminLabel.trim() || undefined }),
+      });
+      const data = await response.json().catch(() => ({} as any));
+      if (!response.ok) {
+        setModalState({
+          isOpen: true,
+          title: 'エラー',
+          message: data.error || '登録に失敗しました。',
+          isAlert: true,
+        });
+        return;
+      }
+      setNewAdminIP('');
+      setNewAdminLabel('');
+      await fetchAllowedAdminIPs();
+      setModalState({
+        isOpen: true,
+        title: '成功',
+        message: '管理者IPを登録しました。',
+        isAlert: true,
+      });
+    } catch (error) {
+      console.error('管理者IP登録エラー:', error);
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: '登録処理中にエラーが発生しました。',
+        isAlert: true,
+      });
+    }
+  };
+
+  const handleRemoveAdminIP = (ip: string) => {
+    setModalState({
+      isOpen: true,
+      title: '確認',
+      message: `管理者IP ${ip} を削除しますか？`,
+      confirmText: '削除',
+      onConfirm: async () => {
+        try {
+          const response = await fetchWithCsrf('/api/admin/ip-allowlist', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip }),
+          });
+          if (response.ok) {
+            await fetchAllowedAdminIPs();
+            setModalState({
+              isOpen: true,
+              title: '成功',
+              message: '削除しました。',
+              isAlert: true,
+            });
+          } else {
+            const data = await response.json().catch(() => ({} as any));
+            setModalState({
+              isOpen: true,
+              title: 'エラー',
+              message: data.error || '削除に失敗しました。',
+              isAlert: true,
+            });
+          }
+        } catch (error) {
+          console.error('管理者IP削除エラー:', error);
+          setModalState({
+            isOpen: true,
+            title: 'エラー',
+            message: '削除処理中にエラーが発生しました。',
+            isAlert: true,
+          });
+        }
+      },
+      onCancel: () => setModalState({ ...modalState, isOpen: false }),
+    });
   };
 
   const handleUnblockIP = (ip: string) => {
@@ -157,6 +269,81 @@ export default function IPBlockPage() {
             管理パネルに戻る
           </Link>
         </header>
+
+        {/* 管理者IP（許可リスト） */}
+        <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50 mb-6">
+          <h2 id="admin-ip-allowlist" className="text-xl font-bold mb-2 flex items-center">
+            <Shield size={20} className="mr-2 text-pink-400" />
+            管理者IP（許可リスト）
+          </h2>
+          <p className="text-sm text-gray-400 mb-4">
+            ここに登録されたIPからのみ <span className="text-gray-200">/admin</span> にアクセスできます（登録が0件なら制限なし）。
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">管理者IP *</label>
+              <input
+                type="text"
+                value={newAdminIP}
+                onChange={(e) => setNewAdminIP(e.target.value)}
+                placeholder="例: 192.168.1.10"
+                className="w-full bg-gray-800 border-gray-700 rounded-md text-white placeholder-gray-500 px-4 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">ラベル（任意）</label>
+              <input
+                type="text"
+                value={newAdminLabel}
+                onChange={(e) => setNewAdminLabel(e.target.value)}
+                placeholder="例: 自宅WiFi / 会社"
+                className="w-full bg-gray-800 border-gray-700 rounded-md text-white placeholder-gray-500 px-4 py-2"
+              />
+            </div>
+          </div>
+          <button
+            onClick={handleAddAdminIP}
+            className="mt-4 bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors flex items-center"
+          >
+            <Plus size={16} className="mr-2" />
+            登録
+          </button>
+
+          <div className="mt-6 overflow-x-auto">
+            {allowedAdminIPs.length === 0 ? (
+              <div className="text-center text-gray-400 py-6">登録済みの管理者IPはありません。</div>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-gray-800/50">
+                  <tr>
+                    <th className="p-4 text-left">IP</th>
+                    <th className="p-4 text-left">ラベル</th>
+                    <th className="p-4 text-left">登録日時</th>
+                    <th className="p-4 text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allowedAdminIPs.map((row, idx) => (
+                    <tr key={idx} className="border-b border-gray-800 hover:bg-gray-800/30">
+                      <td className="p-4 font-mono">{row.ip}</td>
+                      <td className="p-4 text-gray-300">{row.label || '-'}</td>
+                      <td className="p-4 text-gray-400">{new Date(row.createdAt).toLocaleString('ja-JP')}</td>
+                      <td className="p-4 text-right">
+                        <button
+                          onClick={() => handleRemoveAdminIP(row.ip)}
+                          className="bg-orange-600 hover:bg-orange-700 text-white text-xs px-3 py-1 rounded transition-colors flex items-center ml-auto"
+                        >
+                          <X size={14} className="mr-1" />
+                          削除
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
 
         {/* IP追加フォーム */}
         <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50 mb-6">
@@ -275,4 +462,5 @@ export default function IPBlockPage() {
     </div>
   );
 }
+
 

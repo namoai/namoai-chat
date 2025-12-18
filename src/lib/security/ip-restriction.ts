@@ -1,50 +1,129 @@
 /**
- * Basic認証ミドルウェア
- * 管理者ページへのアクセス制限
+ * 管理者ページへのBasic認証
+ * IP制限は不要（従業員数が変動的で管理が困難なため）
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 
-// Basic認証の認証情報（環境変数から取得）
-const BASIC_AUTH_USER = process.env.ADMIN_BASIC_AUTH_USER;
-const BASIC_AUTH_PASSWORD = process.env.ADMIN_BASIC_AUTH_PASSWORD;
-
-/**
- * Basic認証を検証
- */
-export function verifyBasicAuth(authHeader: string | null): boolean {
-  if (!BASIC_AUTH_USER || !BASIC_AUTH_PASSWORD) {
-    // Basic認証が設定されていない場合は検証をスキップ
-    return true;
+function decodeBase64(input: string): string {
+  // Middleware runs in edge runtime where Buffer may not exist.
+  if (typeof atob === 'function') {
+    return atob(input);
   }
-  
-  if (!authHeader || !authHeader.startsWith('Basic ')) {
-    return false;
-  }
-  
-  const base64Credentials = authHeader.split(' ')[1];
-  const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
-  const [username, password] = credentials.split(':');
-  
-  return username === BASIC_AUTH_USER && password === BASIC_AUTH_PASSWORD;
+  // Node fallback
+  // eslint-disable-next-line no-undef
+  return Buffer.from(input, 'base64').toString('utf-8');
 }
 
 /**
- * 管理者ページへのアクセス制限ミドルウェア
- * Basic認証のみチェック
+ * 管理者ページへのアクセスをBasic認証で制限
+ * 環境変数が設定されていない場合は制限なし
  */
 export function checkAdminAccess(request: NextRequest): NextResponse | null {
-  // Basic認証チェック
+  const basicAuthUser = process.env.ADMIN_BASIC_AUTH_USER;
+  const basicAuthPassword = process.env.ADMIN_BASIC_AUTH_PASSWORD;
+
+  // 環境変数が設定されていない場合はBasic認証なし
+  if (!basicAuthUser || !basicAuthPassword) {
+    return null;
+  }
+
   const authHeader = request.headers.get('authorization');
-  if (!verifyBasicAuth(authHeader)) {
-    return new NextResponse(null, {
+
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    return new NextResponse('認証が必要です。', {
       status: 401,
       headers: {
+        // Header values must be ByteString (0-255) in the Edge runtime.
+        // Keep realm ASCII-only to avoid "Cannot convert argument to a ByteString" errors.
         'WWW-Authenticate': 'Basic realm="Admin Area"',
+        // Avoid caching; some browsers still cache credentials per-realm.
+        'Cache-Control': 'no-store',
       },
     });
   }
-  
-  return null; // アクセス許可
+
+  // Basic認証のデコード
+  const base64Credentials = authHeader.split(' ')[1];
+  const credentials = decodeBase64(base64Credentials);
+  const [username, password] = credentials.split(':');
+
+  // 認証情報の検証
+  if (username === basicAuthUser && password === basicAuthPassword) {
+    return null; // 認証成功
+  }
+
+  // 認証失敗
+  return new NextResponse('認証に失敗しました。', {
+    status: 401,
+    headers: {
+      'WWW-Authenticate': 'Basic realm="Admin Area"',
+      'Cache-Control': 'no-store',
+    },
+  });
 }
 
+/**
+ * Same as checkAdminAccess but forces a fresh prompt on every request by varying the realm.
+ * Use this ONLY when you explicitly want "prompt every time".
+ */
+export function checkAdminAccessAlwaysPrompt(request: NextRequest, realmSuffix: string): NextResponse | null {
+  const basicAuthUser = process.env.ADMIN_BASIC_AUTH_USER;
+  const basicAuthPassword = process.env.ADMIN_BASIC_AUTH_PASSWORD;
+
+  if (!basicAuthUser || !basicAuthPassword) {
+    return new NextResponse('Authentication is required.', {
+      status: 401,
+      headers: {
+        'WWW-Authenticate': `Basic realm="Admin Area ${realmSuffix}"`,
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
+
+  const authHeader = request.headers.get('authorization');
+  const realm = `Admin Area ${realmSuffix}`;
+
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    return new NextResponse('Authentication is required.', {
+      status: 401,
+      headers: {
+        'WWW-Authenticate': `Basic realm="${realm}"`,
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
+
+  const base64Credentials = authHeader.split(' ')[1];
+  const credentials = decodeBase64(base64Credentials);
+  const [username, password] = credentials.split(':');
+
+  if (username === basicAuthUser && password === basicAuthPassword) {
+    return null;
+  }
+
+  return new NextResponse('Authentication failed.', {
+    status: 401,
+    headers: {
+      'WWW-Authenticate': `Basic realm="${realm}"`,
+      'Cache-Control': 'no-store',
+    },
+  });
+}
+
+/**
+ * クライアントIPアドレスを取得（ログ用）
+ */
+export function getClientIp(request: NextRequest): string {
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  
+  const realIp = request.headers.get('x-real-ip');
+  if (realIp) {
+    return realIp.trim();
+  }
+  
+  return request.ip || 'unknown';
+}

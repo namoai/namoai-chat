@@ -1,90 +1,87 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+export const runtime = "nodejs";
 
-export const dynamic = 'force-dynamic';
+import { NextResponse } from "next/server";
+import { getPrisma } from "@/lib/prisma";
+import crypto from "crypto";
 
-/**
- * 認証コード検証API
- * POST /api/auth/verify-code
- * Body: { email: string, code: string }
- */
-export async function POST(request: NextRequest) {
+const PROOF_TTL_MINUTES = 30;
+
+function normalizeEmail(email: string) {
+  return String(email || "").trim().toLowerCase();
+}
+
+function hashCode(code: string): string {
+  return crypto.createHash("sha256").update(code).digest("hex");
+}
+
+function newProofToken(): string {
+  return crypto.randomUUID();
+}
+
+export async function POST(req: Request) {
   try {
-    const body = await request.json();
-    const { email, code } = body;
-
-    if (!email || !code) {
-      return NextResponse.json(
-        { error: 'メールアドレスと認証コードが必要です。' },
-        { status: 400 }
-      );
+    const contentType = req.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      return NextResponse.json({ error: "Invalid content-type" }, { status: 400 });
     }
 
-    // 認証コードは6桁の数字
+    const body = await req.json().catch(() => null);
+    const email = normalizeEmail(body?.email);
+    const code = String(body?.code || "").trim();
+
+    if (!email || !email.includes("@")) {
+      return NextResponse.json({ error: "Invalid email" }, { status: 400 });
+    }
     if (!/^\d{6}$/.test(code)) {
-      return NextResponse.json(
-        { error: '認証コードは6桁の数字です。' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid code" }, { status: 400 });
     }
 
     const prisma = await getPrisma();
 
-    // 認証コードを検証
-    const verificationToken = await prisma.email_verification_tokens.findFirst({
-      where: {
-        email,
-        token: code,
-        expires: {
-          gt: new Date(), // 有効期限内
-        },
+    const record = await prisma.verificationToken.findFirst({
+      where: { identifier: `email_code:${email}` },
+      orderBy: { expires: "desc" },
+    });
+
+    if (!record) {
+      return NextResponse.json({ error: "認証コードが見つかりません。再送信してください。" }, { status: 400 });
+    }
+    if (record.expires < new Date()) {
+      await prisma.verificationToken.deleteMany({ where: { identifier: `email_code:${email}` } });
+      return NextResponse.json({ error: "認証コードの有効期限が切れています。再送信してください。" }, { status: 400 });
+    }
+
+    const expected = record.token;
+    const actual = hashCode(code);
+    if (expected !== actual) {
+      return NextResponse.json({ error: "認証コードが正しくありません。" }, { status: 400 });
+    }
+
+    // Consume code
+    await prisma.verificationToken.deleteMany({ where: { identifier: `email_code:${email}` } });
+
+    // Issue a proof token for registration
+    const proof = newProofToken();
+    const proofExpires = new Date(Date.now() + PROOF_TTL_MINUTES * 60 * 1000);
+
+    await prisma.verificationToken.deleteMany({ where: { identifier: `email_proof:${email}` } });
+    await prisma.verificationToken.create({
+      data: {
+        identifier: `email_proof:${email}`,
+        token: proof,
+        expires: proofExpires,
       },
     });
 
-    if (!verificationToken) {
-      return NextResponse.json(
-        { error: '認証コードが正しくないか、期限切れです。' },
-        { status: 400 }
-      );
-    }
-
-    // 既存ユーザーかどうかを確認（emailでユーザーを検索）
-    const user = await prisma.users.findUnique({
-      where: { email },
-    });
-
-    // 既存ユーザーの場合、メールアドレスを認証済みに更新
-    if (user) {
-      await prisma.$transaction([
-        prisma.users.update({
-          where: { id: user.id },
-          data: {
-            emailVerified: new Date(),
-          },
-        }),
-        // 使用済みトークンを削除
-        prisma.email_verification_tokens.delete({
-          where: { id: verificationToken.id },
-        }),
-      ]);
-    } else {
-      // まだ登録されていない場合、トークンを削除（認証完了状態をセッション等で管理）
-      // 実際には認証完了をフロントエンドで管理し、会員登録時に確認します
-      await prisma.email_verification_tokens.delete({
-        where: { id: verificationToken.id },
-      });
-    }
-
-    return NextResponse.json({
-      message: 'メールアドレスの認証が完了しました。',
-      verified: true,
-    });
-  } catch (error) {
-    console.error('[Verify Code] エラー:', error);
     return NextResponse.json(
-      { error: '認証コード検証中にエラーが発生しました。' },
-      { status: 500 }
+      { message: "メールアドレスの認証が完了しました。", proof },
+      { status: 200 }
     );
+  } catch (e: any) {
+    console.error("verify-code error:", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
+
 

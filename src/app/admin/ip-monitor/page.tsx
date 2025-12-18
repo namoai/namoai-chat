@@ -164,11 +164,11 @@ export default function IPMonitorPage() {
             <User size={20} className="mr-2 text-pink-400" />
             会員IP検索
           </h2>
-          <div className="flex gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4">
             <select
               value={searchType}
               onChange={(e) => setSearchType(e.target.value as 'id' | 'email' | 'nickname' | 'query')}
-              className="bg-gray-800 border-gray-700 rounded-md text-white px-4 py-2"
+              className="w-full sm:w-80 bg-gray-800 border-gray-700 rounded-md text-white px-4 py-2"
             >
               <option value="query">自動検索（ID/メール/ニックネーム）</option>
               <option value="id">ユーザーID</option>
@@ -180,13 +180,13 @@ export default function IPMonitorPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={searchType === 'id' ? 'ユーザーIDを入力' : searchType === 'email' ? 'メールアドレスを入力' : searchType === 'nickname' ? 'ニックネームを入力' : 'ID、メール、ニックネームで検索'}
-              className="flex-1 bg-gray-800 border-gray-700 rounded-md text-white placeholder-gray-500 px-4 py-2"
+              className="w-full flex-1 bg-gray-800 border-gray-700 rounded-md text-white placeholder-gray-500 px-4 py-2"
               onKeyPress={(e) => e.key === 'Enter' && handleSearchUser()}
             />
             <button
               onClick={handleSearchUser}
               disabled={loading || !searchQuery.trim()}
-              className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors flex items-center disabled:opacity-50"
+              className="w-full sm:w-auto bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors flex items-center justify-center disabled:opacity-50"
             >
               <Search size={16} className="mr-2" />
               検索

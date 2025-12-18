@@ -1,61 +1,42 @@
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-import { NextResponse, NextRequest } from 'next/server';
-import { getPrisma } from "@/lib/prisma";
-import { Role } from '@prisma/client';
-import { getServerSession } from 'next-auth/next';
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
-import { isBuildTime, buildTimeResponse, safeJsonParse } from "@/lib/api-helpers";
+import { getPrisma } from '@/lib/prisma';
+import { isBuildTime, buildTimeResponse, safeJsonParse } from '@/lib/api-helpers';
+import { Role } from '@prisma/client';
 
-// POST: メール認証状態を切り替え
 export async function POST(request: NextRequest) {
   if (isBuildTime()) return buildTimeResponse();
-  
+
   const session = await getServerSession(authOptions);
-  
-  // SUPER_ADMINのみアクセス可能
   if (session?.user?.role !== Role.SUPER_ADMIN) {
     return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
   }
 
+  const parseResult = await safeJsonParse<{ userId: number; verified: boolean }>(request);
+  if (!parseResult.success) return parseResult.error;
+
+  const { userId, verified } = parseResult.data;
+  if (!userId || typeof verified !== 'boolean') {
+    return NextResponse.json({ error: '無効なデータです。' }, { status: 400 });
+  }
+
   try {
-    // リクエストボディを安全にパース
-    const parsed = await safeJsonParse<{ userId: number | string; verified: boolean }>(request);
-    if (!parsed.success) {
-      // safeJsonParse 内で生成されたエラーレスポンスをそのまま返す
-      return parsed.error;
-    }
-
-    const { userId, verified } = parsed.data;
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'ユーザーIDが必要です。' }, { status: 400 });
-    }
-
     const prisma = await getPrisma();
-    
-    // メール認証状態を更新
-    const updatedUser = await prisma.users.update({
-      where: { id: typeof userId === 'number' ? userId : parseInt(userId as string, 10) },
-      data: {
-        emailVerified: verified ? new Date() : null,
-      },
+    const updated = await prisma.users.update({
+      where: { id: userId },
+      data: { emailVerified: verified ? new Date() : null },
+      select: { id: true, emailVerified: true },
     });
-
-    console.log(`✅ ユーザー ${updatedUser.email} のメール認証状態を変更: ${verified ? '認証済み' : '未認証'}`);
-
-    return NextResponse.json({ 
-      message: `メール認証状態を${verified ? '認証済み' : '未認証'}に変更しました。`,
-      user: {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        emailVerified: updatedUser.emailVerified,
-      }
-    });
+    return NextResponse.json({ success: true, user: updated }, { status: 200 });
   } catch (error) {
-    console.error('メール認証状態変更エラー:', error);
-    return NextResponse.json({ error: 'サーバーエラー' }, { status: 500 });
+    console.error('[admin/users/verify-email] error:', error);
+    return NextResponse.json({ error: 'メール認証状態の更新に失敗しました。' }, { status: 500 });
   }
 }
+
 
 

@@ -6,7 +6,7 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { getPrisma } from '@/lib/prisma';
 import bcrypt from "bcrypt";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Role } from "@prisma/client";
 import { randomBytes } from 'crypto';
 
 // PrismaAdapterが期待するモデル名(user, accountなど)と、
@@ -432,13 +432,14 @@ export function getAuthOptions(): NextAuthOptions {
               email,
               name: name || "New User",
               nickname: newNickname,
-              image_url: image,
+              // Prisma schema maps `image` -> DB column `image_url`
+              image: image,
               emailVerified: new Date(),
               safetyFilter: true,
               declaredAdult: null,
               dateOfBirth: null,
               needsProfileCompletion: true,
-              role: isAdmin ? 'ADMIN' : 'USER', // ✅ 管理者として設定
+              role: isAdmin ? Role.SUPER_ADMIN : Role.USER, // ✅ 管理者として設定
             },
           });
           console.log(`[signIn] New user created: ${email}, role: ${isAdmin ? 'ADMIN' : 'USER'}, needsProfileCompletion=true`);
@@ -525,15 +526,21 @@ export function getAuthOptions(): NextAuthOptions {
 
           if (!dbUser) {
             console.log(`セッションエラー: ユーザー ID ${token.id} が存在しません（削除済み）`);
-            // ユーザーが存在しない場合、セッションを無効化
-            return null as unknown as typeof session;
+            // ユーザーが存在しない場合:
+            // NextAuthは `null` セッションも扱えるはずだが、クライアント側で
+            // CLIENT_FETCH_ERROR が出るケースがあるため「空セッション」を返して安全に倒す。
+            // (クライアントは /login などへ誘導される想定)
+            (session as unknown as { user?: unknown }).user = undefined;
+            (session as unknown as { expires: string }).expires = new Date(0).toISOString();
+            return session;
           }
 
           // 最新のユーザー情報でセッションを更新
           session.user.name = dbUser.nickname;
           session.user.nickname = dbUser.nickname;
         session.user.role = dbUser.role;
-        session.user.image = dbUser.image_url || undefined;
+        // Prisma schema maps `image` -> DB column `image_url`
+        session.user.image = dbUser.image || undefined;
         session.user.needsProfileCompletion = dbUser.needsProfileCompletion;
         } catch (error) {
           console.error('セッション取得中にエラーが発生しました:', error);

@@ -157,12 +157,12 @@ export default function AdminDashboardPage() {
             )}
 
             {(userRole === 'SUPER_ADMIN') && (
-              <Link href="/admin/ip-block" className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl hover:bg-gray-800/50 transition-all cursor-pointer flex flex-col items-center text-center border border-gray-800/50 hover:border-pink-500/30 group">
+              <Link href="/admin/ip-block#admin-ip-allowlist" className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl hover:bg-gray-800/50 transition-all cursor-pointer flex flex-col items-center text-center border border-gray-800/50 hover:border-pink-500/30 group">
                 <div className="p-4 rounded-xl bg-gradient-to-br from-red-500/20 to-orange-500/20 mb-4 group-hover:scale-110 transition-transform">
                   <Shield size={40} className="text-red-400" />
                 </div>
-                <h2 className="text-xl font-bold mb-2 group-hover:text-pink-400 transition-colors">IPブロック管理</h2>
-                <p className="text-gray-400 text-sm">IPアドレスの手動ブロック・解除を管理します。</p>
+                <h2 className="text-xl font-bold mb-2 group-hover:text-pink-400 transition-colors">管理者IP / IPブロック</h2>
+                <p className="text-gray-400 text-sm">管理者許可IPの登録と、IPの手動ブロック/解除を管理します。</p>
               </Link>
             )}
 
