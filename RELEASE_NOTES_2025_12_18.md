@@ -1,25 +1,25 @@
-# Release Notes — 2025-12-18
+# リリースノート — 2025-12-18
 
-## Highlights
-- Improved admin IP monitoring with CloudFront/proxy header inspection and clearer public vs internal IP stats.
-- Added best-effort access log persistence across page/API requests and enabled user-scoped IP lookup in admin tools.
-- Fixed profile/user image field mapping (`users.image`) while keeping backward-compatible `image_url` responses.
-- Stabilized Amplify builds by hardening server-only env loading and removing unsupported `NextRequest.ip` usage.
+## ハイライト
+- CloudFront / プロキシヘッダーを用いた判定を強化し、管理画面のIP監視を改善（公開IPと内部IPの集計をより分かりやすく表示）。
+- ページ/APIアクセスのログ保存（ベストエフォート）を拡張し、管理ツール上でユーザー単位のIP確認を可能に。
+- プロフィール/ユーザー画像のフィールドマッピング（`users.image`）を修正しつつ、互換性のため `image_url` も返すように整備。
+- Amplifyビルドの安定化：サーバー専用の環境変数ロードを強化し、未対応の `NextRequest.ip` 参照を排除。
 
-## Changes
-### Admin / Security
-- Log and display resolved client IP using CDN/proxy headers (e.g. `x-forwarded-for`, `cloudfront-viewer-address`).
-- Persist access logs for admin pages and non-API page navigations.
-- Store `userId` alongside access log rows (when available via session) to support user IP lookup.
-- Add user IP stats and recent access logs to the admin IP monitor user search flow.
+## 変更内容
+### 管理 / セキュリティ
+- CDN/プロキシヘッダー（例：`x-forwarded-for`、`cloudfront-viewer-address`）から解決したクライアントIPをログ/表示。
+- 管理ページおよび非APIのページ遷移についてもアクセスログを保存。
+- セッションから取得できる場合、アクセスログに `userId` を併記してユーザーIP検索を可能に。
+- 管理者IP監視のユーザー検索フローに、ユーザーIP統計と最近のアクセスログ表示を追加。
 
-### Build / Infrastructure
-- Prevent bundler issues with Node built-ins (`fs`, `path`) and avoid `node:` scheme imports during builds.
-- Enforce required environment variables loaded from SSM and fail fast when missing.
+### ビルド / インフラ
+- Node組み込み（`fs`、`path`）のバンドル問題を回避し、ビルド時の `node:` スキームimportを避けるよう調整。
+- SSMから必須環境変数をロードすることを強制し、欠落時は早期に失敗するように修正。
 
-### API / Data
-- Fix Prisma selects to use `users.image` (mapped DB column), and normalize API responses to include `image_url` for compatibility.
-- Align API request/response typing (e.g. `complete-profile` includes `name`).
+### API / データ
+- Prismaのselectを `users.image`（DBカラムのマップ先）に修正し、互換性のためレスポンスに `image_url` も含めるよう正規化。
+- APIのリクエスト/レスポンス型を整合（例：`complete-profile` に `name` を含む）。
 
-## Notes
-- Access logging is best-effort. Internal server-side fetches may still appear as loopback/private IPs depending on runtime behavior.
+## 注記
+- アクセスログはベストエフォートです。ランタイム挙動によっては、内部のサーバーサイドfetchがループバック/プライベートIPとして記録される場合があります。
