@@ -13,6 +13,7 @@ const ADMIN_ALLOWLIST_CACHE_MS = 30_000;
 
 function shouldLogPath(pathname: string): boolean {
   if (pathname === '/api/internal/log-access') return false;
+  if (pathname === '/api/log-access') return false;
   if (pathname.startsWith('/_next')) return false;
   if (pathname.startsWith('/favicon')) return false;
   if (pathname.startsWith('/robots')) return false;

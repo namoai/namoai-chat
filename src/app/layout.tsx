@@ -4,6 +4,7 @@ import "./globals.css";
 // 1. AppShellとProvidersコンポーネントをインポートします
 import AppShell from "@/components/AppShell";
 import Providers from "@/components/Providers";
+import AccessLogger from "@/components/AccessLogger";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,6 +29,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} antialiased`}>
         {/* NextAuthのセッション状態をアプリ全体で共有するためにProvidersでラップします */}
         <Providers>
+          <AccessLogger />
           {/* 全てのページ内容({children})をAppShellコンポーネントでラップします。
             これにより、AppShellがパスに応じてナビゲーションバーの表示・非表示を管理します。
           */}
