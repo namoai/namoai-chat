@@ -37,7 +37,9 @@ export async function GET(request: NextRequest) {
       if (realIp) {
         return realIp.trim();
       }
-      return req.ip || 'unknown';
+      // NextRequest does not expose `ip` in its public TypeScript type.
+      // Treat unknown as unknown; rely on proxy headers in production.
+      return 'unknown';
     };
 
     // ユーザー検索（ID、メール、ニックネームで検索）
