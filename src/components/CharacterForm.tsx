@@ -1977,7 +1977,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
       </div>
 
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-          <DialogContent className="sm:max-w-[425px] bg-gray-800/95 backdrop-blur-xl text-white border-gray-700/50 rounded-xl">
+          <DialogContent className="sm:max-w-[425px] bg-gray-800/95 backdrop-blur-xl text-white border-gray-700/50 rounded-xl h-[85dvh] sm:h-auto overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
             <DialogHeader><DialogTitle>キーワード入力</DialogTitle></DialogHeader>
             <div className="py-4">
               {selectedIndex !== null && images[selectedIndex] && (
@@ -1996,7 +1996,9 @@ export default function CharacterForm({ isEditMode, initialData, session, status
 
       {/* ▼▼▼【AI画像生成モーダル】▼▼▼ */}
       <Dialog open={isImageGenerateModalOpen} onOpenChange={handleImageGenerateModalOpenChange}>
-        <DialogContent className="sm:max-w-[900px] bg-gray-800/95 backdrop-blur-xl text-white border-gray-700/50 rounded-xl">
+        <DialogContent
+          className="sm:max-w-[900px] bg-gray-800/95 backdrop-blur-xl text-white border-gray-700/50 rounded-xl h-[85dvh] sm:h-auto overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
+        >
           <DialogHeader>
             <DialogTitle>AI画像生成</DialogTitle>
           </DialogHeader>
