@@ -92,6 +92,42 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // We only log & enforce CSRF for API routes to avoid overhead on page navigations.
   // Admin pages are handled above.
   if (!isApiRoute(pathname)) {
+    // Also persist admin page accesses so IP monitor can show real public IPs
+    // even when the user hasn't triggered any API calls.
+    if (pathname.startsWith('/admin')) {
+      const response = NextResponse.next();
+      const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      response.headers.set('x-request-id', requestId);
+
+      event.waitUntil((async () => {
+        const duration = Date.now() - startTime;
+        const ip = getClientIpFromRequest(request);
+
+        // Console/memory log
+        logger.logAccess(request, 200);
+
+        // Persist access logs for admin IP monitor (best-effort)
+        try {
+          await fetch(`${request.nextUrl.origin}/api/internal/log-access`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              ip,
+              userAgent: request.headers.get('user-agent') || 'unknown',
+              path: pathname,
+              method: request.method,
+              statusCode: 200,
+              duration,
+            }),
+          });
+        } catch {
+          // ignore
+        }
+      })());
+
+      return response;
+    }
+
     return NextResponse.next();
   }
 
