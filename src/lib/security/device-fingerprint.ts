@@ -93,7 +93,7 @@ export async function saveDeviceInfo(
 /**
  * デバイスが既知かチェック
  */
-export async function isKnownDevice(): Promise<boolean> {
+export async function isKnownDevice(_userId: number, _fingerprint: string): Promise<boolean> {
   try {
     // 実際の実装では、データベースからチェック
     // const device = await prisma.deviceInfo.findFirst({
