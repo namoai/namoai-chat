@@ -185,6 +185,8 @@ export async function GET(request: NextRequest) {
       // Pull recent access logs (best-effort). Table is created by internal logging route.
       let ipStats: Array<{ ip: string; count: number }> = [];
       let internalIpStats: Array<{ ip: string; count: number }> = [];
+      let rawTopIps: Array<{ ip: string; count: number }> = [];
+      let recentLogSamples: Array<{ ip: string; path: string; createdAt: string }> = [];
       try {
         // Ensure table exists (so first-time admin visit doesn't silently show empty due to missing table)
         await prisma.$executeRawUnsafe(
@@ -215,13 +217,29 @@ export async function GET(request: NextRequest) {
           .map(([ip, count]) => ({ ip, count }))
           .sort((a, b) => b.count - a.count);
 
+        rawTopIps = all.slice(0, 30);
+
         // Separate internal/loopback/private IPs so AWS environments don't look "broken"
         // when most traffic comes from internal server-side fetches.
         ipStats = all.filter((x) => !isLocalOrPrivateIp(x.ip)).slice(0, 30);
         internalIpStats = all.filter((x) => isLocalOrPrivateIp(x.ip)).slice(0, 30);
+
+        const sampleRows: Array<{ ip: string; path: string; createdAt: string }> = await prisma.$queryRawUnsafe(
+          `SELECT "ip","path", to_char("createdAt", 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') as "createdAt"
+           FROM "api_access_logs"
+           ORDER BY "createdAt" DESC
+           LIMIT 50`
+        );
+        recentLogSamples = sampleRows.map((r) => ({
+          ip: String((r as { ip?: unknown }).ip || 'unknown'),
+          path: String((r as { path?: unknown }).path || 'unknown'),
+          createdAt: String((r as { createdAt?: unknown }).createdAt || ''),
+        }));
       } catch {
         ipStats = [];
         internalIpStats = [];
+        rawTopIps = [];
+        recentLogSamples = [];
       }
 
       return NextResponse.json({
@@ -238,6 +256,8 @@ export async function GET(request: NextRequest) {
         })),
         ipStats,
         internalIpStats,
+        rawTopIps,
+        recentLogSamples,
         ipDebug,
         message: '現在アクティブなセッション情報と、直近24時間のAPIアクセスIP統計を表示しています。',
       });

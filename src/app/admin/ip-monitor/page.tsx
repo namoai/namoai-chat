@@ -75,6 +75,8 @@ export default function IPMonitorPage() {
   const [recentSessions, setRecentSessions] = useState<SessionInfo[]>([]);
   const [showUserList, setShowUserList] = useState(false);
   const [ipDebug, setIpDebug] = useState<UserIPInfo['ipDebug'] | null>(null);
+  const [rawTopIps, setRawTopIps] = useState<IPStat[]>([]);
+  const [recentLogSamples, setRecentLogSamples] = useState<Array<{ ip: string; path: string; createdAt: string }>>([]);
 
   useEffect(() => {
     fetchIPStats();
@@ -90,6 +92,8 @@ export default function IPMonitorPage() {
         setInternalIpStats(data.internalIpStats || []);
         setRecentSessions(data.recentSessions || []);
         setIpDebug(data.ipDebug || null);
+        setRawTopIps(data.rawTopIps || []);
+        setRecentLogSamples(data.recentLogSamples || []);
       }
     } catch (error) {
       console.error('IP統計取得エラー:', error);
@@ -127,11 +131,15 @@ export default function IPMonitorPage() {
           setShowUserList(true);
           setUserIPInfo(null);
           setIpDebug(data.ipDebug || null);
+          setRawTopIps(data.rawTopIps || []);
+          setRecentLogSamples(data.recentLogSamples || []);
         } else {
           // 特定ユーザー情報が返された場合
           setUserIPInfo(data);
           setShowUserList(false);
           setIpDebug(data.ipDebug || null);
+          setRawTopIps(data.rawTopIps || []);
+          setRecentLogSamples(data.recentLogSamples || []);
         }
       } else {
         const errorData = await response.json();
@@ -140,6 +148,8 @@ export default function IPMonitorPage() {
         setUsers([]);
         setShowUserList(false);
         setIpDebug(null);
+        setRawTopIps([]);
+        setRecentLogSamples([]);
       }
     } catch (error) {
       console.error('ユーザーIP取得エラー:', error);
@@ -489,6 +499,75 @@ export default function IPMonitorPage() {
               </table>
             </div>
           )}
+        </div>
+
+        {/* デバッグ: 生データ（直近24h 上位IP / 直近50件ログ） */}
+        <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800/50 overflow-hidden mt-6">
+          <div className="p-6 border-b border-gray-800">
+            <h2 className="text-xl font-bold flex items-center">
+              <Eye size={20} className="mr-2 text-blue-400" />
+              デバッグ（生ログ）
+            </h2>
+            <p className="text-sm text-gray-400 mt-2">
+              公開IPが統計に出ない場合、まずここで DB に何が保存されているか確認します。
+            </p>
+          </div>
+
+          <div className="p-6 space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">直近24時間: 上位IP（フィルタ前）</h3>
+              {rawTopIps.length === 0 ? (
+                <p className="text-sm text-gray-400">データなし</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-800/50">
+                      <tr>
+                        <th className="p-3 text-left">IP</th>
+                        <th className="p-3 text-left">count</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rawTopIps.map((stat, idx) => (
+                        <tr key={idx} className="border-b border-gray-800 hover:bg-gray-800/30">
+                          <td className="p-3 font-mono">{stat.ip}</td>
+                          <td className="p-3">{stat.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold mb-2">直近50件: 保存ログサンプル</h3>
+              {recentLogSamples.length === 0 ? (
+                <p className="text-sm text-gray-400">データなし</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-800/50">
+                      <tr>
+                        <th className="p-3 text-left">createdAt</th>
+                        <th className="p-3 text-left">ip</th>
+                        <th className="p-3 text-left">path</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentLogSamples.map((row, idx) => (
+                        <tr key={idx} className="border-b border-gray-800 hover:bg-gray-800/30">
+                          <td className="p-3 font-mono text-xs">{row.createdAt}</td>
+                          <td className="p-3 font-mono">{row.ip}</td>
+                          <td className="p-3 text-gray-400">{row.path}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* 内部IP統計（ローカル/プライベート） */}
