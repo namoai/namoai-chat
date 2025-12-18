@@ -43,6 +43,14 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
     'STRIPE_SECRET_KEY',
     'STRIPE_WEBHOOK_SECRET',
     'REPLICATE_API_TOKEN',
+
+    // Email sender credentials (used by src/lib/email.*)
+    'EMAIL_USER',
+    'EMAIL_PASSWORD',
+
+    // Admin basic auth (used by src/lib/security/ip-restriction.ts)
+    'ADMIN_BASIC_AUTH_USER',
+    'ADMIN_BASIC_AUTH_PASSWORD',
   ];
   const cloudflareVars = [
     // CLOUDFLARE_R2_ACCOUNT_ID는 CLOUDFLARE_ACCOUNT_ID의 fallback이므로 선택사항
