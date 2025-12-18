@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Shield, X, Plus } from 'lucide-react';
 import { fetchWithCsrf } from '@/lib/csrf-client';
@@ -28,7 +27,6 @@ type ModalState = {
 };
 
 export default function IPBlockPage() {
-  const router = useRouter();
   const [blockedIPs, setBlockedIPs] = useState<BlockedIP[]>([]);
   const [allowedAdminIPs, setAllowedAdminIPs] = useState<AllowedAdminIP[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,7 +136,7 @@ export default function IPBlockPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ip: newAdminIP.trim(), label: newAdminLabel.trim() || undefined }),
       });
-      const data = await response.json().catch(() => ({} as any));
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) {
         setModalState({
           isOpen: true,
@@ -190,7 +188,7 @@ export default function IPBlockPage() {
               isAlert: true,
             });
           } else {
-            const data = await response.json().catch(() => ({} as any));
+            const data = (await response.json().catch(() => ({}))) as { error?: string };
             setModalState({
               isOpen: true,
               title: 'エラー',

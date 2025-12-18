@@ -95,16 +95,18 @@ export default function ProfileEditPage() {
 
       if (!レスポンス.ok) {
           // エラーフォーマットが複数あり得るため安全に抽出
-          const エラーデータ = await レスポンス.json().catch(() => ({} as any));
+          const エラーデータ = (await レスポンス.json().catch(() => ({}))) as Record<string, unknown>;
           const メッセージ =
             typeof エラーデータ?.error === 'string'
-              ? エラーデータ.error
+              ? (エラーデータ.error as string)
               : typeof エラーデータ?.message === 'string'
-              ? エラーデータ.message
-              : typeof エラーデータ?.error?.message === 'string'
-              ? エラーデータ.error.message
-              : typeof エラーデータ?.error?.code === 'string'
-              ? `エラー: ${エラーデータ.error.code}`
+              ? (エラーデータ.message as string)
+              : typeof (エラーデータ as { error?: unknown })?.error === 'object' &&
+                (エラーデータ as { error?: { message?: unknown } })?.error?.message &&
+                typeof (エラーデータ as { error?: { message?: unknown } })?.error?.message === 'string'
+              ? ((エラーデータ as { error: { message: string } }).error.message)
+              : typeof (エラーデータ as { error?: { code?: unknown } })?.error?.code === 'string'
+              ? `エラー: ${(エラーデータ as { error: { code: string } }).error.code}`
               : 'プロファイル更新失敗';
           throw new Error(メッセージ);
       }

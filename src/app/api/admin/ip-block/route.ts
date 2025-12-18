@@ -13,15 +13,13 @@ import { isSupportedPattern } from '@/lib/security/ip-match';
  * IPブロックリストを取得
  * GET /api/admin/ip-block
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (session?.user?.role !== Role.SUPER_ADMIN) {
       return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
     }
 
-    const prisma = await getPrisma();
-    
     // IPブロックテーブルから取得（将来の実装）
     // 現在は環境変数から取得
     const blacklist = (process.env.IP_BLACKLIST || '').split(',').filter(Boolean);

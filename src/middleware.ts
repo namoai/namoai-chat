@@ -33,8 +33,11 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
           cache: 'no-store',
         });
         if (res.ok) {
-          const data = await res.json().catch(() => ({} as any));
-          const ips = Array.isArray(data?.ips) ? data.ips.map((x: any) => String(x)) : [];
+          const data: unknown = await res.json().catch(() => null);
+          const ips =
+            data && typeof data === 'object' && Array.isArray((data as { ips?: unknown }).ips)
+              ? (data as { ips: unknown[] }).ips.map((x) => String(x))
+              : [];
           adminAllowlistCache = { ips, fetchedAt: now };
           allowlist = ips;
         }
@@ -216,7 +219,7 @@ function getClientIp(request: NextRequest): string {
 
   // In local dev, Next may not set x-forwarded-for/x-real-ip.
   // NextRequest.ip is sometimes available (can be "::1" on localhost).
-  const direct = (request as any).ip as string | undefined;
+  const direct = request.ip;
   if (direct && direct.trim()) return direct.trim();
   
   return 'unknown';

@@ -9,7 +9,9 @@ import { Role } from '@prisma/client';
 import { safeJsonParse } from '@/lib/api-helpers';
 import { isSupportedPattern } from '@/lib/security/ip-match';
 
-async function ensureTable(prisma: any) {
+type PrismaClientLike = Awaited<ReturnType<typeof getPrisma>>;
+
+async function ensureTable(prisma: PrismaClientLike) {
   await prisma.$executeRawUnsafe(
     `CREATE TABLE IF NOT EXISTS "admin_ip_allowlist" (
       "id" SERIAL PRIMARY KEY,
@@ -25,7 +27,7 @@ function validatePattern(pattern: string): boolean {
   return isSupportedPattern(pattern);
 }
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== Role.SUPER_ADMIN) {
     return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await prisma.$executeRaw`INSERT INTO "admin_ip_allowlist" ("ip","label") VALUES (${ip}, ${label || null})`;
-  } catch (e: any) {
+  } catch {
     return NextResponse.json({ error: '既に登録されています。' }, { status: 400 });
   }
 

@@ -3,8 +3,8 @@
  * TOTP認証の基盤実装
  */
 
-import { randomBytes, createHash } from 'crypto';
-import { authenticator, totp } from 'otplib';
+import { createHash } from 'crypto';
+import { authenticator } from 'otplib';
 import { logger } from './logger';
 
 // TOTP設定

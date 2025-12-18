@@ -7,12 +7,28 @@
  * - Middleware runs in an edge-like environment, so keep this module dependency-free and fast.
  */
 
+import type { NextRequest } from "next/server";
+
 function parseCsvEnv(value: string | undefined): string[] {
   if (!value) return [];
   return value
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+/**
+ * Extract client IP in a way that works in both Node + Edge runtimes.
+ */
+export function getClientIp(request: NextRequest): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0].trim();
+
+  const realIp = request.headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
+
+  // NextRequest.ip is sometimes available (varies by platform/runtime)
+  return request.ip || "unknown";
 }
 
 /**

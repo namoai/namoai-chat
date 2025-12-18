@@ -4,7 +4,6 @@
  */
 
 import { NextRequest } from 'next/server';
-import { getPrisma } from '../prisma';
 import { createHash } from 'crypto';
 
 /**
@@ -70,11 +69,9 @@ export function extractDeviceInfo(request: NextRequest): DeviceInfo {
 export async function saveDeviceInfo(
   userId: number,
   deviceInfo: DeviceInfo,
-  ipAddress: string
+  _ipAddress: string
 ): Promise<void> {
   try {
-    const prisma = await getPrisma();
-    
     // デバイス情報テーブルが存在する場合（将来の実装）
     // await prisma.deviceInfo.create({
     //   data: {
@@ -98,8 +95,8 @@ export async function saveDeviceInfo(
  * デバイスが既知かチェック
  */
 export async function isKnownDevice(
-  userId: number,
-  fingerprint: string
+  _userId: number,
+  _fingerprint: string
 ): Promise<boolean> {
   try {
     // 実際の実装では、データベースからチェック

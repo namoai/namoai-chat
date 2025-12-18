@@ -59,7 +59,7 @@ export async function POST(req: Request) {
         subject: "メール認証コード",
         text: `認証コード: ${code}\n有効期限: ${CODE_TTL_MINUTES}分`,
       });
-    } catch (mailErr: any) {
+    } catch (mailErr: unknown) {
       console.error("send-verification-code mail error:", mailErr);
       return NextResponse.json(
         {
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ message: "認証コードを送信しました。" }, { status: 200 });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("send-verification-code error:", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }

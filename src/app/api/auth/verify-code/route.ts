@@ -77,7 +77,7 @@ export async function POST(req: Request) {
       { message: "メールアドレスの認証が完了しました。", proof },
       { status: 200 }
     );
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("verify-code error:", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }

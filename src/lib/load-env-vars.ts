@@ -5,22 +5,13 @@
 
 'use server';
 
+// Enforce server-only at bundling level (Next.js).
+import 'server-only';
+
 // サーバーサイドでのみ実行されることを保証
 // Ensure this only runs on the server
 if (typeof window !== 'undefined') {
   throw new Error('load-env-vars.ts is server-only and cannot be imported in client components');
-}
-
-// server-only パッケージがインストールされている場合のみインポート
-// Only import server-only package if installed
-try {
-  require('server-only');
-} catch {
-  // server-only パッケージがない場合は警告のみ
-  // Only warn if server-only package is not installed
-  if (process.env.NODE_ENV === 'development') {
-    console.warn('[load-env-vars] server-only package not found, but this is server-only code');
-  }
 }
 
 let envVarsLoaded = false;
@@ -35,19 +26,10 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
     return;
   }
 
-  // Lambda 환경이 아니면 스킵
-  const isLambda = !!(
-    process.env.AWS_LAMBDA_FUNCTION_NAME ||
-    process.env.AWS_EXECUTION_ENV ||
-    process.env.LAMBDA_TASK_ROOT
-  );
-
-  if (!isLambda) {
-    envVarsLoaded = true;
-    return;
-  }
-
-  console.log('[load-env-vars] Lambda environment detected, loading environment variables...');
+  // IMPORTANT (per project policy):
+  // - Never silently skip loading missing env vars.
+  // - We must attempt to load them at build-time and runtime.
+  console.log('[load-env-vars] Ensuring required environment variables are loaded...');
 
   // 필요한 환경 변수 목록 (기본 인증 + 캐릭터 작성 + AI 분석 등에 필요한 변수)
   const coreVars = [
@@ -95,11 +77,10 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
     return;
   }
 
-  // Edge 런타임에서는 fs/path를 사용할 수 없으므로 즉시 종료
+  // Edge 런타임에서는 fs/path 및 AWS SDK 기반 로딩이 불가.
+  // Skipping is forbidden: if this is called in Edge, we fail fast so the caller can be fixed.
   if (process.env.NEXT_RUNTIME === 'edge') {
-    console.log('[load-env-vars] Detected edge runtime, skipping filesystem env load');
-    envVarsLoaded = true;
-    return;
+    throw new Error('[load-env-vars] ensureEnvVarsLoaded() cannot run in edge runtime. Ensure callers use runtime="nodejs" and do not import this module in edge middleware/client.');
   }
 
   console.log(`[load-env-vars] Missing ${missingVars.length} variables: ${missingVars.join(', ')}`);
@@ -109,11 +90,10 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
   // Only execute on server side (fs/path are Node.js only)
   if (typeof window === 'undefined') {
     try {
-      // 動的インポートでサーバーサイドでのみロード
-      // Dynamic import to load only on server side
-      // Node.js 組み込みモジュールを動的 import（サーバー側のみ）
-      const fs = await import('fs');
-      const path = await import('path');
+      // Node.js built-ins must never be statically imported (can break edge/client bundling).
+      // Use node: specifiers + dynamic import to keep this server-only.
+      const fs = await import('node:fs');
+      const path = await import('node:path');
     
       const possiblePaths = [
         path.join(process.cwd(), '.env.production.local'),
@@ -183,7 +163,12 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
   const finalLoaded = requiredVars.filter(v => process.env[v]);
   console.log(`[load-env-vars] Final status - Loaded: ${finalLoaded.join(', ') || 'none'}`);
   if (finalMissing.length > 0) {
-    console.warn(`[load-env-vars] ⚠️ Still missing: ${finalMissing.join(', ')}`);
+    const msg = `[load-env-vars] ❌ Still missing required env vars: ${finalMissing.join(', ')}`;
+    // Production/build must fail if required vars are still missing.
+    if (process.env.NODE_ENV !== 'development') {
+      throw new Error(msg);
+    }
+    console.warn(msg);
   } else {
     console.log('[load-env-vars] ✅ All required environment variables are now set');
   }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Eye, Search, User } from 'lucide-react';
 
@@ -53,7 +52,6 @@ type SessionInfo = {
 };
 
 export default function IPMonitorPage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState<'id' | 'email' | 'nickname' | 'query'>('query');

@@ -1,13 +1,13 @@
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 
 /**
  * Internal endpoint used by middleware to load admin IP allowlist patterns.
  */
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     const prisma = await getPrisma();
 
@@ -26,7 +26,7 @@ export async function GET(_request: NextRequest) {
     );
 
     return NextResponse.json({ ips: rows.map((r) => r.ip) }, { status: 200 });
-  } catch (e) {
+  } catch (e: unknown) {
     console.error('[internal/admin-ip-allowlist] error:', e);
     return NextResponse.json({ ips: [] }, { status: 200 });
   }
