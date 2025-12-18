@@ -9,6 +9,7 @@ import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 import { sanitizeString } from '@/lib/validation';
 
 type Body = {
+  name: string;
   nickname: string;
   phone: string;
   birthdate?: string;
@@ -49,11 +50,12 @@ export async function GET() {
   const prisma = await getPrisma();
   const user = await prisma.users.findUnique({
     where: { id: userId },
-    select: { nickname: true, phone: true, dateOfBirth: true, declaredAdult: true, needsProfileCompletion: true },
+    select: { name: true, nickname: true, phone: true, dateOfBirth: true, declaredAdult: true, needsProfileCompletion: true },
   });
   if (!user) return NextResponse.json({ error: 'ユーザーが見つかりません。' }, { status: 404 });
 
   return NextResponse.json({
+    name: user.name ?? '',
     nickname: user.nickname,
     phone: user.phone ?? '',
     birthdate: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().slice(0, 10) : '',
