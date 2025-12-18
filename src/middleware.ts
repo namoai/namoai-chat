@@ -6,6 +6,7 @@ import { createErrorResponse, ErrorCode } from "@/lib/error-handler";
 import { checkAdminAccessAlwaysPrompt } from "@/lib/security/ip-restriction";
 import { isIpBlocked } from "@/lib/security/suspicious-ip";
 import { getClientIpFromRequest } from "@/lib/security/client-ip";
+import { isLocalOrPrivateIp } from "@/lib/security/client-ip";
 
 type AllowlistCache = { ips: string[]; fetchedAt: number };
 let adminAllowlistCache: AllowlistCache | null = null;
@@ -88,25 +89,44 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     );
   }
 
-  // NOTE:
-  // We only log & enforce CSRF for API routes to avoid overhead on page navigations.
-  // Admin pages are handled above.
-  if (!isApiRoute(pathname)) {
-    // Also persist admin page accesses so IP monitor can show real public IPs
-    // even when the user hasn't triggered any API calls.
-    if (pathname.startsWith('/admin')) {
-      const response = NextResponse.next();
-      const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      response.headers.set('x-request-id', requestId);
+  // Persist public client IP accesses (best-effort)
+  // - Only when we can resolve a non-local/public IP (i.e. request came via CloudFront/proxy headers)
+  // - Avoid logging Next.js static assets and internal endpoints
+  const shouldPersistAccessLog =
+    !isLocalOrPrivateIp(ip) &&
+    ip !== 'unknown' &&
+    pathname !== '/api/internal/log-access' &&
+    !pathname.startsWith('/_next') &&
+    !pathname.startsWith('/favicon') &&
+    !pathname.startsWith('/robots') &&
+    !pathname.startsWith('/sitemap') &&
+    !pathname.startsWith('/manifest') &&
+    !pathname.endsWith('.png') &&
+    !pathname.endsWith('.jpg') &&
+    !pathname.endsWith('.jpeg') &&
+    !pathname.endsWith('.gif') &&
+    !pathname.endsWith('.webp') &&
+    !pathname.endsWith('.svg') &&
+    !pathname.endsWith('.ico') &&
+    !pathname.endsWith('.css') &&
+    !pathname.endsWith('.js') &&
+    !pathname.endsWith('.map') &&
+    !pathname.endsWith('.txt');
 
+  // For non-API routes we don't know final status code in middleware reliably.
+  // Still persist a best-effort row so user page visits show up in IP monitor.
+  if (!isApiRoute(pathname)) {
+    const response = NextResponse.next();
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    response.headers.set('x-request-id', requestId);
+
+    if (shouldPersistAccessLog) {
       event.waitUntil((async () => {
         const duration = Date.now() - startTime;
-        const ip = getClientIpFromRequest(request);
 
         // Console/memory log
         logger.logAccess(request, 200);
 
-        // Persist access logs for admin IP monitor (best-effort)
         try {
           await fetch(`${request.nextUrl.origin}/api/internal/log-access`, {
             method: 'POST',
@@ -124,12 +144,15 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
           // ignore
         }
       })());
-
-      return response;
     }
 
-    return NextResponse.next();
+    return response;
   }
+
+  // NOTE:
+  // We only log & enforce CSRF for API routes to avoid overhead on page navigations.
+  // Admin pages are handled above.
+  // (non-API routes are handled above)
 
   // OPTIONSリクエストはCORS処理のみ
   if (request.method === "OPTIONS") {
@@ -206,27 +229,28 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   event.waitUntil((async () => {
     const duration = Date.now() - startTime;
     const statusCode = corsResponse.status;
-    const ip = getClientIpFromRequest(request);
     
     // Console/memory log
     logger.logAccess(request, statusCode);
     
     // Persist access logs for admin IP monitor (best-effort)
-    try {
-      await fetch(`${request.nextUrl.origin}/api/internal/log-access`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          ip,
-          userAgent: request.headers.get('user-agent') || 'unknown',
-          path: pathname,
-          method: request.method,
-          statusCode,
-          duration,
-        }),
-      });
-    } catch {
-      // ignore
+    if (shouldPersistAccessLog) {
+      try {
+        await fetch(`${request.nextUrl.origin}/api/internal/log-access`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            ip,
+            userAgent: request.headers.get('user-agent') || 'unknown',
+            path: pathname,
+            method: request.method,
+            statusCode,
+            duration,
+          }),
+        });
+      } catch {
+        // ignore
+      }
     }
 
     if (statusCode >= 400) {
