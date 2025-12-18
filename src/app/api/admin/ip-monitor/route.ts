@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
 
       // 管理者のセッション情報
       const adminSessions = activeSessions.filter(s => 
-        s.user.role === 'ADMIN' || s.user.role === 'SUPER_ADMIN'
+        s.user.role === Role.ADMIN || s.user.role === Role.SUPER_ADMIN
       );
 
       // Pull recent access logs (best-effort). Table is created by internal logging route.
