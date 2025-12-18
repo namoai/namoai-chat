@@ -53,8 +53,8 @@ export async function GET(_req: NextRequest, context: unknown) {
     // `items`からフォロー中のユーザー情報だけを抽出して新しい配列を作成（互換: image_url）
     const following = items.map((item) => ({
       ...item.following,
+      image: item.following.image ?? null,
       image_url: item.following.image ?? null,
-      image: undefined,
     }));
 
     // 全体の件数を取得

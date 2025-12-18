@@ -55,8 +55,8 @@ export async function GET(request: NextRequest) {
       });
       const data = followers.map(f => ({
         ...f.follower,
+        image: f.follower.image ?? null,
         image_url: f.follower.image ?? null,
-        image: undefined,
       }));
       return new NextResponse(JSON.stringify(data), {
         status: 200,
@@ -74,8 +74,8 @@ export async function GET(request: NextRequest) {
       });
       const data = following.map(f => ({
         ...f.following,
+        image: f.following.image ?? null,
         image_url: f.following.image ?? null,
-        image: undefined,
       }));
       return new NextResponse(JSON.stringify(data), {
         status: 200,
@@ -180,6 +180,7 @@ export async function GET(request: NextRequest) {
       id: user.id,
       name: user.name,
       nickname: user.nickname,
+      image: user.image ?? null,
       image_url: user.image ?? null,
       bio: user.bio,
       hasPassword: !!user.password, // パスワードが設定されているかどうか（本人確認用）

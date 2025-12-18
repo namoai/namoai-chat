@@ -41,8 +41,8 @@ export async function GET() {
     // `blocking`オブジェクトの配列に変換
     const blockedUsers = blockedRelations.map((relation) => ({
       ...relation.users_Block_blockingIdTousers,
+      image: relation.users_Block_blockingIdTousers.image ?? null,
       image_url: relation.users_Block_blockingIdTousers.image ?? null,
-      image: undefined,
     }));
 
     return NextResponse.json({ blockedUsers });

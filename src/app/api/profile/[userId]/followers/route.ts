@@ -30,8 +30,8 @@ export async function GET(_req: NextRequest, context: unknown) {
 
     const followers = items.map((item) => ({
       ...item.follower,
+      image: item.follower.image ?? null,
       image_url: item.follower.image ?? null,
-      image: undefined,
     }));
     const count = followers.length;
 

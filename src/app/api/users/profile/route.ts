@@ -33,6 +33,7 @@ export async function GET() {
     return NextResponse.json({
       nickname: ユーザー.nickname,
       bio: ユーザー.bio,
+      image: ユーザー.image ?? null,
       image_url: ユーザー.image ?? null,
     });
   } catch (エラー) {
