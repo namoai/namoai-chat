@@ -91,9 +91,10 @@ export async function ensureEnvVarsLoaded(): Promise<void> {
   if (typeof window === 'undefined') {
     try {
       // Node.js built-ins must never be statically imported (can break edge/client bundling).
-      // Use node: specifiers + dynamic import to keep this server-only.
-      const fs = await import('node:fs');
-      const path = await import('node:path');
+      // IMPORTANT: Amplify/Next build webpack may not support "node:" URI scheme here.
+      // Use classic specifiers with dynamic import (server-only module ensures this doesn't hit client/edge bundles).
+      const fs = await import('fs');
+      const path = await import('path');
     
       const possiblePaths = [
         path.join(process.cwd(), '.env.production.local'),
