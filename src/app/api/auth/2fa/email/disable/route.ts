@@ -11,7 +11,8 @@ import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
  * 이메일 기반 2FA 비활성화
  * POST /api/auth/2fa/email/disable
  */
-export async function POST(request: NextRequest) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function POST(_request: NextRequest) {
   if (isBuildTime()) return buildTimeResponse();
 
   try {

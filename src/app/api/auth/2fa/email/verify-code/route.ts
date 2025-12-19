@@ -5,15 +5,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { safeJsonParse } from '@/lib/api-helpers';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
-
-const CODE_TTL_MINUTES = 10;
+import crypto from 'crypto';
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
 function hashCode(code: string): string {
-  const crypto = require('crypto');
   return crypto.createHash('sha256').update(code).digest('hex');
 }
 

@@ -6,6 +6,7 @@ import { getPrisma } from '@/lib/prisma';
 import { sendEmail } from '@/lib/email';
 import { safeJsonParse } from '@/lib/api-helpers';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
+import crypto from 'crypto';
 
 const CODE_TTL_MINUTES = 10; // 10分間有効
 
@@ -19,7 +20,6 @@ function generate6DigitCode(): string {
 
 function hashCode(code: string): string {
   // SHA-256ハッシュを使用（既存のverify-code APIと同じ方式）
-  const crypto = require('crypto');
   return crypto.createHash('sha256').update(code).digest('hex');
 }
 
