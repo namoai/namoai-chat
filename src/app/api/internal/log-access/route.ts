@@ -53,41 +53,68 @@ export async function POST(request: NextRequest) {
         });
         normalizedUserId = sessionRow?.userId ?? null;
       }
-    } catch {
+    } catch (sessionError) {
+      console.warn('[internal/log-access] Failed to resolve userId from session:', sessionError);
       normalizedUserId = null;
     }
 
-    await prisma.$executeRawUnsafe(
-      `CREATE TABLE IF NOT EXISTS "api_access_logs" (
-        "id" SERIAL PRIMARY KEY,
-        "userId" INTEGER,
-        "ip" TEXT NOT NULL,
-        "userAgent" TEXT NOT NULL,
-        "path" TEXT NOT NULL,
-        "method" TEXT NOT NULL,
-        "statusCode" INTEGER NOT NULL,
-        "durationMs" INTEGER,
-        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )`
-    );
-    // Backward-compatible: ensure column exists even if table was created earlier.
-    await prisma.$executeRawUnsafe(
-      `ALTER TABLE "api_access_logs" ADD COLUMN IF NOT EXISTS "userId" INTEGER`
-    );
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_createdAt_idx" ON "api_access_logs" ("createdAt")`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_ip_idx" ON "api_access_logs" ("ip")`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_path_idx" ON "api_access_logs" ("path")`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_userId_idx" ON "api_access_logs" ("userId")`);
+    // Create table if not exists
+    try {
+      await prisma.$executeRawUnsafe(
+        `CREATE TABLE IF NOT EXISTS "api_access_logs" (
+          "id" SERIAL PRIMARY KEY,
+          "userId" INTEGER,
+          "ip" TEXT NOT NULL,
+          "userAgent" TEXT NOT NULL,
+          "path" TEXT NOT NULL,
+          "method" TEXT NOT NULL,
+          "statusCode" INTEGER NOT NULL,
+          "durationMs" INTEGER,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`
+      );
+      // Backward-compatible: ensure column exists even if table was created earlier.
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "api_access_logs" ADD COLUMN IF NOT EXISTS "userId" INTEGER`
+      );
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_createdAt_idx" ON "api_access_logs" ("createdAt")`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_ip_idx" ON "api_access_logs" ("ip")`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_path_idx" ON "api_access_logs" ("path")`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_userId_idx" ON "api_access_logs" ("userId")`);
+    } catch (tableError) {
+      console.error('[internal/log-access] Failed to create table/indexes:', tableError);
+      // Continue anyway - table might already exist
+    }
 
-    await prisma.$executeRaw`
-      INSERT INTO "api_access_logs" ("userId","ip","userAgent","path","method","statusCode","durationMs")
-      VALUES (${normalizedUserId}, ${ip || 'unknown'}, ${userAgent || 'unknown'}, ${path || 'unknown'}, ${method || 'GET'}, ${Number(statusCode) || 0}, ${duration != null ? Number(duration) : null})
-    `;
-
-    return NextResponse.json({ ok: true }, { status: 200 });
+    // Insert log entry (use parameterized query for safety)
+    try {
+      const safeIp = (ip || 'unknown').substring(0, 255);
+      const safeUserAgent = (userAgent || 'unknown').substring(0, 500);
+      const safePath = (path || 'unknown').substring(0, 500);
+      const safeMethod = (method || 'GET').substring(0, 10);
+      
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO "api_access_logs" ("userId","ip","userAgent","path","method","statusCode","durationMs")
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        normalizedUserId,
+        safeIp,
+        safeUserAgent,
+        safePath,
+        safeMethod,
+        Number(statusCode) || 200,
+        duration != null ? Number(duration) : null
+      );
+      console.log('[internal/log-access] Successfully inserted log:', { ip: safeIp, path: safePath, method: safeMethod, statusCode, userId: normalizedUserId });
+      return NextResponse.json({ ok: true }, { status: 200 });
+    } catch (insertError) {
+      console.error('[internal/log-access] Failed to insert log entry:', insertError);
+      console.error('[internal/log-access] Insert params:', { normalizedUserId, ip, userAgent, path, method, statusCode, duration });
+      // Don't fail the request - logging is best-effort
+      return NextResponse.json({ ok: false, error: String(insertError) }, { status: 200 });
+    }
   } catch (error) {
-    console.error('[internal/log-access] error:', error);
-    return NextResponse.json({ ok: false }, { status: 200 });
+    console.error('[internal/log-access] Unexpected error:', error);
+    return NextResponse.json({ ok: false, error: String(error) }, { status: 500 });
   }
 }
 

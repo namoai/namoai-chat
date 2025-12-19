@@ -8,6 +8,7 @@ import { Prisma } from "@prisma/client";
 import { validateImageFile } from '@/lib/upload/validateImage';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 import { uploadImageBufferToCloudflare } from '@/lib/cloudflare-images';
+import { logApiAccess } from '@/lib/log-access';
 
 
 
@@ -47,6 +48,7 @@ export async function GET() {
 export async function PUT(リクエスト: Request) {
   if (isBuildTime()) return buildTimeResponse();
 
+  const startTime = Date.now();
   const prisma = await getPrisma();
   const セッション = await getServerSession(authOptions);
   if (!セッション?.user?.id) {
@@ -94,7 +96,16 @@ export async function PUT(リクエスト: Request) {
       },
     });
 
-    return NextResponse.json({ message: 'プロフィールが正常に更新されました。', user: 更新後のユーザー });
+    const response = NextResponse.json({ message: 'プロフィールが正常に更新されました。', user: 更新後のユーザー });
+    
+    // Log API access directly (more reliable than middleware fetch in AWS environments)
+    logApiAccess(リクエスト, {
+      statusCode: 200,
+      duration: Date.now() - startTime,
+      userId: ユーザーID,
+    }).catch(() => {}); // Non-blocking
+    
+    return response;
 
   } catch (エラー) {
     console.error('プロファイル更新エラー:', エラー);
@@ -104,6 +115,15 @@ export async function PUT(リクエスト: Request) {
         { status: 409 }
       );
     }
-    return NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });
+    const errorResponse = NextResponse.json({ error: 'サーバーエラーが発生しました。' }, { status: 500 });
+    
+    // Log API access even on error
+    logApiAccess(リクエスト, {
+      statusCode: 500,
+      duration: Date.now() - startTime,
+      userId: ユーザーID,
+    }).catch(() => {}); // Non-blocking
+    
+    return errorResponse;
   }
 }

@@ -18,6 +18,7 @@ import { ensureGcpCreds } from "@/utils/ensureGcpCreds";
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
 import { getUserSafetyContext } from '@/lib/age';
+import { logApiAccess } from '@/lib/log-access';
 
 // VertexAIクライアントの初期化（遅延初期化、ランタイム環境変数対応）
 let vertex_ai: VertexAI | null = null;
@@ -74,6 +75,8 @@ function getVertexAI(): VertexAI {
 export async function POST(request: Request, context: { params: Promise<{ chatId: string }> }) {
   if (isBuildTime()) return buildTimeResponse();
   
+  const startTime = Date.now();
+  
   // Lambda 환경에서 환경 변수 로드
   await ensureEnvVarsLoaded();
   // GCP 인증 정보 설정
@@ -86,13 +89,18 @@ export async function POST(request: Request, context: { params: Promise<{ chatId
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.id) {
     console.timeEnd("⏱️ 全体API処理時間");
-    return NextResponse.json({ message: "認証が必要です。" }, { status: 401 });
+    const errorResponse = NextResponse.json({ message: "認証が必要です。" }, { status: 401 });
+    // Log API access even on auth failure
+    logApiAccess(request, { statusCode: 401, duration: Date.now() - startTime }).catch(() => {});
+    return errorResponse;
   }
 
   const chatId = parseInt(String(chatIdStr), 10);
   if (isNaN(chatId)) {
     console.timeEnd("⏱️ 全体API処理時間");
-    return NextResponse.json({ message: "無効なチャットIDです。" }, { status: 400 });
+    const errorResponse = NextResponse.json({ message: "無効なチャットIDです。" }, { status: 400 });
+    logApiAccess(request, { statusCode: 400, duration: Date.now() - startTime, userId: parseInt(String(session.user.id), 10) }).catch(() => {});
+    return errorResponse;
   }
   const userId = parseInt(String(session.user.id), 10);
 
@@ -1168,6 +1176,9 @@ ${conversationText}`;
       }
     });
 
+  // Log successful API access (non-blocking, after stream starts)
+  logApiAccess(request, { statusCode: 200, duration: Date.now() - startTime, userId }).catch(() => {});
+
   // ストリーム応答を返す
   // Netlify環境でのバッファリングを無効化するヘッダーを追加
   return new Response(stream, {
@@ -1185,7 +1196,12 @@ ${conversationText}`;
     const errorMessage = error instanceof Error ? error.message : "内部サーバーエラーが発生しました。";
     const status = error instanceof Error && error.message === "ポイントが不足しています。" ? 402 : 500;
     console.timeEnd("⏱️ 全体API処理時間");
-    return NextResponse.json({ message: errorMessage }, { status });
+    const errorResponse = NextResponse.json({ message: errorMessage }, { status });
+    
+    // Log API access even on error
+    logApiAccess(request, { statusCode: status, duration: Date.now() - startTime, userId }).catch(() => {});
+    
+    return errorResponse;
   }
 }
 
