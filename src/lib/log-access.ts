@@ -60,10 +60,12 @@ export async function logApiAccess(
     
     // Extract request details
     let requestUrl: URL;
-    if (request instanceof Request) {
-      requestUrl = new URL(request.url);
-    } else {
+    if ('nextUrl' in request) {
+      // NextRequest
       requestUrl = request.nextUrl;
+    } else {
+      // Request
+      requestUrl = new URL(request.url);
     }
     const headers = request.headers;
     const method = request.method;
