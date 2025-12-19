@@ -5,7 +5,6 @@
 
 import { NextRequest } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
-import { getClientIpFromRequest } from '@/lib/security/client-ip';
 
 // Helper to extract IP from Request or NextRequest
 function extractClientIp(request: Request | NextRequest): string {
@@ -84,9 +83,9 @@ export async function logApiAccess(
           });
           normalizedUserId = sessionRow?.userId ?? null;
         }
-      } catch (sessionError) {
-        // Ignore session resolution errors
-      }
+    } catch {
+      // Ignore session resolution errors
+    }
     }
 
     // Create table if not exists (best-effort)
@@ -111,7 +110,7 @@ export async function logApiAccess(
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_ip_idx" ON "api_access_logs" ("ip")`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_path_idx" ON "api_access_logs" ("path")`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "api_access_logs_userId_idx" ON "api_access_logs" ("userId")`);
-    } catch (tableError) {
+    } catch {
       // Table might already exist, continue
     }
 
