@@ -59,7 +59,12 @@ export async function logApiAccess(
     const prisma = await getPrisma();
     
     // Extract request details
-    const requestUrl = request instanceof Request ? new URL(request.url) : request.nextUrl;
+    let requestUrl: URL;
+    if (request instanceof Request) {
+      requestUrl = new URL(request.url);
+    } else {
+      requestUrl = request.nextUrl;
+    }
     const headers = request.headers;
     const method = request.method;
     const ip = extractClientIp(request);
