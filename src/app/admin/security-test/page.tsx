@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { ShieldCheck, RefreshCw, Sparkles, Terminal, AlertTriangle, ArrowLeft, Activity, Loader2, UploadCloud, Info, Lock, FileText, Server, CheckCircle, XCircle } from "lucide-react";
+import { ShieldCheck, RefreshCw, Sparkles, Terminal, AlertTriangle, ArrowLeft, Activity, Loader2, UploadCloud, Info, Lock, FileText, Server, CheckCircle, XCircle, Package, AlertCircle } from "lucide-react";
 import { apiPost, ApiErrorResponse } from "@/lib/api-client";
 import { ErrorCode } from "@/lib/error-handler";
 import { fetchWithCsrf } from "@/lib/csrf-client";
@@ -106,6 +106,35 @@ export default function SecurityTestPage() {
   const [envStatus, setEnvStatus] = useState<EnvStatus | null>(null);
   const [isRefreshingEnvStatus, setIsRefreshingEnvStatus] = useState(false);
   
+  // 脆弱性評価用の状態
+  const [securityStatus, setSecurityStatus] = useState<{
+    audit?: {
+      total: number;
+      vulnerabilities: Record<string, number>;
+      timestamp?: string;
+    };
+    currentAudit?: {
+      total: number;
+      vulnerabilities: Record<string, number>;
+      timestamp?: string;
+      error?: string;
+    };
+    tests?: {
+      summary: {
+        totalTests: number;
+        passedTests: number;
+        failedTests: number;
+        vulnerabilities: number;
+      };
+      timestamp: string;
+    };
+    timestamp?: string;
+  } | null>(null);
+  const [isLoadingSecurityStatus, setIsLoadingSecurityStatus] = useState(false);
+  const [isRunningAudit, setIsRunningAudit] = useState(false);
+  const [isFixingAudit, setIsFixingAudit] = useState(false);
+  const [fixResult, setFixResult] = useState<{ success: boolean; message: string; error?: string; needsForce?: boolean } | null>(null);
+  
   // Phase 2 テスト用の状態
   const [passwordPolicyResult, setPasswordPolicyResult] = useState<ApiResult<PasswordPolicyTestResult[]> | null>(null);
   const [isPasswordPolicyTesting, setIsPasswordPolicyTesting] = useState(false);
@@ -126,7 +155,88 @@ export default function SecurityTestPage() {
     
     // 環境変数の状態を取得
     fetchEnvStatus();
+    // セキュリティステータスを取得
+    fetchSecurityStatus();
   }, [session, status]);
+
+  const fetchSecurityStatus = async (runAudit = false) => {
+    setIsLoadingSecurityStatus(true);
+    try {
+      const url = runAudit 
+        ? '/api/admin/security-status?runAudit=true'
+        : '/api/admin/security-status';
+      const res = await fetch(url, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSecurityStatus(data);
+      }
+    } catch (error) {
+      console.error('セキュリティステータスの取得に失敗:', error);
+    } finally {
+      setIsLoadingSecurityStatus(false);
+      setIsRunningAudit(false);
+    }
+  };
+
+  const handleRunAudit = async () => {
+    setIsRunningAudit(true);
+    setFixResult(null);
+    await fetchSecurityStatus(true);
+  };
+
+  const handleFixAudit = async (useForce = false, useLegacy = false) => {
+    if (!confirm(useForce 
+      ? '⚠️ 注意: --forceオプションを使用すると、破壊的変更が含まれる可能性があります。続行しますか？'
+      : useLegacy
+      ? '--legacy-peer-depsオプションを使用してnpm audit fixを実行しますか？'
+      : 'npm audit fixを実行しますか？'
+    )) {
+      return;
+    }
+
+    setIsFixingAudit(true);
+    setFixResult(null);
+    try {
+      const res = await fetchWithCsrf('/api/admin/security-status/fix', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ force: useForce, legacy: useLegacy }),
+      });
+      const data = await res.json();
+      setFixResult({
+        success: data.success || false,
+        message: data.message || (data.success ? '修正が完了しました' : '修正に失敗しました'),
+        error: data.error || undefined,
+        needsForce: data.needsForce || false,
+      });
+      // 修正後、再度ステータスを取得
+      if (data.success) {
+        setTimeout(() => {
+          fetchSecurityStatus(true);
+        }, 2000);
+      }
+      
+      // --forceが必要な場合のメッセージ
+      if (data.needsForce) {
+        console.log('一部の脆弱性を修正するには--forceオプションが必要です。');
+      }
+    } catch (error) {
+      setFixResult({
+        success: false,
+        message: 'npm audit fixの実行中にエラーが発生しました。',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    } finally {
+      setIsFixingAudit(false);
+    }
+  };
 
   const fetchEnvStatus = async () => {
     setIsRefreshingEnvStatus(true);
@@ -1167,6 +1277,233 @@ export default function SecurityTestPage() {
                 )}
               </div>
             )}
+          </div>
+        </section>
+
+        {/* 脆弱性評価と侵入テスト */}
+        <section className="bg-gray-900/40 border border-gray-800/60 rounded-2xl p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Package className="text-blue-400" size={24} />
+              <div>
+                <h2 className="text-xl font-bold">脆弱性評価と侵入テスト</h2>
+                <p className="text-sm text-gray-400">依存関係の脆弱性スキャンとセキュリティテスト結果</p>
+              </div>
+            </div>
+            <button
+              onClick={() => fetchSecurityStatus(false)}
+              disabled={isLoadingSecurityStatus}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition disabled:opacity-50"
+            >
+              {isLoadingSecurityStatus ? <Loader /> : <RefreshCw size={16} />}
+              更新
+            </button>
+          </div>
+
+          {/* npm audit結果 */}
+          <div className="bg-gray-800/40 border border-gray-700/60 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Package className="text-blue-400" size={18} />
+                <h3 className="font-semibold">依存関係の脆弱性 (npm audit)</h3>
+              </div>
+              <button
+                onClick={handleRunAudit}
+                disabled={isRunningAudit}
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50 text-sm flex items-center gap-2"
+              >
+                {isRunningAudit ? <Loader /> : <Terminal size={14} />}
+                実行
+              </button>
+            </div>
+            
+            {securityStatus?.currentAudit && (
+              <div className={`p-3 rounded-lg border ${
+                securityStatus.currentAudit.total === 0
+                  ? 'bg-emerald-500/10 border-emerald-500/30'
+                  : 'bg-red-500/10 border-red-500/30'
+              }`}>
+                <div className="flex items-center gap-2 mb-2">
+                  {securityStatus.currentAudit.total === 0 ? (
+                    <CheckCircle className="text-emerald-400" size={18} />
+                  ) : (
+                    <AlertCircle className="text-red-400" size={18} />
+                  )}
+                  <span className={`font-semibold ${
+                    securityStatus.currentAudit.total === 0 ? 'text-emerald-300' : 'text-red-300'
+                  }`}>
+                    {securityStatus.currentAudit.total === 0 
+                      ? '脆弱性は見つかりませんでした' 
+                      : `${securityStatus.currentAudit.total}件の脆弱性が見つかりました`}
+                  </span>
+                </div>
+                {securityStatus.currentAudit.total > 0 && (
+                  <div className="text-sm space-y-1 mt-2">
+                    {Object.entries(securityStatus.currentAudit.vulnerabilities).map(([severity, count]) => (
+                      count > 0 && (
+                        <div key={severity} className="flex justify-between">
+                          <span className="text-gray-400 capitalize">{severity}:</span>
+                          <span className="text-gray-300">{count}</span>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                )}
+                {securityStatus.currentAudit.timestamp && (
+                  <div className="text-xs text-gray-500 mt-2">
+                    実行日時: {new Date(securityStatus.currentAudit.timestamp).toLocaleString('ja-JP')}
+                  </div>
+                )}
+                {securityStatus.currentAudit.total > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <button
+                      onClick={() => handleFixAudit(false, false)}
+                      disabled={isFixingAudit}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 rounded-lg transition disabled:opacity-50 text-sm flex items-center gap-2"
+                    >
+                      {isFixingAudit ? <Loader /> : <CheckCircle size={14} />}
+                      自動修正
+                    </button>
+                    <button
+                      onClick={() => handleFixAudit(false, true)}
+                      disabled={isFixingAudit}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50 text-sm flex items-center gap-2"
+                      title="--legacy-peer-depsオプションを使用して依存関係の競合を回避"
+                    >
+                      {isFixingAudit ? <Loader /> : <RefreshCw size={14} />}
+                      互換性モード修正
+                    </button>
+                    <button
+                      onClick={() => handleFixAudit(true, false)}
+                      disabled={isFixingAudit}
+                      className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 rounded-lg transition disabled:opacity-50 text-sm flex items-center gap-2"
+                    >
+                      {isFixingAudit ? <Loader /> : <AlertTriangle size={14} />}
+                      強制修正
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {securityStatus?.audit && !securityStatus.currentAudit && (
+              <div className={`p-3 rounded-lg border ${
+                securityStatus.audit.total === 0
+                  ? 'bg-emerald-500/10 border-emerald-500/30'
+                  : 'bg-yellow-500/10 border-yellow-500/30'
+              }`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Info className="text-yellow-400" size={18} />
+                  <span className="font-semibold text-yellow-300">
+                    保存されたレポート: {securityStatus.audit.total}件の脆弱性
+                  </span>
+                </div>
+                {securityStatus.audit.total > 0 && (
+                  <div className="text-sm space-y-1 mt-2">
+                    {Object.entries(securityStatus.audit.vulnerabilities).map(([severity, count]) => (
+                      count > 0 && (
+                        <div key={severity} className="flex justify-between">
+                          <span className="text-gray-400 capitalize">{severity}:</span>
+                          <span className="text-gray-300">{count}</span>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                )}
+                {securityStatus.audit.timestamp && (
+                  <div className="text-xs text-gray-500 mt-2">
+                    実行日時: {new Date(securityStatus.audit.timestamp).toLocaleString('ja-JP')}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!securityStatus?.audit && !securityStatus?.currentAudit && (
+              <div className="text-sm text-gray-400 p-3 bg-gray-800/30 rounded-lg">
+                npm auditを実行して脆弱性を確認してください。
+              </div>
+            )}
+
+            {/* 修正結果 */}
+            {fixResult && (
+              <div className={`p-3 rounded-lg border ${
+                fixResult.success
+                  ? 'bg-emerald-500/10 border-emerald-500/30'
+                  : 'bg-red-500/10 border-red-500/30'
+              }`}>
+                <div className="flex items-center gap-2 mb-2">
+                  {fixResult.success ? (
+                    <CheckCircle className="text-emerald-400" size={18} />
+                  ) : (
+                    <AlertCircle className="text-red-400" size={18} />
+                  )}
+                  <span className={`font-semibold ${
+                    fixResult.success ? 'text-emerald-300' : 'text-red-300'
+                  }`}>
+                    {fixResult.message}
+                  </span>
+                </div>
+                {fixResult.error && (
+                  <div className="text-xs text-gray-400 mt-2 bg-gray-900/50 p-2 rounded font-mono overflow-x-auto">
+                    <div className="whitespace-pre-wrap break-words">
+                      {fixResult.error}
+                    </div>
+                  </div>
+                )}
+                {fixResult.success && fixResult.needsForce && (
+                  <div className="text-xs text-yellow-400 mt-2 bg-yellow-500/10 p-2 rounded">
+                    💡 一部の脆弱性を修正するには「強制修正」ボタンが必要な場合があります。
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* セキュリティテスト結果 */}
+          {securityStatus?.tests && (
+            <div className="bg-gray-800/40 border border-gray-700/60 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="text-purple-400" size={18} />
+                <h3 className="font-semibold">セキュリティテスト結果</h3>
+              </div>
+              <div className="p-3 rounded-lg border bg-gray-900/50 border-gray-700/50">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-400">テスト総数:</span>
+                    <span className="ml-2 text-gray-300">{securityStatus.tests.summary.totalTests}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">成功:</span>
+                    <span className="ml-2 text-emerald-300">{securityStatus.tests.summary.passedTests}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">失敗:</span>
+                    <span className="ml-2 text-red-300">{securityStatus.tests.summary.failedTests}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">脆弱性:</span>
+                    <span className={`ml-2 ${securityStatus.tests.summary.vulnerabilities === 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                      {securityStatus.tests.summary.vulnerabilities}
+                    </span>
+                  </div>
+                </div>
+                {securityStatus.tests.timestamp && (
+                  <div className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-700/50">
+                    実行日時: {new Date(securityStatus.tests.timestamp).toLocaleString('ja-JP')}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 情報 */}
+          <div className="text-xs text-gray-500 bg-gray-800/30 p-3 rounded-lg">
+            <p className="mb-1">💡 ヒント:</p>
+            <ul className="list-disc list-inside space-y-1 text-gray-400">
+              <li>npm auditは依存関係の脆弱性をスキャンします</li>
+              <li>GitHub Actionsで毎週自動実行されます（.github/workflows/security-audit.yml）</li>
+              <li>セキュリティテストは <code className="text-gray-300">npm run security:test</code> で実行できます</li>
+            </ul>
           </div>
         </section>
 

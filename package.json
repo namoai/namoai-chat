@@ -25,7 +25,11 @@
     "test:ai": "node scripts/test-runner.mjs --ai-analysis",
     "generate:req": "node scripts/generate-requirements-excel.mjs",
     "generate:basic": "node scripts/generate-basic-design-excel.mjs",
-    "generate:detail": "node scripts/generate-ui-ss-excel.mjs"
+    "generate:detail": "node scripts/generate-ui-ss-excel.mjs",
+    "security:audit": "npm audit",
+    "security:audit:fix": "npm audit fix",
+    "security:audit:json": "npm audit --json",
+    "security:test": "node scripts/security-test-runner.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-ec2": "^3.943.0",
@@ -56,9 +60,9 @@
     "jszip": "^3.10.1",
     "lightningcss": "^1.30.1",
     "lucide-react": "^0.525.0",
-    "next": "15.3.4",
+    "next": "^15.5.9",
     "next-auth": "^4.24.11",
-    "nodemailer": "^6.10.1",
+    "nodemailer": "^7.0.11",
     "openai": "^6.2.0",
     "otplib": "^12.0.1",
     "pg": "^8.16.3",
