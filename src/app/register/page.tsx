@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Mail, Lock, User, Phone, Smile, ArrowLeft, ChevronRight } from "lucide-react"; // ✅ ボタンアイコンを追加
+import { Mail, Lock, User, Phone, Smile, ArrowLeft, ChevronRight, Eye, EyeOff } from "lucide-react"; // ✅ ボタンアイコンを追加
 import { fetchWithCsrf } from "@/lib/csrf-client";
 
 export default function SignUpPage() {
@@ -14,11 +14,17 @@ export default function SignUpPage() {
   const [form, setForm] = useState({
     email: "",
     password: "",
+    passwordConfirm: "",
     name: "",
     phone: "",
     nickname: "",
     birthdate: "",
   });
+  const [nicknameChecked, setNicknameChecked] = useState(false);
+  const [nicknameAvailable, setNicknameAvailable] = useState<boolean | null>(null);
+  const [checkingNickname, setCheckingNickname] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // パスワード表示/非表示
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false); // パスワード確認表示/非表示
 
   const [agreed, setAgreed] = useState(false);
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
@@ -36,6 +42,25 @@ export default function SignUpPage() {
   const [sendingCode, setSendingCode] = useState(false);
   const [verifyingCode, setVerifyingCode] = useState(false);
 
+  // 生年月日フォーマット変換ヘルパー関数
+  const formatBirthdate = (birthdate: string): string => {
+    if (!birthdate) return '';
+    const parts = birthdate.split('-');
+    if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
+      return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    }
+    return birthdate;
+  };
+
+  // 生年月日からDateオブジェクトを生成するヘルパー関数
+  const parseBirthdate = (birthdate: string): Date | null => {
+    if (!birthdate) return null;
+    const formatted = formatBirthdate(birthdate);
+    const parsed = Date.parse(formatted);
+    if (isNaN(parsed)) return null;
+    return new Date(parsed);
+  };
+
   const handleChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     // メールアドレスが変更されたら認証状態をリセット
@@ -44,6 +69,43 @@ export default function SignUpPage() {
       setShowVerificationInput(false);
       setVerificationCode("");
       setEmailVerificationProof(null);
+    }
+    // ニックネームが変更されたら重複確認状態をリセット
+    if (field === "nickname") {
+      setNicknameChecked(false);
+      setNicknameAvailable(null);
+    }
+  };
+
+  const handleCheckNickname = async () => {
+    if (!form.nickname || form.nickname.trim().length < 2 || form.nickname.trim().length > 12) {
+      alert("ニックネームは2〜12文字で入力してください。");
+      return;
+    }
+
+    setCheckingNickname(true);
+    try {
+      const response = await fetch("/api/users/check-nickname", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: form.nickname }),
+      });
+
+      const data = await response.json();
+      setNicknameChecked(true);
+      
+      if (data.available) {
+        setNicknameAvailable(true);
+        alert(data.message || "このニックネームは使用可能です。");
+      } else {
+        setNicknameAvailable(false);
+        alert(data.message || "このニックネームは既に使用されています。");
+      }
+    } catch (error) {
+      console.error("ニックネーム重複確認エラー:", error);
+      alert("サーバーエラーが発生しました。");
+    } finally {
+      setCheckingNickname(false);
     }
   };
 
@@ -151,6 +213,11 @@ export default function SignUpPage() {
       alert("パスワードには特殊文字（!@#$%^&*など）が含まれる必要があります。");
       return false;
     }
+    // パスワード確認検証
+    if (form.password !== form.passwordConfirm) {
+      alert("パスワードが一致しません。");
+      return false;
+    }
     if (!nameRegex.test(form.name)) {
       alert("氏名はひらがな・カタカナ・漢字のみ使用できます。");
       return false;
@@ -178,15 +245,19 @@ export default function SignUpPage() {
       alert("ニックネームは2〜12文字で入力してください。");
       return false;
     }
+    // ニックネーム重複確認チェック
+    if (!nicknameChecked || !nicknameAvailable) {
+      alert("ニックネームの重複確認を完了してください。");
+      return false;
+    }
     // 生年月日が入力されている場合のみ検証
     if (form.birthdate) {
-      const parsed = Date.parse(form.birthdate);
-      if (isNaN(parsed)) {
+      const birth = parseBirthdate(form.birthdate);
+      if (!birth) {
         alert("生年月日が不正です。");
         return false;
       }
       const today = new Date();
-      const birth = new Date(parsed);
       let calculatedAge = today.getFullYear() - birth.getFullYear();
       const monthDiff = today.getMonth() - birth.getMonth();
       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
@@ -221,20 +292,28 @@ export default function SignUpPage() {
     setAgreedAge13(true);
     // 生年月日が入力されていて18歳未満の場合のみ保護者同意を自動チェック
     if (form.birthdate) {
-      const birth = new Date(form.birthdate);
-      const today = new Date();
-      let age = today.getFullYear() - birth.getFullYear();
-      const monthDiff = today.getMonth() - birth.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-        age--;
-      }
-      if (age < 18) {
-      setAgreedParental(true);
+      const birth = parseBirthdate(form.birthdate);
+      if (birth) {
+        const today = new Date();
+        let age = today.getFullYear() - birth.getFullYear();
+        const monthDiff = today.getMonth() - birth.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+          age--;
+        }
+        if (age < 18) {
+          setAgreedParental(true);
+        }
       }
     }
   };
 
   const handleCompleteRegistration = async () => {
+    // ニックネーム重複確認再確認（規約同意後にも再チェック）
+    if (!nicknameChecked || !nicknameAvailable) {
+      alert("ニックネームの重複確認を完了してください。");
+      return;
+    }
+
     // 必須項目チェック
     if (!agreed) {
       alert("利用規約に同意してください。");
@@ -250,26 +329,31 @@ export default function SignUpPage() {
     }
     // 生年月日が入力されていて18歳未満の場合のみ保護者同意をチェック
     if (form.birthdate) {
-      const birth = new Date(form.birthdate);
-      const today = new Date();
-      let age = today.getFullYear() - birth.getFullYear();
-      const monthDiff = today.getMonth() - birth.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-        age--;
-      }
-      if (age < 18 && !agreedParental) {
-      alert("18歳未満の場合、保護者または法定代理人の同意が必要です。");
-      return;
+      const birth = parseBirthdate(form.birthdate);
+      if (birth) {
+        const today = new Date();
+        let age = today.getFullYear() - birth.getFullYear();
+        const monthDiff = today.getMonth() - birth.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+          age--;
+        }
+        if (age < 18 && !agreedParental) {
+          alert("18歳未満の場合、保護者または法定代理人の同意が必要です。");
+          return;
+        }
       }
     }
 
     setShowTermsModal(false);
 
     try {
+      // 生年月日フォーマット変換（YYYY-MM-DD形式に）
+      const birthdateFormatted = formatBirthdate(form.birthdate);
+
       const response = await fetchWithCsrf("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, emailVerificationProof }),
+        body: JSON.stringify({ ...form, birthdate: birthdateFormatted, emailVerificationProof }),
       });
 
       const contentType = response.headers.get("content-type");
@@ -343,6 +427,13 @@ export default function SignUpPage() {
               type: "password",
             },
             {
+              icon: <Lock size={18} className="text-pink-400" />,
+              label: "パスワード確認",
+              field: "passwordConfirm",
+              placeholder: "パスワードを再度入力",
+              type: "password",
+            },
+            {
               icon: <User size={18} className="text-pink-400" />,
               label: "氏名",
               field: "name",
@@ -359,14 +450,9 @@ export default function SignUpPage() {
               label: "ニックネーム",
               field: "nickname",
               placeholder: "2〜12文字のニックネーム",
+              showNicknameCheck: true,
             },
-            {
-              icon: <Smile size={18} className="text-pink-400" />,
-              label: "生年月日（任意）",
-              field: "birthdate",
-              placeholder: "",
-              type: "date",
-            }].map(({ icon, label, field, placeholder, type = "text", showVerification = false }) => (
+          ].map(({ icon, label, field, placeholder, type = "text", showVerification = false, showNicknameCheck = false }) => (
               <div className="space-y-2" key={field}>
                 <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
                   {icon}
@@ -374,16 +460,33 @@ export default function SignUpPage() {
                   {showVerification && emailVerified && (
                     <span className="text-green-400 text-xs">✓ 認証済み</span>
                   )}
+                  {showNicknameCheck && nicknameChecked && nicknameAvailable && (
+                    <span className="text-green-400 text-xs">✓ 使用可能</span>
+                  )}
+                  {showNicknameCheck && nicknameChecked && !nicknameAvailable && (
+                    <span className="text-red-400 text-xs">✗ 使用不可</span>
+                  )}
                 </label>
                 <div className="flex gap-2">
-                  <Input
-                    type={type}
-                    placeholder={placeholder}
-                    className="bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all flex-1"
-                    value={form[field as keyof typeof form]}
-                    onChange={(e) => handleChange(field, e.target.value)}
-                    disabled={showVerification && emailVerified}
-                  />
+                  <div className="relative flex-1">
+                    <Input
+                      type={type === "password" ? (field === "password" ? (showPassword ? "text" : "password") : (showPasswordConfirm ? "text" : "password")) : type}
+                      placeholder={placeholder}
+                      className={`bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all w-full ${type === "password" ? "pr-12" : ""}`}
+                      value={form[field as keyof typeof form]}
+                      onChange={(e) => handleChange(field, e.target.value)}
+                      disabled={showVerification && emailVerified}
+                    />
+                    {type === "password" && (
+                      <button
+                        type="button"
+                        onClick={() => field === "password" ? setShowPassword(!showPassword) : setShowPasswordConfirm(!showPasswordConfirm)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                      >
+                        {(field === "password" ? showPassword : showPasswordConfirm) ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    )}
+                  </div>
                   {showVerification && !emailVerified && (
                     <Button
                       type="button"
@@ -394,7 +497,31 @@ export default function SignUpPage() {
                       {sendingCode ? "送信中..." : showVerificationInput ? "再送信" : "認証する"}
                     </Button>
                   )}
+                  {showNicknameCheck && (
+                    <Button
+                      type="button"
+                      onClick={handleCheckNickname}
+                      disabled={checkingNickname || !form.nickname || form.nickname.trim().length < 2 || form.nickname.trim().length > 12}
+                      className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      {checkingNickname ? "確認中..." : nicknameChecked && nicknameAvailable ? "✓ 使用可能" : "重複確認"}
+                    </Button>
+                  )}
                 </div>
+                {/* パスワード確認リアルタイム表示 */}
+                {field === "passwordConfirm" && form.password && form.passwordConfirm && (
+                  <div className="mt-2">
+                    {form.password === form.passwordConfirm ? (
+                      <p className="text-green-400 text-xs flex items-center gap-1">
+                        <span>✓</span> パスワードが一致しています
+                      </p>
+                    ) : (
+                      <p className="text-red-400 text-xs flex items-center gap-1">
+                        <span>✗</span> パスワードが一致しません
+                      </p>
+                    )}
+                  </div>
+                )}
                 {showVerification && showVerificationInput && !emailVerified && (
                   <div className="space-y-2 mt-2">
                     <label className="text-sm font-medium text-gray-300">
@@ -421,7 +548,97 @@ export default function SignUpPage() {
                   </div>
                 )}
               </div>
-            ))}
+            )            )}
+
+            {/* 生年月日入力（別フィールド） */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                <Smile size={18} className="text-pink-400" />
+                生年月日（任意）
+              </label>
+              <div className="flex gap-2 items-center">
+                <Input
+                  type="text"
+                  placeholder="YYYY"
+                  maxLength={4}
+                  className="w-20 bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all text-center"
+                  value={(() => {
+                    if (!form.birthdate) return '';
+                    const parts = form.birthdate.split('-');
+                    return parts[0] || '';
+                  })()}
+                  onChange={(e) => {
+                    const year = e.target.value.replace(/\D/g, '').slice(0, 4);
+                    const currentDate = form.birthdate ? form.birthdate.split('-') : ['', '', ''];
+                    const newDate = year.length === 4 
+                      ? `${year}-${currentDate[1] || ''}-${currentDate[2] || ''}`.replace(/^-+/, '')
+                      : year;
+                    setForm((prev) => ({ ...prev, birthdate: newDate }));
+                    // 4桁入力時に月フィールドへフォーカス移動
+                    if (year.length === 4) {
+                      setTimeout(() => {
+                        const monthInput = document.getElementById('birth-month');
+                        if (monthInput) (monthInput as HTMLInputElement).focus();
+                      }, 0);
+                    }
+                  }}
+                />
+                <span className="text-gray-400">年</span>
+                <Input
+                  id="birth-month"
+                  type="text"
+                  placeholder="MM"
+                  maxLength={2}
+                  className="w-16 bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all text-center"
+                  value={(() => {
+                    if (!form.birthdate) return '';
+                    const parts = form.birthdate.split('-');
+                    return parts[1] || '';
+                  })()}
+                  onChange={(e) => {
+                    const month = e.target.value.replace(/\D/g, '').slice(0, 2);
+                    const currentDate = form.birthdate ? form.birthdate.split('-') : ['', '', ''];
+                    const monthNum = parseInt(month);
+                    if (month && (monthNum < 1 || monthNum > 12)) {
+                      return; // 無効な月は入力不可
+                    }
+                    const newDate = `${currentDate[0] || ''}-${month.padStart(2, '0')}-${currentDate[2] || ''}`.replace(/^-+/, '');
+                    setForm((prev) => ({ ...prev, birthdate: newDate }));
+                    // 2桁入力時に日フィールドへフォーカス移動
+                    if (month.length === 2) {
+                      setTimeout(() => {
+                        const dayInput = document.getElementById('birth-day');
+                        if (dayInput) (dayInput as HTMLInputElement).focus();
+                      }, 0);
+                    }
+                  }}
+                />
+                <span className="text-gray-400">月</span>
+                <Input
+                  id="birth-day"
+                  type="text"
+                  placeholder="DD"
+                  maxLength={2}
+                  className="w-16 bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all text-center"
+                  value={(() => {
+                    if (!form.birthdate) return '';
+                    const parts = form.birthdate.split('-');
+                    return parts[2] || '';
+                  })()}
+                  onChange={(e) => {
+                    const day = e.target.value.replace(/\D/g, '').slice(0, 2);
+                    const currentDate = form.birthdate ? form.birthdate.split('-') : ['', '', ''];
+                    const dayNum = parseInt(day);
+                    if (day && (dayNum < 1 || dayNum > 31)) {
+                      return; // 無効な日は入力不可
+                    }
+                    const newDate = `${currentDate[0] || ''}-${currentDate[1] || ''}-${day.padStart(2, '0')}`.replace(/^-+/, '');
+                    setForm((prev) => ({ ...prev, birthdate: newDate }));
+                  }}
+                />
+                <span className="text-gray-400">日</span>
+              </div>
+            </div>
 
             <Button
               disabled={!emailVerified}
@@ -433,6 +650,11 @@ export default function SignUpPage() {
             {!emailVerified && (
               <p className="text-xs text-red-400 text-center">
                 ※ メールアドレスの認証を完了してください。
+              </p>
+            )}
+            {(!nicknameChecked || !nicknameAvailable) && (
+              <p className="text-xs text-red-400 text-center">
+                ※ ニックネームの重複確認を完了してください。
               </p>
             )}
           </div>
@@ -460,7 +682,8 @@ export default function SignUpPage() {
                   <Checkbox
                     id="agreeAll"
                     checked={agreed && agreedPrivacy && agreedAge13 && (form.birthdate ? (() => {
-                      const birth = new Date(form.birthdate);
+                      const birth = parseBirthdate(form.birthdate);
+                      if (!birth) return true;
                       const today = new Date();
                       let age = today.getFullYear() - birth.getFullYear();
                       const monthDiff = today.getMonth() - birth.getMonth();
@@ -545,7 +768,8 @@ export default function SignUpPage() {
 
                 {/* 18歳未満の場合、保護者同意 */}
                 {form.birthdate && (() => {
-                  const birth = new Date(form.birthdate);
+                  const birth = parseBirthdate(form.birthdate);
+                  if (!birth) return false;
                   const today = new Date();
                   let age = today.getFullYear() - birth.getFullYear();
                   const monthDiff = today.getMonth() - birth.getMonth();
@@ -607,7 +831,8 @@ export default function SignUpPage() {
                 <Button
                   onClick={handleCompleteRegistration}
                   disabled={!agreed || !agreedPrivacy || !agreedAge13 || (form.birthdate ? (() => {
-                    const birth = new Date(form.birthdate);
+                    const birth = parseBirthdate(form.birthdate);
+                    if (!birth) return false;
                     const today = new Date();
                     let age = today.getFullYear() - birth.getFullYear();
                     const monthDiff = today.getMonth() - birth.getMonth();

@@ -320,6 +320,16 @@ export function getAuthOptions(): NextAuthOptions {
           }
           // ▲▲▲ 停止チェック完了 ▲▲▲
 
+          // ▼▼▼【2FA】이메일 기반 2FA 검증 ▼▼▼
+          // twoFactorEnabled가 true이고 twoFactorSecret이 null이면 이메일 기반 2FA
+          // skip2FA 플래그가 있으면 2FA 검증 완료로 간주하고 통과
+          if (user.twoFactorEnabled && !user.twoFactorSecret && !(credentials as { skip2FA?: boolean }).skip2FA) {
+            // 이메일 기반 2FA 활성화됨 - 2FA 코드 입력이 필요함
+            // 패스워드는 맞지만 2FA가 필요하다는 에러를 던짐
+            throw new Error(`2FA_REQUIRED:${user.email}`);
+          }
+          // ▲▲▲ 2FA 검증 완료 ▲▲▲
+
           // 認証成功: ログイン失敗回数とロック状態をリセット
           if (user.loginAttempts > 0 || user.lockedUntil) {
             await prisma.users.update({

@@ -549,7 +549,7 @@ export default function UserProfilePage() {
                         <>
                           <button onClick={() => { window.location.href = '/profile-edit'; setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center gap-2 group">
                             <Edit size={16} className="text-white group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" /> 
-                            <span className="group-hover:translate-x-1 transition-transform duration-300">プロフィール編集</span>
+                            <span className="group-hover:translate-x-1 transition-transform duration-300">会員情報変更</span>
                           </button>
                           {profile.hasPassword && (
                             <button onClick={() => { window.location.href = '/change-password'; setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center gap-2 group">
@@ -621,7 +621,7 @@ export default function UserProfilePage() {
                 <div className="mt-6 flex flex-col sm:flex-row gap-3">
                   {isMyProfile && (
                     <button onClick={() => window.location.href = '/profile-edit'} className="w-full sm:w-auto bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-2 px-6 rounded-xl transition-all shadow-lg shadow-pink-500/30">
-                      プロフィール編集
+                      会員情報変更
                     </button>
                   )}
                   {!isMyProfile && sessionStatus === 'authenticated' && (

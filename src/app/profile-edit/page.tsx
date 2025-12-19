@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
-import { ArrowLeft, Camera, User } from 'lucide-react';
+import { ArrowLeft, Camera, User, Shield, Phone, Lock, Eye, EyeOff } from 'lucide-react';
 import { fetchWithCsrf } from '@/lib/csrf-client';
 
 // 汎用モーダルコンポーネント
@@ -40,11 +40,21 @@ export default function ProfileEditPage() {
 
   const [ニックネーム, setニックネーム] = useState('');
   const [自己紹介, set自己紹介] = useState('');
+  const [電話番号, set電話番号] = useState('');
   const [画像プレビュー, set画像プレビュー] = useState<string | null>(null);
   const [画像ファイル, set画像ファイル] = useState<File | null>(null);
   const [読み込み中, set読み込み中] = useState(true);
   const [送信中, set送信中] = useState(false);
   const [モーダル状態, setモーダル状態] = useState({ isOpen: false, title: '', message: '' });
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorLoading, setTwoFactorLoading] = useState(false);
+  const [hasPassword, setHasPassword] = useState(true); // Googleアカウント有無（パスワードがない場合はGoogle専用）
+  const [password, setPassword] = useState(''); // 会員情報変更時のパスワード確認
+  const [showPassword, setShowPassword] = useState(false); // パスワード表示/非表示
+  const [nicknameChecked, setNicknameChecked] = useState(false);
+  const [nicknameAvailable, setNicknameAvailable] = useState<boolean | null>(null);
+  const [checkingNickname, setCheckingNickname] = useState(false);
+  const [originalNickname, setOriginalNickname] = useState(''); // 元のニックネーム保存
   const ファイル入力Ref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -55,7 +65,11 @@ export default function ProfileEditPage() {
         const データ = await レスポンス.json();
         setニックネーム(データ.nickname || '');
         set自己紹介(データ.bio || '');
+        set電話番号(データ.phone || '');
         set画像プレビュー(データ.image || null);
+        setTwoFactorEnabled(データ.twoFactorEnabled || false);
+        setHasPassword(データ.hasPassword !== false); // APIからhasPassword返却、なければデフォルト値true
+        setOriginalNickname(データ.nickname || ''); // 元のニックネーム保存
       } catch (エラー) {
         console.error(エラー);
         setモーダル状態({ isOpen: true, title: 'エラー', message: (エラー as Error).message });
@@ -68,6 +82,109 @@ export default function ProfileEditPage() {
   
   const モーダルを閉じる = () => setモーダル状態({ isOpen: false, title: '', message: '' });
 
+  // ニックネーム重複確認
+  const handleCheckNickname = async () => {
+    if (!ニックネーム || ニックネーム.trim().length < 2 || ニックネーム.trim().length > 12) {
+      setモーダル状態({
+        isOpen: true,
+        title: '入力エラー',
+        message: 'ニックネームは2〜12文字で入力してください。',
+      });
+      return;
+    }
+
+    // 元のニックネームと同じ場合は重複確認不要
+    if (ニックネーム.trim() === originalNickname) {
+      setNicknameChecked(true);
+      setNicknameAvailable(true);
+      setモーダル状態({
+        isOpen: true,
+        title: '確認完了',
+        message: 'ニックネームは変更されていません。',
+      });
+      return;
+    }
+
+    setCheckingNickname(true);
+    try {
+      const response = await fetch('/api/users/check-nickname', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nickname: ニックネーム }),
+      });
+
+      const data = await response.json();
+      setNicknameChecked(true);
+      
+      if (data.available) {
+        setNicknameAvailable(true);
+        setモーダル状態({
+          isOpen: true,
+          title: '確認完了',
+          message: data.message || 'このニックネームは使用可能です。',
+        });
+      } else {
+        setNicknameAvailable(false);
+        setモーダル状態({
+          isOpen: true,
+          title: 'エラー',
+          message: data.message || 'このニックネームは既に使用されています。',
+        });
+      }
+    } catch (error) {
+      console.error('ニックネーム重複確認エラー:', error);
+      setモーダル状態({
+        isOpen: true,
+        title: 'エラー',
+        message: 'サーバーエラーが発生しました。',
+      });
+    } finally {
+      setCheckingNickname(false);
+    }
+  };
+
+  // 2FA有効化/無効化
+  const handle2FAToggle = async () => {
+    setTwoFactorLoading(true);
+    try {
+      const endpoint = twoFactorEnabled 
+        ? '/api/auth/2fa/email/disable'
+        : '/api/auth/2fa/email/enable';
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setモーダル状態({
+          isOpen: true,
+          title: 'エラー',
+          message: data.error || '2FA設定の変更に失敗しました。',
+        });
+        return;
+      }
+
+      setTwoFactorEnabled(!twoFactorEnabled);
+      setモーダル状態({
+        isOpen: true,
+        title: '成功',
+        message: data.message || (twoFactorEnabled ? '2FAが無効化されました。' : '2FAが有効化されました。'),
+      });
+    } catch (error) {
+      console.error('2FA toggle error:', error);
+      setモーダル状態({
+        isOpen: true,
+        title: 'エラー',
+        message: '2FA設定の変更中にエラーが発生しました。',
+      });
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  };
+
   const 画像変更ハンドラ = (イベント: ChangeEvent<HTMLInputElement>) => {
     if (イベント.target.files && イベント.target.files[0]) {
       const ファイル = イベント.target.files[0];
@@ -78,11 +195,36 @@ export default function ProfileEditPage() {
 
   const 送信ハンドラ = async (イベント: FormEvent<HTMLFormElement>) => {
     イベント.preventDefault();
+
+    // パスワード確認必須
+    if (!password || password.trim().length === 0) {
+      setモーダル状態({
+        isOpen: true,
+        title: '入力エラー',
+        message: 'パスワードを入力してください。',
+      });
+      return;
+    }
+
+    // ニックネームが変更された場合は重複確認必要
+    if (ニックネーム.trim() !== originalNickname) {
+      if (!nicknameChecked || !nicknameAvailable) {
+        setモーダル状態({
+          isOpen: true,
+          title: '確認必要',
+          message: 'ニックネームの重複確認を完了してください。',
+        });
+        return;
+      }
+    }
+
     set送信中(true);
     
     const フォームデータ = new FormData();
     フォームデータ.append('nickname', ニックネーム);
     フォームデータ.append('bio', 自己紹介);
+    フォームデータ.append('phone', 電話番号);
+    フォームデータ.append('password', password); // パスワード確認
     if (画像ファイル) {
       フォームデータ.append('image', 画像ファイル);
     }
@@ -119,10 +261,16 @@ export default function ProfileEditPage() {
         image: 更新後のプロフィール.user.image,
       });
       
+      // ニックネームが変更された場合は元のニックネーム更新
+      setOriginalNickname(ニックネーム);
+      setPassword(''); // パスワードフィールド初期化
+      setNicknameChecked(false); // 重複確認状態初期化
+      setNicknameAvailable(null);
+      
       setモーダル状態({ 
           isOpen: true, 
           title: '成功', 
-          message: 'プロフィールを更新しました！',
+          message: '会員情報を更新しました！',
       });
       
       // 1.5秒後にプロフィールページへ遷移
@@ -166,7 +314,7 @@ export default function ProfileEditPage() {
                 <ArrowLeft size={24} />
               </button>
               <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-                プロフィール編集
+                会員情報変更
               </h1>
               <div className="w-10 h-10"></div>
             </header>
@@ -208,15 +356,86 @@ export default function ProfileEditPage() {
               </div>
               
               <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
-                <label htmlFor="nickname" className="block text-sm font-medium text-gray-300 mb-2">ニックネーム</label>
+                <label htmlFor="nickname" className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                  ニックネーム
+                  {nicknameChecked && nicknameAvailable && (
+                    <span className="text-green-400 text-xs">✓ 使用可能</span>
+                  )}
+                  {nicknameChecked && !nicknameAvailable && (
+                    <span className="text-red-400 text-xs">✗ 使用不可</span>
+                  )}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="nickname"
+                    type="text"
+                    value={ニックネーム}
+                    onChange={(e) => {
+                      setニックネーム(e.target.value);
+                      // ニックネームが変更されたら重複確認状態をリセット
+                      if (e.target.value.trim() !== originalNickname) {
+                        setNicknameChecked(false);
+                        setNicknameAvailable(null);
+                      } else {
+                        setNicknameChecked(true);
+                        setNicknameAvailable(true);
+                      }
+                    }}
+                    className="flex-1 bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all placeholder-gray-500"
+                    placeholder="ニックネームを入力"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCheckNickname}
+                    disabled={checkingNickname || !ニックネーム || ニックネーム.trim().length < 2 || ニックネーム.trim().length > 12 || ニックネーム.trim() === originalNickname}
+                    className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {checkingNickname ? '確認中...' : '重複確認'}
+                  </button>
+                </div>
+              </div>
+
+              {/* パスワード確認フィールド */}
+              <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                  <Lock size={16} className="text-pink-400" />
+                  パスワード確認 <span className="text-red-400">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 pr-12 text-white focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all placeholder-gray-500"
+                    placeholder="パスワードを入力して変更を確認"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">会員情報を変更するには、パスワードの確認が必要です。</p>
+              </div>
+
+              <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                  <Phone size={16} />
+                  電話番号
+                </label>
                 <input
-                  id="nickname"
-                  type="text"
-                  value={ニックネーム}
-                  onChange={(e) => setニックネーム(e.target.value)}
+                  id="phone"
+                  type="tel"
+                  value={電話番号}
+                  onChange={(e) => set電話番号(e.target.value)}
                   className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all placeholder-gray-500"
-                  placeholder="ニックネームを入力"
+                  placeholder="電話番号を入力（任意）"
                 />
+                <p className="text-xs text-gray-400 mt-2">電話番号は任意です。他のユーザーとは共有されません。</p>
               </div>
 
               <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
@@ -230,6 +449,37 @@ export default function ProfileEditPage() {
                   placeholder="自己紹介を入力"
                 />
               </div>
+
+              {/* 2FA設定 - パスワードがあるアカウント（メール/パスワードログイン可能）のみ表示 */}
+              {hasPassword && (
+                <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Shield size={20} className="text-pink-400" />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300">二要素認証（2FA）</label>
+                        <p className="text-xs text-gray-400 mt-1">
+                          ログイン時にメール認証コードが必要になります
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handle2FAToggle}
+                      disabled={twoFactorLoading}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        twoFactorEnabled ? 'bg-pink-500' : 'bg-gray-600'
+                      } ${twoFactorLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          twoFactorEnabled ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              )}
               
               <button
                 type="submit"

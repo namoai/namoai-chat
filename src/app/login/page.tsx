@@ -6,7 +6,7 @@ import Link from 'next/link'; // Linkコンポーネントをインポート
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FcGoogle } from "react-icons/fc";
-import { Mail, Lock, ArrowLeft, Info } from "lucide-react";
+import { Mail, Lock, ArrowLeft, Info, Eye, EyeOff } from "lucide-react";
 import { signIn } from "next-auth/react";
 
 // ▼▼▼【新規追加】汎用モーダルコンポーネント ▼▼▼
@@ -62,8 +62,13 @@ const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalSta
 function LoginComponent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false); // パスワード表示/非表示
   const [rememberMe, setRememberMe] = useState(false); // ログイン状態保持チェックボックス
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false, title: '', message: '' }); // モーダル用のstateを追加
+  const [show2FAInput, setShow2FAInput] = useState(false); // 2FAコード入力画面表示有無
+  const [twoFactorCode, setTwoFactorCode] = useState(""); // 2FAコード
+  const [sending2FACode, setSending2FACode] = useState(false); // 2FAコード送信中
+  const [verifying2FACode, setVerifying2FACode] = useState(false); // 2FAコード検証中
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -133,7 +138,159 @@ function LoginComponent() {
     }
   }, [searchParams, router]);
 
+  // 2FAコード送信
+  const handleSend2FACode = async (userEmail: string) => {
+    setSending2FACode(true);
+    try {
+      const response = await fetch('/api/auth/2fa/email/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        setModalState({
+          isOpen: true,
+          title: 'エラー',
+          message: data.error || '認証コードの送信に失敗しました。',
+          isAlert: true,
+          confirmText: 'OK',
+          onConfirm: () => {
+            setModalState({ ...modalState, isOpen: false });
+            setShow2FAInput(false);
+          },
+        });
+        return;
+      }
+
+      setModalState({
+        isOpen: true,
+        title: '認証コードを送信しました',
+        message: 'メールアドレスに認証コードを送信しました。\nコードを入力してください。',
+        isAlert: true,
+        confirmText: 'OK',
+        onConfirm: () => {
+          setModalState({ ...modalState, isOpen: false });
+        },
+      });
+    } catch (error) {
+      console.error('2FA code send error:', error);
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: '認証コードの送信に失敗しました。',
+        isAlert: true,
+        confirmText: 'OK',
+        onConfirm: () => {
+          setModalState({ ...modalState, isOpen: false });
+          setShow2FAInput(false);
+        },
+      });
+    } finally {
+      setSending2FACode(false);
+    }
+  };
+
+  // 2FAコード検証後ログイン完了
+  const handleVerify2FACode = async () => {
+    if (!twoFactorCode || !/^\d{6}$/.test(twoFactorCode)) {
+      setModalState({
+        isOpen: true,
+        title: '入力エラー',
+        message: '6桁の認証コードを入力してください。',
+        isAlert: true,
+        confirmText: 'OK',
+        onConfirm: () => {
+          setModalState({ ...modalState, isOpen: false });
+        },
+      });
+      return;
+    }
+
+    setVerifying2FACode(true);
+    try {
+      // 2FAコード検証
+      const verifyResponse = await fetch('/api/auth/2fa/email/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: twoFactorCode }),
+      });
+
+      const verifyData = await verifyResponse.json();
+      if (!verifyResponse.ok) {
+        setModalState({
+          isOpen: true,
+          title: '認証エラー',
+          message: verifyData.error || '認証コードが正しくありません。',
+          isAlert: true,
+          confirmText: 'OK',
+          onConfirm: () => {
+            setModalState({ ...modalState, isOpen: false });
+          },
+        });
+        return;
+      }
+
+      // 2FA検証成功 - skip2FAフラグを使用して再度ログイン試行
+      const result = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+        skip2FA: true, // 2FA検証完了フラグ
+        callbackUrl: "/MyPage",
+      });
+
+      if (result?.error) {
+        setModalState({
+          isOpen: true,
+          title: 'ログインエラー',
+          message: result.error === 'CredentialsSignin' ? 'メールアドレスまたはパスワードが正しくありません。' : result.error,
+          isAlert: true,
+          confirmText: 'OK',
+          onConfirm: () => {
+            setModalState({ ...modalState, isOpen: false });
+            setShow2FAInput(false);
+            setTwoFactorCode('');
+          },
+        });
+        return;
+      }
+
+      // ログイン成功
+      if (result?.ok) {
+        // ログイン状態保持の設定をlocalStorageに保存
+        if (rememberMe) {
+          localStorage.setItem('rememberMe', 'true');
+        } else {
+          localStorage.removeItem('rememberMe');
+        }
+        router.replace("/MyPage");
+      }
+    } catch (error) {
+      console.error('2FA verify error:', error);
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: '認証コードの検証に失敗しました。',
+        isAlert: true,
+        confirmText: 'OK',
+        onConfirm: () => {
+          setModalState({ ...modalState, isOpen: false });
+        },
+      });
+    } finally {
+      setVerifying2FACode(false);
+    }
+  };
+
   const handleLogin = async () => {
+    // 2FA入力画面が表示されている場合はコード検証として処理
+    if (show2FAInput) {
+      await handleVerify2FACode();
+      return;
+    }
+
     // 入力値の検証
     if (!email || !password) {
       setModalState({
@@ -195,6 +352,17 @@ function LoginComponent() {
           return;
         }
         // ▲▲▲ ロックエラー処理完了 ▲▲▲
+
+        // ▼▼▼【2FA】メールベース2FA必要処理 ▼▼▼
+        if (result.error.startsWith('2FA_REQUIRED:')) {
+          const userEmail = result.error.replace('2FA_REQUIRED:', '');
+          // 2FAコード入力画面表示
+          setShow2FAInput(true);
+          // 2FAコード送信
+          handleSend2FACode(userEmail);
+          return;
+        }
+        // ▲▲▲ 2FA処理完了 ▲▲▲
 
         // ▼▼▼【新機能】メール認証エラーの処理（再送信機能付き）▼▼▼
         if (result.error.startsWith('EMAIL_NOT_VERIFIED:')) {
@@ -316,35 +484,96 @@ function LoginComponent() {
         </div>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
-              <Mail size={16} />
-              メールアドレス
-            </label>
-            <Input
-              type="email"
-              placeholder="メールアドレスを入力"
-              className="bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-            />
-          </div>
+          {!show2FAInput ? (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                  <Mail size={16} />
+                  メールアドレス
+                </label>
+                <Input
+                  type="email"
+                  placeholder="メールアドレスを入力"
+                  className="bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                />
+              </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
-              <Lock size={16} />
-              パスワード
-            </label>
-            <Input
-              type="password"
-              placeholder="パスワードを入力"
-              className="bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-            />
-          </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                  <Lock size={16} />
+                  パスワード
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="パスワードを入力"
+                    className="bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 pr-12 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                  <Mail size={16} />
+                  認証コード
+                </label>
+                <Input
+                  type="text"
+                  placeholder="6桁の認証コードを入力"
+                  maxLength={6}
+                  className="bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all text-center text-2xl tracking-widest"
+                  value={twoFactorCode}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, ''); // 数字のみ
+                    setTwoFactorCode(value);
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                />
+                <p className="text-xs text-gray-400 text-center">
+                  メールアドレス ({email}) に送信された6桁の認証コードを入力してください
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 border-gray-700 text-gray-300 hover:bg-gray-800"
+                  onClick={() => {
+                    setShow2FAInput(false);
+                    setTwoFactorCode('');
+                    handleSend2FACode(email);
+                  }}
+                  disabled={sending2FACode}
+                >
+                  {sending2FACode ? '送信中...' : '再送信'}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 border-gray-700 text-gray-300 hover:bg-gray-800"
+                  onClick={() => {
+                    setShow2FAInput(false);
+                    setTwoFactorCode('');
+                  }}
+                >
+                  戻る
+                </Button>
+              </div>
+            </>
+          )}
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -382,8 +611,9 @@ function LoginComponent() {
           <Button
             className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-pink-500/30"
             onClick={handleLogin}
+            disabled={show2FAInput ? verifying2FACode : false}
           >
-            ログイン
+            {show2FAInput ? (verifying2FACode ? '確認中...' : '認証コードを確認') : 'ログイン'}
           </Button>
         </div>
 
