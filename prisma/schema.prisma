@@ -391,6 +391,18 @@ model notifications {
   @@index([userId, createdAt])
 }
 
+model terms {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique @db.VarChar(255) // URL用の識別子 (例: "terms-of-service", "privacy-policy")
+  title     String   @db.VarChar(255) // 表示タイトル (例: "ナモアイ利用規約")
+  content   String   @db.Text // マークダウン形式の内容
+  displayOrder Int   @default(0) // 表示順序
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([slug])
+}
+
 enum Role {
   USER
   MODERATOR

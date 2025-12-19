@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
 import BottomNav from "./BottomNav";
+import Footer from "./Footer";
 
 // 下部のナビゲーションバーを非表示にするパスのリスト
 // ✅ お知らせページ(`/notice`)のパスを追加して、メニューバーを非表示にします。
@@ -55,15 +56,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   });
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
       {/* ナビゲーションバーが表示される場合のみ、下部にパディングを追加します。
         これにより、ページの内容がナビゲーションバーに隠れるのを防ぎます。
         表示されない場合はパディングをなくし、画面全体を使用できるようにします。
       */}
-      <main className={shouldShowNav ? "pb-24" : ""}>{children}</main>
+      <main className={`flex-1 ${shouldShowNav ? "pb-24" : ""}`}>{children}</main>
+      
+      {/* Footer - 約款リンクを表示 */}
+      {shouldShowNav && <Footer />}
       
       {/* shouldShowNavがtrueの場合のみ、BottomNavコンポーネントをレンダリングします */}
       {shouldShowNav && <BottomNav />}
-    </>
+    </div>
   );
 }

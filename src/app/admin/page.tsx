@@ -87,13 +87,23 @@ export default function AdminDashboardPage() {
             )}
 
             {(userRole === 'MODERATOR' || userRole === 'SUPER_ADMIN') && (
-              <Link href="/admin/guides" className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl hover:bg-gray-800/50 transition-all cursor-pointer flex flex-col items-center text-center border border-gray-800/50 hover:border-pink-500/30 group">
-                <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 mb-4 group-hover:scale-110 transition-transform">
-                  <FileText size={40} className="text-blue-400" />
-                </div>
-                <h2 className="text-xl font-bold mb-2 group-hover:text-pink-400 transition-colors">ガイド管理</h2>
-                <p className="text-gray-400 text-sm">ユーザーガイドの内容を管理します。</p>
-              </Link>
+              <>
+                <Link href="/admin/guides" className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl hover:bg-gray-800/50 transition-all cursor-pointer flex flex-col items-center text-center border border-gray-800/50 hover:border-pink-500/30 group">
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 mb-4 group-hover:scale-110 transition-transform">
+                    <FileText size={40} className="text-blue-400" />
+                  </div>
+                  <h2 className="text-xl font-bold mb-2 group-hover:text-pink-400 transition-colors">ガイド管理</h2>
+                  <p className="text-gray-400 text-sm">ユーザーガイドの内容を管理します。</p>
+                </Link>
+                
+                <Link href="/admin/terms" className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl hover:bg-gray-800/50 transition-all cursor-pointer flex flex-col items-center text-center border border-gray-800/50 hover:border-pink-500/30 group">
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 mb-4 group-hover:scale-110 transition-transform">
+                    <FileText size={40} className="text-amber-400" />
+                  </div>
+                  <h2 className="text-xl font-bold mb-2 group-hover:text-pink-400 transition-colors">約款管理</h2>
+                  <p className="text-gray-400 text-sm">利用規約・プライバシーポリシーなどを管理します。</p>
+                </Link>
+              </>
             )}
             
             {(userRole === 'CHAR_MANAGER' || userRole === 'SUPER_ADMIN') && (
