@@ -24,7 +24,7 @@ const CustomModal = ({ isOpen, onClose, title, message }: ModalProps) => {
         <h2 className="text-lg font-bold mb-4 text-white">{title}</h2>
         <p className="text-sm text-gray-200 mb-6">{message}</p>
         <div className="flex justify-end">
-          <button onClick={onClose} className="bg-pink-600 text-white hover:bg-pink-700 py-2 px-4 rounded-lg">
+          <button onClick={onClose} className="bg-blue-600 text-white hover:bg-blue-700 py-2 px-4 rounded-lg">
             OK
           </button>
         </div>
@@ -303,17 +303,17 @@ export default function ProfileEditPage() {
       <div className="bg-black min-h-screen text-white">
         {/* 背景装飾 */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-gray-800/30 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gray-800/30 rounded-full blur-3xl" />
         </div>
 
         <div className="relative z-10">
           <div className="max-w-2xl mx-auto px-4 md:px-6 py-6 pb-24">
             <header className="flex items-center justify-between mb-8 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50">
-              <button onClick={() => ルーター.back()} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
+              <button onClick={() => ルーター.back()} className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all">
                 <ArrowLeft size={24} />
               </button>
-              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
                 会員情報変更
               </h1>
               <div className="w-10 h-10"></div>
@@ -323,7 +323,7 @@ export default function ProfileEditPage() {
               <div className="flex flex-col items-center mb-8">
                 <div className="relative w-32 h-32 mb-4">
                   {画像プレビュー ? (
-                    <div className="relative w-32 h-32 rounded-full overflow-hidden ring-4 ring-pink-500/30">
+                    <div className="relative w-32 h-32 rounded-full overflow-hidden ring-4 ring-blue-500/30">
                       <Image
                         src={画像プレビュー}
                         alt="Profile Preview"
@@ -334,14 +334,14 @@ export default function ProfileEditPage() {
                       />
                     </div>
                   ) : (
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center ring-4 ring-pink-500/30">
-                      <User size={64} className="text-pink-400" />
+                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center ring-4 ring-blue-500/30">
+                      <User size={64} className="text-blue-400" />
                     </div>
                   )}
                   <button
                     type="button"
                     onClick={() => ファイル入力Ref.current?.click()}
-                    className="absolute bottom-0 right-0 bg-gradient-to-r from-pink-500 to-purple-600 p-3 rounded-full hover:from-pink-600 hover:to-purple-700 transition-all shadow-lg shadow-pink-500/30"
+                    className="absolute bottom-0 right-0 bg-gradient-to-r from-blue-500 to-cyan-600 p-3 rounded-full hover:from-blue-600 hover:to-cyan-700 transition-all shadow-lg shadow-blue-500/30"
                   >
                     <Camera size={20} className="text-white" />
                   </button>
@@ -381,14 +381,14 @@ export default function ProfileEditPage() {
                         setNicknameAvailable(true);
                       }
                     }}
-                    className="flex-1 bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all placeholder-gray-500"
+                    className="flex-1 bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all placeholder-gray-500"
                     placeholder="ニックネームを入力"
                   />
                   <button
                     type="button"
                     onClick={handleCheckNickname}
                     disabled={checkingNickname || !ニックネーム || ニックネーム.trim().length < 2 || ニックネーム.trim().length > 12 || ニックネーム.trim() === originalNickname}
-                    className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                   >
                     {checkingNickname ? '確認中...' : '重複確認'}
                   </button>
@@ -398,7 +398,7 @@ export default function ProfileEditPage() {
               {/* パスワード確認フィールド */}
               <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
                 <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-                  <Lock size={16} className="text-pink-400" />
+                  <Lock size={16} className="text-blue-400" />
                   パスワード確認 <span className="text-red-400">*</span>
                 </label>
                 <div className="relative">
@@ -407,7 +407,7 @@ export default function ProfileEditPage() {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 pr-12 text-white focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all placeholder-gray-500"
+                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 pr-12 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all placeholder-gray-500"
                     placeholder="パスワードを入力して変更を確認"
                     required
                   />
@@ -432,7 +432,7 @@ export default function ProfileEditPage() {
                   type="tel"
                   value={電話番号}
                   onChange={(e) => set電話番号(e.target.value)}
-                  className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all placeholder-gray-500"
+                  className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all placeholder-gray-500"
                   placeholder="電話番号を入力（任意）"
                 />
                 <p className="text-xs text-gray-400 mt-2">電話番号は任意です。他のユーザーとは共有されません。</p>
@@ -455,7 +455,7 @@ export default function ProfileEditPage() {
                 <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Shield size={20} className="text-pink-400" />
+                      <Shield size={20} className="text-blue-400" />
                       <div>
                         <label className="block text-sm font-medium text-gray-300">二要素認証（2FA）</label>
                         <p className="text-xs text-gray-400 mt-1">
@@ -468,7 +468,7 @@ export default function ProfileEditPage() {
                       onClick={handle2FAToggle}
                       disabled={twoFactorLoading}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        twoFactorEnabled ? 'bg-pink-500' : 'bg-gray-600'
+                        twoFactorEnabled ? 'bg-blue-500' : 'bg-gray-600'
                       } ${twoFactorLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                     >
                       <span
@@ -484,7 +484,7 @@ export default function ProfileEditPage() {
               <button
                 type="submit"
                 disabled={送信中}
-                className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-4 px-6 rounded-xl transition-all shadow-lg shadow-pink-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold py-4 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {送信中 ? '保存中...' : '保存'}
               </button>

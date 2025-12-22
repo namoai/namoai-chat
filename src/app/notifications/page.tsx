@@ -180,7 +180,7 @@ export default function NotificationsPage() {
       </div>
 
       <div>
-        <h3 className="text-lg font-semibold text-pink-400 mb-3">通知の種類</h3>
+        <h3 className="text-lg font-semibold text-blue-400 mb-3">通知の種類</h3>
         <div className="space-y-3">
           <div className="bg-black/30 border border-gray-800/80 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -235,7 +235,7 @@ export default function NotificationsPage() {
       </div>
 
       <div>
-        <h3 className="text-lg font-semibold text-pink-400 mb-3">機能</h3>
+        <h3 className="text-lg font-semibold text-blue-400 mb-3">機能</h3>
         <ul className="space-y-2 text-sm text-gray-300">
           <li className="flex items-start gap-2">
             <span className="text-blue-400 mt-0.5">•</span>

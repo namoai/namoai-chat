@@ -118,7 +118,7 @@ export default function TestSessionTimeoutPage() {
           <p className="text-xl">ログインが必要です。</p>
           <button
             onClick={() => router.push("/login")}
-            className="px-6 py-3 bg-pink-600 hover:bg-pink-700 rounded-lg transition-colors"
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
           >
             ログインする
           </button>
@@ -152,7 +152,7 @@ export default function TestSessionTimeoutPage() {
               戻る
             </button>
             <div>
-              <h1 className="text-2xl font-bold mb-1 bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl font-bold mb-1 bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
                 セッションタイムアウトテストツール
               </h1>
               <p className="text-gray-400 text-xs sm:text-sm">
@@ -171,12 +171,12 @@ export default function TestSessionTimeoutPage() {
                   onChange={(e) => setTestTimeout(e.target.value)}
                   disabled={isTestModeActive}
                   placeholder="30000"
-                  className="flex-1 bg-gray-800/50 border border-gray-700/50 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 disabled:opacity-50"
+                  className="flex-1 bg-gray-800/50 border border-gray-700/50 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 disabled:opacity-50"
                 />
                 <button
                   onClick={handleStartTest}
                   disabled={isTestModeActive}
-                  className="px-4 py-2 bg-pink-600 hover:bg-pink-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                 >
                   テスト開始
                 </button>
@@ -220,7 +220,7 @@ export default function TestSessionTimeoutPage() {
                     )}
                     <div className="w-full bg-gray-700 rounded-full h-2">
                       <div
-                        className="bg-pink-500 h-2 rounded-full transition-all"
+                        className="bg-blue-500 h-2 rounded-full transition-all"
                         style={{
                           width: `${Math.min(
                             100,

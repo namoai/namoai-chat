@@ -172,17 +172,17 @@ export default function AdminReportsPage() {
     <div className="min-h-screen bg-black text-white">
       {/* 背景装飾 */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-gray-800/30 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gray-800/30 rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 pb-24">
           <header className="flex items-center gap-4 mb-8">
-            <button onClick={() => router.push('/admin')} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
+            <button onClick={() => router.push('/admin')} className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all">
               <ArrowLeft size={24} />
             </button>
-            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
               通報・要望・お問い合わせ管理
             </h1>
           </header>
@@ -198,7 +198,7 @@ export default function AdminReportsPage() {
                 placeholder="検索..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -209,7 +209,7 @@ export default function AdminReportsPage() {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="ALL">すべての種類</option>
               <option value="CHARACTER_REPORT">通報</option>
@@ -221,7 +221,7 @@ export default function AdminReportsPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="ALL">すべての状態</option>
               <option value="PENDING">保留中</option>
@@ -345,7 +345,7 @@ export default function AdminReportsPage() {
                 <div>
                   <label className="text-sm font-medium text-gray-400">キャラクター情報</label>
                   <div className="mt-1 text-white">
-                    <a href={`/characters/${modalState.report.characters.id}`} className="text-pink-400 hover:underline">
+                    <a href={`/characters/${modalState.report.characters.id}`} className="text-blue-400 hover:underline">
                       {modalState.report.characters.name}
                     </a>
                     <span className="text-gray-400 ml-2">
@@ -384,7 +384,7 @@ export default function AdminReportsPage() {
                 <select
                   value={updateStatus}
                   onChange={(e) => setUpdateStatus(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">選択してください</option>
                   <option value="PENDING">保留中</option>
@@ -397,7 +397,7 @@ export default function AdminReportsPage() {
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
                   placeholder="管理者メモを入力してください..."
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 h-24 focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 h-24 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   maxLength={1000}
                 />
                 <div className="flex justify-end gap-2 mt-4">
@@ -414,7 +414,7 @@ export default function AdminReportsPage() {
                   <button
                     onClick={handleUpdateStatus}
                     disabled={!updateStatus}
-                    className="px-4 py-2 bg-pink-600 text-white hover:bg-pink-700 rounded-lg disabled:bg-gray-600 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg disabled:bg-gray-600 disabled:cursor-not-allowed"
                   >
                     状態更新
                   </button>

@@ -540,7 +540,7 @@ export default function CharacterManagementPage() {
               </p>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-pink-400 mb-2">タブ機能</h3>
+              <h3 className="text-lg font-semibold text-blue-400 mb-2">タブ機能</h3>
               <ul className="list-disc list-inside space-y-1 text-gray-300 ml-2">
                 <li><strong>全体</strong>: すべてのキャラクターを表示</li>
                 <li><strong>公開</strong>: 公開設定のキャラクターのみ表示</li>

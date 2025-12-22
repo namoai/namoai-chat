@@ -198,7 +198,7 @@ export default function InquiriesPage() {
   const helpContent = (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-pink-400 mb-3">お問い合わせについて</h3>
+        <h3 className="text-lg font-semibold text-blue-400 mb-3">お問い合わせについて</h3>
         <p className="text-sm text-gray-300 leading-relaxed mb-4">
           このページでは、サービスに関するお問い合わせや不適切なコンテンツの通報を行うことができます。
           お問い合わせは管理者が確認後、対応いたします。
@@ -212,31 +212,31 @@ export default function InquiriesPage() {
             <h4 className="text-base font-semibold text-pink-300 mb-2">📋 お問い合わせ</h4>
             <ul className="space-y-2 text-sm text-gray-300">
               <li className="flex items-start gap-2">
-                <span className="text-pink-400 mt-0.5">•</span>
+                <span className="text-blue-400 mt-0.5">•</span>
                 <span><strong>システム問題</strong>: サービスやシステムに関する問題</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-pink-400 mt-0.5">•</span>
+                <span className="text-blue-400 mt-0.5">•</span>
                 <span><strong>返金問題</strong>: ポイントの返金に関するお問い合わせ</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-pink-400 mt-0.5">•</span>
+                <span className="text-blue-400 mt-0.5">•</span>
                 <span><strong>機能要望</strong>: 新しい機能や改善要望</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-pink-400 mt-0.5">•</span>
+                <span className="text-blue-400 mt-0.5">•</span>
                 <span><strong>バグ報告</strong>: バグや不具合の報告</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-pink-400 mt-0.5">•</span>
+                <span className="text-blue-400 mt-0.5">•</span>
                 <span><strong>アカウント問題</strong>: アカウントに関する問題</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-pink-400 mt-0.5">•</span>
+                <span className="text-blue-400 mt-0.5">•</span>
                 <span><strong>決済問題</strong>: ポイント購入や決済に関する問題</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-pink-400 mt-0.5">•</span>
+                <span className="text-blue-400 mt-0.5">•</span>
                 <span><strong>その他</strong>: 上記以外のお問い合わせ</span>
               </li>
             </ul>
@@ -312,8 +312,8 @@ export default function InquiriesPage() {
     <div className="min-h-screen bg-black text-white">
       {/* 背景装飾 */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-gray-800/30 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gray-800/30 rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10">
@@ -325,22 +325,22 @@ export default function InquiriesPage() {
         />
         <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-24">
           <header className="flex items-center gap-2 sm:gap-4 mb-8 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50">
-            <button onClick={() => router.push('/MyPage')} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all flex-shrink-0">
+            <button onClick={() => router.push('/MyPage')} className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all flex-shrink-0">
               <ArrowLeft size={20} className="sm:w-6 sm:h-6" />
             </button>
-            <h1 className="text-base sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent flex-1 truncate px-2">
+            <h1 className="text-base sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent flex-1 truncate px-2">
               お問い合わせ
             </h1>
             <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
               <button
                 onClick={() => setIsHelpOpen(true)}
-                className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+                className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
               >
                 <HelpCircle size={20} className="sm:w-6 sm:h-6" />
               </button>
               <button
                 onClick={() => setShowInquiryModal(true)}
-                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white p-2 sm:p-3 rounded-xl transition-all shadow-lg shadow-pink-500/30"
+                className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white p-2 sm:p-3 rounded-xl transition-all shadow-lg shadow-blue-500/30"
               >
                 <Plus size={20} className="sm:w-6 sm:h-6" />
               </button>
@@ -358,7 +358,7 @@ export default function InquiriesPage() {
                 placeholder="検索..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -369,7 +369,7 @@ export default function InquiriesPage() {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="ALL">すべての種類</option>
               <option value="CHARACTER_REPORT">通報</option>
@@ -381,7 +381,7 @@ export default function InquiriesPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="ALL">すべての状態</option>
               <option value="PENDING">保留中</option>
@@ -407,7 +407,7 @@ export default function InquiriesPage() {
           <p className="mb-4">お問い合わせ履歴がありません。</p>
           <button
             onClick={() => setShowInquiryModal(true)}
-            className="bg-pink-600 hover:bg-pink-700 text-white px-6 py-2 rounded-lg transition-colors"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
           >
             お問い合わせを作成
           </button>
@@ -479,7 +479,7 @@ export default function InquiriesPage() {
                 <select
                   value={inquiryType}
                   onChange={(e) => setInquiryType(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">選択してください</option>
                   {INQUIRY_TYPES.map((type) => (
@@ -498,7 +498,7 @@ export default function InquiriesPage() {
                   onChange={(e) => setInquiryTitle(e.target.value)}
                   placeholder="お問い合わせのタイトルを入力してください"
                   maxLength={255}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -528,7 +528,7 @@ export default function InquiriesPage() {
                 <button
                   onClick={handleSubmitInquiry}
                   disabled={submitting || !inquiryType || !inquiryTitle.trim() || !inquiryContent.trim()}
-                  className="flex-1 bg-pink-600 text-white hover:bg-pink-700 py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 bg-blue-600 text-white hover:bg-blue-700 py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submitting ? '送信中...' : '送信'}
                 </button>

@@ -103,7 +103,7 @@ const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalSta
           )}
           <button 
             onClick={handleConfirm} 
-            className="px-4 py-2 bg-pink-600 text-white hover:bg-pink-500 rounded-lg transition-colors"
+            className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-500 rounded-lg transition-colors"
           >
             {modalState.confirmText || 'OK'}
           </button>
@@ -445,8 +445,8 @@ export default function AdminUsersPage() {
     <div className="bg-black text-white min-h-screen">
       {/* 背景装飾 */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-gray-800/30 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gray-800/30 rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10">
@@ -597,7 +597,7 @@ export default function AdminUsersPage() {
                     type="checkbox"
                     checked={editModal.userData.isMinor}
                     onChange={(e) => setEditModal({...editModal, userData: {...editModal.userData!, isMinor: e.target.checked}})}
-                    className="w-5 h-5 text-pink-600 bg-gray-700 border-gray-600 rounded focus:ring-pink-500 mr-2"
+                    className="w-5 h-5 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 mr-2"
                   />
                   <span className="text-sm font-medium text-gray-300">18歳未満として扱う</span>
                 </label>
@@ -648,7 +648,7 @@ export default function AdminUsersPage() {
               </button>
               <button 
                 onClick={handleEditSave}
-                className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
               >
                 保存
               </button>
@@ -658,7 +658,7 @@ export default function AdminUsersPage() {
       )}
       {/* ▲▲▲【編集モーダル完了】▲▲▲ */}
           <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
               ユーザー管理
             </h1>
             <Link href="/admin" className="flex items-center bg-gray-800/50 hover:bg-gray-700/50 text-white text-sm font-semibold py-2 px-4 rounded-xl transition-all border border-gray-700/50">
@@ -678,7 +678,7 @@ export default function AdminUsersPage() {
               className="w-full bg-gray-800 border-gray-700 rounded-md text-white placeholder-gray-500 pl-10 pr-4 py-2"
             />
           </div>
-          <button type="submit" className="bg-pink-600 hover:bg-pink-700 text-white font-bold py-2 px-4 rounded-md flex items-center justify-center">
+            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md flex items-center justify-center">
             <Search size={16} className="mr-2 sm:hidden" />
             <span>検索</span>
           </button>

@@ -49,7 +49,7 @@ const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalSta
           )}
           <button 
             onClick={handleConfirm} 
-            className={`px-4 py-2 text-white ${modalState.confirmText?.includes('削除') ? 'bg-red-600 hover:bg-red-500' : 'bg-pink-600 hover:bg-pink-500'} rounded-lg transition-colors`}
+            className={`px-4 py-2 text-white ${modalState.confirmText?.includes('削除') ? 'bg-red-600 hover:bg-red-500' : 'bg-blue-600 hover:bg-blue-500'} rounded-lg transition-colors`}
           >
             {modalState.confirmText || 'OK'}
           </button>
@@ -198,11 +198,11 @@ export default function AdminTermsPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/admin')}
-              className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+              className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
             >
               <ArrowLeft size={24} />
             </button>
-            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
               約款管理
             </h1>
           </div>
@@ -220,7 +220,7 @@ export default function AdminTermsPage() {
                   name="slug" 
                   value={formData.slug} 
                   onChange={handleInputChange} 
-                  className="w-full bg-gray-800 border border-gray-700 rounded-md mt-1 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500" 
+                  className="w-full bg-gray-800 border border-gray-700 rounded-md mt-1 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" 
                   placeholder="例: terms-of-service"
                   required 
                 />
@@ -234,7 +234,7 @@ export default function AdminTermsPage() {
                   name="title" 
                   value={formData.title} 
                   onChange={handleInputChange} 
-                  className="w-full bg-gray-800 border border-gray-700 rounded-md mt-1 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500" 
+                  className="w-full bg-gray-800 border border-gray-700 rounded-md mt-1 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" 
                   placeholder="例: ナモアイ利用規約"
                   required 
                 />
@@ -262,13 +262,13 @@ export default function AdminTermsPage() {
                   value={formData.displayOrder} 
                   onChange={handleInputChange} 
                   min="0"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-md mt-1 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500" 
+                  className="w-full bg-gray-800 border border-gray-700 rounded-md mt-1 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" 
                   required 
                 />
               </div>
               
               <div className="flex gap-4 pt-2">
-                <button type="submit" className="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-bold py-2 px-4 rounded-md transition-all">
+                <button type="submit" className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-all">
                   {isEditing ? '更新' : '作成'}
                 </button>
                 {isEditing && (
@@ -285,10 +285,10 @@ export default function AdminTermsPage() {
               <h2 className="text-xl font-bold mb-4">約款一覧</h2>
               <div className="space-y-2">
                 {terms.length > 0 ? terms.map((term) => (
-                  <div key={term.id} className="bg-gray-800/50 p-4 rounded-md flex justify-between items-center flex-wrap gap-2 border border-gray-700/50 hover:border-pink-500/30 transition-colors">
+                  <div key={term.id} className="bg-gray-800/50 p-4 rounded-md flex justify-between items-center flex-wrap gap-2 border border-gray-700/50 hover:border-blue-500/30 transition-colors">
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-gray-500 mb-1">
-                        <span className="font-mono text-pink-400">/{term.slug}</span> 
+                        <span className="font-mono text-blue-400">/{term.slug}</span> 
                         {' '}・ 表示順: {term.displayOrder}
                       </p>
                       <p className="font-semibold mt-1 text-white">{term.title}</p>
@@ -306,7 +306,7 @@ export default function AdminTermsPage() {
                       </Link>
                       <button 
                         onClick={() => handleEdit(term)} 
-                        className="text-sm bg-purple-600 hover:bg-purple-700 text-white py-1 px-3 rounded-md transition-colors"
+                        className="text-sm bg-cyan-600 hover:bg-cyan-700 text-white py-1 px-3 rounded-md transition-colors"
                       >
                         編集
                       </button>

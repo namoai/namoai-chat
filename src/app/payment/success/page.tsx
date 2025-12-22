@@ -83,7 +83,7 @@ function PaymentSuccessContent() {
     <div className="bg-black min-h-screen text-white">
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gray-800/30 rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10 flex items-center justify-center min-h-screen px-4">
@@ -121,7 +121,7 @@ function PaymentSuccessContent() {
                 }
                 router.replace('/points?payment_success=true');
               }}
-              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
+              className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
             >
               ポイントページへ
             </button>
@@ -132,7 +132,7 @@ function PaymentSuccessContent() {
                 }
                 router.replace('/');
               }}
-              className="border border-gray-700 hover:border-pink-400 text-white font-semibold py-3 px-6 rounded-xl transition-all"
+              className="border border-gray-700 hover:border-blue-400 text-white font-semibold py-3 px-6 rounded-xl transition-all"
             >
               ホームへ戻る
             </button>

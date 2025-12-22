@@ -342,7 +342,7 @@ function PointPageContent() {
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <button
                     onClick={fetchPoints}
-                    className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-2 px-6 rounded-xl transition-all"
+                    className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold py-2 px-6 rounded-xl transition-all"
                   >
                     再読み込み
                   </button>
@@ -371,7 +371,7 @@ function PointPageContent() {
               </p>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-pink-400 mb-2">ポイントの種類</h3>
+              <h3 className="text-lg font-semibold text-blue-400 mb-2">ポイントの種類</h3>
               <ul className="list-disc list-inside space-y-2 text-gray-300 ml-2">
                 <li><strong className="text-blue-400">有料ポイント:</strong> 購入したポイントです。すべての機能で使用できます。</li>
                 <li><strong className="text-yellow-400">無料ポイント:</strong> 毎日出席イベントなどで獲得できるポイントです。基本的な機能で使用できます。</li>

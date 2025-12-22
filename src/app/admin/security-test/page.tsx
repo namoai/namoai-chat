@@ -505,13 +505,13 @@ export default function SecurityTestPage() {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
         <div className="max-w-md text-center space-between bg-gray-900/60 border border-gray-800 rounded-2xl p-8">
-          <h1 className="text-2xl font-semibold text-pink-400">アクセス権が必要です</h1>
+          <h1 className="text-2xl font-semibold text-blue-400">アクセス権が必要です</h1>
           <p className="text-gray-300 text-sm">
             セキュリティテストページは SUPER_ADMIN 権限を持つユーザーのみアクセスできます。アクセスが必要な場合は管理者にお問い合わせください。
           </p>
           <Link
             href="/admin"
-            className="inline-flex items-center.justify-center px-4 py-2 rounded-lg bg-pink-600 hover:bg-pink-500 transition-colors text-sm font-semibold mt-4"
+            className="inline-flex items-center.justify-center px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 transition-colors text-sm font-semibold mt-4"
           >
             管理パネルに戻る
           </Link>
@@ -541,7 +541,7 @@ export default function SecurityTestPage() {
             </Link>
             <Link
               href="/test-session-timeout"
-              className="flex items-center gap-2 px-4 py-2 bg-pink-600/80 hover:bg-pink-600 rounded-xl transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600/80 hover:bg-blue-600 rounded-xl transition-colors"
             >
               <Activity size={16} />
               セッションテスト
