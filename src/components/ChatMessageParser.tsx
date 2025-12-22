@@ -232,7 +232,7 @@ function parseTextContent(
     // --- 空のボーダーボックスの処理 (|-|) ---
     if (trimmedLine === '|-|') {
       elements.push(
-        <div key={`border-${globalIndex}`} className="my-2 border border-pink-400/50 rounded p-2 min-h-[20px]" />
+        <div key={`border-${globalIndex}`} className="my-2 border border-blue-400/50 rounded p-2 min-h-[20px]" />
       );
       lineIndex++;
       continue;

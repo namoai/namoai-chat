@@ -27,7 +27,7 @@ const NotificationModal = ({ modalState, setModalState }: { modalState: ModalSta
                 <h2 className="text-xl font-bold mb-4 text-white">{modalState.title}</h2>
                 <p className="text-gray-200 mb-6">{modalState.message}</p>
                 <div className="flex justify-end">
-                    <button onClick={handleConfirm} className="px-4 py-2 bg-pink-600 text-white hover:bg-pink-500 rounded-lg transition-colors">
+                    <button onClick={handleConfirm} className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white rounded-lg transition-all shadow-lg shadow-blue-500/30">
                         確認
                     </button>
                 </div>
@@ -113,7 +113,7 @@ export default function NoticeForm({ initialData = null, noticeId = null }: Noti
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded-md p-2 focus:ring-pink-500 focus:border-pink-500"
+            className="w-full bg-gray-800 border border-gray-700 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
             required
           />
         </div>
@@ -124,7 +124,7 @@ export default function NoticeForm({ initialData = null, noticeId = null }: Noti
             id="category"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded-md p-2 focus:ring-pink-500 focus:border-pink-500"
+            className="w-full bg-gray-800 border border-gray-700 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option>一般</option>
             <option>アップデート</option>
@@ -140,7 +140,7 @@ export default function NoticeForm({ initialData = null, noticeId = null }: Noti
             rows={10}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded-md p-2 focus:ring-pink-500 focus:border-pink-500"
+            className="w-full bg-gray-800 border border-gray-700 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
             required
           />
         </div>
@@ -148,7 +148,7 @@ export default function NoticeForm({ initialData = null, noticeId = null }: Noti
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full bg-pink-600 hover:bg-pink-700 disabled:bg-gray-500 text-white font-bold py-3 px-4 rounded-md transition-colors"
+          className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 disabled:bg-gray-500 text-white font-bold py-3 px-4 rounded-md transition-all shadow-lg shadow-blue-500/30"
         >
           {isSubmitting ? '保存中...' : (isEditMode ? '更新する' : '作成する')}
         </button>

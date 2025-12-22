@@ -34,9 +34,9 @@ export default function CharacterCard({ character }: CharacterCardProps) {
           />
           {/* ホバー時のグラデーションオーバーレイ */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          <div className="absolute inset-0 bg-gradient-to-br from-pink-500/0 via-purple-500/0 to-pink-500/0 group-hover:from-pink-500/20 group-hover:via-purple-500/10 group-hover:to-pink-500/20 transition-all duration-500" />
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 via-cyan-500/0 to-blue-500/0 group-hover:from-blue-500/20 group-hover:via-cyan-500/10 group-hover:to-blue-500/20 transition-all duration-500" />
         </div>
-        <h3 className="font-semibold text-white truncate group-hover:text-pink-400 transition-colors">
+        <h3 className="font-semibold text-white truncate group-hover:text-blue-400 transition-colors">
           {character.name}
         </h3>
         <p className="text-xs text-gray-400 truncate h-8">

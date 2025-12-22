@@ -1681,7 +1681,7 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                      AI生成 (1P/1枚)
                    </Button>
                  </div>
-                <input type="file" accept="image/*" multiple onChange={handleImageChange} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gradient-to-r file:from-pink-500 file:to-purple-600 hover:file:from-pink-600 hover:file:to-purple-700 file:text-white file:cursor-pointer cursor-pointer file:shadow-lg file:shadow-blue-500/30 transition-all" />
+                <input type="file" accept="image/*" multiple onChange={handleImageChange} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gradient-to-r file:from-blue-500 file:to-cyan-600 hover:file:from-blue-600 hover:file:to-cyan-700 file:text-white file:cursor-pointer cursor-pointer file:shadow-lg file:shadow-blue-500/30 transition-all" />
                 <p className="text-xs text-gray-500 mt-2">画像ファイルを選択するか、AI生成ボタンで2D画像を生成できます（最大100枚まで）。</p>
                 <div className="mt-4 sm:mt-6 flex flex-wrap gap-3 sm:gap-4">
                 {images.map((img, idx) => (
@@ -1798,16 +1798,16 @@ export default function CharacterForm({ isEditMode, initialData, session, status
                 <div>
                     <span className="block text-sm font-medium text-gray-200 mb-2">公開範囲</span>
                     <div className="flex flex-wrap gap-x-4 gap-y-2">
-                    <label className="inline-flex items-center"><input type="radio" name="visibility" value="public" checked={form.visibility === "public"} onChange={() => handleChange("visibility", "public")} className="form-radio text-pink-500 bg-gray-700 border-gray-600" /><span className="ml-2">公開</span></label>
-                    <label className="inline-flex items-center"><input type="radio" name="visibility" value="private" checked={form.visibility === "private"} onChange={() => handleChange("visibility", "private")} className="form-radio text-pink-500 bg-gray-700 border-gray-600" /><span className="ml-2">非公開</span></label>
-                    <label className="inline-flex items-center"><input type="radio" name="visibility" value="link" checked={form.visibility === "link"} onChange={() => handleChange("visibility", "link")} className="form-radio text-pink-500 bg-gray-700 border-gray-600" /><span className="ml-2">リンク限定公開</span></label>
+                    <label className="inline-flex items-center"><input type="radio" name="visibility" value="public" checked={form.visibility === "public"} onChange={() => handleChange("visibility", "public")} className="form-radio text-blue-500 bg-gray-700 border-gray-600" /><span className="ml-2">公開</span></label>
+                    <label className="inline-flex items-center"><input type="radio" name="visibility" value="private" checked={form.visibility === "private"} onChange={() => handleChange("visibility", "private")} className="form-radio text-blue-500 bg-gray-700 border-gray-600" /><span className="ml-2">非公開</span></label>
+                    <label className="inline-flex items-center"><input type="radio" name="visibility" value="link" checked={form.visibility === "link"} onChange={() => handleChange("visibility", "link")} className="form-radio text-blue-500 bg-gray-700 border-gray-600" /><span className="ml-2">リンク限定公開</span></label>
                     </div>
                 </div>
                 <div className="flex items-center">
                     <span className="text-sm font-medium text-gray-200 mr-4">セーフティフィルター</span>
                     <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" checked={form.safetyFilter} onChange={() => handleChange("safetyFilter", !form.safetyFilter)} />
-                    <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-checked:bg-pink-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                    <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-checked:bg-gradient-to-r peer-checked:from-blue-500 peer-checked:to-cyan-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
                     <span className="ml-3 text-sm text-gray-200">{form.safetyFilter ? "On" : "Off"}</span>
                     </label>
                 </div>

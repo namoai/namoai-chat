@@ -161,7 +161,7 @@ export default function NoticeDetailClient({ noticeId }: NoticeDetailClientProps
         </p>
       </div>
       <div>
-        <h3 className="text-lg font-semibold text-pink-400 mb-2">お知らせの種類</h3>
+        <h3 className="text-lg font-semibold text-blue-400 mb-2">お知らせの種類</h3>
         <ul className="list-disc list-inside text-sm text-gray-300 space-y-1 ml-2">
           <li><strong>アップデート</strong>: 新機能や改善に関する情報（緑色で表示）</li>
           <li><strong>重要</strong>: 重要な通知や注意事項（赤色で表示）</li>
@@ -169,7 +169,7 @@ export default function NoticeDetailClient({ noticeId }: NoticeDetailClientProps
         </ul>
       </div>
       <div>
-        <h3 className="text-lg font-semibold text-pink-400 mb-2">管理者機能</h3>
+        <h3 className="text-lg font-semibold text-blue-400 mb-2">管理者機能</h3>
         <p className="text-sm text-gray-300 leading-relaxed">
           管理者（ADMIN）は、お知らせの編集や削除を行うことができます。
           編集アイコン（鉛筆）から編集画面に移動し、削除アイコン（ゴミ箱）からお知らせを削除できます。

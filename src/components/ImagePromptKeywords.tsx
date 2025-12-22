@@ -397,7 +397,7 @@ export function PromptKeywordSelector({ prompt, onPromptChange }: PromptKeywordS
               onClick={() => setKeywordCategory(cat)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                 keywordCategory === cat
-                  ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg shadow-pink-500/30'
+                  ? 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-lg shadow-blue-500/30'
                   : 'bg-gray-700/50 hover:bg-gray-600/50 text-gray-300'
               }`}
             >
