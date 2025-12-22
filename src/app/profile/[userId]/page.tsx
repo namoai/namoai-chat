@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import HelpModal from '@/components/HelpModal';
 import { fetchWithCsrf } from "@/lib/csrf-client";
+import ProfileRightSidebar from "@/components/ProfileRightSidebar";
 
 // 型定義
 type FollowUser = {
@@ -62,22 +63,22 @@ const UserListModal = ({ title, users, onClose, isLoading, onUnblock, showUnbloc
         <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl w-full max-w-md mx-4 max-h-[85vh] flex flex-col shadow-2xl border border-gray-700/50 overflow-hidden">
             {/* 헤더 */}
             <header className="flex items-center justify-between p-5 border-b border-gray-700/50 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
-                <h2 className="font-bold text-xl bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                <h2 className="font-bold text-xl text-white">
                     {title}
                 </h2>
                 <button 
                     onClick={onClose} 
-                    className="p-2 rounded-xl hover:bg-gray-700/50 hover:text-pink-400 transition-all duration-200 group"
+                    className="p-2 rounded-xl hover:bg-gray-700/50 hover:text-blue-400 transition-all duration-200 group"
                 >
-                    <X size={20} className="text-gray-400 group-hover:text-pink-400 transition-colors" />
+                    <X size={20} className="text-gray-400 group-hover:text-blue-400 transition-colors" />
                 </button>
             </header>
             
-            {/* 컨텐츠 영역 */}
+            {/* コンテンツ領域 */}
             <div className="overflow-y-auto flex-1 p-4">
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center py-12">
-                        <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin mb-4" />
+                        <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4" />
                         <p className="text-gray-400 text-sm">読み込み中...</p>
                     </div>
                 ) : users.length > 0 ? (
@@ -85,7 +86,7 @@ const UserListModal = ({ title, users, onClose, isLoading, onUnblock, showUnbloc
                         {users.map(user => (
                             <div 
                                 key={user.id} 
-                                className="group flex items-center justify-between gap-3 p-3 rounded-xl bg-gray-800/30 hover:bg-gradient-to-r hover:from-pink-500/10 hover:via-purple-500/5 hover:to-pink-500/10 border border-gray-700/30 hover:border-pink-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-pink-500/10"
+                                className="group flex items-center justify-between gap-3 p-3 rounded-xl bg-gray-800/30 hover:bg-gradient-to-r hover:from-blue-500/10 hover:via-cyan-500/5 hover:to-blue-500/10 border border-gray-700/30 hover:border-blue-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10"
                             >
                                 <a 
                                     href={`/profile/${user.id}`} 
@@ -93,7 +94,7 @@ const UserListModal = ({ title, users, onClose, isLoading, onUnblock, showUnbloc
                                 >
                                     <div className="relative flex-shrink-0">
                                         {user.image ? (
-                                            <div className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-pink-500/20 group-hover:ring-pink-500/40 transition-all duration-300">
+                                            <div className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-blue-500/20 group-hover:ring-blue-500/40 transition-all duration-300">
                                                 <Image 
                                                     src={user.image} 
                                                     alt={user.nickname} 
@@ -103,13 +104,13 @@ const UserListModal = ({ title, users, onClose, isLoading, onUnblock, showUnbloc
                                                 />
                                             </div>
                                         ) : (
-                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center ring-2 ring-pink-500/20 group-hover:ring-pink-500/40 transition-all duration-300">
-                                                <User size={24} className="text-pink-400/70" />
+                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center ring-2 ring-blue-500/20 group-hover:ring-blue-500/40 transition-all duration-300">
+                                                <User size={24} className="text-blue-400/70" />
                                             </div>
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <span className="font-semibold text-white group-hover:text-pink-300 transition-colors duration-200 block truncate">
+                                        <span className="font-semibold text-white group-hover:text-blue-300 transition-colors duration-200 block truncate">
                                             {user.nickname}
                                         </span>
                                     </div>
@@ -130,8 +131,8 @@ const UserListModal = ({ title, users, onClose, isLoading, onUnblock, showUnbloc
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center py-16 px-4">
-                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-pink-500/10 to-purple-500/10 flex items-center justify-center mb-4 ring-2 ring-pink-500/20">
-                            <User size={40} className="text-pink-400/50" />
+                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500/10 to-cyan-500/10 flex items-center justify-center mb-4 ring-2 ring-blue-500/20">
+                            <User size={40} className="text-blue-400/50" />
                         </div>
                         <h3 className="text-lg font-semibold text-gray-300 mb-2">
                             {title === 'ブロックリスト' ? 'ブロックされたユーザーがいません' : 
@@ -154,6 +155,7 @@ export default function UserProfilePage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [session, setSession] = useState<SessionData | null>(null);
   const [sessionStatus, setSessionStatus] = useState('loading');
+  const [isMobile, setIsMobile] = useState(false);
   
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -163,6 +165,16 @@ export default function UserProfilePage() {
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+
+  // モバイル/PC判定
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -374,7 +386,7 @@ export default function UserProfilePage() {
     return (
       <div className="flex h-screen items-center justify-center bg-black text-white">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
           <p className="text-gray-400">読み込み中...</p>
         </div>
       </div>
@@ -447,7 +459,7 @@ export default function UserProfilePage() {
                       setDeleteAccountModal({ ...deleteAccountModal, isOpen: false });
                       setTimeout(() => handleAccountDeleteFinalConfirm(), 300);
                     }}
-                    className="px-5 py-2.5 bg-pink-600 text-white hover:bg-pink-500 rounded-lg transition-all duration-200 font-medium shadow-lg hover:shadow-pink-500/50"
+                    className="px-5 py-2.5 bg-blue-600 text-white hover:bg-blue-500 rounded-lg transition-all duration-200 font-medium shadow-lg hover:shadow-blue-500/50"
                   >
                     次へ
                   </button>
@@ -489,7 +501,7 @@ export default function UserProfilePage() {
                   }}
                   className={`px-6 py-2.5 rounded-lg transition-all duration-200 font-medium shadow-lg ${
                     deleteAccountModal.stage === 'success' 
-                      ? 'bg-pink-600 text-white hover:bg-pink-500 hover:shadow-pink-500/50' 
+                      ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow-blue-500/50' 
                       : 'bg-gray-700 text-white hover:bg-gray-600'
                   }`}
                 >
@@ -503,23 +515,25 @@ export default function UserProfilePage() {
       <div className="bg-black min-h-screen text-white" style={{ overflow: 'visible' }}>
         {/* 背景装飾 */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-gray-800/30 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gray-800/30 rounded-full blur-3xl" />
         </div>
 
         <div className="relative z-10" style={{ overflow: 'visible' }}>
-          <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-24" style={{ overflow: 'visible' }}>
-            <header className="flex items-center justify-between mb-6 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50 gap-2" style={{ overflow: 'visible' }}>
-              <button onClick={() => window.history.back()} className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all flex-shrink-0">
+          {!isMobile ? (
+            <div className="flex max-w-[1920px] mx-auto">
+              <main className="flex-1 px-4 md:px-6 py-6 md:py-8" style={{ overflow: 'visible' }}>
+                <header className="flex items-center justify-between mb-6 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50 gap-2" style={{ overflow: 'visible' }}>
+              <button onClick={() => window.history.back()} className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all flex-shrink-0">
                 <ArrowLeft size={20} className="sm:w-6 sm:h-6" />
               </button>
-              <h1 className="text-base sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent truncate flex-1 text-center px-2">
+              <h1 className="text-base sm:text-xl md:text-2xl font-bold text-white truncate flex-1 text-center px-2">
                 製作者プロフィール
               </h1>
               <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                 <button
                   onClick={() => setIsHelpOpen(true)}
-                  className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+                  className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
                   aria-label="ヘルプ"
                 >
                   <HelpCircle size={20} className="sm:w-6 sm:h-6" />
@@ -528,7 +542,7 @@ export default function UserProfilePage() {
                   <button 
                     ref={menuButtonRef}
                     onClick={() => setShowMenu(!showMenu)} 
-                    className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+                    className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
                   >
                     <MoreVertical size={20} className="sm:w-6 sm:h-6" />
                   </button>
@@ -547,18 +561,18 @@ export default function UserProfilePage() {
                     >
                       {isMyProfile ? (
                         <>
-                          <button onClick={() => { window.location.href = '/profile-edit'; setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center gap-2 group">
-                            <Edit size={16} className="text-white group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" /> 
+                          <button onClick={() => { window.location.href = '/profile-edit'; setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-blue-500/20 hover:via-cyan-500/20 hover:to-blue-500/20 hover:text-blue-300 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 flex items-center gap-2 group">
+                            <Edit size={16} className="text-white group-hover:scale-110 group-hover:text-blue-400 transition-all duration-300" /> 
                             <span className="group-hover:translate-x-1 transition-transform duration-300">会員情報変更</span>
                           </button>
                           {profile.hasPassword && (
-                            <button onClick={() => { window.location.href = '/change-password'; setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center gap-2 group">
-                              <KeyRound size={16} className="text-white group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" /> 
+                            <button onClick={() => { window.location.href = '/change-password'; setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-blue-500/20 hover:via-cyan-500/20 hover:to-blue-500/20 hover:text-blue-300 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 flex items-center gap-2 group">
+                              <KeyRound size={16} className="text-white group-hover:scale-110 group-hover:text-blue-400 transition-all duration-300" /> 
                               <span className="group-hover:translate-x-1 transition-transform duration-300">パスワード変更</span>
                             </button>
                           )}
-                          <button onClick={() => { handleShowList('blocked'); setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center gap-2 group">
-                            <UserMinus size={16} className="text-white group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" /> 
+                          <button onClick={() => { handleShowList('blocked'); setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-blue-500/20 hover:via-cyan-500/20 hover:to-blue-500/20 hover:text-blue-300 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 flex items-center gap-2 group">
+                            <UserMinus size={16} className="text-white group-hover:scale-110 group-hover:text-blue-400 transition-all duration-300" /> 
                             <span className="group-hover:translate-x-1 transition-transform duration-300">ブロックリスト</span>
                           </button>
                           <div className="border-t border-gray-700/50 my-1"></div>
@@ -569,11 +583,11 @@ export default function UserProfilePage() {
                         </>
                       ) : (
                         <>
-                          <button className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center gap-2 group">
-                            <Share2 size={16} className="text-white group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" /> 
+                          <button className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-blue-500/20 hover:via-cyan-500/20 hover:to-blue-500/20 hover:text-blue-300 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 flex items-center gap-2 group">
+                            <Share2 size={16} className="text-white group-hover:scale-110 group-hover:text-blue-400 transition-all duration-300" /> 
                             <span className="group-hover:translate-x-1 transition-transform duration-300">共有する</span>
                           </button>
-                          <button onClick={() => { handleBlock(profile.id); setShowMenu(false); }} className={`w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center gap-2 group ${profile.isBlocked ? 'hover:text-green-300' : 'hover:text-red-300'}`}>
+                          <button onClick={() => { handleBlock(profile.id); setShowMenu(false); }} className={`w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-blue-500/20 hover:via-cyan-500/20 hover:to-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 flex items-center gap-2 group ${profile.isBlocked ? 'hover:text-green-300' : 'hover:text-red-300'}`}>
                             {profile.isBlocked ? <ShieldCheck size={16} className="text-white group-hover:scale-110 group-hover:text-green-400 transition-all duration-300"/> : <ShieldBan size={16} className="text-white group-hover:scale-110 group-hover:text-red-400 transition-all duration-300"/>}
                             <span className="group-hover:translate-x-1 transition-transform duration-300">{profile.isBlocked ? 'ブロック解除' : '製作者をブロック'}</span>
                           </button>
@@ -584,11 +598,11 @@ export default function UserProfilePage() {
                   )}
             </header>
 
-            <main className="space-y-8">
+            <div className="space-y-8">
               <section className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
                 <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
                   {profile.image ? (
-                    <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden ring-2 ring-pink-500/30 flex-shrink-0">
+                    <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden ring-2 ring-blue-500/30 flex-shrink-0">
                       <Image
                         src={profile.image}
                         alt={profile.nickname}
@@ -599,19 +613,19 @@ export default function UserProfilePage() {
                       />
                     </div>
                   ) : (
-                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center ring-2 ring-pink-500/30 flex-shrink-0">
-                      <User size={48} className="text-pink-400" />
+                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center ring-2 ring-blue-500/30 flex-shrink-0">
+                      <User size={48} className="text-blue-400" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <h2 className="text-2xl sm:text-3xl font-bold mb-2 bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                    <h2 className="text-2xl sm:text-3xl font-bold mb-2 bg-gradient-to-r text-white bg-clip-text text-transparent">
                       {profile.nickname}
                     </h2>
                     <div className="flex flex-wrap gap-4 text-sm text-gray-400 mb-3">
-                      <button onClick={() => handleShowList('followers')} className="hover:text-pink-400 transition-colors">
+                      <button onClick={() => handleShowList('followers')} className="hover:text-blue-400 transition-colors">
                         フォロワー <span className="font-semibold text-white">{formatNumber(profile._count.followers)}</span>
                       </button>
-                      <button onClick={() => handleShowList('following')} className="hover:text-pink-400 transition-colors">
+                      <button onClick={() => handleShowList('following')} className="hover:text-blue-400 transition-colors">
                         フォロー中 <span className="font-semibold text-white">{formatNumber(profile._count.following)}</span>
                       </button>
                     </div>
@@ -620,7 +634,7 @@ export default function UserProfilePage() {
                 </div>
                 <div className="mt-6 flex flex-col sm:flex-row gap-3">
                   {isMyProfile && (
-                    <button onClick={() => window.location.href = '/profile-edit'} className="w-full sm:w-auto bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-2 px-6 rounded-xl transition-all shadow-lg shadow-pink-500/30">
+                    <button onClick={() => window.location.href = '/profile-edit'} className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold py-2 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/30">
                       会員情報変更
                     </button>
                   )}
@@ -628,7 +642,7 @@ export default function UserProfilePage() {
                     <button onClick={handleFollow} className={`w-full font-bold py-3 px-6 rounded-xl transition-all ${
                         profile.isFollowing 
                           ? 'bg-gray-800/50 text-white hover:bg-gray-700/50 border border-gray-700/50' 
-                          : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-lg shadow-pink-500/30'
+                          : 'bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/30'
                       }`}>
                         {profile.isFollowing ? 'フォロー中' : 'フォロー'}
                       </button>
@@ -647,8 +661,8 @@ export default function UserProfilePage() {
                 {profile.characters.length === 0 ? (
                   // ★ キャラクターが0件の場合の表示
                   <div className="flex flex-col items-center justify-center py-16 px-4 rounded-2xl bg-gradient-to-br from-gray-900/50 to-gray-800/50 backdrop-blur-sm border border-gray-800/50">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center mb-4">
-                      <User className="w-10 h-10 text-pink-400/50" />
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center mb-4">
+                      <User className="w-10 h-10 text-blue-400/50" />
                     </div>
                     <h3 className="text-xl font-bold text-gray-300 mb-2">製作したキャラクターがありません</h3>
                     <p className="text-gray-500 text-center max-w-md mb-4">
@@ -659,7 +673,7 @@ export default function UserProfilePage() {
                     {isMyProfile && (
                       <Link
                         href="/characters/create"
-                        className="mt-4 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-pink-500/30 inline-block"
+                        className="mt-4 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-blue-500/30 inline-block"
                       >
                         キャラクターを作成
                       </Link>
@@ -670,7 +684,7 @@ export default function UserProfilePage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
                   {profile.characters.map(char => (
                     <a href={`/characters/${char.id}`} key={char.id} className="block group">
-                      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl overflow-hidden border border-gray-800/50 hover:border-pink-500/30 transition-all group-hover:scale-105">
+                      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl overflow-hidden border border-gray-800/50 hover:border-blue-500/30 transition-all group-hover:scale-105">
                         <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-800 to-gray-900 overflow-hidden">
                           <Image 
                             src={char.characterImages[0]?.imageUrl || 'https://placehold.co/300x400/1a1a1a/ffffff?text=?'} 
@@ -680,10 +694,10 @@ export default function UserProfilePage() {
                             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
                           />
                           {/* ホバー時のピンク-パープルグラデーションオーバーレイ（黒いオーバーレイを削除） */}
-                          <div className="absolute inset-0 bg-gradient-to-br from-pink-500/0 via-purple-500/0 to-pink-500/0 group-hover:from-pink-500/30 group-hover:via-purple-500/20 group-hover:to-pink-500/30 transition-all duration-500" />
+                          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 via-cyan-500/0 to-blue-500/0 group-hover:from-blue-500/30 group-hover:via-cyan-500/20 group-hover:to-blue-500/30 transition-all duration-500" />
                         </div>
                         <div className="p-3">
-                          <h4 className="font-semibold truncate text-white mb-1 group-hover:text-pink-400 transition-colors">{char.name}</h4>
+                          <h4 className="font-semibold truncate text-white mb-1 group-hover:text-blue-400 transition-colors">{char.name}</h4>
                           <p className="text-xs text-gray-400 truncate mb-2">@{profile.nickname}</p>
                           <div className="flex justify-between text-xs text-gray-500">
                             <div className="flex items-center gap-1">
@@ -700,8 +714,209 @@ export default function UserProfilePage() {
                 </div>
                 )}
               </section>
+            </div>
+            </main>
+            <ProfileRightSidebar
+              bio={profile.bio}
+              totalMessageCount={profile.totalMessageCount}
+              followers={profile._count.followers}
+              following={profile._count.following}
+              characterCount={profile.characters.length}
+            />
+            </div>
+          ) : (
+          <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-24" style={{ overflow: 'visible' }}>
+            <header className="flex items-center justify-between mb-6 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50 gap-2" style={{ overflow: 'visible' }}>
+              <button onClick={() => window.history.back()} className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all flex-shrink-0">
+                <ArrowLeft size={20} className="sm:w-6 sm:h-6" />
+              </button>
+              <h1 className="text-base sm:text-xl md:text-2xl font-bold text-white truncate flex-1 text-center px-2">
+                製作者プロフィール
+              </h1>
+              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                <button
+                  onClick={() => setIsHelpOpen(true)}
+                  className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
+                  aria-label="ヘルプ"
+                >
+                  <HelpCircle size={20} className="sm:w-6 sm:h-6" />
+                </button>
+                <div className="relative" style={{ overflow: 'visible' }}>
+                  <button 
+                    ref={menuButtonRef}
+                    onClick={() => setShowMenu(!showMenu)} 
+                    className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
+                  >
+                    <MoreVertical size={20} className="sm:w-6 sm:h-6" />
+                  </button>
+                </div>
+              </div>
+                {showMenu &&
+                  typeof window !== "undefined" &&
+                  createPortal(
+                    <div
+                      ref={menuRef}
+                      className="fixed w-56 bg-gray-800/95 backdrop-blur-xl rounded-xl shadow-2xl z-[9999] py-2 border border-gray-700/50"
+                      style={{
+                        top: `${menuPosition.top}px`,
+                        left: `${menuPosition.left}px`,
+                      }}
+                    >
+                      {isMyProfile ? (
+                        <>
+                          <button onClick={() => { window.location.href = '/profile-edit'; setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-blue-500/20 hover:via-cyan-500/20 hover:to-blue-500/20 hover:text-blue-300 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 flex items-center gap-2 group">
+                            <Edit size={16} className="text-white group-hover:scale-110 group-hover:text-blue-400 transition-all duration-300" /> 
+                            <span className="group-hover:translate-x-1 transition-transform duration-300">会員情報変更</span>
+                          </button>
+                          {profile.hasPassword && (
+                            <button onClick={() => { window.location.href = '/change-password'; setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-blue-500/20 hover:via-cyan-500/20 hover:to-blue-500/20 hover:text-blue-300 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 flex items-center gap-2 group">
+                              <KeyRound size={16} className="text-white group-hover:scale-110 group-hover:text-blue-400 transition-all duration-300" /> 
+                              <span className="group-hover:translate-x-1 transition-transform duration-300">パスワード変更</span>
+                            </button>
+                          )}
+                          <button onClick={() => { handleShowList('blocked'); setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-blue-500/20 hover:via-cyan-500/20 hover:to-blue-500/20 hover:text-blue-300 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 flex items-center gap-2 group">
+                            <UserMinus size={16} className="text-white group-hover:scale-110 group-hover:text-blue-400 transition-all duration-300" /> 
+                            <span className="group-hover:translate-x-1 transition-transform duration-300">ブロックリスト</span>
+                          </button>
+                          <div className="border-t border-gray-700/50 my-1"></div>
+                          <button onClick={() => { handleAccountDeleteConfirm(); setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-red-400 hover:bg-gradient-to-r hover:from-red-500/20 hover:via-pink-500/20 hover:to-red-500/20 hover:text-red-300 hover:shadow-lg hover:shadow-red-500/30 transition-all duration-300 flex items-center gap-2 group">
+                            <Trash2 size={16} className="text-red-400 group-hover:scale-110 group-hover:text-red-300 transition-all duration-300" /> 
+                            <span className="group-hover:translate-x-1 transition-transform duration-300">会員退会</span>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-blue-500/20 hover:via-cyan-500/20 hover:to-blue-500/20 hover:text-blue-300 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 flex items-center gap-2 group">
+                            <Share2 size={16} className="text-white group-hover:scale-110 group-hover:text-blue-400 transition-all duration-300" /> 
+                            <span className="group-hover:translate-x-1 transition-transform duration-300">共有する</span>
+                          </button>
+                          <button onClick={() => { handleBlock(profile.id); setShowMenu(false); }} className={`w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-blue-500/20 hover:via-cyan-500/20 hover:to-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 flex items-center gap-2 group ${profile.isBlocked ? 'hover:text-green-300' : 'hover:text-red-300'}`}>
+                            {profile.isBlocked ? <ShieldCheck size={16} className="text-white group-hover:scale-110 group-hover:text-green-400 transition-all duration-300"/> : <ShieldBan size={16} className="text-white group-hover:scale-110 group-hover:text-red-400 transition-all duration-300"/>}
+                            <span className="group-hover:translate-x-1 transition-transform duration-300">{profile.isBlocked ? 'ブロック解除' : '製作者をブロック'}</span>
+                          </button>
+                        </>
+                      )}
+                    </div>,
+                    document.body
+                  )}
+            </header>
+
+            <main className="space-y-8">
+              <section className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50">
+                <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+                  {profile.image ? (
+                    <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden ring-2 ring-blue-500/30 flex-shrink-0">
+                      <Image
+                        src={profile.image}
+                        alt={profile.nickname}
+                        fill
+                        unoptimized
+                        className="object-cover"
+                        sizes="128px"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center ring-2 ring-blue-500/30 flex-shrink-0">
+                      <User size={48} className="text-blue-400" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-2xl sm:text-3xl font-bold mb-2 bg-gradient-to-r text-white bg-clip-text text-transparent">
+                      {profile.nickname}
+                    </h2>
+                    <div className="flex flex-wrap gap-4 text-sm text-gray-400 mb-3">
+                      <button onClick={() => handleShowList('followers')} className="hover:text-blue-400 transition-colors">
+                        フォロワー <span className="font-semibold text-white">{formatNumber(profile._count.followers)}</span>
+                      </button>
+                      <button onClick={() => handleShowList('following')} className="hover:text-blue-400 transition-colors">
+                        フォロー中 <span className="font-semibold text-white">{formatNumber(profile._count.following)}</span>
+                      </button>
+                    </div>
+                    <p className="text-base text-gray-300 leading-relaxed">{profile.bio || "自己紹介がありません。"}</p>
+                  </div>
+                </div>
+                <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                  {isMyProfile && (
+                    <button onClick={() => window.location.href = '/profile-edit'} className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold py-2 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/30">
+                      会員情報変更
+                    </button>
+                  )}
+                  {!isMyProfile && sessionStatus === 'authenticated' && (
+                    <button onClick={handleFollow} className={`w-full font-bold py-3 px-6 rounded-xl transition-all ${
+                        profile.isFollowing 
+                          ? 'bg-gray-800/50 text-white hover:bg-gray-700/50 border border-gray-700/50' 
+                          : 'bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/30'
+                      }`}>
+                        {profile.isFollowing ? 'フォロー中' : 'フォロー'}
+                      </button>
+                  )}
+                </div>
+              </section>
+
+              <section>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-2">
+                  <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                    {profile.characters.length}個のキャラクター | 会話量 {formatNumber(profile.totalMessageCount)}
+                  </h3>
+                  <span className="text-sm text-gray-400">会話量順</span>
+                </div>
+                
+                {profile.characters.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 px-4 rounded-2xl bg-gradient-to-br from-gray-900/50 to-gray-800/50 backdrop-blur-sm border border-gray-800/50">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center mb-4">
+                      <User className="w-10 h-10 text-blue-400/50" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-300 mb-2">製作したキャラクターがありません</h3>
+                    <p className="text-gray-500 text-center max-w-md mb-4">
+                      {isMyProfile 
+                        ? "まだキャラクターを作成していません。\n最初のキャラクターを作成してみましょう！" 
+                        : `${profile.nickname}さんはまだキャラクターを作成していません。`}
+                    </p>
+                    {isMyProfile && (
+                      <Link
+                        href="/characters/create"
+                        className="mt-4 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-blue-500/30 inline-block"
+                      >
+                        キャラクターを作成
+                      </Link>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                    {profile.characters.map(char => (
+                      <a href={`/characters/${char.id}`} key={char.id} className="block group">
+                        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl overflow-hidden border border-gray-800/50 hover:border-blue-500/30 transition-all group-hover:scale-105">
+                          <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-800 to-gray-900 overflow-hidden">
+                            <Image 
+                              src={char.characterImages[0]?.imageUrl || 'https://placehold.co/300x400/1a1a1a/ffffff?text=?'} 
+                              alt={char.name} 
+                              fill
+                              className="object-cover group-hover:scale-110 transition-transform duration-500"
+                              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 via-cyan-500/0 to-blue-500/0 group-hover:from-blue-500/30 group-hover:via-cyan-500/20 group-hover:to-blue-500/30 transition-all duration-500" />
+                          </div>
+                          <div className="p-3">
+                            <h4 className="font-semibold truncate text-white mb-1 group-hover:text-blue-400 transition-colors">{char.name}</h4>
+                            <p className="text-xs text-gray-400 truncate mb-2">@{profile.nickname}</p>
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <div className="flex items-center gap-1">
+                                <Heart size={12}/> {formatNumber(char._count.favorites)}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <MessageSquare size={12}/> {formatNumber(char._count.chat)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </section>
             </main>
           </div>
+        )}
         </div>
       </div>
       <HelpModal
@@ -711,13 +926,13 @@ export default function UserProfilePage() {
         content={
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold text-pink-400 mb-2">概要</h3>
+              <h3 className="text-lg font-semibold text-blue-400 mb-2">概要</h3>
               <p className="text-gray-300">
                 ユーザーのプロフィールページです。作成したキャラクター、フォロワー、フォロー中のユーザーを確認できます。
               </p>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-pink-400 mb-2">主要機能</h3>
+              <h3 className="text-lg font-semibold text-blue-400 mb-2">主要機能</h3>
               <ul className="list-disc list-inside space-y-2 text-gray-300 ml-2">
                 <li><strong>フォロー/フォロー解除</strong>: ユーザーをフォローして更新情報を受け取る</li>
                 <li><strong>ブロック/ブロック解除</strong>: 不適切なユーザーをブロック</li>
@@ -727,7 +942,7 @@ export default function UserProfilePage() {
               </ul>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-pink-400 mb-2">メニュー機能（...ボタン）</h3>
+              <h3 className="text-lg font-semibold text-blue-400 mb-2">メニュー機能（...ボタン）</h3>
               <ul className="list-disc list-inside space-y-1 text-gray-300 ml-2">
                 <li>自分のプロフィールの場合: プロフィール編集、パスワード変更、会員退会</li>
                 <li>他人のプロフィールの場合: フォロー、ブロック、共有</li>

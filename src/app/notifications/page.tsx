@@ -25,8 +25,8 @@ type Notification = {
 
 const typeLabels: Record<string, { label: string; color: string; icon: string }> = {
   FOLLOWER_CHARACTER: { label: "新キャラクター", color: "bg-blue-500", icon: "🎭" },
-  LIKE: { label: "いいね", color: "bg-pink-500", icon: "❤️" },
-  COMMENT: { label: "コメント", color: "bg-purple-500", icon: "💬" },
+  LIKE: { label: "いいね", color: "bg-blue-500", icon: "❤️" },
+  COMMENT: { label: "コメント", color: "bg-cyan-500", icon: "💬" },
   INQUIRY_RESPONSE: { label: "お問い合わせ", color: "bg-green-500", icon: "📧" },
   FOLLOW: { label: "フォロー", color: "bg-yellow-500", icon: "👥" },
 };
@@ -172,7 +172,7 @@ export default function NotificationsPage() {
   const helpContent = (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-pink-400 mb-3">通知について</h3>
+        <h3 className="text-lg font-semibold text-blue-400 mb-3">通知について</h3>
         <p className="text-sm text-gray-300 leading-relaxed">
           このページでは、あなたに関する様々な通知を確認できます。
           通知をクリックすると、関連するページに移動できます。
@@ -195,7 +195,7 @@ export default function NotificationsPage() {
           <div className="bg-black/30 border border-gray-800/80 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">❤️</span>
-              <span className="text-xs px-2 py-1 rounded bg-pink-500 text-white font-medium">いいね</span>
+              <span className="text-xs px-2 py-1 rounded bg-blue-500 text-white font-medium">いいね</span>
             </div>
             <p className="text-sm text-gray-300 leading-relaxed">
               あなたが作成したキャラクターがお気に入りに追加されたときに通知されます。
@@ -205,7 +205,7 @@ export default function NotificationsPage() {
           <div className="bg-black/30 border border-gray-800/80 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">💬</span>
-              <span className="text-xs px-2 py-1 rounded bg-purple-500 text-white font-medium">コメント</span>
+              <span className="text-xs px-2 py-1 rounded bg-cyan-500 text-white font-medium">コメント</span>
             </div>
             <p className="text-sm text-gray-300 leading-relaxed">
               あなたが作成したキャラクターにコメントが投稿されたときに通知されます。
@@ -238,19 +238,19 @@ export default function NotificationsPage() {
         <h3 className="text-lg font-semibold text-pink-400 mb-3">機能</h3>
         <ul className="space-y-2 text-sm text-gray-300">
           <li className="flex items-start gap-2">
-            <span className="text-pink-400 mt-0.5">•</span>
+            <span className="text-blue-400 mt-0.5">•</span>
             <span><strong>全て既読にする</strong>: すべての通知を一度に既読にします</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="text-pink-400 mt-0.5">•</span>
+            <span className="text-blue-400 mt-0.5">•</span>
             <span><strong>フィルター</strong>: 「全て」または「未読」のみを表示できます</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="text-pink-400 mt-0.5">•</span>
+            <span className="text-blue-400 mt-0.5">•</span>
             <span><strong>通知をクリック</strong>: 通知をクリックすると関連ページに移動し、自動で既読になります</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="text-pink-400 mt-0.5">•</span>
+            <span className="text-blue-400 mt-0.5">•</span>
             <span><strong>削除</strong>: 不要な通知は削除できます</span>
           </li>
         </ul>
@@ -273,15 +273,15 @@ export default function NotificationsPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => router.back()}
-                className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all -ml-2"
+                className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all -ml-2"
               >
                 <ArrowLeft size={24} />
               </button>
-              <Bell className="text-pink-400" size={28} />
+              <Bell className="text-blue-400" size={28} />
               <h1 className="text-2xl font-bold">通知</h1>
               <button
                 onClick={() => setIsHelpOpen(true)}
-                className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+                className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
               >
                 <HelpCircle size={20} />
               </button>
@@ -289,7 +289,7 @@ export default function NotificationsPage() {
             {unreadCount > 0 && (
               <button
                 onClick={markAllAsRead}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-xl transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50 text-sm font-semibold"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/50 text-sm font-semibold"
               >
                 <Check size={16} />
                 全て既読にする
@@ -303,7 +303,7 @@ export default function NotificationsPage() {
               onClick={() => setFilter("all")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                 filter === "all"
-                  ? "bg-pink-500/20 text-pink-400"
+                  ? "bg-blue-500/20 text-blue-400"
                   : "bg-gray-800 text-gray-400 hover:bg-gray-700"
               }`}
             >
@@ -314,7 +314,7 @@ export default function NotificationsPage() {
               onClick={() => setFilter("unread")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                 filter === "unread"
-                  ? "bg-pink-500/20 text-pink-400"
+                  ? "bg-blue-500/20 text-blue-400"
                   : "bg-gray-800 text-gray-400 hover:bg-gray-700"
               }`}
             >
@@ -349,13 +349,13 @@ export default function NotificationsPage() {
                   className={`relative group rounded-lg border transition-all cursor-pointer ${
                     notification.isRead
                       ? "bg-gray-900/50 border-gray-800 hover:bg-gray-900"
-                      : "bg-gradient-to-br from-pink-500/10 to-purple-500/10 border-pink-500/30 hover:border-pink-500/50"
+                      : "bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/30 hover:border-blue-500/50"
                   }`}
                   onClick={() => handleNotificationClick(notification)}
                 >
                   {/* 未読インジケーター */}
                   {!notification.isRead && (
-                    <div className="absolute top-4 left-4 w-2 h-2 bg-pink-500 rounded-full animate-pulse" />
+                    <div className="absolute top-4 left-4 w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
                   )}
 
                   <div className="p-4 pl-8">

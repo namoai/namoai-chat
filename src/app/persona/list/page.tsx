@@ -38,7 +38,7 @@ const CustomModal = ({ state }: { state: ModalState }) => {
           {!state.isAlert && (
             <button onClick={state.onClose} className="border border-gray-600 text-white hover:bg-gray-700 py-2 px-4 rounded-lg transition-colors cursor-pointer">キャンセル</button>
           )}
-          <button onClick={state.onConfirm} className={`${state.confirmText === '削除' ? 'bg-red-600 hover:bg-red-700' : 'bg-pink-600 hover:bg-pink-700'} text-white py-2 px-4 rounded-lg transition-colors cursor-pointer`}>
+          <button onClick={state.onConfirm} className={`${state.confirmText === '削除' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'} text-white py-2 px-4 rounded-lg transition-colors cursor-pointer`}>
             {state.confirmText || 'OK'}
           </button>
         </div>
@@ -172,7 +172,7 @@ function PersonaListComponent() {
     return (
       <div className="flex h-screen items-center justify-center bg-black text-white">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
           <p className="text-gray-400">読み込み中...</p>
         </div>
       </div>
@@ -184,7 +184,7 @@ function PersonaListComponent() {
   const helpContent = (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-pink-400 mb-3">ペルソナとは？</h3>
+        <h3 className="text-lg font-semibold text-blue-400 mb-3">ペルソナとは？</h3>
         <p className="text-sm text-gray-300 leading-relaxed mb-4">
           ペルソナは、あなたがキャラクターと会話する際の役割を定義する設定です。
           ニックネーム、年齢、性別、詳細情報を設定することで、キャラクターはその情報を参考にして会話を生成します。
@@ -193,36 +193,36 @@ function PersonaListComponent() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="bg-black/30 border border-gray-800/80 rounded-xl p-4">
-          <h3 className="text-base font-semibold text-pink-300 mb-3">基本ペルソナの設定</h3>
+          <h3 className="text-base font-semibold text-blue-300 mb-3">基本ペルソナの設定</h3>
           <ul className="space-y-2 text-sm text-gray-300">
             <li className="flex items-start gap-2">
-              <span className="text-pink-400 mt-0.5">•</span>
+              <span className="text-blue-400 mt-0.5">•</span>
               <span>ペルソナカードをクリックすると、そのペルソナが基本ペルソナとして設定されます</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-pink-400 mt-0.5">•</span>
+              <span className="text-blue-400 mt-0.5">•</span>
               <span>チェックマークが表示されているペルソナが現在の基本ペルソナです</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-pink-400 mt-0.5">•</span>
+              <span className="text-blue-400 mt-0.5">•</span>
               <span>新しくチャットを開始すると、基本ペルソナの情報が使用されます</span>
             </li>
           </ul>
         </div>
 
         <div className="bg-black/30 border border-gray-800/80 rounded-xl p-4">
-          <h3 className="text-base font-semibold text-pink-300 mb-3">ペルソナの作成・編集</h3>
+          <h3 className="text-base font-semibold text-blue-300 mb-3">ペルソナの作成・編集</h3>
           <ul className="space-y-2 text-sm text-gray-300">
             <li className="flex items-start gap-2">
-              <span className="text-pink-400 mt-0.5">•</span>
+              <span className="text-blue-400 mt-0.5">•</span>
               <span>「ペルソナ追加」ボタンで新しいペルソナを作成できます</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-pink-400 mt-0.5">•</span>
+              <span className="text-blue-400 mt-0.5">•</span>
               <span>各ペルソナカードの編集アイコン（鉛筆）から編集できます</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-pink-400 mt-0.5">•</span>
+              <span className="text-blue-400 mt-0.5">•</span>
               <span>削除アイコン（ゴミ箱）でペルソナを削除できます</span>
             </li>
           </ul>
@@ -251,7 +251,7 @@ function PersonaListComponent() {
       <div className="bg-black min-h-screen text-white">
         {/* 背景装飾 */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+          <div className="absolute top-0 right-1/4 w-96 h-96 bg-gray-800/30 rounded-full blur-3xl" />
         </div>
 
         <div className="relative z-10">
@@ -259,16 +259,16 @@ function PersonaListComponent() {
             <header className="text-center py-6 mb-6 relative">
               <button 
                 onClick={handleGoBack} 
-                className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+                className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-xl hover:bg-white/10 hover:text-blue-400 transition-all"
               >
                 <ArrowLeft size={24} />
               </button>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold text-white bg-clip-text text-transparent">
                 ペルソナ
               </h1>
               <button 
                 onClick={() => setIsHelpOpen(true)} 
-                className="absolute right-0 top-1/2 -translate-y-1/2 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+                className="absolute right-0 top-1/2 -translate-y-1/2 p-2 rounded-xl hover:bg-white/10 hover:text-blue-400 transition-all"
               >
                 <HelpCircle size={24} />
               </button>
@@ -278,7 +278,7 @@ function PersonaListComponent() {
                 <p className="text-sm text-gray-300 leading-relaxed">ペルソナを設定して、役割に合ったキャラクターと会話できます。</p>
                 <button
                   onClick={() => setIsHelpOpen(true)}
-                  className="w-full md:w-auto bg-gray-800/70 border border-pink-400/40 text-pink-300 font-semibold px-4 py-2 rounded-xl hover:bg-pink-500/10 transition-all"
+                  className="w-full md:w-auto bg-gray-800/70 border border-blue-400/40 text-blue-300 font-semibold px-4 py-2 rounded-xl hover:bg-white/10 transition-all"
                 >
                   詳細を見る
                 </button>
@@ -291,20 +291,20 @@ function PersonaListComponent() {
                   onClick={() => handleSelectPersona(p.id)}
                   className={`p-5 rounded-2xl cursor-pointer transition-all border relative group ${
                     selectedId === p.id 
-                      ? 'bg-gradient-to-br from-pink-500/20 to-purple-500/20 border-pink-500/50 shadow-lg shadow-pink-500/20' 
-                      : 'bg-gray-900/50 backdrop-blur-sm border-gray-800/50 hover:border-pink-500/30 hover:bg-gray-800/50'
+                      ? 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border-blue-500/50 shadow-lg shadow-blue-500/20' 
+                      : 'bg-gray-900/50 backdrop-blur-sm border-gray-800/50 hover:border-blue-500/30 hover:bg-gray-800/50'
                   }`}
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-grow min-w-0 pr-16">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className={`font-bold text-lg ${selectedId === p.id ? 'text-pink-400' : 'text-white group-hover:text-pink-400'} transition-colors`}>
+                        <h3 className={`font-bold text-lg ${selectedId === p.id ? 'text-blue-400' : 'text-white group-hover:text-blue-400'} transition-colors`}>
                           {p.nickname}
                         </h3>
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
                           selectedId === p.id 
-                            ? 'border-pink-500 bg-pink-500 shadow-lg shadow-pink-500/50' 
-                            : 'border-gray-500 group-hover:border-pink-500/50'
+                            ? 'border-blue-500 bg-blue-500 shadow-lg shadow-blue-500/50' 
+                            : 'border-gray-500 group-hover:border-blue-500/50'
                         }`}>
                           {selectedId === p.id && <Check size={16} className="text-white" />}
                         </div>
@@ -316,7 +316,7 @@ function PersonaListComponent() {
                       <Link 
                         href={`/persona/form/${p.id}?${personaQuery}`} 
                         onClick={(e) => e.stopPropagation()} 
-                        className="p-2 text-gray-400 hover:text-pink-400 hover:bg-pink-500/10 rounded-xl transition-all"
+                        className="p-2 text-gray-400 hover:text-blue-400 hover:bg-white/10 rounded-xl transition-all"
                       >
                         <Pencil size={18} />
                       </Link>
@@ -332,7 +332,7 @@ function PersonaListComponent() {
               ))}
               <Link 
                 href={`/persona/form?${personaQuery}`} 
-                className="w-full flex items-center justify-center gap-2 p-5 border-2 border-dashed border-gray-700/50 rounded-2xl text-gray-400 hover:bg-gray-900/50 hover:border-pink-500/50 hover:text-pink-400 transition-all group"
+                className="w-full flex items-center justify-center gap-2 p-5 border-2 border-dashed border-gray-700/50 rounded-2xl text-gray-400 hover:bg-gray-900/50 hover:border-blue-500/50 hover:text-blue-400 transition-all group"
               >
                 <Plus size={20} className="group-hover:scale-110 transition-transform" />
                 <span className="font-semibold">ペルソナ追加</span>

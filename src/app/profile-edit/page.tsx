@@ -290,7 +290,7 @@ export default function ProfileEditPage() {
     return (
       <div className="flex h-screen items-center justify-center bg-black text-white">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
           <p className="text-gray-400">読み込み中...</p>
         </div>
       </div>

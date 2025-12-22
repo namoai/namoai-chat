@@ -33,7 +33,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       {/* 戻るボタン */}
       <button
         onClick={onBack}
-        className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+        className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
         aria-label="戻る"
       >
         <ArrowLeft size={24} />
@@ -45,7 +45,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         className="flex items-center gap-3 group"
         aria-label={`${displayName}の詳細`}
       >
-        <div className="relative w-12 h-12 rounded-xl overflow-hidden ring-2 ring-pink-500/20 group-hover:ring-pink-500/40 transition-all">
+        <div className="relative w-12 h-12 rounded-xl overflow-hidden ring-2 ring-blue-500/20 group-hover:ring-blue-500/40 transition-all">
           <Image
             src={avatarSrc}
             alt={displayName}
@@ -54,7 +54,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             sizes="48px"
           />
         </div>
-        <span className="text-base font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent group-hover:from-pink-300 group-hover:to-purple-300 transition-all">
+        <span className="text-base font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-cyan-300 transition-all">
           {displayName}
         </span>
       </Link>
@@ -62,7 +62,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       {/* 設定ボタン */}
       <button
         onClick={onOpenSettings}
-        className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+        className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
         aria-label="設定を開く"
       >
         <Menu size={24} />

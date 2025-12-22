@@ -42,9 +42,9 @@ export default function CharacterCreatePage() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-black text-white flex justify-center items-center">
+      <div className="min-h-screen bg-gray-950 text-white flex justify-center items-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
           <p className="text-gray-400">読み込み中...</p>
         </div>
       </div>

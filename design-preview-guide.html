@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ナモアイ - ユーザーガイド</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-text {
+            background: linear-gradient(to right, #3b82f6, #06b6d4);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .gradient-bg {
+            background: linear-gradient(to right, #3b82f6, #06b6d4);
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <!-- 背景装飾 -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl"></div>
+    </div>
+
+    <div class="min-h-screen flex flex-col relative z-10">
+        <!-- ヘッダー -->
+        <header class="sticky top-0 z-50 bg-black/95 backdrop-blur-xl border-b border-gray-800/50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center gap-3">
+                        <button class="p-2 rounded-lg hover:bg-gray-800/50 transition-colors">
+                            <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </button>
+                        <h1 class="text-xl font-bold gradient-text">ユーザーガイド</h1>
+                    </div>
+                    <button class="px-4 py-2 rounded-xl gradient-bg text-white text-sm font-semibold hover:opacity-90 transition-all">
+                        ガイド管理
+                    </button>
+                </div>
+                <nav class="grid grid-cols-5 gap-0 border-t border-gray-800/50 -mx-4 sm:-mx-6 px-0">
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">ホーム</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">チャット</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">作成</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">キャラクター</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">マイページ</span>
+                    </a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- メインコンテンツ - サイドバー + コンテンツエリア -->
+        <div class="flex-1 flex overflow-hidden">
+            <!-- サイドバー -->
+            <aside class="hidden md:block w-80 lg:w-96 border-r border-gray-800/50 bg-gray-900/30 backdrop-blur-sm overflow-y-auto">
+                <nav class="p-4 space-y-2">
+                    <!-- メインカテゴリー: 基本操作 -->
+                    <div>
+                        <button class="w-full flex justify-between items-center py-3 px-4 text-left font-semibold rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 transition-all">
+                            <span>基本操作</span>
+                            <svg class="w-4 h-4 transition-transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </button>
+                        <div class="pl-4 border-l border-blue-500/30 ml-4 mt-2">
+                            <!-- サブカテゴリー: アカウント -->
+                            <div>
+                                <button class="w-full flex justify-between items-center py-2 px-3 text-sm rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 transition-all">
+                                    <span>アカウント</span>
+                                    <svg class="w-3 h-3 transition-transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </button>
+                                <div class="pl-3 mt-1 space-y-1">
+                                    <button class="block w-full text-left py-2 px-3 text-sm rounded-xl bg-blue-500/20 text-blue-400 font-semibold border border-blue-500/30">
+                                        アカウント作成
+                                    </button>
+                                    <button class="block w-full text-left py-2 px-3 text-sm rounded-xl text-gray-400 hover:bg-blue-500/10 hover:text-blue-400 transition-all">
+                                        ログイン方法
+                                    </button>
+                                    <button class="block w-full text-left py-2 px-3 text-sm rounded-xl text-gray-400 hover:bg-blue-500/10 hover:text-blue-400 transition-all">
+                                        パスワード変更
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- メインカテゴリー: キャラクター -->
+                    <div>
+                        <button class="w-full flex justify-between items-center py-3 px-4 text-left font-semibold rounded-xl text-gray-300 hover:bg-blue-500/10 hover:text-blue-400 transition-all">
+                            <span>キャラクター</span>
+                            <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- メインカテゴリー: チャット -->
+                    <div>
+                        <button class="w-full flex justify-between items-center py-3 px-4 text-left font-semibold rounded-xl text-gray-300 hover:bg-blue-500/10 hover:text-blue-400 transition-all">
+                            <span>チャット</span>
+                            <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- メインカテゴリー: ポイント・課金 -->
+                    <div>
+                        <button class="w-full flex justify-between items-center py-3 px-4 text-left font-semibold rounded-xl text-gray-300 hover:bg-blue-500/10 hover:text-blue-400 transition-all">
+                            <span>ポイント・課金</span>
+                            <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </nav>
+            </aside>
+
+            <!-- モバイルサイドバー (ドロワー) -->
+            <div class="md:hidden fixed inset-0 bg-black/50 z-40" style="display: none;">
+                <aside class="w-80 h-full border-r border-gray-800/50 bg-gray-900 backdrop-blur-xl overflow-y-auto">
+                    <nav class="p-4 space-y-2">
+                        <!-- モバイル用メニューは上記と同じ構造 -->
+                    </nav>
+                </aside>
+            </div>
+
+            <!-- コンテンツエリア -->
+            <main class="flex-1 p-6 md:p-8 overflow-y-auto">
+                <article class="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800/50 p-6 md:p-8 max-w-4xl">
+                    <h1 class="text-3xl md:text-4xl font-bold mb-6 gradient-text">
+                        アカウント作成
+                    </h1>
+                    
+                    <div class="prose prose-invert max-w-none text-gray-300 leading-relaxed">
+                        <h2 class="text-2xl font-bold text-white mt-8 mb-4">はじめに</h2>
+                        <p class="mb-4">
+                            ナモアイにアカウントを作成することで、AIキャラクターとのチャットを楽しむことができます。
+                        </p>
+
+                        <h2 class="text-2xl font-bold text-white mt-8 mb-4">アカウント作成手順</h2>
+                        <ol class="list-decimal list-inside space-y-3 mb-6">
+                            <li>ホームページの「ログイン」ボタンをクリック</li>
+                            <li>「新規登録」タブを選択</li>
+                            <li>メールアドレスとパスワードを入力</li>
+                            <li>確認メールが届くまでお待ちください</li>
+                            <li>メール内のリンクをクリックして認証を完了</li>
+                        </ol>
+
+                        <div class="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 my-6">
+                            <p class="text-blue-400 font-semibold mb-2">💡 ヒント</p>
+                            <p class="text-gray-300">
+                                メールが届かない場合は、迷惑メールフォルダを確認してください。
+                            </p>
+                        </div>
+
+                        <h2 class="text-2xl font-bold text-white mt-8 mb-4">よくある質問</h2>
+                        <div class="space-y-4">
+                            <div class="border-b border-gray-800/50 pb-4">
+                                <h3 class="text-lg font-semibold text-white mb-2">Q. 複数のアカウントを作成できますか？</h3>
+                                <p class="text-gray-400">A. 1つのメールアドレスにつき1つのアカウントのみ作成可能です。</p>
+                            </div>
+                            <div class="border-b border-gray-800/50 pb-4">
+                                <h3 class="text-lg font-semibold text-white mb-2">Q. パスワードを忘れた場合は？</h3>
+                                <p class="text-gray-400">A. ログインページの「パスワードを忘れた場合」リンクから再設定できます。</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </main>
+        </div>
+    </div>
+</body>
+</html>
+
+
+
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ナモアイ - ユーザーガイド</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-text {
+            background: linear-gradient(to right, #3b82f6, #06b6d4);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .gradient-bg {
+            background: linear-gradient(to right, #3b82f6, #06b6d4);
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <!-- 背景装飾 -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl"></div>
+    </div>
+
+    <div class="min-h-screen flex flex-col relative z-10">
+        <!-- ヘッダー -->
+        <header class="sticky top-0 z-50 bg-black/95 backdrop-blur-xl border-b border-gray-800/50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center gap-3">
+                        <button class="p-2 rounded-lg hover:bg-gray-800/50 transition-colors">
+                            <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </button>
+                        <h1 class="text-xl font-bold gradient-text">ユーザーガイド</h1>
+                    </div>
+                    <button class="px-4 py-2 rounded-xl gradient-bg text-white text-sm font-semibold hover:opacity-90 transition-all">
+                        ガイド管理
+                    </button>
+                </div>
+                <nav class="grid grid-cols-5 gap-0 border-t border-gray-800/50 -mx-4 sm:-mx-6 px-0">
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">ホーム</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">チャット</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">作成</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">キャラクター</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">マイページ</span>
+                    </a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- メインコンテンツ - サイドバー + コンテンツエリア -->
+        <div class="flex-1 flex overflow-hidden">
+            <!-- サイドバー -->
+            <aside class="hidden md:block w-80 lg:w-96 border-r border-gray-800/50 bg-gray-900/30 backdrop-blur-sm overflow-y-auto">
+                <nav class="p-4 space-y-2">
+                    <!-- メインカテゴリー: 基本操作 -->
+                    <div>
+                        <button class="w-full flex justify-between items-center py-3 px-4 text-left font-semibold rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 transition-all">
+                            <span>基本操作</span>
+                            <svg class="w-4 h-4 transition-transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </button>
+                        <div class="pl-4 border-l border-blue-500/30 ml-4 mt-2">
+                            <!-- サブカテゴリー: アカウント -->
+                            <div>
+                                <button class="w-full flex justify-between items-center py-2 px-3 text-sm rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 transition-all">
+                                    <span>アカウント</span>
+                                    <svg class="w-3 h-3 transition-transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </button>
+                                <div class="pl-3 mt-1 space-y-1">
+                                    <button class="block w-full text-left py-2 px-3 text-sm rounded-xl bg-blue-500/20 text-blue-400 font-semibold border border-blue-500/30">
+                                        アカウント作成
+                                    </button>
+                                    <button class="block w-full text-left py-2 px-3 text-sm rounded-xl text-gray-400 hover:bg-blue-500/10 hover:text-blue-400 transition-all">
+                                        ログイン方法
+                                    </button>
+                                    <button class="block w-full text-left py-2 px-3 text-sm rounded-xl text-gray-400 hover:bg-blue-500/10 hover:text-blue-400 transition-all">
+                                        パスワード変更
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- メインカテゴリー: キャラクター -->
+                    <div>
+                        <button class="w-full flex justify-between items-center py-3 px-4 text-left font-semibold rounded-xl text-gray-300 hover:bg-blue-500/10 hover:text-blue-400 transition-all">
+                            <span>キャラクター</span>
+                            <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- メインカテゴリー: チャット -->
+                    <div>
+                        <button class="w-full flex justify-between items-center py-3 px-4 text-left font-semibold rounded-xl text-gray-300 hover:bg-blue-500/10 hover:text-blue-400 transition-all">
+                            <span>チャット</span>
+                            <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- メインカテゴリー: ポイント・課金 -->
+                    <div>
+                        <button class="w-full flex justify-between items-center py-3 px-4 text-left font-semibold rounded-xl text-gray-300 hover:bg-blue-500/10 hover:text-blue-400 transition-all">
+                            <span>ポイント・課金</span>
+                            <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </nav>
+            </aside>
+
+            <!-- モバイルサイドバー (ドロワー) -->
+            <div class="md:hidden fixed inset-0 bg-black/50 z-40" style="display: none;">
+                <aside class="w-80 h-full border-r border-gray-800/50 bg-gray-900 backdrop-blur-xl overflow-y-auto">
+                    <nav class="p-4 space-y-2">
+                        <!-- モバイル用メニューは上記と同じ構造 -->
+                    </nav>
+                </aside>
+            </div>
+
+            <!-- コンテンツエリア -->
+            <main class="flex-1 p-6 md:p-8 overflow-y-auto">
+                <article class="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800/50 p-6 md:p-8 max-w-4xl">
+                    <h1 class="text-3xl md:text-4xl font-bold mb-6 gradient-text">
+                        アカウント作成
+                    </h1>
+                    
+                    <div class="prose prose-invert max-w-none text-gray-300 leading-relaxed">
+                        <h2 class="text-2xl font-bold text-white mt-8 mb-4">はじめに</h2>
+                        <p class="mb-4">
+                            ナモアイにアカウントを作成することで、AIキャラクターとのチャットを楽しむことができます。
+                        </p>
+
+                        <h2 class="text-2xl font-bold text-white mt-8 mb-4">アカウント作成手順</h2>
+                        <ol class="list-decimal list-inside space-y-3 mb-6">
+                            <li>ホームページの「ログイン」ボタンをクリック</li>
+                            <li>「新規登録」タブを選択</li>
+                            <li>メールアドレスとパスワードを入力</li>
+                            <li>確認メールが届くまでお待ちください</li>
+                            <li>メール内のリンクをクリックして認証を完了</li>
+                        </ol>
+
+                        <div class="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 my-6">
+                            <p class="text-blue-400 font-semibold mb-2">💡 ヒント</p>
+                            <p class="text-gray-300">
+                                メールが届かない場合は、迷惑メールフォルダを確認してください。
+                            </p>
+                        </div>
+
+                        <h2 class="text-2xl font-bold text-white mt-8 mb-4">よくある質問</h2>
+                        <div class="space-y-4">
+                            <div class="border-b border-gray-800/50 pb-4">
+                                <h3 class="text-lg font-semibold text-white mb-2">Q. 複数のアカウントを作成できますか？</h3>
+                                <p class="text-gray-400">A. 1つのメールアドレスにつき1つのアカウントのみ作成可能です。</p>
+                            </div>
+                            <div class="border-b border-gray-800/50 pb-4">
+                                <h3 class="text-lg font-semibold text-white mb-2">Q. パスワードを忘れた場合は？</h3>
+                                <p class="text-gray-400">A. ログインページの「パスワードを忘れた場合」リンクから再設定できます。</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </main>
+        </div>
+    </div>
+</body>
+</html>
+
+
+
+

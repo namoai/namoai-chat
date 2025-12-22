@@ -133,7 +133,10 @@ export async function GET(request: NextRequest) {
         },
       }),
       prisma.chat_message.count({
-        where: { chat: { characters: { author_id: profileUserId } } },
+        where: {
+          chat: { userId: profileUserId },
+          isActive: true
+        }
       }),
       viewingUserId && viewingUserId !== profileUserId
         ? prisma.follows.findUnique({

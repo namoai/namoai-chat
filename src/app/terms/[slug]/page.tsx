@@ -54,8 +54,8 @@ export default async function TermPage({ params }: PageProps) {
     <div className="bg-black min-h-screen text-white">
       {/* 背景装飾 */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10">
@@ -64,12 +64,12 @@ export default async function TermPage({ params }: PageProps) {
           <header className="mb-8">
             <Link 
               href="/"
-              className="inline-flex items-center text-gray-400 hover:text-pink-400 transition-colors mb-4"
+              className="inline-flex items-center text-gray-400 hover:text-blue-400 transition-colors mb-4"
             >
               <ArrowLeft size={20} className="mr-2" />
               ホームに戻る
             </Link>
-            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent">
               {term.title}
             </h1>
             <p className="text-sm text-gray-500 mt-2">
@@ -94,7 +94,7 @@ export default async function TermPage({ params }: PageProps) {
                 margin-top: 2rem;
                 margin-bottom: 1rem;
                 color: #ffffff;
-                border-bottom: 2px solid #ec4899;
+                border-bottom: 2px solid #3b82f6;
                 padding-bottom: 0.5rem;
               }
               .term-markdown-content h2 {
@@ -103,7 +103,7 @@ export default async function TermPage({ params }: PageProps) {
                 margin-top: 1.5rem;
                 margin-bottom: 0.75rem;
                 color: #ffffff;
-                border-left: 4px solid #ec4899;
+                border-left: 4px solid #3b82f6;
                 padding-left: 1rem;
               }
               .term-markdown-content h3 {
@@ -140,14 +140,14 @@ export default async function TermPage({ params }: PageProps) {
                 list-style-type: decimal;
               }
               .term-markdown-content a {
-                color: #ec4899;
+                color: #60a5fa;
                 text-decoration: underline;
               }
               .term-markdown-content a:hover {
-                color: #f472b6;
+                color: #3b82f6;
               }
               .term-markdown-content strong {
-                color: #ec4899;
+                color: #60a5fa;
                 font-weight: bold;
               }
               .term-markdown-content em {
@@ -155,7 +155,7 @@ export default async function TermPage({ params }: PageProps) {
               }
               .term-markdown-content code {
                 background-color: #1f2937;
-                color: #ec4899;
+                color: #60a5fa;
                 padding: 0.125rem 0.375rem;
                 border-radius: 0.25rem;
                 font-family: 'Courier New', monospace;
@@ -176,7 +176,7 @@ export default async function TermPage({ params }: PageProps) {
                 padding: 0;
               }
               .term-markdown-content blockquote {
-                border-left: 4px solid #ec4899;
+                border-left: 4px solid #3b82f6;
                 background-color: #1f2937;
                 padding: 1rem 1.5rem;
                 margin-top: 1rem;

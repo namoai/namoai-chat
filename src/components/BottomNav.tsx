@@ -2,64 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, MessageCircle, PlusSquare, User, Bell } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { Home, MessageCircle, User, Users, Award } from "lucide-react";
 
 // ナビゲーションアイテムのデータ
 const navItems = [
   { href: "/", label: "ホーム", icon: Home },
   { href: "/chatlist", label: "チャット", icon: MessageCircle },
-  { href: "/characters/create", label: "作成", icon: PlusSquare },
-  { href: "/notifications", label: "通知", icon: Bell, showBadge: true },
+  { href: "/charlist", label: "キャラ一覧", icon: Users },
+  { href: "/ranking", label: "ランキング", icon: Award },
   { href: "/MyPage", label: "マイページ", icon: User },
 ];
 
 export default function BottomNav() {
-  const pathname = usePathname(); 
-  const { data: session } = useSession();
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  // ★ 未読通知数をポーリングで取得（リアルタイム対応）
-  useEffect(() => {
-    if (!session?.user) return;
-
-    const fetchUnreadCount = async () => {
-      try {
-        const res = await fetch("/api/notifications/unread-count");
-        const data = await res.json();
-        setUnreadCount(data.unreadCount || 0);
-      } catch (error) {
-        console.error("未読通知数取得エラー:", error);
-      }
-    };
-
-    // 初回取得
-    fetchUnreadCount();
-
-    // 5秒ごとにポーリング（リアルタイムに近い更新）
-    const interval = setInterval(fetchUnreadCount, 5000);
-
-    // ページがアクティブになったときに即座に更新
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchUnreadCount();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // ページにフォーカスが戻ったときに即座に更新
-    const handleFocus = () => {
-      fetchUnreadCount();
-    };
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [session]);
+  const pathname = usePathname();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-xl border-t border-gray-900/50">
@@ -79,30 +34,23 @@ export default function BottomNav() {
             >
               {/* アクティブインジケーター */}
               {isActive && (
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-12 h-1 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full" />
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-12 h-1 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full" />
               )}
               
               <div className={`relative p-2 rounded-xl transition-all duration-200 ${
                 isActive 
-                  ? "bg-gradient-to-br from-pink-500/20 to-purple-500/20 text-pink-400" 
-                  : "text-gray-400 group-hover:text-pink-400 group-hover:bg-pink-500/10"
+                  ? "bg-gradient-to-br from-blue-500/20 to-cyan-500/20 text-blue-400" 
+                  : "text-gray-400 group-hover:text-blue-400 group-hover:bg-blue-500/10"
               }`}>
                 <item.icon
                   size={22}
-                  className={isActive ? "text-pink-400" : "text-gray-400 group-hover:text-pink-400"}
+                  className={isActive ? "text-blue-400" : "text-gray-400 group-hover:text-blue-400"}
                 />
-                
-                {/* ★ 通知バッジ（未読がある場合のみ表示） */}
-                {item.showBadge && unreadCount > 0 && (
-                  <div className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1.5 bg-gradient-to-br from-red-500 to-pink-600 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-black shadow-lg shadow-red-500/50 z-10 animate-pulse">
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </div>
-                )}
               </div>
               
               <span
                 className={`text-sm font-medium transition-colors ${
-                  isActive ? "text-pink-400" : "text-gray-400 group-hover:text-pink-400"
+                  isActive ? "text-blue-400" : "text-gray-400 group-hover:text-blue-400"
                 }`}
               >
                 {item.label}

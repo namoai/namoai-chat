@@ -89,7 +89,7 @@ const ConfirmationModal = ({
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
       <div className="bg-gray-900/95 backdrop-blur-xl text-white rounded-2xl p-6 w-full max-w-sm mx-4 border border-gray-700/50 shadow-2xl">
-        <h2 className="text-xl font-bold mb-4 text-white bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+        <h2 className="text-xl font-bold mb-4 text-white bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
           {title}
         </h2>
         <p className="text-sm text-gray-300 mb-6 whitespace-pre-wrap">
@@ -127,14 +127,14 @@ const AlertModal = ({
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
       <div className="bg-gray-900/95 backdrop-blur-xl text-white rounded-2xl p-6 w-full max-w-sm mx-4 border border-gray-700/50 shadow-2xl">
-        <h2 className="text-xl font-bold mb-4 text-white bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+        <h2 className="text-xl font-bold mb-4 text-white bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
           {title}
         </h2>
         <p className="text-sm text-gray-300 mb-6 whitespace-pre-wrap">
           {message}
         </p>
         <div className="flex justify-end gap-3">
-          <Button onClick={onClose} className="bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:from-pink-600 hover:to-purple-700 py-2 px-4 rounded-xl transition-all shadow-lg shadow-pink-500/30">
+          <Button onClick={onClose} className="bg-gradient-to-r from-blue-500 to-cyan-600 text-white hover:from-blue-600 hover:to-cyan-700 py-2 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30">
             確認
           </Button>
         </div>
@@ -202,7 +202,7 @@ const KebabMenu = ({
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+        className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
       >
         <MoreVertical size={20} />
       </button>
@@ -225,9 +225,9 @@ const KebabMenu = ({
                       onAction(item.action, character);
                       setIsOpen(false);
                     }}
-                    className="w-full flex items-center px-4 py-2 text-sm text-left !text-white hover:bg-gradient-to-r hover:from-pink-500/20 hover:via-purple-500/20 hover:to-pink-500/20 hover:text-pink-300 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 group"
+                    className="w-full flex items-center px-4 py-2 text-sm text-left !text-white hover:bg-gradient-to-r hover:from-blue-500/20 hover:via-cyan-500/20 hover:to-blue-500/20 hover:text-blue-300 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 group"
                   >
-                    <item.icon size={16} className="mr-3 group-hover:scale-110 group-hover:text-pink-400 transition-all duration-300" />
+                    <item.icon size={16} className="mr-3 group-hover:scale-110 group-hover:text-blue-400 transition-all duration-300" />
                     <span className="group-hover:translate-x-1 transition-transform duration-300">{item.label}</span>
                   </button>
                 </li>
@@ -480,7 +480,7 @@ export default function CharacterManagementPage() {
     return (
       <div className="flex h-screen items-center justify-center bg-black text-white">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
           <p className="text-gray-400">読み込み中...</p>
         </div>
       </div>
@@ -488,11 +488,11 @@ export default function CharacterManagementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 font-sans max-w-4xl mx-auto" style={{ overflow: 'visible' }}>
+    <div className="min-h-screen bg-black text-white p-4 md:p-6 font-sans" style={{ overflow: 'visible' }}>
       {/* ▼▼▼【追加】インポート処理中のローディング画面 ▼▼▼ */}
       {isImporting && (
           <div className="fixed inset-0 bg-black bg-opacity-70 flex flex-col justify-center items-center z-50">
-              <Loader2 className="animate-spin text-pink-500 h-12 w-12 mb-4" />
+              <Loader2 className="animate-spin text-blue-500 h-12 w-12 mb-4" />
               <p className="text-white text-lg font-semibold">インポート処理中...</p>
               <p className="text-gray-400">画像の枚数によって時間がかかる場合があります。</p>
           </div>
@@ -534,7 +534,7 @@ export default function CharacterManagementPage() {
         content={
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold text-pink-400 mb-2">概要</h3>
+              <h3 className="text-lg font-semibold text-blue-400 mb-2">概要</h3>
               <p className="text-gray-300">
                 作成したキャラクターを管理するページです。キャラクターの編集、削除、コピー、インポートなどの操作が可能です。
               </p>
@@ -571,24 +571,24 @@ export default function CharacterManagementPage() {
       <header className="flex items-center justify-between py-6 mb-6">
         <button
           onClick={() => window.history.back()}
-          className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+          className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
         >
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
           キャラクター管理
         </h1>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsHelpOpen(true)}
-            className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+            className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
             aria-label="ヘルプ"
           >
             <HelpCircle size={24} />
           </button>
           <button
             onClick={() => window.location.href = "/characters/create"}
-            className="p-2 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50"
+            className="p-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white transition-all shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/50"
           >
             <Plus size={24} />
           </button>
@@ -602,7 +602,7 @@ export default function CharacterManagementPage() {
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === tab
-                ? "bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-pink-500/20 text-pink-300 border border-pink-500/30 shadow-lg shadow-pink-500/20"
+                ? "bg-gradient-to-r from-blue-500/20 via-cyan-500/20 to-blue-500/20 text-blue-300 border border-blue-500/30 shadow-lg shadow-blue-500/20"
                 : "text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 border border-transparent"
             }`}
           >
@@ -616,12 +616,12 @@ export default function CharacterManagementPage() {
           filteredCharacters.map((char) => (
             <div
               key={char.id}
-              className="bg-gray-900/50 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-gray-800/50 hover:border-pink-500/30 transition-all relative group"
+              className="bg-gray-900/50 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-gray-800/50 hover:border-blue-500/30 transition-all relative group"
               style={{ overflow: 'visible' }}
             >
               <div className="flex items-center gap-4">
                 <a href={`/characters/${char.id}`} className="flex-grow flex items-center gap-4 min-w-0">
-                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-xl overflow-hidden ring-2 ring-pink-500/20 group-hover:ring-pink-500/40 transition-all">
+                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-xl overflow-hidden ring-2 ring-blue-500/20 group-hover:ring-blue-500/40 transition-all">
                     <Image
                       src={
                         char.characterImages[0]?.imageUrl ||
@@ -634,7 +634,7 @@ export default function CharacterManagementPage() {
                     />
                   </div>
                   <div className="flex-grow min-w-0">
-                    <h2 className="font-bold text-lg text-white truncate group-hover:text-pink-300 transition-colors">
+                    <h2 className="font-bold text-lg text-white truncate group-hover:text-blue-300 transition-colors">
                       {char.name}
                     </h2>
                     <div className="flex items-center gap-3 text-sm text-gray-400 mt-2">
@@ -642,11 +642,11 @@ export default function CharacterManagementPage() {
                         {getVisibilityText(char.visibility)}
                       </span>
                       <div className="flex items-center gap-1">
-                        <MessageSquare size={14} className="text-pink-400/70" />
+                        <MessageSquare size={14} className="text-blue-400/70" />
                         <span>{char._count?.chat || 0}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Heart size={14} className="text-pink-400/70" />
+                        <Heart size={14} className="text-blue-400/70" />
                         <span>{char._count?.favorites || 0}</span>
                       </div>
                     </div>
@@ -655,7 +655,7 @@ export default function CharacterManagementPage() {
                 
                 <button 
                   onClick={() => window.location.href = `/chat/${char.id}`}
-                  className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-sm font-semibold py-2 px-4 rounded-xl transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50 flex-shrink-0"
+                  className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white text-sm font-semibold py-2 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/50 flex-shrink-0"
                 >
                   チャット
                 </button>
