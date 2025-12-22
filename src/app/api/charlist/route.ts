@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
       ...tagWhere,
       ...safetyWhereClause,
       ...blockWhereClause,
+      visibility: 'public', // 公開キャラクターのみ表示
     };
 
     const [rows, totalCount, allTagRows] = await Promise.all([
@@ -115,6 +116,7 @@ export async function GET(request: NextRequest) {
         where: {
           ...safetyWhereClause,
           ...blockWhereClause,
+          visibility: 'public', // 公開キャラクターのみ表示
         },
         select: { hashtags: true },
       }),
