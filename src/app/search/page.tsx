@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, FormEvent } from "react";
 // ▼▼▼【修正点】useRouter と Link をインポートします ▼▼▼

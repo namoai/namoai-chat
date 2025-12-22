@@ -72,25 +72,26 @@ export async function POST(request: NextRequest) {
 
     // プロンプト最適化（Danbooruタグ寄せ）
     let processedPrompt = prompt.trim();
-    const koreanToEnglish: Record<string, string> = {
-      '여자': '1girl',
-      '남자': '1boy',
-      '소녀': 'girl',
-      '소년': 'boy',
-      '여성': 'woman',
-      '남성': 'man',
-      '학생': 'school uniform',
-      '교복': 'school uniform',
-      '미소': 'smile',
-      '웃음': 'smile',
-      '긴머리': 'long hair',
-      '단발': 'short hair',
-      '눈': 'eyes',
-      '입': 'mouth',
-      '얼굴': 'face',
+    // 日本語サイトのため、日本語から英語への変換のみ対応
+    const japaneseToEnglish: Record<string, string> = {
+      '女の子': '1girl',
+      '男の子': '1boy',
+      '少女': 'girl',
+      '少年': 'boy',
+      '女性': 'woman',
+      '男性': 'man',
+      '学生': 'school uniform',
+      '制服': 'school uniform',
+      '笑顔': 'smile',
+      '笑い': 'smile',
+      '長髪': 'long hair',
+      'ショートヘア': 'short hair',
+      '目': 'eyes',
+      '口': 'mouth',
+      '顔': 'face',
     };
-    for (const [korean, english] of Object.entries(koreanToEnglish)) {
-      const regex = new RegExp(korean, 'gi');
+    for (const [japanese, english] of Object.entries(japaneseToEnglish)) {
+      const regex = new RegExp(japanese, 'gi');
       processedPrompt = processedPrompt.replace(regex, english);
     }
     if (!processedPrompt || processedPrompt.length < 3) {

@@ -462,11 +462,8 @@ Usage: Insert {img:N} at appropriate moments in narration when they enhance the 
             : "";
         // ▲▲▲
         
-        // ▼▼▼【言語・長さ・フォーマット指示】一般チャットAPIと同じ ▼▼▼
-        const userLanguageRequest = userMessageForTurn.content.match(/한국어|韓国語|korean|Korean|ko|KO|すべて.*韓国語|全て.*韓国語/i);
-        const languageInstruction = userLanguageRequest 
-          ? `- **Output Language**: Respond in Korean (한국어). All narration, dialogue, and descriptions should be in Korean.`
-          : `- **Output Language**: Respond in Japanese (日本語). All narration, dialogue, and descriptions should be in Japanese.`;
+        // ▼▼▼【言語・長さ・フォーマット指示】常に日本語で応答（日本語サイトのため） ▼▼▼
+        const languageInstruction = `- **Output Language**: Respond in Japanese (日本語). All narration, dialogue, and descriptions should be in Japanese.`;
         
         const lengthInstruction = `- **Response Length**: Aim for 800-1100 characters (including spaces) per response. Provide rich, detailed descriptions and dialogue.`;
         

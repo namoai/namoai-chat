@@ -592,13 +592,8 @@ ${imageList}
       : "";
     // ▲▲▲
 
-    // ユーザーの最新メッセージから言語要求を抽出（長さ要求は無視して常に800-1100文字）
-    const userLanguageRequest = message.match(/한국어|韓国語|korean|Korean|ko|KO|すべて.*韓国語|全て.*韓国語/i);
-
-    // 言語要求に基づいてフォーマット指示を生成
-    const languageInstruction = userLanguageRequest
-      ? `- **Output Language**: Respond in Korean (한국어). All narration, dialogue, and descriptions should be in Korean.`
-      : `- **Output Language**: Respond in Japanese (日本語). All narration, dialogue, and descriptions should be in Japanese.`;
+    // 常に日本語で応答（日本語サイトのため）
+    const languageInstruction = `- **Output Language**: Respond in Japanese (日本語). All narration, dialogue, and descriptions should be in Japanese.`;
 
     // 応答長さは常に800-1100文字に固定
     const lengthInstruction = `- **Response Length**: Aim for 800-1100 characters (including spaces) per response. Provide rich, detailed descriptions and dialogue.
