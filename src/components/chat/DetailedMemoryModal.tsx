@@ -266,7 +266,7 @@ export default function DetailedMemoryModal({
                   }
                 }}
                 disabled={isSummarizing}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-800 disabled:to-gray-800 disabled:opacity-50 rounded-xl text-sm font-semibold text-white transition-all shadow-lg shadow-purple-500/30"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:from-gray-800 disabled:to-gray-800 disabled:opacity-50 rounded-xl text-sm font-semibold text-white transition-all shadow-lg shadow-blue-500/30"
                 title="すべての記憶を削除して最初から再要約します"
               >
                 <Clock size={16} className={isSummarizing ? 'animate-spin' : ''} />
@@ -333,7 +333,7 @@ export default function DetailedMemoryModal({
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           {memory.messageRange ? (
-                            <span className="text-purple-400 font-semibold">
+                            <span className="text-blue-400 font-semibold">
                               {memory.messageRange.start}-{memory.messageRange.end}
                             </span>
                           ) : (

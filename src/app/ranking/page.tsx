@@ -53,11 +53,11 @@ export default function RankingPage() {
   };
 
   return (
-    <div className="bg-black min-h-screen text-white">
+    <div className="bg-gray-950 min-h-screen text-white">
       {/* 背景装飾 */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-gray-800/30 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gray-800/30 rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10">
@@ -65,11 +65,11 @@ export default function RankingPage() {
           <header className="relative flex justify-center items-center mb-8">
             <button
               onClick={() => router.back()}
-              className="absolute left-0 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+              className="absolute left-0 p-2 rounded-xl hover:bg-white/10 hover:text-blue-400 transition-all"
             >
               <ArrowLeft size={24} />
             </button>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-white">
               ランキング
             </h1>
           </header>
@@ -81,8 +81,8 @@ export default function RankingPage() {
                 onClick={() => setActiveTab(tab)}
                 className={`px-6 py-2 rounded-full text-sm font-semibold transition-all ${
                   activeTab === tab
-                    ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg shadow-pink-500/30"
-                    : "bg-gray-800/50 text-gray-400 hover:bg-gray-700/50 hover:text-white"
+                    ? "bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-lg shadow-blue-500/30"
+                    : "bg-white/10 text-gray-400 hover:bg-white/15 hover:text-white border border-white/20"
                 }`}
               >
                 {tab === "realtime" ? "リアルタイム" : tab === "daily" ? "日間" : tab === "weekly" ? "週間" : "月間"}
@@ -94,7 +94,7 @@ export default function RankingPage() {
             {loading ? (
               <div className="flex justify-center items-center py-16">
                 <div className="flex flex-col items-center gap-4">
-                  <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+                  <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
                   <p className="text-gray-400">ランキングを読み込んでいます...</p>
                 </div>
               </div>
@@ -105,7 +105,7 @@ export default function RankingPage() {
                   <Link
                     href={`/characters/${char.id}`}
                     key={char.id}
-                    className="group flex items-center bg-gray-900/50 backdrop-blur-sm p-4 rounded-xl hover:bg-gray-800/50 transition-all border border-gray-800/50 hover:border-pink-500/30"
+                    className="group flex items-center bg-gray-900/50 backdrop-blur-sm p-4 rounded-xl hover:bg-gray-800/50 transition-all border border-gray-800/50 hover:border-blue-500/30"
                   >
                     <div className="flex items-center w-16 flex-shrink-0 justify-center">
                       {index < 3 ? (
@@ -133,7 +133,7 @@ export default function RankingPage() {
                     </div>
 
                     <div className="flex-grow overflow-hidden min-w-0">
-                      <h3 className="font-bold text-lg truncate group-hover:text-pink-400 transition-colors">
+                      <h3 className="font-bold text-lg truncate group-hover:text-blue-400 transition-colors">
                         {char.name}
                       </h3>
                       <p className="text-sm text-gray-400 truncate">
@@ -143,7 +143,7 @@ export default function RankingPage() {
 
                     <div className="flex items-center gap-2 text-gray-400 flex-shrink-0 ml-4 px-4 py-2 rounded-lg bg-gray-800/50">
                       {activeTab === "realtime" ? (
-                        <Flame size={18} className="text-pink-400" />
+                        <Flame size={18} className="text-blue-400" />
                       ) : (
                         <MessageSquare size={18} />
                       )}

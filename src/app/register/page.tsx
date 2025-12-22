@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -385,26 +385,39 @@ export default function SignUpPage() {
   };
 
 
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-gray-950 text-white">
       {/* 背景装飾 */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10 flex flex-col items-center px-4 py-8 min-h-screen">
-        <header className="w-full max-w-md flex items-center justify-center mb-8 relative">
-          <button
-            onClick={() => router.back()}
-            className="absolute left-0 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-            会員登録
-          </h1>
-        </header>
+        {isMobile && (
+          <header className="w-full max-w-md flex items-center justify-center mb-8 relative">
+            <button
+              onClick={() => router.back()}
+              className="absolute left-0 p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent">
+              会員登録
+            </h1>
+          </header>
+        )}
 
         <div className="w-full max-w-md bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800/50 p-6 md:p-8 space-y-6">
           <p className="text-gray-300 text-center">
@@ -413,40 +426,40 @@ export default function SignUpPage() {
 
           <div className="space-y-4">
             {[{
-              icon: <Mail size={18} className="text-pink-400" />,
+              icon: <Mail size={18} className="text-blue-400" />,
               label: "メールアドレス",
               field: "email",
               placeholder: "例: user@example.com",
               showVerification: true,
             },
             {
-              icon: <Lock size={18} className="text-pink-400" />,
+              icon: <Lock size={18} className="text-blue-400" />,
               label: "パスワード",
               field: "password",
               placeholder: "8文字以上（小文字・数字・特殊文字必須）",
               type: "password",
             },
             {
-              icon: <Lock size={18} className="text-pink-400" />,
+              icon: <Lock size={18} className="text-blue-400" />,
               label: "パスワード確認",
               field: "passwordConfirm",
               placeholder: "パスワードを再度入力",
               type: "password",
             },
             {
-              icon: <User size={18} className="text-pink-400" />,
+              icon: <User size={18} className="text-blue-400" />,
               label: "氏名",
               field: "name",
               placeholder: "例: 山田太郎",
             },
             {
-              icon: <Phone size={18} className="text-pink-400" />,
+              icon: <Phone size={18} className="text-blue-400" />,
               label: "電話番号",
               field: "phone",
               placeholder: "例: 070-1234-5678",
             },
             {
-              icon: <Smile size={18} className="text-pink-400" />,
+              icon: <Smile size={18} className="text-blue-400" />,
               label: "ニックネーム",
               field: "nickname",
               placeholder: "2〜12文字のニックネーム",
@@ -472,7 +485,7 @@ export default function SignUpPage() {
                     <Input
                       type={type === "password" ? (field === "password" ? (showPassword ? "text" : "password") : (showPasswordConfirm ? "text" : "password")) : type}
                       placeholder={placeholder}
-                      className={`bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all w-full ${type === "password" ? "pr-12" : ""}`}
+                      className={`bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all w-full ${type === "password" ? "pr-12" : ""}`}
                       value={form[field as keyof typeof form]}
                       onChange={(e) => handleChange(field, e.target.value)}
                       disabled={showVerification && emailVerified}
@@ -492,7 +505,7 @@ export default function SignUpPage() {
                       type="button"
                       onClick={handleSendVerificationCode}
                       disabled={sendingCode || !form.email || !form.email.includes("@")}
-                      className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                      className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                     >
                       {sendingCode ? "送信中..." : showVerificationInput ? "再送信" : "認証する"}
                     </Button>
@@ -502,7 +515,7 @@ export default function SignUpPage() {
                       type="button"
                       onClick={handleCheckNickname}
                       disabled={checkingNickname || !form.nickname || form.nickname.trim().length < 2 || form.nickname.trim().length > 12}
-                      className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                      className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                     >
                       {checkingNickname ? "確認中..." : nicknameChecked && nicknameAvailable ? "✓ 使用可能" : "重複確認"}
                     </Button>
@@ -532,7 +545,7 @@ export default function SignUpPage() {
                         type="text"
                         placeholder="123456"
                         maxLength={6}
-                        className="bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all flex-1"
+                        className="bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all flex-1"
                         value={verificationCode}
                         onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ""))}
                       />
@@ -540,7 +553,7 @@ export default function SignUpPage() {
                         type="button"
                         onClick={handleVerifyCode}
                         disabled={verifyingCode || verificationCode.length !== 6}
-                        className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                       >
                         {verifyingCode ? "確認中..." : "確認"}
                       </Button>
@@ -553,7 +566,7 @@ export default function SignUpPage() {
             {/* 生年月日入力（別フィールド） */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                <Smile size={18} className="text-pink-400" />
+                <Smile size={18} className="text-blue-400" />
                 生年月日（任意）
               </label>
               <div className="flex gap-2 items-center">
@@ -561,7 +574,7 @@ export default function SignUpPage() {
                   type="text"
                   placeholder="YYYY"
                   maxLength={4}
-                  className="w-20 bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all text-center"
+                  className="w-20 bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-center"
                   value={(() => {
                     if (!form.birthdate) return '';
                     const parts = form.birthdate.split('-');
@@ -589,7 +602,7 @@ export default function SignUpPage() {
                   type="text"
                   placeholder="MM"
                   maxLength={2}
-                  className="w-16 bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all text-center"
+                  className="w-16 bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-center"
                   value={(() => {
                     if (!form.birthdate) return '';
                     const parts = form.birthdate.split('-');
@@ -619,7 +632,7 @@ export default function SignUpPage() {
                   type="text"
                   placeholder="DD"
                   maxLength={2}
-                  className="w-16 bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all text-center"
+                  className="w-16 bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-center"
                   value={(() => {
                     if (!form.birthdate) return '';
                     const parts = form.birthdate.split('-');
@@ -643,7 +656,7 @@ export default function SignUpPage() {
             <Button
               disabled={!emailVerified}
               onClick={handleSubmit}
-              className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-pink-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               会員登録
             </Button>
@@ -665,7 +678,7 @@ export default function SignUpPage() {
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-gray-900/95 backdrop-blur-xl rounded-2xl w-full max-w-md border border-gray-800/50 p-6 space-y-4 max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
                   利用規約
                 </h2>
                 <button
@@ -724,7 +737,7 @@ export default function SignUpPage() {
                   </div>
                   <button
                     onClick={() => setShowTerms(true)}
-                    className="text-gray-400 hover:text-pink-400 transition-colors"
+                    className="text-gray-400 hover:text-blue-400 transition-colors"
                   >
                     <ChevronRight size={20} />
                   </button>
@@ -745,7 +758,7 @@ export default function SignUpPage() {
                   </div>
                   <button
                     onClick={() => setShowPrivacy(true)}
-                    className="text-gray-400 hover:text-pink-400 transition-colors"
+                    className="text-gray-400 hover:text-blue-400 transition-colors"
                   >
                     <ChevronRight size={20} />
                   </button>
@@ -841,7 +854,7 @@ export default function SignUpPage() {
                     }
                     return age < 18 && !agreedParental;
                   })() : false)}
-                  className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-pink-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   登録完了
                 </Button>
@@ -855,7 +868,7 @@ export default function SignUpPage() {
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
             <div className="bg-gray-900/95 backdrop-blur-xl rounded-2xl w-full max-w-md border border-gray-800/50 p-6 space-y-4 max-h-[80vh] overflow-y-auto">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
                   利用規約
                 </h2>
                 <button
@@ -882,7 +895,7 @@ export default function SignUpPage() {
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
             <div className="bg-gray-900/95 backdrop-blur-xl rounded-2xl w-full max-w-md border border-gray-800/50 p-6 space-y-4 max-h-[80vh] overflow-y-auto">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
                   プライバシーポリシー
                 </h2>
                 <button

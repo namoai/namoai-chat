@@ -147,11 +147,11 @@
   @keyframes pulse-glow {
     0%, 100% {
       opacity: 1;
-      box-shadow: 0 0 20px rgba(236, 72, 153, 0.3);
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
     }
     50% {
       opacity: 0.8;
-      box-shadow: 0 0 30px rgba(236, 72, 153, 0.5);
+      box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
     }
   }
   
@@ -176,7 +176,7 @@
   
   /* グラデーションテキスト */
   .gradient-text {
-    @apply bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent;
     background-size: 200% auto;
     animation: gradient-shift 3s ease infinite;
   }
@@ -201,11 +201,11 @@
   }
   
   ::-webkit-scrollbar-thumb {
-    background: linear-gradient(to bottom, #ec4899, #a855f7);
+    background: linear-gradient(to bottom, #3b82f6, #06b6d4);
     border-radius: 4px;
   }
   
   ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(to bottom, #f472b6, #c084fc);
+    background: linear-gradient(to bottom, #60a5fa, #22d3ee);
   }
 }

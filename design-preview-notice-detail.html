@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ナモアイ - お知らせ詳細</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-text {
+            background: linear-gradient(to right, #3b82f6, #06b6d4);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .prose {
+            max-width: none;
+        }
+        .prose h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: white;
+        }
+        .prose h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: white;
+        }
+        .prose p {
+            margin-bottom: 1rem;
+            color: #d1d5db;
+            line-height: 1.75;
+        }
+        .prose ul, .prose ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+            color: #d1d5db;
+        }
+        .prose li {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <!-- 背景装飾 -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl"></div>
+    </div>
+
+    <div class="min-h-screen flex flex-col relative z-10">
+        <!-- ヘッダー -->
+        <header class="sticky top-0 z-50 bg-black/95 backdrop-blur-xl border-b border-gray-800/50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center gap-3">
+                        <button class="p-2 rounded-lg hover:bg-gray-800/50 transition-colors">
+                            <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </button>
+                        <h1 class="text-xl font-bold gradient-text">お知らせ</h1>
+                    </div>
+                </div>
+                <nav class="grid grid-cols-5 gap-0 border-t border-gray-800/50 -mx-4 sm:-mx-6 px-0">
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">ホーム</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">チャット</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">作成</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">キャラクター</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">マイページ</span>
+                    </a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <main class="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 md:py-8">
+            <!-- お知らせ詳細カード -->
+            <article class="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800/50 p-6 md:p-8">
+                <!-- ヘッダー情報 -->
+                <div class="mb-6 pb-6 border-b border-gray-800/50">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="px-3 py-1 rounded-md bg-red-500/20 text-red-400 text-sm font-bold">重要</span>
+                        <span class="text-sm text-gray-500">2025年1月15日</span>
+                    </div>
+                    <h1 class="text-3xl md:text-4xl font-bold gradient-text mb-4">
+                        システムメンテナンスのお知らせ
+                    </h1>
+                </div>
+
+                <!-- コンテンツ -->
+                <div class="prose">
+                    <p>
+                        平素よりナモアイをご利用いただき、誠にありがとうございます。
+                    </p>
+
+                    <h2>メンテナンス実施日時</h2>
+                    <p>
+                        <strong>2025年1月20日(月) 2:00～6:00 (予定)</strong>
+                    </p>
+
+                    <h2>影響範囲</h2>
+                    <ul>
+                        <li>サービス全体の一時的な利用停止</li>
+                        <li>チャット機能の利用不可</li>
+                        <li>キャラクター作成・編集機能の利用不可</li>
+                        <li>ポイント購入・利用機能の利用不可</li>
+                    </ul>
+
+                    <div class="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 my-6">
+                        <p class="text-blue-400 font-semibold mb-2">⚠️ ご注意</p>
+                        <p class="text-gray-300">
+                            メンテナンス中は、すべてのサービスをご利用いただけません。
+                            作業が完了次第、順次サービスを再開いたします。
+                        </p>
+                    </div>
+
+                    <h2>今後の予定</h2>
+                    <p>
+                        メンテナンス後、以下の機能が追加・改善されます：
+                    </p>
+                    <ul>
+                        <li>チャット応答速度の向上</li>
+                        <li>新機能「AI画像生成」の追加</li>
+                        <li>UI/UXの改善</li>
+                    </ul>
+
+                    <p>
+                        ご不便をおかけいたしますが、何卒ご理解・ご協力のほどお願い申し上げます。
+                    </p>
+                </div>
+
+                <!-- フッター -->
+                <div class="mt-8 pt-6 border-t border-gray-800/50">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-500">
+                            最終更新: 2025年1月15日
+                        </div>
+                        <a href="#" class="text-sm text-blue-400 hover:text-blue-300 transition-colors">
+                            一覧に戻る →
+                        </a>
+                    </div>
+                </div>
+            </article>
+        </main>
+    </div>
+</body>
+</html>
+
+
+
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ナモアイ - お知らせ詳細</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-text {
+            background: linear-gradient(to right, #3b82f6, #06b6d4);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .prose {
+            max-width: none;
+        }
+        .prose h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: white;
+        }
+        .prose h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: white;
+        }
+        .prose p {
+            margin-bottom: 1rem;
+            color: #d1d5db;
+            line-height: 1.75;
+        }
+        .prose ul, .prose ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+            color: #d1d5db;
+        }
+        .prose li {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <!-- 背景装飾 -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl"></div>
+    </div>
+
+    <div class="min-h-screen flex flex-col relative z-10">
+        <!-- ヘッダー -->
+        <header class="sticky top-0 z-50 bg-black/95 backdrop-blur-xl border-b border-gray-800/50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center gap-3">
+                        <button class="p-2 rounded-lg hover:bg-gray-800/50 transition-colors">
+                            <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </button>
+                        <h1 class="text-xl font-bold gradient-text">お知らせ</h1>
+                    </div>
+                </div>
+                <nav class="grid grid-cols-5 gap-0 border-t border-gray-800/50 -mx-4 sm:-mx-6 px-0">
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">ホーム</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">チャット</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">作成</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">キャラクター</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">マイページ</span>
+                    </a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <main class="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 md:py-8">
+            <!-- お知らせ詳細カード -->
+            <article class="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800/50 p-6 md:p-8">
+                <!-- ヘッダー情報 -->
+                <div class="mb-6 pb-6 border-b border-gray-800/50">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="px-3 py-1 rounded-md bg-red-500/20 text-red-400 text-sm font-bold">重要</span>
+                        <span class="text-sm text-gray-500">2025年1月15日</span>
+                    </div>
+                    <h1 class="text-3xl md:text-4xl font-bold gradient-text mb-4">
+                        システムメンテナンスのお知らせ
+                    </h1>
+                </div>
+
+                <!-- コンテンツ -->
+                <div class="prose">
+                    <p>
+                        平素よりナモアイをご利用いただき、誠にありがとうございます。
+                    </p>
+
+                    <h2>メンテナンス実施日時</h2>
+                    <p>
+                        <strong>2025年1月20日(月) 2:00～6:00 (予定)</strong>
+                    </p>
+
+                    <h2>影響範囲</h2>
+                    <ul>
+                        <li>サービス全体の一時的な利用停止</li>
+                        <li>チャット機能の利用不可</li>
+                        <li>キャラクター作成・編集機能の利用不可</li>
+                        <li>ポイント購入・利用機能の利用不可</li>
+                    </ul>
+
+                    <div class="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 my-6">
+                        <p class="text-blue-400 font-semibold mb-2">⚠️ ご注意</p>
+                        <p class="text-gray-300">
+                            メンテナンス中は、すべてのサービスをご利用いただけません。
+                            作業が完了次第、順次サービスを再開いたします。
+                        </p>
+                    </div>
+
+                    <h2>今後の予定</h2>
+                    <p>
+                        メンテナンス後、以下の機能が追加・改善されます：
+                    </p>
+                    <ul>
+                        <li>チャット応答速度の向上</li>
+                        <li>新機能「AI画像生成」の追加</li>
+                        <li>UI/UXの改善</li>
+                    </ul>
+
+                    <p>
+                        ご不便をおかけいたしますが、何卒ご理解・ご協力のほどお願い申し上げます。
+                    </p>
+                </div>
+
+                <!-- フッター -->
+                <div class="mt-8 pt-6 border-t border-gray-800/50">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-500">
+                            最終更新: 2025年1月15日
+                        </div>
+                        <a href="#" class="text-sm text-blue-400 hover:text-blue-300 transition-colors">
+                            一覧に戻る →
+                        </a>
+                    </div>
+                </div>
+            </article>
+        </main>
+    </div>
+</body>
+</html>
+
+
+
+

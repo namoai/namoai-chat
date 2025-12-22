@@ -144,7 +144,7 @@ export default function BackMemoryModal({
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <p className="text-sm font-semibold text-gray-200">自動要約機能</p>
-                <span className="text-xs bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full">推奨</span>
+                <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full">推奨</span>
               </div>
               <p className="text-xs text-gray-400">
                 会話内容を自動的に要約して保存します（最初の10メッセージは毎回、その後は5メッセージごと）
@@ -158,7 +158,7 @@ export default function BackMemoryModal({
                 disabled={isEditing}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-pink-500 peer-checked:to-purple-600 peer-disabled:opacity-50"></div>
+              <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-blue-500 peer-checked:to-cyan-600 peer-disabled:opacity-50"></div>
             </label>
           </div>
         </div>
@@ -225,7 +225,7 @@ export default function BackMemoryModal({
                 <button
                   onClick={handleSave}
                   disabled={isSaving || editContent.length > 3000}
-                  className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold py-3 px-4 rounded-lg transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50"
+                  className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold py-3 px-4 rounded-lg transition-all shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/50"
                 >
                   <Save size={20} />
                   {isSaving ? '保存中...' : '保存'}
@@ -236,7 +236,7 @@ export default function BackMemoryModal({
             <button
               onClick={handleAutoSummarize}
               disabled={isAnySummarizing}
-              className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold py-3 px-4 rounded-lg transition-all shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/50"
+              className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold py-3 px-4 rounded-lg transition-all shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/50"
             >
               {isAnySummarizing ? '要約中...' : '今すぐ自動要約を実行'}
             </button>

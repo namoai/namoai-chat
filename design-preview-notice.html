@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ナモアイ - お知らせ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-text {
+            background: linear-gradient(to right, #3b82f6, #06b6d4);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .gradient-bg {
+            background: linear-gradient(to right, #3b82f6, #06b6d4);
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <!-- 背景装飾 -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl"></div>
+    </div>
+
+    <div class="min-h-screen flex flex-col relative z-10">
+        <!-- ヘッダー -->
+        <header class="sticky top-0 z-50 bg-black/95 backdrop-blur-xl border-b border-gray-800/50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center gap-3">
+                        <button class="p-2 rounded-lg hover:bg-gray-800/50 transition-colors">
+                            <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </button>
+                        <h1 class="text-xl font-bold gradient-text">お知らせ</h1>
+                    </div>
+                    <button class="p-2 rounded-lg hover:bg-gray-800/50 transition-colors">
+                        <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                    </button>
+                </div>
+                <nav class="grid grid-cols-5 gap-0 border-t border-gray-800/50 -mx-4 sm:-mx-6 px-0">
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">ホーム</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">チャット</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">作成</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">キャラクター</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">マイページ</span>
+                    </a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <main class="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 md:py-8">
+            <!-- お知らせリスト -->
+            <div class="space-y-4">
+                <!-- お知らせカード - 重要 -->
+                <a href="#" class="block p-5 bg-gray-900/50 backdrop-blur-sm rounded-xl border border-red-500/30 hover:border-red-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-1 rounded-md bg-red-500/20 text-red-400 text-xs font-bold">重要</span>
+                                <span class="text-xs text-gray-500">2025年1月15日</span>
+                            </div>
+                            <h2 class="text-lg font-semibold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                                システムメンテナンスのお知らせ
+                            </h2>
+                            <p class="text-sm text-gray-400 line-clamp-2">
+                                2025年1月20日(月) 2:00～6:00の間、システムメンテナンスを実施いたします。
+                                この間、サービスをご利用いただけませんのでご了承ください。
+                            </p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-600 group-hover:text-blue-400 group-hover:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <!-- お知らせカード - アップデート -->
+                <a href="#" class="block p-5 bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800/50 hover:border-blue-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-1 rounded-md bg-green-500/20 text-green-400 text-xs font-bold">アップデート</span>
+                                <span class="text-xs text-gray-500">2025年1月12日</span>
+                            </div>
+                            <h2 class="text-lg font-semibold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                                新機能「AI画像生成」が追加されました
+                            </h2>
+                            <p class="text-sm text-gray-400 line-clamp-2">
+                                チャット中にAI画像を生成できる機能が追加されました。
+                                詳細はガイドページをご覧ください。
+                            </p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-600 group-hover:text-blue-400 group-hover:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <!-- お知らせカード - イベント -->
+                <a href="#" class="block p-5 bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800/50 hover:border-blue-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-1 rounded-md bg-blue-500/20 text-blue-400 text-xs font-bold">イベント</span>
+                                <span class="text-xs text-gray-500">2025年1月10日</span>
+                            </div>
+                            <h2 class="text-lg font-semibold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                                新年キャンペーン開催中！
+                            </h2>
+                            <p class="text-sm text-gray-400 line-clamp-2">
+                                新年を記念して、ポイント購入が20%オフになるキャンペーンを開催中です。
+                                期間限定ですのでお早めに！
+                            </p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-600 group-hover:text-blue-400 group-hover:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <!-- お知らせカード - 通常 -->
+                <a href="#" class="block p-5 bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800/50 hover:border-blue-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-1 rounded-md bg-gray-500/20 text-gray-400 text-xs font-bold">お知らせ</span>
+                                <span class="text-xs text-gray-500">2025年1月8日</span>
+                            </div>
+                            <h2 class="text-lg font-semibold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                                利用規約の更新について
+                            </h2>
+                            <p class="text-sm text-gray-400 line-clamp-2">
+                                サービス向上のため、利用規約を更新いたしました。
+                                最新の内容をご確認ください。
+                            </p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-600 group-hover:text-blue-400 group-hover:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <!-- お知らせカード - アップデート -->
+                <a href="#" class="block p-5 bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800/50 hover:border-blue-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-1 rounded-md bg-green-500/20 text-green-400 text-xs font-bold">アップデート</span>
+                                <span class="text-xs text-gray-500">2025年1月5日</span>
+                            </div>
+                            <h2 class="text-lg font-semibold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                                チャット機能の改善
+                            </h2>
+                            <p class="text-sm text-gray-400 line-clamp-2">
+                                チャットの応答速度を向上させ、よりスムーズな会話ができるようになりました。
+                            </p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-600 group-hover:text-blue-400 group-hover:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+            </div>
+
+            <!-- 空の状態（コメントアウト） -->
+            <!-- <div class="text-center py-16">
+                <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                    <svg class="w-10 h-10 text-blue-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-gray-300 mb-2">お知らせがありません</h3>
+                <p class="text-gray-500">新しいお知らせが投稿されると、ここに表示されます。</p>
+            </div> -->
+        </main>
+    </div>
+</body>
+</html>
+
+
+
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ナモアイ - お知らせ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-text {
+            background: linear-gradient(to right, #3b82f6, #06b6d4);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .gradient-bg {
+            background: linear-gradient(to right, #3b82f6, #06b6d4);
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <!-- 背景装飾 -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl"></div>
+    </div>
+
+    <div class="min-h-screen flex flex-col relative z-10">
+        <!-- ヘッダー -->
+        <header class="sticky top-0 z-50 bg-black/95 backdrop-blur-xl border-b border-gray-800/50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center gap-3">
+                        <button class="p-2 rounded-lg hover:bg-gray-800/50 transition-colors">
+                            <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </button>
+                        <h1 class="text-xl font-bold gradient-text">お知らせ</h1>
+                    </div>
+                    <button class="p-2 rounded-lg hover:bg-gray-800/50 transition-colors">
+                        <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                    </button>
+                </div>
+                <nav class="grid grid-cols-5 gap-0 border-t border-gray-800/50 -mx-4 sm:-mx-6 px-0">
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">ホーム</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">チャット</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">作成</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">キャラクター</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">マイページ</span>
+                    </a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <main class="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 md:py-8">
+            <!-- お知らせリスト -->
+            <div class="space-y-4">
+                <!-- お知らせカード - 重要 -->
+                <a href="#" class="block p-5 bg-gray-900/50 backdrop-blur-sm rounded-xl border border-red-500/30 hover:border-red-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-1 rounded-md bg-red-500/20 text-red-400 text-xs font-bold">重要</span>
+                                <span class="text-xs text-gray-500">2025年1月15日</span>
+                            </div>
+                            <h2 class="text-lg font-semibold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                                システムメンテナンスのお知らせ
+                            </h2>
+                            <p class="text-sm text-gray-400 line-clamp-2">
+                                2025年1月20日(月) 2:00～6:00の間、システムメンテナンスを実施いたします。
+                                この間、サービスをご利用いただけませんのでご了承ください。
+                            </p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-600 group-hover:text-blue-400 group-hover:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <!-- お知らせカード - アップデート -->
+                <a href="#" class="block p-5 bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800/50 hover:border-blue-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-1 rounded-md bg-green-500/20 text-green-400 text-xs font-bold">アップデート</span>
+                                <span class="text-xs text-gray-500">2025年1月12日</span>
+                            </div>
+                            <h2 class="text-lg font-semibold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                                新機能「AI画像生成」が追加されました
+                            </h2>
+                            <p class="text-sm text-gray-400 line-clamp-2">
+                                チャット中にAI画像を生成できる機能が追加されました。
+                                詳細はガイドページをご覧ください。
+                            </p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-600 group-hover:text-blue-400 group-hover:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <!-- お知らせカード - イベント -->
+                <a href="#" class="block p-5 bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800/50 hover:border-blue-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-1 rounded-md bg-blue-500/20 text-blue-400 text-xs font-bold">イベント</span>
+                                <span class="text-xs text-gray-500">2025年1月10日</span>
+                            </div>
+                            <h2 class="text-lg font-semibold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                                新年キャンペーン開催中！
+                            </h2>
+                            <p class="text-sm text-gray-400 line-clamp-2">
+                                新年を記念して、ポイント購入が20%オフになるキャンペーンを開催中です。
+                                期間限定ですのでお早めに！
+                            </p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-600 group-hover:text-blue-400 group-hover:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <!-- お知らせカード - 通常 -->
+                <a href="#" class="block p-5 bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800/50 hover:border-blue-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-1 rounded-md bg-gray-500/20 text-gray-400 text-xs font-bold">お知らせ</span>
+                                <span class="text-xs text-gray-500">2025年1月8日</span>
+                            </div>
+                            <h2 class="text-lg font-semibold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                                利用規約の更新について
+                            </h2>
+                            <p class="text-sm text-gray-400 line-clamp-2">
+                                サービス向上のため、利用規約を更新いたしました。
+                                最新の内容をご確認ください。
+                            </p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-600 group-hover:text-blue-400 group-hover:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <!-- お知らせカード - アップデート -->
+                <a href="#" class="block p-5 bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800/50 hover:border-blue-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-1 rounded-md bg-green-500/20 text-green-400 text-xs font-bold">アップデート</span>
+                                <span class="text-xs text-gray-500">2025年1月5日</span>
+                            </div>
+                            <h2 class="text-lg font-semibold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                                チャット機能の改善
+                            </h2>
+                            <p class="text-sm text-gray-400 line-clamp-2">
+                                チャットの応答速度を向上させ、よりスムーズな会話ができるようになりました。
+                            </p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-600 group-hover:text-blue-400 group-hover:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+            </div>
+
+            <!-- 空の状態（コメントアウト） -->
+            <!-- <div class="text-center py-16">
+                <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                    <svg class="w-10 h-10 text-blue-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-gray-300 mb-2">お知らせがありません</h3>
+                <p class="text-gray-500">新しいお知らせが投稿されると、ここに表示されます。</p>
+            </div> -->
+        </main>
+    </div>
+</body>
+</html>
+
+
+
+

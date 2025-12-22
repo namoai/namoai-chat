@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ナモアイ - マイページ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes gradient-shift {
+            0%, 100% { background-position: 0% center; }
+            50% { background-position: 100% center; }
+        }
+        .gradient-text {
+            background: linear-gradient(to right, #3b82f6, #06b6d4, #3b82f6);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradient-shift 3s ease infinite;
+        }
+        .gradient-bg {
+            background: linear-gradient(to right, #3b82f6, #06b6d4);
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <!-- 背景装飾 -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl"></div>
+    </div>
+
+    <div class="min-h-screen flex flex-col relative z-10">
+        <!-- ヘッダー -->
+        <header class="sticky top-0 z-50 bg-black/95 backdrop-blur-xl border-b border-gray-800/50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                            </svg>
+                        </div>
+                        <h1 class="text-xl font-bold gradient-text hidden sm:block">ナモアイ</h1>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <a href="#" class="relative p-2 rounded-lg hover:bg-gray-800/50">
+                            <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                            </svg>
+                            <div class="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full border-2 border-black"></div>
+                        </a>
+                        <a href="#" class="p-2 rounded-lg hover:bg-gray-800/50">
+                            <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+                <nav class="grid grid-cols-5 gap-0 border-t border-gray-800/50 -mx-4 sm:-mx-6 px-0">
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">ホーム</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">チャット</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">作成</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">キャラクター</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-blue-400 bg-blue-500/10 border-b-2 border-blue-400 hover:bg-blue-500/15 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">マイページ</span>
+                    </a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <main class="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-8">
+            <!-- タイトル -->
+            <header class="text-center mb-8">
+                <h1 class="text-3xl md:text-4xl font-bold gradient-text mb-2">マイページ</h1>
+                <p class="text-gray-400">プロフィールと設定を管理</p>
+            </header>
+
+            <!-- プロフィールカード -->
+            <div class="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800/50 p-6 md:p-8 mb-6">
+                <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
+                    <!-- アバター -->
+                    <div class="relative">
+                        <div class="w-24 h-24 md:w-32 md:h-32 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 p-1">
+                            <div class="w-full h-full rounded-xl bg-black flex items-center justify-center">
+                                <svg class="w-12 h-12 md:w-16 md:h-16 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <button class="absolute bottom-0 right-0 p-2 bg-blue-500 rounded-full hover:bg-blue-600 transition-colors">
+                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- ユーザー情報 -->
+                    <div class="flex-1 text-center md:text-left">
+                        <h2 class="text-2xl md:text-3xl font-bold text-white mb-2">ユーザー名</h2>
+                        <p class="text-gray-400 mb-4">user@example.com</p>
+                        <div class="flex flex-wrap justify-center md:justify-start gap-4 mb-4">
+                            <div class="text-center">
+                                <div class="text-xl font-bold text-blue-400">128</div>
+                                <div class="text-sm text-gray-500">フォロワー</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-xl font-bold text-blue-400">45</div>
+                                <div class="text-sm text-gray-500">フォロー中</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-xl font-bold text-blue-400">12</div>
+                                <div class="text-sm text-gray-500">作成キャラ</div>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 justify-center md:justify-start">
+                            <button class="px-6 py-2 rounded-xl gradient-bg text-white font-semibold hover:opacity-90 transition-all">プロフィール編集</button>
+                            <button class="px-6 py-2 rounded-xl bg-gray-800 text-white font-semibold hover:bg-gray-700 transition-all">設定</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- メニューカード -->
+            <div class="grid md:grid-cols-2 gap-4 mb-6">
+                <a href="#" class="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800/50 p-6 hover:border-blue-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center group-hover:from-blue-500/30 group-hover:to-cyan-500/30 transition-all">
+                            <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-white mb-1 group-hover:text-blue-400 transition-colors">作成したキャラクター</h3>
+                            <p class="text-sm text-gray-400">管理・編集</p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <a href="#" class="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800/50 p-6 hover:border-blue-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                            <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-white mb-1 group-hover:text-blue-400 transition-colors">ポイント</h3>
+                            <p class="text-sm text-gray-400">残高: 1,250 P</p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <a href="#" class="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800/50 p-6 hover:border-blue-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                            <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-white mb-1 group-hover:text-blue-400 transition-colors">お問い合わせ</h3>
+                            <p class="text-sm text-gray-400">サポート・要望</p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <a href="#" class="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800/50 p-6 hover:border-blue-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                            <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-white mb-1 group-hover:text-blue-400 transition-colors">設定</h3>
+                            <p class="text-sm text-gray-400">アカウント設定</p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+            </div>
+
+            <!-- 統計カード -->
+            <div class="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800/50 p-6">
+                <h3 class="text-lg font-bold text-white mb-4">活動統計</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="text-center p-4 bg-gray-800/30 rounded-xl">
+                        <div class="text-2xl font-bold text-blue-400 mb-1">156</div>
+                        <div class="text-sm text-gray-400">総チャット数</div>
+                    </div>
+                    <div class="text-center p-4 bg-gray-800/30 rounded-xl">
+                        <div class="text-2xl font-bold text-blue-400 mb-1">8.5h</div>
+                        <div class="text-sm text-gray-400">総チャット時間</div>
+                    </div>
+                    <div class="text-center p-4 bg-gray-800/30 rounded-xl">
+                        <div class="text-2xl font-bold text-blue-400 mb-1">42</div>
+                        <div class="text-sm text-gray-400">お気に入り</div>
+                    </div>
+                    <div class="text-center p-4 bg-gray-800/30 rounded-xl">
+                        <div class="text-2xl font-bold text-blue-400 mb-1">98%</div>
+                        <div class="text-sm text-gray-400">満足度</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
+
+
+
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ナモアイ - マイページ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes gradient-shift {
+            0%, 100% { background-position: 0% center; }
+            50% { background-position: 100% center; }
+        }
+        .gradient-text {
+            background: linear-gradient(to right, #3b82f6, #06b6d4, #3b82f6);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradient-shift 3s ease infinite;
+        }
+        .gradient-bg {
+            background: linear-gradient(to right, #3b82f6, #06b6d4);
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <!-- 背景装飾 -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl"></div>
+    </div>
+
+    <div class="min-h-screen flex flex-col relative z-10">
+        <!-- ヘッダー -->
+        <header class="sticky top-0 z-50 bg-black/95 backdrop-blur-xl border-b border-gray-800/50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                            </svg>
+                        </div>
+                        <h1 class="text-xl font-bold gradient-text hidden sm:block">ナモアイ</h1>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <a href="#" class="relative p-2 rounded-lg hover:bg-gray-800/50">
+                            <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                            </svg>
+                            <div class="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full border-2 border-black"></div>
+                        </a>
+                        <a href="#" class="p-2 rounded-lg hover:bg-gray-800/50">
+                            <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+                <nav class="grid grid-cols-5 gap-0 border-t border-gray-800/50 -mx-4 sm:-mx-6 px-0">
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">ホーム</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">チャット</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">作成</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/30 border-b-2 border-transparent hover:border-gray-600 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">キャラクター</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center justify-center gap-2 px-4 py-4 text-sm font-semibold text-blue-400 bg-blue-500/10 border-b-2 border-blue-400 hover:bg-blue-500/15 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        <span class="text-xs md:text-sm">マイページ</span>
+                    </a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <main class="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-8">
+            <!-- タイトル -->
+            <header class="text-center mb-8">
+                <h1 class="text-3xl md:text-4xl font-bold gradient-text mb-2">マイページ</h1>
+                <p class="text-gray-400">プロフィールと設定を管理</p>
+            </header>
+
+            <!-- プロフィールカード -->
+            <div class="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800/50 p-6 md:p-8 mb-6">
+                <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
+                    <!-- アバター -->
+                    <div class="relative">
+                        <div class="w-24 h-24 md:w-32 md:h-32 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 p-1">
+                            <div class="w-full h-full rounded-xl bg-black flex items-center justify-center">
+                                <svg class="w-12 h-12 md:w-16 md:h-16 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <button class="absolute bottom-0 right-0 p-2 bg-blue-500 rounded-full hover:bg-blue-600 transition-colors">
+                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- ユーザー情報 -->
+                    <div class="flex-1 text-center md:text-left">
+                        <h2 class="text-2xl md:text-3xl font-bold text-white mb-2">ユーザー名</h2>
+                        <p class="text-gray-400 mb-4">user@example.com</p>
+                        <div class="flex flex-wrap justify-center md:justify-start gap-4 mb-4">
+                            <div class="text-center">
+                                <div class="text-xl font-bold text-blue-400">128</div>
+                                <div class="text-sm text-gray-500">フォロワー</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-xl font-bold text-blue-400">45</div>
+                                <div class="text-sm text-gray-500">フォロー中</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-xl font-bold text-blue-400">12</div>
+                                <div class="text-sm text-gray-500">作成キャラ</div>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 justify-center md:justify-start">
+                            <button class="px-6 py-2 rounded-xl gradient-bg text-white font-semibold hover:opacity-90 transition-all">プロフィール編集</button>
+                            <button class="px-6 py-2 rounded-xl bg-gray-800 text-white font-semibold hover:bg-gray-700 transition-all">設定</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- メニューカード -->
+            <div class="grid md:grid-cols-2 gap-4 mb-6">
+                <a href="#" class="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800/50 p-6 hover:border-blue-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center group-hover:from-blue-500/30 group-hover:to-cyan-500/30 transition-all">
+                            <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-white mb-1 group-hover:text-blue-400 transition-colors">作成したキャラクター</h3>
+                            <p class="text-sm text-gray-400">管理・編集</p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <a href="#" class="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800/50 p-6 hover:border-blue-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                            <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-white mb-1 group-hover:text-blue-400 transition-colors">ポイント</h3>
+                            <p class="text-sm text-gray-400">残高: 1,250 P</p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <a href="#" class="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800/50 p-6 hover:border-blue-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                            <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-white mb-1 group-hover:text-blue-400 transition-colors">お問い合わせ</h3>
+                            <p class="text-sm text-gray-400">サポート・要望</p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+
+                <a href="#" class="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800/50 p-6 hover:border-blue-500/50 hover:bg-gray-900/70 transition-all group">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                            <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-white mb-1 group-hover:text-blue-400 transition-colors">設定</h3>
+                            <p class="text-sm text-gray-400">アカウント設定</p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+            </div>
+
+            <!-- 統計カード -->
+            <div class="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800/50 p-6">
+                <h3 class="text-lg font-bold text-white mb-4">活動統計</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="text-center p-4 bg-gray-800/30 rounded-xl">
+                        <div class="text-2xl font-bold text-blue-400 mb-1">156</div>
+                        <div class="text-sm text-gray-400">総チャット数</div>
+                    </div>
+                    <div class="text-center p-4 bg-gray-800/30 rounded-xl">
+                        <div class="text-2xl font-bold text-blue-400 mb-1">8.5h</div>
+                        <div class="text-sm text-gray-400">総チャット時間</div>
+                    </div>
+                    <div class="text-center p-4 bg-gray-800/30 rounded-xl">
+                        <div class="text-2xl font-bold text-blue-400 mb-1">42</div>
+                        <div class="text-sm text-gray-400">お気に入り</div>
+                    </div>
+                    <div class="text-center p-4 bg-gray-800/30 rounded-xl">
+                        <div class="text-2xl font-bold text-blue-400 mb-1">98%</div>
+                        <div class="text-sm text-gray-400">満足度</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
+
+
+
+

@@ -403,6 +403,21 @@ model terms {
   @@index([slug])
 }
 
+model banners {
+  id          Int      @id @default(autoincrement())
+  title       String?  @db.VarChar(255)
+  description String?  @db.VarChar(500)
+  imageUrl    String   @db.Text
+  link        String?  @db.VarChar(500)
+  displayOrder Int     @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([displayOrder])
+  @@index([isActive])
+}
+
 enum Role {
   USER
   MODERATOR

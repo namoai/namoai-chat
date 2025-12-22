@@ -23,7 +23,7 @@ export default function Footer() {
   }, []);
 
   // 一部のページではフッターを非表示
-  const hideFooterPaths = ['/login', '/register', '/chat/', '/characters/', '/notice', '/guide', '/complete-profile'];
+  const hideFooterPaths = ['/login', '/register', '/chat/', '/complete-profile'];
   const shouldHide = hideFooterPaths.some(path => pathname.startsWith(path));
 
   if (shouldHide || terms.length === 0) {
@@ -31,8 +31,8 @@ export default function Footer() {
   }
 
   return (
-    <footer className="bg-black/80 backdrop-blur-xl border-t border-gray-900/50 mt-auto">
-      <div className="max-w-7xl mx-auto px-4 py-6">
+    <footer className="bg-black/80 backdrop-blur-xl border-t border-gray-900/50 mt-auto w-full">
+      <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           {/* 約款リンク */}
           <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2">
@@ -40,7 +40,7 @@ export default function Footer() {
               <Link
                 key={term.slug}
                 href={`/terms/${term.slug}`}
-                className="flex items-center gap-2 text-sm text-gray-400 hover:text-pink-400 transition-colors"
+                className="flex items-center gap-2 text-sm text-gray-400 hover:text-blue-400 transition-colors"
               >
                 <FileText size={14} />
                 <span>{term.title}</span>
