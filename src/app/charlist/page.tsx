@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ChevronDown, Heart, MessageSquare, ArrowLeft } from 'lucide-react';
+import { ChevronDown, Heart, MessageSquare, ArrowLeft, Plus } from 'lucide-react';
 
 // キャラクターのデータ型を定義します。
 type Character = {
@@ -139,6 +139,13 @@ export default function CharListPage() {
               <h1 className="text-2xl font-bold text-white">
                 キャラクター一覧
               </h1>
+              <Link 
+                href="/characters/create"
+                className="absolute right-0 p-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white transition-all shadow-lg shadow-blue-500/30"
+                aria-label="キャラクター作成"
+              >
+                <Plus size={24} />
+              </Link>
             </header>
             <div className="overflow-x-auto whitespace-nowrap pb-2 -mx-4 px-4 scrollbar-hide">
               {tags.map(tag => (

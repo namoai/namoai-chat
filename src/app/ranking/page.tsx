@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 // ▼▼▼【修正点】useRouter と Link をインポートします ▼▼▼
 import { useRouter } from "next/navigation";
 import Link from 'next/link';
-import { Crown, Flame, MessageSquare, ArrowLeft } from "lucide-react";
+import { Crown, Flame, MessageSquare, ArrowLeft, Plus } from "lucide-react";
 import Image from "next/image";
 
 // キャラクターのデータ型
@@ -72,6 +72,13 @@ export default function RankingPage() {
             <h1 className="text-3xl font-bold text-white">
               ランキング
             </h1>
+            <Link 
+              href="/characters/create"
+              className="absolute right-0 p-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white transition-all shadow-lg shadow-blue-500/30"
+              aria-label="キャラクター作成"
+            >
+              <Plus size={24} />
+            </Link>
           </header>
 
           <div className="flex justify-center gap-2 mb-8 flex-wrap">
