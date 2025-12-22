@@ -44,7 +44,7 @@ const CustomModal = ({ isOpen, onClose, title, message }: ModalProps) => {
         <h2 className="text-lg font-bold mb-4">{title}</h2>
         <p className="text-sm text-gray-300 mb-6">{message}</p>
         <div className="flex justify-end">
-          <button onClick={onClose} className="bg-pink-600 hover:bg-pink-700 py-2 px-4 rounded-lg">
+          <button onClick={onClose} className="bg-blue-600 hover:bg-blue-700 py-2 px-4 rounded-lg">
             OK
           </button>
         </div>
@@ -190,7 +190,7 @@ function PointPageContent() {
     return (
       <div className="flex h-screen items-center justify-center bg-black text-white">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
           <p className="text-gray-400">読み込み中...</p>
         </div>
       </div>
@@ -221,7 +221,7 @@ function PointPageContent() {
                   setShowPaymentSuccess(false);
                   // このページに留まる
                 }}
-                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
+                className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
               >
                 このページに留まる
               </button>
@@ -230,7 +230,7 @@ function PointPageContent() {
                   setShowPaymentSuccess(false);
                   router.push('/');
                 }}
-                className="border border-gray-700 hover:border-pink-400 text-white font-semibold py-3 px-6 rounded-xl transition-all"
+                className="border border-gray-700 hover:border-blue-400 text-white font-semibold py-3 px-6 rounded-xl transition-all"
               >
                 ホームへ戻る
               </button>
@@ -242,21 +242,21 @@ function PointPageContent() {
         {/* 背景装飾 */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-0 left-1/4 w-96 h-96 bg-yellow-500/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
         </div>
 
         <div className="relative z-10">
           <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-24">
             <header className="relative flex justify-center items-center mb-8">
-              <button onClick={() => router.back()} className="absolute left-0 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
+              <button onClick={() => router.back()} className="absolute left-0 p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all">
                 <ArrowLeft size={24} />
               </button>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
                 ポイント
               </h1>
               <button
                 onClick={() => setIsHelpOpen(true)}
-                className="absolute right-0 p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+                className="absolute right-0 p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
                 aria-label="ヘルプ"
               >
                 <HelpCircle size={24} />
@@ -265,13 +265,13 @@ function PointPageContent() {
 
             {pointsData ? (
               <>
-                <div className="bg-gradient-to-r from-yellow-500/20 via-pink-500/20 to-purple-500/20 backdrop-blur-sm p-6 md:p-8 rounded-2xl mb-8 border border-gray-800/50">
+                <div className="bg-gradient-to-r from-yellow-500/20 via-blue-500/20 to-cyan-500/20 backdrop-blur-sm p-6 md:p-8 rounded-2xl mb-8 border border-gray-800/50">
                   <p className="text-gray-400 text-sm mb-2">保有ポイント</p>
                   <p className="text-5xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
                     {totalPoints.toLocaleString()}
                   </p>
                   <div className="mt-4 text-sm text-gray-400 space-y-1">
-                    <p>有料ポイント: <span className="text-pink-400 font-semibold">{pointsData.paid_points.toLocaleString()}</span></p>
+                    <p>有料ポイント: <span className="text-blue-400 font-semibold">{pointsData.paid_points.toLocaleString()}</span></p>
                     <p>無料ポイント: <span className="text-yellow-400 font-semibold">{pointsData.free_points.toLocaleString()}</span></p>
                   </div>
                 </div>
@@ -286,7 +286,7 @@ function PointPageContent() {
                     className={`w-full p-5 rounded-xl font-bold transition-all flex items-center justify-center ${
                       pointsData.attendedToday 
                         ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed border border-gray-700/50' 
-                        : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 cursor-pointer shadow-lg shadow-pink-500/30'
+                        : 'bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 cursor-pointer shadow-lg shadow-blue-500/30'
                     }`}
                   >
                     {pointsData.attendedToday ? (
@@ -312,19 +312,19 @@ function PointPageContent() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {pointPackages.map(pkg => (
-                      <div key={pkg.yen} className="bg-gray-900/50 backdrop-blur-sm p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4 border border-gray-800/50 hover:border-pink-500/30 transition-all">
+                      <div key={pkg.yen} className="bg-gray-900/50 backdrop-blur-sm p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4 border border-gray-800/50 hover:border-blue-500/30 transition-all">
                         <div>
                           <p className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
                             {pkg.points.toLocaleString()} ポイント
                           </p>
                           {pkg.bonus && (
-                            <p className="text-sm text-pink-400 mt-1">+{pkg.bonus} ボーナス</p>
+                            <p className="text-sm text-blue-400 mt-1">+{pkg.bonus} ボーナス</p>
                           )}
                         </div>
                         <button 
                           onClick={() => handleCharge(pkg.points)}
                           disabled={loading}
-                          className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2 px-6 rounded-xl transition-all shadow-lg shadow-pink-500/30 whitespace-nowrap"
+                          className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/30 whitespace-nowrap"
                         >
                           {loading ? '処理中...' : `￥${pkg.yen.toLocaleString()}`}
                         </button>
@@ -348,7 +348,7 @@ function PointPageContent() {
                   </button>
                   <button
                     onClick={() => router.back()}
-                    className="border border-gray-700 hover:border-pink-400 text-white font-semibold py-2 px-6 rounded-xl transition-all"
+                    className="border border-gray-700 hover:border-blue-400 text-white font-semibold py-2 px-6 rounded-xl transition-all"
                   >
                     戻る
                   </button>
@@ -365,7 +365,7 @@ function PointPageContent() {
         content={
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold text-pink-400 mb-2">概要</h3>
+              <h3 className="text-lg font-semibold text-blue-400 mb-2">概要</h3>
               <p className="text-gray-300">
                 ポイントページでは、保有ポイントの確認、毎日出席イベントへの参加、ポイントの購入ができます。
               </p>
@@ -373,7 +373,7 @@ function PointPageContent() {
             <div>
               <h3 className="text-lg font-semibold text-pink-400 mb-2">ポイントの種類</h3>
               <ul className="list-disc list-inside space-y-2 text-gray-300 ml-2">
-                <li><strong className="text-pink-400">有料ポイント:</strong> 購入したポイントです。すべての機能で使用できます。</li>
+                <li><strong className="text-blue-400">有料ポイント:</strong> 購入したポイントです。すべての機能で使用できます。</li>
                 <li><strong className="text-yellow-400">無料ポイント:</strong> 毎日出席イベントなどで獲得できるポイントです。基本的な機能で使用できます。</li>
               </ul>
             </div>
@@ -414,7 +414,7 @@ export default function PointPage() {
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-black text-white">
           <div className="flex flex-col items-center gap-4">
-            <Loader2 className="w-12 h-12 text-pink-500 animate-spin" />
+            <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
             <p className="text-gray-400">ポイント情報を読み込み中...</p>
           </div>
         </div>

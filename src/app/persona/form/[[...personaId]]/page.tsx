@@ -72,7 +72,7 @@ const CustomModal = ({ isOpen, onConfirm, title, message }: ModalProps) => {
         <h2 className="text-lg font-bold mb-4">{title}</h2>
         <p className="text-sm text-gray-300 mb-6">{message}</p>
         <div className="flex justify-end">
-          <button onClick={onConfirm} className="bg-pink-600 hover:bg-pink-700 py-2 px-4 rounded-lg">
+          <button onClick={onConfirm} className="bg-blue-600 hover:bg-blue-700 py-2 px-4 rounded-lg">
             OK
           </button>
         </div>
@@ -222,7 +222,7 @@ export default function PersonaFormPage() {
     return (
       <div className="flex h-screen items-center justify-center bg-black text-white">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
           <p className="text-gray-400">読み込み中...</p>
         </div>
       </div>
@@ -232,7 +232,7 @@ export default function PersonaFormPage() {
   const helpContent = (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-pink-400 mb-3">ペルソナの書き方</h3>
+        <h3 className="text-lg font-semibold text-blue-400 mb-3">ペルソナの書き方</h3>
         <p className="text-sm text-gray-300 leading-relaxed mb-4">
           ペルソナの書き方に迷ったら、まずこの流れで整理してみましょう。
           ゴール → 性格/口調 → 例文 の順で書くとモデルがトーンをつかみやすくなります。
@@ -242,14 +242,14 @@ export default function PersonaFormPage() {
       <div className="grid gap-4 md:grid-cols-2">
         {personaGuides.map(({ title, body }) => (
           <div key={title} className="bg-black/30 border border-gray-800/80 rounded-xl p-4">
-            <h3 className="text-base font-semibold text-pink-300 mb-2">{title}</h3>
+            <h3 className="text-base font-semibold text-blue-300 mb-2">{title}</h3>
             <p className="text-sm text-gray-300 leading-relaxed">{body}</p>
           </div>
         ))}
       </div>
 
       <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4">
-        <h3 className="text-base font-semibold text-pink-400 mb-2">ヘルプペルソナを読み込む</h3>
+        <h3 className="text-base font-semibold text-blue-400 mb-2">ヘルプペルソナを読み込む</h3>
         <p className="text-sm text-gray-300 leading-relaxed mb-3">
           「ヘルプペルソナを読み込む」ボタンをクリックすると、書き方の例としてヘルプペルソナの内容がフォームに自動入力されます。
           これを参考にして、自分だけのペルソナを作成してみてください。
@@ -272,10 +272,10 @@ export default function PersonaFormPage() {
         title="ペルソナの書き方ガイド"
         content={helpContent}
       />
-      <div className="bg-black min-h-screen text-white">
+      <div className="bg-gray-950 min-h-screen text-white">
         {/* 背景装飾 */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+          <div className="absolute top-0 right-1/4 w-96 h-96 bg-gray-800/30 rounded-full blur-3xl" />
         </div>
 
         <div className="relative z-10">
@@ -283,17 +283,17 @@ export default function PersonaFormPage() {
             <header className="flex justify-between items-center mb-8 sticky top-0 bg-black/80 backdrop-blur-xl z-10 py-4 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-gray-900/50">
               <button
                 onClick={() => router.back()}
-                className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+                className="p-2 rounded-xl hover:bg-white/10 hover:text-blue-400 transition-all"
               >
                 <ArrowLeft size={24} />
               </button>
-              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <h1 className="text-xl md:text-2xl font-bold text-white bg-clip-text text-transparent">
                 {isEditMode ? 'ペルソナ修正' : 'ペルソナ追加'}
               </h1>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsHelpOpen(true)}
-                  className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
+                  className="p-2 rounded-xl hover:bg-white/10 hover:text-blue-400 transition-all"
                 >
                   <HelpCircle size={20} />
                 </button>
@@ -302,7 +302,7 @@ export default function PersonaFormPage() {
                   disabled={!formData.nickname || !formData.description || isSubmitting}
                   className={`font-semibold py-2 px-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                     formData.nickname && formData.description
-                      ? 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-lg shadow-pink-500/30'
+                      ? 'bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/30'
                       : 'bg-gray-800/50 text-gray-600 border border-gray-700/50'
                   }`}
                 >
@@ -313,10 +313,10 @@ export default function PersonaFormPage() {
             <main className="space-y-6">
               <div className="bg-gray-900/60 border border-gray-800/60 rounded-2xl p-4">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <p className="text-sm text-gray-300">ペルソナの書き方に迷ったら、右上の<strong className="text-pink-400">?</strong>ボタンからガイドを確認できます。</p>
+                  <p className="text-sm text-gray-300">ペルソナの書き方に迷ったら、右上の<strong className="text-blue-400">?</strong>ボタンからガイドを確認できます。</p>
                   <button
                     onClick={applyHelpPersonaTemplate}
-                    className="w-full md:w-auto bg-gray-800/70 border border-pink-400/40 text-pink-300 font-semibold px-4 py-2 rounded-xl hover:bg-pink-500/10 transition-all"
+                    className="w-full md:w-auto bg-gray-800/70 border border-blue-400/40 text-blue-300 font-semibold px-4 py-2 rounded-xl hover:bg-white/10 transition-all"
                   >
                     ヘルプペルソナを読み込む
                   </button>
@@ -332,7 +332,7 @@ export default function PersonaFormPage() {
                     value={formData.nickname}
                     onChange={(e) => handleChange('nickname', e.target.value)}
                     maxLength={20}
-                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all placeholder-gray-500"
+                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all placeholder-gray-500"
                     placeholder="ニックネームを入力"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
@@ -347,7 +347,7 @@ export default function PersonaFormPage() {
                   type="number"
                   value={formData.age ?? ''}
                   onChange={handleAgeChange}
-                  className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all placeholder-gray-500"
+                  className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all placeholder-gray-500"
                   placeholder="年齢を入力（任意）"
                 />
               </div>
@@ -359,8 +359,8 @@ export default function PersonaFormPage() {
                     onClick={() => handleChange('gender', '女性')}
                     className={`p-4 rounded-xl border-2 transition-all ${
                       formData.gender === '女性'
-                        ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 border-pink-500/50 text-pink-400'
-                        : 'bg-gray-800/50 border-gray-700/50 hover:border-pink-500/30 text-gray-300'
+                        ? 'bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border-blue-500/50 text-blue-400'
+                        : 'bg-gray-800/50 border-gray-700/50 hover:border-blue-500/30 text-gray-300'
                     }`}
                   >
                     女性
@@ -369,8 +369,8 @@ export default function PersonaFormPage() {
                     onClick={() => handleChange('gender', '男性')}
                     className={`p-4 rounded-xl border-2 transition-all ${
                       formData.gender === '男性'
-                        ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 border-pink-500/50 text-pink-400'
-                        : 'bg-gray-800/50 border-gray-700/50 hover:border-pink-500/30 text-gray-300'
+                        ? 'bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border-blue-500/50 text-blue-400'
+                        : 'bg-gray-800/50 border-gray-700/50 hover:border-blue-500/30 text-gray-300'
                     }`}
                   >
                     男性
@@ -388,7 +388,7 @@ export default function PersonaFormPage() {
                     onChange={(e) => handleChange('description', e.target.value)}
                     maxLength={1000}
                     rows={8}
-                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all resize-none placeholder-gray-500"
+                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all resize-none placeholder-gray-500"
                     placeholder="詳細情報を入力"
                   />
                   <span className="absolute right-3 bottom-3 text-sm text-gray-400">

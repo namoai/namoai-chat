@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, ArrowLeft, Edit } from 'lucide-react';
+import { ChevronRight, ArrowLeft, Edit, Menu, X } from 'lucide-react';
 import type { Session } from 'next-auth';
 
 // ガイドデータの型定義
@@ -27,14 +27,14 @@ const AccordionMenu = ({ title, children, isOpen, onClick }: { title: string, ch
       onClick={onClick} 
       className={`w-full flex justify-between items-center py-3 px-4 text-left font-semibold rounded-xl transition-all ${
         isOpen 
-          ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 text-pink-400 border border-pink-500/30' 
-          : 'hover:bg-pink-500/10 hover:text-pink-400 text-gray-300'
+          ? 'bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 border border-blue-500/30' 
+          : 'hover:bg-blue-500/10 hover:text-blue-400 text-gray-300'
       }`}
     >
       <span>{title}</span>
       <ChevronRight size={16} className={`transition-transform ${isOpen ? 'rotate-90' : ''}`} />
     </button>
-    {isOpen && <div className="pl-4 border-l border-pink-500/30 ml-4 mt-2">{children}</div>}
+    {isOpen && <div className="pl-4 border-l border-blue-500/30 ml-4 mt-2">{children}</div>}
   </div>
 );
 
@@ -45,6 +45,18 @@ export default function GuidePage() {
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({});
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // モバイル判定
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -113,84 +125,160 @@ export default function GuidePage() {
       {/* 背景装飾 */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10 flex flex-col flex-grow">
-        <header className="sticky top-0 bg-black/80 backdrop-blur-xl z-10 p-4 border-b border-gray-900/50 flex items-center justify-between">
+        <header className="sticky top-0 bg-black/80 backdrop-blur-xl z-20 p-4 border-b border-gray-900/50 flex items-center justify-between">
           <div className="flex items-center">
-            <button onClick={handleGoBack} className="p-2 mr-4 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all">
+            <button onClick={handleGoBack} className="p-2 mr-4 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all">
               <ArrowLeft size={24} />
             </button>
-            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent">
               ユーザーガイド
             </h1>
           </div>
-          {session?.user?.role === 'ADMIN' && (
-            <Link href="/admin/guides" className="flex items-center bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-sm font-semibold py-2 px-4 rounded-xl transition-all shadow-lg shadow-pink-500/30">
-              <Edit size={16} className="mr-2" />
-              ガイド管理
-            </Link>
-          )}
+          <div className="flex items-center gap-2">
+            {isMobile && (
+              <button 
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
+              >
+                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            )}
+            {session?.user?.role === 'ADMIN' && (
+              <Link href="/admin/guides" className="flex items-center bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white text-sm font-semibold py-2 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30">
+                <Edit size={16} className="mr-2" />
+                ガイド管理
+              </Link>
+            )}
+          </div>
         </header>
         
         <div className="flex flex-grow overflow-hidden">
-          <aside className="w-full md:w-80 lg:w-96 p-4 border-r border-gray-800/50 overflow-y-auto bg-gray-900/30 backdrop-blur-sm">
-            <nav className="space-y-2">
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
-                    <p className="text-gray-400">読み込み中...</p>
-                  </div>
-                </div>
-              ) : Object.keys(guides).map(mainCategory => (
-                <AccordionMenu 
-                  key={mainCategory} 
-                  title={mainCategory}
-                  isOpen={!!openMenus[mainCategory]}
-                  onClick={() => toggleMenu(mainCategory)}
-                >
-                  {Object.keys(guides[mainCategory]).map(subCategory => (
-                     <AccordionMenu 
-                      key={subCategory} 
-                      title={subCategory}
-                      isOpen={!!openMenus[subCategory]}
-                      onClick={() => toggleMenu(subCategory)}
-                    >
-                      <div className="py-1">
-                        {guides[mainCategory][subCategory].map(guide => (
-                          <button 
-                            key={guide.id}
-                            onClick={() => setSelectedGuide(guide)}
-                            className={`block w-full text-left py-2 px-3 text-sm rounded-xl transition-all ${
-                              selectedGuide?.id === guide.id 
-                                ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 text-pink-400 font-semibold border border-pink-500/30' 
-                                : 'text-gray-400 hover:bg-pink-500/10 hover:text-pink-400'
-                            }`}
-                          >
-                            {guide.title}
-                          </button>
-                        ))}
+          {/* モバイル: ドロワー形式のサイドバー */}
+          {isMobile ? (
+            <>
+              {/* オーバーレイ */}
+              {isMobileMenuOpen && (
+                <div 
+                  className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                />
+              )}
+              {/* サイドバー */}
+              <aside 
+                className={`fixed top-[73px] left-0 h-[calc(100vh-73px)] w-80 p-4 border-r border-gray-800/50 overflow-y-auto bg-gray-900/95 backdrop-blur-xl z-40 lg:hidden transition-transform duration-300 ${
+                  isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+                }`}
+              >
+                <nav className="space-y-2">
+                  {loading ? (
+                    <div className="flex justify-center py-8">
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                        <p className="text-gray-400">読み込み中...</p>
                       </div>
+                    </div>
+                  ) : Object.keys(guides).map(mainCategory => (
+                    <AccordionMenu 
+                      key={mainCategory} 
+                      title={mainCategory}
+                      isOpen={!!openMenus[mainCategory]}
+                      onClick={() => toggleMenu(mainCategory)}
+                    >
+                      {Object.keys(guides[mainCategory]).map(subCategory => (
+                         <AccordionMenu 
+                          key={subCategory} 
+                          title={subCategory}
+                          isOpen={!!openMenus[subCategory]}
+                          onClick={() => toggleMenu(subCategory)}
+                        >
+                          <div className="py-1">
+                            {guides[mainCategory][subCategory].map(guide => (
+                              <button 
+                                key={guide.id}
+                                onClick={() => {
+                                  setSelectedGuide(guide);
+                                  setIsMobileMenuOpen(false);
+                                }}
+                                className={`block w-full text-left py-2 px-3 text-sm rounded-xl transition-all ${
+                                  selectedGuide?.id === guide.id 
+                                    ? 'bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 font-semibold border border-blue-500/30' 
+                                    : 'text-gray-400 hover:bg-blue-500/10 hover:text-blue-400'
+                                }`}
+                              >
+                                {guide.title}
+                              </button>
+                            ))}
+                          </div>
+                        </AccordionMenu>
+                      ))}
                     </AccordionMenu>
                   ))}
-                </AccordionMenu>
-              ))}
-            </nav>
-          </aside>
+                </nav>
+              </aside>
+            </>
+          ) : (
+            /* PC: 通常のサイドバー */
+            <aside className="w-80 lg:w-96 p-4 border-r border-gray-800/50 overflow-y-auto bg-gray-900/30 backdrop-blur-sm flex-shrink-0">
+              <nav className="space-y-2">
+                {loading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                      <p className="text-gray-400">読み込み中...</p>
+                    </div>
+                  </div>
+                ) : Object.keys(guides).map(mainCategory => (
+                  <AccordionMenu 
+                    key={mainCategory} 
+                    title={mainCategory}
+                    isOpen={!!openMenus[mainCategory]}
+                    onClick={() => toggleMenu(mainCategory)}
+                  >
+                    {Object.keys(guides[mainCategory]).map(subCategory => (
+                       <AccordionMenu 
+                        key={subCategory} 
+                        title={subCategory}
+                        isOpen={!!openMenus[subCategory]}
+                        onClick={() => toggleMenu(subCategory)}
+                      >
+                        <div className="py-1">
+                          {guides[mainCategory][subCategory].map(guide => (
+                            <button 
+                              key={guide.id}
+                              onClick={() => setSelectedGuide(guide)}
+                              className={`block w-full text-left py-2 px-3 text-sm rounded-xl transition-all ${
+                                selectedGuide?.id === guide.id 
+                                  ? 'bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 font-semibold border border-blue-500/30' 
+                                  : 'text-gray-400 hover:bg-blue-500/10 hover:text-blue-400'
+                              }`}
+                            >
+                              {guide.title}
+                            </button>
+                          ))}
+                        </div>
+                      </AccordionMenu>
+                    ))}
+                  </AccordionMenu>
+                ))}
+              </nav>
+            </aside>
+          )}
 
-          <main className="flex-1 p-6 md:p-8 overflow-y-auto">
+          <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto min-w-0">
             {selectedGuide ? (
-              <article className="prose prose-invert max-w-none bg-gray-900/30 backdrop-blur-sm p-6 md:p-8 rounded-2xl border border-gray-800/50">
-                <h1 className="text-3xl font-bold mb-6 bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+              <article className="prose prose-invert max-w-none bg-gray-900/30 backdrop-blur-sm p-4 md:p-6 lg:p-8 rounded-2xl border border-gray-800/50">
+                <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6 bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
                   {selectedGuide.title}
                 </h1>
-                <div className="text-gray-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: selectedGuide.content }} />
+                <div className="text-gray-300 leading-relaxed text-sm md:text-base" dangerouslySetInnerHTML={{ __html: selectedGuide.content }} />
               </article>
             ) : (
               !loading && (
-                <div className="flex items-center justify-center h-full">
+                <div className="flex items-center justify-center h-full min-h-[60vh]">
                   <p className="text-gray-500 text-lg">表示するガイドを選択してください。</p>
                 </div>
               )

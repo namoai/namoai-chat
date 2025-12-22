@@ -2,19 +2,33 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import BottomNav from "./BottomNav";
 import Footer from "./Footer";
+import PCHeader from "./PCHeader";
+import PCSidebar from "./PCSidebar";
 
 // 下部のナビゲーションバーを非表示にするパスのリスト
 // ✅ お知らせページ(`/notice`)のパスを追加して、メニューバーを非表示にします。
-const HIDE_NAV_PATHS = ["/login", "/register", "/chat/", "/characters/", "/notice", "/guide", "/complete-profile"];
+const HIDE_NAV_PATHS = ["/login", "/register", "/chat/", "/complete-profile"];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   // 現在のURLパスを取得します
   const pathname = usePathname();
   const router = useRouter();
   const { data: session, status } = useSession();
+  const [isMobile, setIsMobile] = useState(false);
+
+  // モバイル/PC判定
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+    
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // ✅ Googleログイン後の追加情報入力チェック
   useEffect(() => {
@@ -46,28 +60,52 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [session, status, pathname, router]);
 
   // 現在のパスが非表示リストに含まれていない場合にのみ、ナビゲーションバーを表示します
-  const shouldShowNav = !HIDE_NAV_PATHS.some(path => {
-    // `/characters/` は詳細ページ（例: /characters/123）のみ非表示対象とし、
-    // 作成ページ（/characters/create）は対象外とします。
-    if (path === "/characters/") {
-      return pathname.startsWith(path) && pathname !== '/characters/create';
-    }
-    return pathname.startsWith(path);
-  });
+  // PCの場合はログイン/登録ページでもナビゲーションを表示
+  const shouldShowNav = isMobile 
+    ? !HIDE_NAV_PATHS.some(path => pathname.startsWith(path))
+    : !HIDE_NAV_PATHS.filter(path => path !== "/login" && path !== "/register").some(path => pathname.startsWith(path));
 
+  // モバイル版レイアウト
+  if (isMobile) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-950">
+        <main className="flex-1 flex flex-col">
+          <div className="flex-1">{children}</div>
+          
+          {/* Footer - 하단 네비게이션 바 위에 배치 (스크롤 시 보임) */}
+          {shouldShowNav && (
+            <div className="mt-auto pb-20">
+              <Footer />
+            </div>
+          )}
+        </main>
+        
+        {/* モバイル用ハムバーガーナビゲーション（BottomNav） */}
+        {shouldShowNav && <BottomNav />}
+      </div>
+    );
+  }
+
+  // PC版レイアウト
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* ナビゲーションバーが表示される場合のみ、下部にパディングを追加します。
-        これにより、ページの内容がナビゲーションバーに隠れるのを防ぎます。
-        表示されない場合はパディングをなくし、画面全体を使用できるようにします。
-      */}
-      <main className={`flex-1 ${shouldShowNav ? "pb-24" : ""}`}>{children}</main>
+    <div className="min-h-screen flex flex-col bg-gray-950">
+      {/* PCヘッダー */}
+      {shouldShowNav && <PCHeader />}
       
-      {/* Footer - 約款リンクを表示 */}
-      {shouldShowNav && <Footer />}
-      
-      {/* shouldShowNavがtrueの場合のみ、BottomNavコンポーネントをレンダリングします */}
-      {shouldShowNav && <BottomNav />}
+      <div className="flex flex-1 flex-col">
+        <div className="flex flex-1">
+          {/* PCサイドバー */}
+          {shouldShowNav && <PCSidebar />}
+          
+          {/* メインコンテンツエリア - サイドバーがある場合のみマージンを追加 */}
+          <div className={`flex-1 flex flex-col ${shouldShowNav ? 'ml-20' : ''}`}>
+            <main className="flex-1 overflow-y-auto">{children}</main>
+            
+            {/* Footer - メインコンテンツと同じ幅 */}
+            {shouldShowNav && <Footer />}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

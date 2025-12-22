@@ -33,7 +33,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ modalState, setMo
               キャンセル
             </button>
           )}
-          <button onClick={handleConfirm} className={`px-4 py-2 text-white ${modalState.confirmText?.includes("削除") ? "bg-red-600 hover:bg-red-500" : "bg-pink-600 hover:bg-pink-500"} rounded-lg`}>
+          <button onClick={handleConfirm} className={`px-4 py-2 text-white ${modalState.confirmText?.includes("削除") ? "bg-red-600 hover:bg-red-500" : "bg-blue-600 hover:bg-blue-500"} rounded-lg`}>
             {modalState.confirmText || "OK"}
           </button>
         </div>

@@ -122,7 +122,7 @@ export default function ChatPage() {
   // ▼▼▼【ビルドエラー修正】setGenerationSettings を useState 宣言から完全に削除 ▼▼▼
   const [generationSettings] = useState<GenerationSettings>({ model: "gemini-2.5-flash" });
   
-  const [chatStyleSettings, setChatStyleSettings] = useState<ChatStyleSettings>({ fontSize: 14, userBubbleColor: "#db2777", userBubbleTextColor: "#ffffff" });
+  const [chatStyleSettings, setChatStyleSettings] = useState<ChatStyleSettings>({ fontSize: 14, userBubbleColor: "#2563eb", userBubbleTextColor: "#ffffff" });
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [editingUserContent, setEditingUserContent] = useState("");
   const [editingModelContent, setEditingModelContent] = useState("");
@@ -911,7 +911,14 @@ export default function ChatPage() {
   // --- レンダリング ---
 
   if (isInitialLoading || !characterInfo) {
-    return <div className="min-h-screen bg-black text-white flex justify-center items-center">チャットを準備中...</div>;
+    return (
+      <div className="min-h-screen bg-black text-white flex justify-center items-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+          <p className="text-gray-400">チャットを準備中...</p>
+        </div>
+      </div>
+    );
   }
 
   const dynamicStyles = {

@@ -63,7 +63,7 @@ const EditableTextarea: React.FC<{
         <button onClick={onCancel} className="text-xs text-gray-400 hover:underline">
           キャンセル
         </button>
-        <button onClick={onSave} className="text-xs text-pink-400 hover:underline">
+        <button onClick={onSave} className="text-xs text-blue-400 hover:underline">
           保存
         </button>
       </div>
@@ -161,7 +161,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                 {!isEditingUser && (
                   <div className="flex items-center self-end opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => handleDelete(userMsg.id)} className="p-1 hover:text-red-500"><Trash2 size={16} /></button>
-                    <button onClick={() => handleEditStart(userMsg)} className="p-1 hover:text-pink-400"><Edit3 size={16} /></button>
+                    <button onClick={() => handleEditStart(userMsg)} className="p-1 hover:text-blue-400"><Edit3 size={16} /></button>
                   </div>
                 )}
                 <div style={{ backgroundColor: "var(--user-bubble-color)", color: "var(--user-bubble-text-color)" }} className="max-w-xs md:max-w-md lg:max-w-2xl px-4 py-2 rounded-xl">
@@ -227,7 +227,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({
                   {!isEditingModel && (
                     <div className="flex items-center justify-between w-full max-w-xs md:max-w-md lg:max-w-2xl mt-1 h-6 text-gray-400">
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleEditStart(activeModelMessage)} className="p-1 hover:text-pink-400"><Edit3 size={14} /></button>
+                        <button onClick={() => handleEditStart(activeModelMessage)} className="p-1 hover:text-blue-400"><Edit3 size={14} /></button>
                         <button onClick={() => handleDelete(activeModelMessage.id)} className="p-1 hover:text-red-500"><Trash2 size={14} /></button>
                         {/* 全てのターンで再生成ボタンを表示 - ローディング中は回転アニメーション */}
                         <button 

@@ -58,7 +58,7 @@ const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalSta
           )}
           <button 
             onClick={handleConfirm} 
-            className={`px-4 py-2 text-white ${modalState.confirmText?.includes('削除') ? 'bg-red-600 hover:bg-red-500' : 'bg-pink-600 hover:bg-pink-500'} rounded-lg transition-colors`}
+            className={`px-4 py-2 text-white ${modalState.confirmText?.includes('削除') ? 'bg-red-600 hover:bg-red-500' : 'bg-blue-600 hover:bg-blue-500'} rounded-lg transition-colors`}
           >
             {modalState.confirmText || 'OK'}
           </button>
@@ -127,7 +127,10 @@ export default function NoticeDetailClient({ noticeId }: NoticeDetailClientProps
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        ローディング中...
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+          <p className="text-gray-400">読み込み中...</p>
+        </div>
       </div>
     );
   }
@@ -152,7 +155,7 @@ export default function NoticeDetailClient({ noticeId }: NoticeDetailClientProps
   const helpContent = (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-pink-400 mb-2">お知らせ詳細ページについて</h3>
+        <h3 className="text-lg font-semibold text-blue-400 mb-2">お知らせ詳細ページについて</h3>
         <p className="text-sm text-gray-300 leading-relaxed">
           このページでは、サービスからの重要な情報やアップデート情報を確認することができます。
         </p>
@@ -193,7 +196,7 @@ export default function NoticeDetailClient({ noticeId }: NoticeDetailClientProps
             <h1 className="font-bold text-lg">お知らせ詳細</h1>
             <button 
               onClick={() => setIsHelpOpen(true)} 
-              className="p-2 rounded-full hover:bg-gray-800 hover:text-pink-400 transition-colors cursor-pointer"
+              className="p-2 rounded-full hover:bg-gray-800 hover:text-blue-400 transition-colors cursor-pointer"
             >
               <HelpCircle size={20} />
             </button>
@@ -222,7 +225,7 @@ export default function NoticeDetailClient({ noticeId }: NoticeDetailClientProps
           </p>
           <div className="border-t border-gray-800 my-6"></div>
           <article
-            className="prose prose-invert prose-p:text-gray-300 prose-strong:text-pink-400"
+            className="prose prose-invert max-w-none prose-p:text-gray-200 prose-p:leading-relaxed prose-headings:text-white prose-headings:font-bold prose-strong:text-blue-400 prose-a:text-blue-400 prose-a:hover:text-blue-300 prose-ul:text-gray-200 prose-ol:text-gray-200 prose-li:text-gray-200 prose-code:text-blue-400 prose-pre:bg-gray-900 prose-pre:text-gray-200 prose-blockquote:text-gray-300 prose-blockquote:border-blue-500/50"
             dangerouslySetInnerHTML={{ __html: notice.content }}
           />
         </main>

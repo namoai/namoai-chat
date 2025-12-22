@@ -23,8 +23,8 @@ export default async function TermsIndexPage() {
     <div className="bg-black min-h-screen text-white">
       {/* 背景装飾 */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10">
@@ -33,12 +33,12 @@ export default async function TermsIndexPage() {
           <header className="mb-8">
             <Link 
               href="/"
-              className="inline-flex items-center text-gray-400 hover:text-pink-400 transition-colors mb-4"
+              className="inline-flex items-center text-gray-400 hover:text-blue-400 transition-colors mb-4"
             >
               <ArrowLeft size={20} className="mr-2" />
               ホームに戻る
             </Link>
-            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent">
               約款・規約
             </h1>
           </header>
@@ -50,9 +50,9 @@ export default async function TermsIndexPage() {
                 <Link
                   key={term.id}
                   href={`/terms/${term.slug}`}
-                  className="block bg-gray-900/30 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50 hover:border-pink-500/30 transition-all hover:bg-gray-900/50"
+                  className="block bg-gray-900/30 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50 hover:border-blue-500/30 transition-all hover:bg-gray-900/50"
                 >
-                  <h2 className="text-xl font-bold text-white mb-2 hover:text-pink-400 transition-colors">
+                  <h2 className="text-xl font-bold text-white mb-2 hover:text-blue-400 transition-colors">
                     {term.title}
                   </h2>
                   <p className="text-sm text-gray-400">

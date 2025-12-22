@@ -48,7 +48,7 @@ const ConfirmationModal = ({ modalState, setModalState }: { modalState: ModalSta
           )}
           <button 
             onClick={handleConfirm} 
-            className="px-4 py-2 bg-pink-600 text-white hover:bg-pink-500 rounded-lg transition-colors"
+            className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-500 rounded-lg transition-colors"
           >
             {modalState.confirmText || 'OK'}
           </button>
@@ -494,7 +494,7 @@ function LoginComponent() {
                 <Input
                   type="email"
                   placeholder="メールアドレスを入力"
-                  className="bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all"
+                  className="bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
@@ -510,7 +510,7 @@ function LoginComponent() {
                   <Input
                     type={showPassword ? "text" : "password"}
                     placeholder="パスワードを入力"
-                    className="bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 pr-12 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all"
+                    className="bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 pr-12 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
@@ -536,7 +536,7 @@ function LoginComponent() {
                   type="text"
                   placeholder="6桁の認証コードを入力"
                   maxLength={6}
-                  className="bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all text-center text-2xl tracking-widest"
+                  className="bg-gray-800/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-center text-2xl tracking-widest"
                   value={twoFactorCode}
                   onChange={(e) => {
                     const value = e.target.value.replace(/\D/g, ''); // 数字のみ
@@ -582,13 +582,13 @@ function LoginComponent() {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-pink-500 focus:ring-2 focus:ring-pink-500/50 focus:ring-offset-0 cursor-pointer"
+                  className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-0 cursor-pointer"
                 />
                 <span className="text-sm text-gray-300 group-hover:text-gray-200 transition-colors">
                   ログイン状態を保持する
                 </span>
               </label>
-              <button className="text-sm text-pink-400 hover:text-pink-300 transition-colors">
+              <button className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
                 パスワード再設定
               </button>
             </div>
@@ -609,7 +609,7 @@ function LoginComponent() {
           </div>
 
           <Button
-            className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-pink-500/30"
+            className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-blue-500/30"
             onClick={handleLogin}
             disabled={show2FAInput ? verifying2FACode : false}
           >
@@ -618,7 +618,7 @@ function LoginComponent() {
         </div>
 
         <p className="text-center text-sm mt-6">
-          <Link href="/register" className="text-pink-400 hover:text-pink-300 transition-colors underline">
+          <Link href="/register" className="text-blue-400 hover:text-blue-300 transition-colors underline">
             アカウントがない方
           </Link>
         </p>
@@ -629,32 +629,44 @@ function LoginComponent() {
 
 export default function LoginPage() {
   const router = useRouter();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-gray-950 text-white">
       {/* 背景装飾 */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10 flex flex-col items-center px-4 py-8 min-h-screen">
-        <header className="w-full max-w-md flex items-center justify-between mb-8">
-          <button 
-            onClick={() => router.back()} 
-            className="p-2 rounded-xl hover:bg-pink-500/10 hover:text-pink-400 transition-all"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent absolute left-1/2 -translate-x-1/2">
-            ログイン/会員登録
-          </h1>
-          <div className="w-10 h-10"></div>
-        </header>
+        {isMobile && (
+          <header className="w-full max-w-md flex items-center justify-between mb-8">
+            <button 
+              onClick={() => router.back()} 
+              className="p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent absolute left-1/2 -translate-x-1/2">
+              ログイン
+            </h1>
+            <div className="w-10 h-10"></div>
+          </header>
+        )}
         
         <Suspense fallback={
           <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+            <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
             <p className="text-gray-400">読み込み中...</p>
           </div>
         }>
