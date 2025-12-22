@@ -8,17 +8,24 @@ import { useEffect, useState } from 'react';
 type Term = {
   slug: string;
   title: string;
+  displayOrder: number;
 };
 
 export default function Footer() {
   const pathname = usePathname();
   const [terms, setTerms] = useState<Term[]>([]);
 
-  // 約款一覧を取得
+  // 約款一覧を取得（displayOrderでソート）
   useEffect(() => {
     fetch('/api/terms')
       .then(res => res.json())
-      .then(data => setTerms(data))
+      .then(data => {
+        // displayOrderでソート（念のため）
+        const sorted = Array.isArray(data) 
+          ? [...data].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+          : [];
+        setTerms(sorted);
+      })
       .catch(err => console.error('約款取得エラー:', err));
   }, []);
 
@@ -34,13 +41,13 @@ export default function Footer() {
     <footer className="bg-black/80 backdrop-blur-xl border-t border-gray-900/50 mt-auto w-full">
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          {/* 約款リンク */}
-          <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+          {/* 約款リンク - displayOrder順に左から表示、自動折り返し対応 */}
+          <nav className="flex flex-wrap justify-start items-center gap-x-6 gap-y-2">
             {terms.map((term) => (
               <Link
                 key={term.slug}
                 href={`/terms/${term.slug}`}
-                className="flex items-center gap-2 text-sm text-gray-400 hover:text-blue-400 transition-colors"
+                className="flex items-center gap-2 text-sm text-gray-400 hover:text-blue-400 transition-colors whitespace-nowrap"
               >
                 <FileText size={14} />
                 <span>{term.title}</span>
