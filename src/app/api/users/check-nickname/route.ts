@@ -26,15 +26,18 @@ export async function POST(request: NextRequest) {
     }
 
     const trimmedNickname = nickname.trim();
+    
+    // デバッグ: 元の値とサニタイズ後の値をログに記録
     const sanitizedNickname = sanitizeString(trimmedNickname);
+    console.log('[Check Nickname] Original:', trimmedNickname);
+    console.log('[Check Nickname] Sanitized:', sanitizedNickname);
+    console.log('[Check Nickname] Length diff:', trimmedNickname.length, '->', sanitizedNickname.length);
     
     // sanitizeStringが空文字列を返した場合、元の値を使用（日本語文字が含まれている可能性があるため）
-    if (!sanitizedNickname || sanitizedNickname.length === 0) {
-      return NextResponse.json({ error: 'ニックネームが無効です。' }, { status: 400 });
-    }
+    const finalNickname = (!sanitizedNickname || sanitizedNickname.length === 0) ? trimmedNickname : sanitizedNickname;
     
-    // サニタイズ後の長さチェック
-    if (sanitizedNickname.length < 2 || sanitizedNickname.length > 50) {
+    // 最終的な長さチェック
+    if (finalNickname.length < 2 || finalNickname.length > 50) {
       return NextResponse.json({ error: 'ニックネームは2〜50文字で入力してください。' }, { status: 400 });
     }
     
@@ -51,12 +54,18 @@ export async function POST(request: NextRequest) {
       // セッションがなくても継続進行（会員登録時）
     }
 
+    // データベースでは両方の形式で検索（既存データとの互換性のため）
     const existingUser = await prisma.users.findFirst({
       where: {
-        nickname: sanitizedNickname,
+        OR: [
+          { nickname: finalNickname },
+          { nickname: trimmedNickname }, // 元の値でも検索（サニタイズされていない可能性があるため）
+        ],
         ...(currentUserId ? { NOT: { id: currentUserId } } : {}), // 自分自身は除外
       },
     });
+    
+    console.log('[Check Nickname] Existing user found:', !!existingUser);
 
     if (existingUser) {
       return NextResponse.json({ available: false, message: 'このニックネームは既に使用されています。' }, { status: 200 });
