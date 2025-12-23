@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Mail, Lock, User, Phone, Smile, ArrowLeft, ChevronRight, Eye, EyeOff } from "lucide-react"; // ✅ ボタンアイコンを追加
 import { fetchWithCsrf } from "@/lib/csrf-client";
+import { validatePassword } from "@/lib/password-policy";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -85,7 +86,7 @@ export default function SignUpPage() {
 
     setCheckingNickname(true);
     try {
-      const response = await fetch("/api/users/check-nickname", {
+      const response = await fetchWithCsrf("/api/users/check-nickname", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nickname: form.nickname }),
@@ -521,6 +522,58 @@ export default function SignUpPage() {
                     </Button>
                   )}
                 </div>
+                {/* パスワードリアルタイム検証 */}
+                {field === "password" && form.password && (
+                  <div className="mt-2 space-y-1">
+                    {(() => {
+                      const validation = validatePassword(form.password);
+                      return (
+                        <>
+                          <div className="text-xs text-gray-400 mb-2">
+                            <p className="font-semibold mb-1">パスワード要件:</p>
+                            <ul className="list-disc list-inside space-y-0.5 ml-2">
+                              <li className={form.password.length >= 8 ? "text-green-400" : "text-gray-500"}>
+                                {form.password.length >= 8 ? "✓" : "✗"} 8文字以上
+                              </li>
+                              <li className={/[a-z]/.test(form.password) ? "text-green-400" : "text-gray-500"}>
+                                {/[a-z]/.test(form.password) ? "✓" : "✗"} 小文字（a-z）を含む
+                              </li>
+                              <li className={/[0-9]/.test(form.password) ? "text-green-400" : "text-gray-500"}>
+                                {/[0-9]/.test(form.password) ? "✓" : "✗"} 数字（0-9）を含む
+                              </li>
+                              <li className={/[^a-zA-Z0-9]/.test(form.password) ? "text-green-400" : "text-gray-500"}>
+                                {/[^a-zA-Z0-9]/.test(form.password) ? "✓" : "✗"} 特殊文字（!@#$%^&*など）を含む
+                              </li>
+                            </ul>
+                          </div>
+                          {validation.errors.length > 0 && (
+                            <div className="space-y-0.5">
+                              {validation.errors.map((error, idx) => (
+                                <p key={idx} className="text-red-400 text-xs flex items-center gap-1">
+                                  <span>✗</span> {error}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                          {validation.warnings.length > 0 && validation.errors.length === 0 && (
+                            <div className="space-y-0.5">
+                              {validation.warnings.map((warning, idx) => (
+                                <p key={idx} className="text-yellow-400 text-xs flex items-center gap-1">
+                                  <span>⚠</span> {warning}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                          {validation.isValid && (
+                            <p className="text-green-400 text-xs flex items-center gap-1">
+                              <span>✓</span> パスワード要件を満たしています
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
                 {/* パスワード確認リアルタイム表示 */}
                 {field === "passwordConfirm" && form.password && form.passwordConfirm && (
                   <div className="mt-2">
