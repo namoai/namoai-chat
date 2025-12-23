@@ -40,10 +40,12 @@ export const changePasswordSchema = z.object({
 });
 
 export const sanitizeString = (value: string): string => {
+  // HTMLタグのみを除去し、日本語文字を含むすべてのテキストを保持
   return sanitizeHtml(value, {
     allowedTags: [],
     allowedAttributes: {},
-    textFilter: (text) => text.trim(),
+    // 日本語文字（ひらがな、カタカナ、漢字）を含むすべてのUnicode文字を許可
+    textFilter: (text) => text,
   }).trim();
 };
 

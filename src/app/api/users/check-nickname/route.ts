@@ -25,7 +25,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'ニックネームは2〜12文字で入力してください。' }, { status: 400 });
     }
 
-    const sanitizedNickname = sanitizeString(nickname.trim());
+    const trimmedNickname = nickname.trim();
+    const sanitizedNickname = sanitizeString(trimmedNickname);
+    
+    // sanitizeStringが空文字列を返した場合、元の値を使用（日本語文字が含まれている可能性があるため）
+    if (!sanitizedNickname || sanitizedNickname.length === 0) {
+      return NextResponse.json({ error: 'ニックネームが無効です。' }, { status: 400 });
+    }
+    
+    // サニタイズ後の長さチェック
+    if (sanitizedNickname.length < 2 || sanitizedNickname.length > 50) {
+      return NextResponse.json({ error: 'ニックネームは2〜50文字で入力してください。' }, { status: 400 });
+    }
+    
     const prisma = await getPrisma();
 
     // 現在ログイン中のユーザーのニックネームか確認（編集時は自分のニックネームは重複として処理しない）

@@ -615,7 +615,9 @@ export default function SignUpPage() {
                     if (month && (monthNum < 1 || monthNum > 12)) {
                       return; // 無効な月は入力不可
                     }
-                    const newDate = `${currentDate[0] || ''}-${month.padStart(2, '0')}-${currentDate[2] || ''}`.replace(/^-+/, '');
+                    // 空の場合はpadStartしない（00にならないように）
+                    const monthFormatted = month ? month.padStart(2, '0') : '';
+                    const newDate = `${currentDate[0] || ''}-${monthFormatted}-${currentDate[2] || ''}`.replace(/^-+/, '');
                     setForm((prev) => ({ ...prev, birthdate: newDate }));
                     // 2桁入力時に日フィールドへフォーカス移動
                     if (month.length === 2) {
@@ -645,7 +647,9 @@ export default function SignUpPage() {
                     if (day && (dayNum < 1 || dayNum > 31)) {
                       return; // 無効な日は入力不可
                     }
-                    const newDate = `${currentDate[0] || ''}-${currentDate[1] || ''}-${day.padStart(2, '0')}`.replace(/^-+/, '');
+                    // 空の場合はpadStartしない（00にならないように）
+                    const dayFormatted = day ? day.padStart(2, '0') : '';
+                    const newDate = `${currentDate[0] || ''}-${currentDate[1] || ''}-${dayFormatted}`.replace(/^-+/, '');
                     setForm((prev) => ({ ...prev, birthdate: newDate }));
                   }}
                 />
