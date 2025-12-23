@@ -552,6 +552,55 @@ export default function CharacterDetailPage({
       });
     }
   };
+
+  const handleBlockAuthor = () => {
+    if (!character?.author?.id || !session?.user?.id) {
+      setModalState({
+        isOpen: true,
+        title: 'エラー',
+        message: 'ログインが必要です。',
+        isAlert: true,
+      });
+      setShowMenu(false);
+      return;
+    }
+    
+    const authorId = character.author.id;
+    setShowMenu(false);
+    setModalState({
+      isOpen: true,
+      title: '制作者をブロック',
+      message: 'この制作者をブロックしてもよろしいですか？相互にプロフィール閲覧・コメント・チャットができなくなります。',
+      confirmText: 'ブロック',
+      onConfirm: async () => {
+        if (!authorId) return;
+        try {
+          const res = await fetchWithCsrf(`/api/profile/${authorId}/block`, {
+            method: 'POST',
+          });
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'ブロックに失敗しました。');
+          }
+          const data = await res.json();
+          setModalState({
+            isOpen: true,
+            title: 'ブロック完了',
+            message: data.isBlocked ? '制作者をブロックしました。' : 'ブロックを解除しました。',
+            isAlert: true,
+            onConfirm: () => router.push('/'),
+          });
+        } catch (err) {
+          setModalState({
+            isOpen: true,
+            title: 'エラー',
+            message: err instanceof Error ? err.message : 'ブロック処理中にエラーが発生しました。',
+            isAlert: true,
+          });
+        }
+      },
+    });
+  };
   // ▲▲▲
 
   const handleFavorite = async () => {
@@ -799,9 +848,16 @@ export default function CharacterDetailPage({
                       </button>
                     </>
                   ) : sessionStatus === 'authenticated' ? (
-                    <button onClick={handleReport} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors rounded-xl">
-                      <Flag size={16} /> 通報する
-                    </button>
+                    <>
+                      <button onClick={handleReport} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors rounded-t-xl">
+                        <Flag size={16} /> 通報する
+                      </button>
+                      {character?.author?.id && (
+                        <button onClick={handleBlockAuthor} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors rounded-b-xl">
+                          <ShieldBan size={16} /> 制作者をブロック
+                        </button>
+                      )}
+                    </>
                   ) : null}
                 </div>
               )}
@@ -908,7 +964,44 @@ export default function CharacterDetailPage({
             )}
 
             <main className="max-w-2xl mx-auto relative z-10">
-              <div className="text-center mb-6">
+              <div className="text-center mb-6 relative">
+                <div className="absolute right-0 top-0 flex items-center gap-2" ref={menuRef}>
+                  {sessionStatus === 'authenticated' && (
+                    <>
+                      <button onClick={handleFavorite} className="p-2 rounded-xl hover:bg-white/10 transition-all">
+                        <Heart size={20} className={character.isFavorited ? 'text-blue-500 fill-current' : 'text-gray-400'} />
+                      </button>
+                      <button onClick={() => setShowMenu(!showMenu)} className="p-2 rounded-xl hover:bg-white/10 hover:text-blue-400 transition-all">
+                        <MoreVertical size={20} />
+                      </button>
+                      {showMenu && (
+                        <div className="absolute right-0 top-12 bg-gray-800/95 backdrop-blur-xl rounded-xl shadow-lg z-30 w-40 border border-gray-700/50 py-2">
+                          {isAuthor ? (
+                            <>
+                              <button onClick={handleEdit} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm hover:bg-white/10 hover:text-blue-400 transition-colors rounded-t-xl">
+                                <Edit size={16} /> 修正
+                              </button>
+                              <button onClick={handleDelete} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors rounded-b-xl">
+                                <Trash2 size={16} /> 削除
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button onClick={handleReport} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors rounded-t-xl">
+                                <Flag size={16} /> 通報する
+                              </button>
+                              {character?.author?.id && (
+                                <button onClick={handleBlockAuthor} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors rounded-b-xl">
+                                  <ShieldBan size={16} /> 制作者をブロック
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
                 <h1 className="text-3xl md:text-4xl font-bold mb-3 bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent">
                   {character.name}
                 </h1>
