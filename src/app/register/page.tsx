@@ -668,9 +668,8 @@ export default function SignUpPage() {
                     if (month && (monthNum < 1 || monthNum > 12)) {
                       return; // 無効な月は入力不可
                     }
-                    // 空の場合はpadStartしない（00にならないように）
-                    const monthFormatted = month ? month.padStart(2, '0') : '';
-                    const newDate = `${currentDate[0] || ''}-${monthFormatted}-${currentDate[2] || ''}`.replace(/^-+/, '');
+                    // 入力中はpadStartしない（編集可能にするため）
+                    const newDate = `${currentDate[0] || ''}-${month}-${currentDate[2] || ''}`.replace(/^-+/, '');
                     setForm((prev) => ({ ...prev, birthdate: newDate }));
                     // 2桁入力時に日フィールドへフォーカス移動
                     if (month.length === 2) {
@@ -678,6 +677,16 @@ export default function SignUpPage() {
                         const dayInput = document.getElementById('birth-day');
                         if (dayInput) (dayInput as HTMLInputElement).focus();
                       }, 0);
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // フォーカスが外れたときにのみ2桁にフォーマット
+                    const month = e.target.value.replace(/\D/g, '').slice(0, 2);
+                    if (month && month.length === 1) {
+                      const currentDate = form.birthdate ? form.birthdate.split('-') : ['', '', ''];
+                      const monthFormatted = month.padStart(2, '0');
+                      const newDate = `${currentDate[0] || ''}-${monthFormatted}-${currentDate[2] || ''}`.replace(/^-+/, '');
+                      setForm((prev) => ({ ...prev, birthdate: newDate }));
                     }
                   }}
                 />
@@ -700,10 +709,19 @@ export default function SignUpPage() {
                     if (day && (dayNum < 1 || dayNum > 31)) {
                       return; // 無効な日は入力不可
                     }
-                    // 空の場合はpadStartしない（00にならないように）
-                    const dayFormatted = day ? day.padStart(2, '0') : '';
-                    const newDate = `${currentDate[0] || ''}-${currentDate[1] || ''}-${dayFormatted}`.replace(/^-+/, '');
+                    // 入力中はpadStartしない（編集可能にするため）
+                    const newDate = `${currentDate[0] || ''}-${currentDate[1] || ''}-${day}`.replace(/^-+/, '');
                     setForm((prev) => ({ ...prev, birthdate: newDate }));
+                  }}
+                  onBlur={(e) => {
+                    // フォーカスが外れたときにのみ2桁にフォーマット
+                    const day = e.target.value.replace(/\D/g, '').slice(0, 2);
+                    if (day && day.length === 1) {
+                      const currentDate = form.birthdate ? form.birthdate.split('-') : ['', '', ''];
+                      const dayFormatted = day.padStart(2, '0');
+                      const newDate = `${currentDate[0] || ''}-${currentDate[1] || ''}-${dayFormatted}`.replace(/^-+/, '');
+                      setForm((prev) => ({ ...prev, birthdate: newDate }));
+                    }
                   }}
                 />
                 <span className="text-gray-400">日</span>
