@@ -659,7 +659,9 @@ export default function SignUpPage() {
                   value={(() => {
                     if (!form.birthdate) return '';
                     const parts = form.birthdate.split('-');
-                    return parts[1] || '';
+                    const month = parts[1] || '';
+                    // 先頭の0を削除して表示（編集しやすくするため）
+                    return month.startsWith('0') && month.length === 2 ? month.slice(1) : month;
                   })()}
                   onChange={(e) => {
                     const month = e.target.value.replace(/\D/g, '').slice(0, 2);
@@ -700,7 +702,9 @@ export default function SignUpPage() {
                   value={(() => {
                     if (!form.birthdate) return '';
                     const parts = form.birthdate.split('-');
-                    return parts[2] || '';
+                    const day = parts[2] || '';
+                    // 先頭の0を削除して表示（編集しやすくするため）
+                    return day.startsWith('0') && day.length === 2 ? day.slice(1) : day;
                   })()}
                   onChange={(e) => {
                     const day = e.target.value.replace(/\D/g, '').slice(0, 2);
