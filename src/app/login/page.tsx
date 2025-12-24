@@ -320,18 +320,11 @@ function LoginComponent() {
         if (result.error.startsWith('SUSPENDED:')) {
           const parts = result.error.split(':');
           const reason = parts[1] || '不明な理由';
-          const until = parts[2] ? new Date(parts[2]).toLocaleString('ja-JP') : '不明';
+          const until = parts[2] || '';
           
-          setModalState({
-            isOpen: true,
-            title: "アカウント停止中",
-            message: `あなたのアカウントは停止されています。\n\n停止理由: ${reason}\n停止期限: ${until}\n\nサポートにお問い合わせください。`,
-            isAlert: true,
-            confirmText: "OK",
-            onConfirm: () => {
-              setModalState({ ...modalState, isOpen: false });
-            }
-          });
+          // 정지 페이지로 리다이렉트 (버그 수정)
+          const suspendedUrl = `/suspended?reason=${encodeURIComponent(reason)}${until ? `&until=${encodeURIComponent(until)}` : ''}`;
+          router.push(suspendedUrl);
           return;
         }
         // ▲▲▲ 停止エラー処理完了 ▲▲▲

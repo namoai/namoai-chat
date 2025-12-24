@@ -22,19 +22,28 @@ function pickCookie(cookieHeader: string, name: string): string | null {
  * Internal endpoint used by middleware to persist API access logs for admin IP monitor.
  */
 export async function POST(request: NextRequest) {
-  const parseResult = await safeJsonParse<{
-    ip: string;
-    userAgent: string;
-    path: string;
-    method: string;
-    statusCode: number;
-    duration?: number;
-  }>(request);
-  if (!parseResult.success) return parseResult.error;
-
-  const { ip, userAgent, path, method, statusCode, duration } = parseResult.data;
-
   try {
+    const parseResult = await safeJsonParse<{
+      ip: string;
+      userAgent: string;
+      path: string;
+      method: string;
+      statusCode: number;
+      duration?: number;
+    }>(request);
+    if (!parseResult.success) {
+      console.warn('[internal/log-access] Failed to parse request body:', parseResult.error);
+      return NextResponse.json({ ok: false, error: 'Invalid request body' }, { status: 400 });
+    }
+
+    const { ip, userAgent, path, method, statusCode, duration } = parseResult.data;
+
+    // Validate required fields
+    if (!ip || !path || !method) {
+      console.warn('[internal/log-access] Missing required fields:', { ip, path, method });
+      return NextResponse.json({ ok: false, error: 'Missing required fields' }, { status: 400 });
+    }
+
     const prisma = await getPrisma();
 
     // Resolve userId from NextAuth session cookie (works even when getServerSession isn't reliable here)
@@ -113,8 +122,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: String(insertError) }, { status: 200 });
     }
   } catch (error) {
-    console.error('[internal/log-access] Unexpected error:', error);
-    return NextResponse.json({ ok: false, error: String(error) }, { status: 500 });
+    // Log error details but don't expose internal details
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorName = error instanceof Error ? error.name : 'UnknownError';
+    
+    console.error('[internal/log-access] Unexpected error:', {
+      name: errorName,
+      message: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    
+    // Return 200 to prevent middleware from retrying or failing the main request
+    // Logging failures should never affect the main request flow
+    return NextResponse.json({ 
+      ok: false, 
+      error: 'Logging failed (non-critical)' 
+    }, { status: 200 });
   }
 }
 
