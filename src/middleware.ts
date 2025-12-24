@@ -43,9 +43,9 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     return NextResponse.next();
   }
 
-  // 管理者ページへのアクセス制限（許可IP + Basic認証）
+  // 管理者ページへのアクセス制限（管理者権限のみチェック）
   if (pathname.startsWith('/admin')) {
-    // まず、ユーザーのセッションを確認して管理者権限をチェック
+    // ユーザーのセッションを確認して管理者権限をチェック
     try {
       const token = await getToken({ 
         req: request,
@@ -54,14 +54,15 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
       
       // セッションが存在し、ユーザーの役割を確認
       if (token && token.role) {
-        // 管理者でない場合はBasic認証を要求せずにリダイレクト
+        // 管理者でない場合はリダイレクト
         if (token.role === 'USER') {
           console.log('[middleware] Non-admin user attempted to access admin page, redirecting');
           return NextResponse.redirect(new URL('/', request.url));
         }
-        // 管理者の場合はBasic認証チェックを続行
+        // 管理者の場合はアクセス許可（Basic認証やIP制限 제거）
+        return NextResponse.next();
       } else {
-        // セッションがない場合もBasic認証を要求せずにリダイレクト
+        // セッションがない場合はログインページにリダイレクト
         console.log('[middleware] No session found for admin page access, redirecting');
         return NextResponse.redirect(new URL('/login', request.url));
       }
@@ -69,63 +70,6 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
       // セッション確認でエラーが発生した場合もリダイレクト
       console.error('[middleware] Error checking session:', error);
       return NextResponse.redirect(new URL('/login', request.url));
-    }
-
-    // 管理者の場合のみBasic認証とIP制限をチェック
-    // 1) Admin IP allowlist (if configured)
-    const ip = getClientIpFromRequest(request);
-    console.log('[middleware] admin gate', { pathname, ip });
-    const now = Date.now();
-    let allowlist = adminAllowlistCache?.ips ?? [];
-    try {
-      if (!adminAllowlistCache || now - adminAllowlistCache.fetchedAt > ADMIN_ALLOWLIST_CACHE_MS) {
-        const res = await fetch(`${request.nextUrl.origin}/api/internal/admin-ip-allowlist`, {
-          headers: { accept: 'application/json' },
-          cache: 'no-store',
-        });
-        if (res.ok) {
-          const data: unknown = await res.json().catch(() => null);
-          const ips =
-            data && typeof data === 'object' && Array.isArray((data as { ips?: unknown }).ips)
-              ? (data as { ips: unknown[] }).ips.map((x) => String(x))
-              : [];
-          adminAllowlistCache = { ips, fetchedAt: now };
-          allowlist = ips;
-        }
-      }
-    } catch {
-      // If fetch fails, keep the last known cache if present.
-      // Only fail-closed (empty) when we have no cache at all.
-      allowlist = adminAllowlistCache?.ips ?? [];
-    }
-
-      // ✅ Requested behavior:
-      // - If allowlist is EMPTY: treat everyone as "not allowed" until an admin registers their IP.
-      //   -> show BASIC prompt every time
-      // - If allowlist has entries and IP is NOT allowed:
-      //   -> show BASIC prompt every time
-      // - If IP is allowed:
-      //   -> do NOT show BASIC prompt
-      // Match by exact/wildcard/CIDR patterns
-      const { ipMatches } = await import('@/lib/security/ip-match');
-      const isAllowed = allowlist.length > 0 && allowlist.some((p) => ipMatches(ip, p));
-
-      // ✅ Requested behavior (strict):
-      // - If allowlist is EMPTY: treat everyone as "not allowed" until an admin registers their IP.
-      //   -> show BASIC prompt every time
-      // - If allowlist has entries and IP is NOT allowed:
-      //   -> show BASIC prompt every time
-      // - If IP is allowed:
-      //   -> do NOT show BASIC prompt
-      //
-      // To make browsers re-prompt reliably, vary the realm on each navigation.
-      // (Browsers cache credentials per realm; changing realm invalidates that cache.)
-      // If allowlist is unavailable (no cache) OR current IP isn't allowed -> require BASIC
-      if (!adminAllowlistCache || !isAllowed) {
-        const realmSuffix = `UnallowedIP-${Date.now()}`;
-        const basicCheck = checkAdminAccessAlwaysPrompt(request, realmSuffix);
-        if (basicCheck) return basicCheck;
-        // BASIC succeeded -> allow access even if IP not allowlisted (as a fallback gate)
     }
   }
 
