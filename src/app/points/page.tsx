@@ -23,10 +23,10 @@ type PointPackage = {
 };
 
 const pointPackages: PointPackage[] = [
-  { yen: 1100, points: 100 },
-  { yen: 2200, points: 250 },
-  { yen: 5500, points: 700 },
-  { yen: 11000, points: 1500 },
+  { yen: 1100, points: 2200 },
+  { yen: 2200, points: 4400 },
+  { yen: 5500, points: 11000 },
+  { yen: 11000, points: 30000 },
 ];
 
 // ▼▼▼【修正点】汎用モーダルコンポーネントを追加 ▼▼▼

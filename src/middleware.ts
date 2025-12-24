@@ -3,14 +3,9 @@ import { NextResponse } from "next/server";
 import { applyCorsHeaders, handlePreflight, isApiRoute } from "@/lib/cors";
 import { logger } from "@/lib/logger";
 import { createErrorResponse, ErrorCode } from "@/lib/error-handler";
-import { checkAdminAccessAlwaysPrompt } from "@/lib/security/ip-restriction";
 import { isIpBlocked } from "@/lib/security/suspicious-ip";
 import { getClientIpFromRequest } from "@/lib/security/client-ip";
 import { getToken } from "next-auth/jwt";
-
-type AllowlistCache = { ips: string[]; fetchedAt: number };
-let adminAllowlistCache: AllowlistCache | null = null;
-const ADMIN_ALLOWLIST_CACHE_MS = 30_000;
 
 function shouldLogPath(pathname: string): boolean {
   if (pathname === '/api/internal/log-access') return false;

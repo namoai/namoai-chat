@@ -28,10 +28,10 @@ function getStripe(): Stripe {
 
 // ポイントパッケージ定義
 const POINT_PACKAGES: Record<number, { points: number; amount: number }> = {
-  100: { points: 100, amount: 1100 },
-  250: { points: 250, amount: 2200 },
-  700: { points: 700, amount: 5500 },
-  1500: { points: 1500, amount: 11000 },
+  2200: { points: 2200, amount: 1100 },
+  4400: { points: 4400, amount: 2200 },
+  11000: { points: 11000, amount: 5500 },
+  30000: { points: 30000, amount: 11000 },
 };
 
 export async function POST(request: NextRequest) {
