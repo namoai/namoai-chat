@@ -1,0 +1,20 @@
+name: Cleanup Expired Points
+
+on:
+  schedule:
+    # Run daily at 3:00 AM JST (18:00 UTC previous day)
+    - cron: '0 18 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call cleanup API
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            ${{ secrets.NEXTAUTH_URL }}/api/cron/cleanup-expired-points \
+            -v
+

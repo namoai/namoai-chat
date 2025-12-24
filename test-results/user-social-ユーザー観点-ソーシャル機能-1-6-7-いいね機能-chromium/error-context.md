@@ -1,0 +1,71 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - img [ref=e7]
+          - link "ナモアイ" [ref=e9] [cursor=pointer]:
+            - /url: /
+        - generic [ref=e12]:
+          - textbox "キャラクターやユーザーを検索..." [ref=e13]
+          - img
+        - generic [ref=e14]:
+          - link [ref=e15] [cursor=pointer]:
+            - /url: /notifications
+            - img [ref=e16]
+          - link "マイページ" [ref=e19] [cursor=pointer]:
+            - /url: /MyPage
+            - img [ref=e20]
+    - generic [ref=e24]:
+      - complementary [ref=e25]:
+        - navigation [ref=e26]:
+          - link [ref=e27] [cursor=pointer]:
+            - /url: /
+            - img [ref=e28]
+          - link [ref=e31] [cursor=pointer]:
+            - /url: /chatlist
+            - img [ref=e32]
+          - link [ref=e34] [cursor=pointer]:
+            - /url: /charlist
+            - img [ref=e35]
+          - link [ref=e40] [cursor=pointer]:
+            - /url: /ranking
+            - img [ref=e41]
+          - link [ref=e44] [cursor=pointer]:
+            - /url: /characters/create
+            - img [ref=e45]
+      - main [ref=e48]:
+        - generic [ref=e51]:
+          - paragraph [ref=e52]: サービスを利用するためにはログインが必要です。
+          - button "Googleアカウントで始まる" [ref=e53] [cursor=pointer]:
+            - img
+            - text: Googleアカウントで始まる
+          - generic [ref=e58]: または
+          - generic [ref=e59]:
+            - generic [ref=e60]:
+              - generic [ref=e61]:
+                - img [ref=e62]
+                - text: メールアドレス
+              - textbox "メールアドレスを入力" [ref=e65]
+            - generic [ref=e66]:
+              - generic [ref=e67]:
+                - img [ref=e68]
+                - text: パスワード
+              - generic [ref=e71]:
+                - textbox "パスワードを入力" [ref=e72]
+                - button [ref=e73]:
+                  - img [ref=e74]
+            - generic [ref=e78]:
+              - generic [ref=e79] [cursor=pointer]:
+                - checkbox "ログイン状態を保持する" [ref=e80]
+                - generic [ref=e81]: ログイン状態を保持する
+              - button "パスワード再設定" [ref=e82]
+            - button "ログイン" [ref=e83] [cursor=pointer]
+          - paragraph [ref=e84]:
+            - link "アカウントがない方" [ref=e85] [cursor=pointer]:
+              - /url: /register
+  - alert [ref=e86]
+```

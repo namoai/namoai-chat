@@ -9,6 +9,7 @@ declare module "next-auth/jwt" {
     nickname: string;
     role: string; // ✨ roleプロパティを追加
     needsProfileCompletion?: boolean;
+    referralCode?: string; // 紹介コード
   }
 }
 
@@ -20,6 +21,7 @@ declare module "next-auth" {
       nickname: string;
       role: string; // ✨ roleプロパティを追加
       needsProfileCompletion?: boolean;
+      referralCode?: string; // 紹介コード
     } & DefaultSession["user"]; // name, email, imageプロパティは維持
   }
 
@@ -27,5 +29,6 @@ declare module "next-auth" {
   interface User extends DefaultUser {
     nickname: string;
     role: string; // ✨ roleプロパティを追加
+    referralCode?: string; // 紹介コード
   }
 }

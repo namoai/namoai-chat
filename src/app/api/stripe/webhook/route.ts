@@ -111,6 +111,14 @@ export async function POST(request: NextRequest) {
       });
 
       console.log(`決済完了およびポイント追加: Payment ID ${payment.id}, User ID ${payment.user_id}, Points ${payment.points}`);
+
+      // 紹介報酬処理（初回決済の場合）
+      const { processReferralReward } = await import('@/lib/referral');
+      const rewardProcessed = await processReferralReward(payment.user_id, payment.id);
+      
+      if (rewardProcessed) {
+        console.log(`紹介報酬付与完了: Payment ID ${payment.id}, User ID ${payment.user_id}`);
+      }
     }
 
     // 決済失敗イベント処理

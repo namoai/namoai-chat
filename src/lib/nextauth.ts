@@ -437,6 +437,10 @@ export function getAuthOptions(): NextAuthOptions {
           // メールアドレスが管理者リストに含まれているかチェック
           const isAdmin = adminEmails.includes(email.toLowerCase());
 
+          // 紹介コードを生成
+          const { generateReferralCode } = await import('@/lib/referral');
+          const myReferralCode = await generateReferralCode();
+
           const newUser = await prisma.users.create({
             data: {
               email,
@@ -450,6 +454,7 @@ export function getAuthOptions(): NextAuthOptions {
               dateOfBirth: null,
               needsProfileCompletion: true,
               role: isAdmin ? Role.SUPER_ADMIN : Role.USER, // ✅ 管理者として設定
+              referralCode: myReferralCode, // 紹介コードを設定
               // ポイントレコードも同時に作成
               points: {
                 create: {},
@@ -501,6 +506,7 @@ export function getAuthOptions(): NextAuthOptions {
           nickname?: string;
           role?: string;
           needsProfileCompletion?: boolean;
+          referralCode?: string;
         };
         typedToken.id = user.id;
         const prisma = await getPrismaInstance();
@@ -511,6 +517,7 @@ export function getAuthOptions(): NextAuthOptions {
             role: true,
             needsProfileCompletion: true,
             twoFactorEnabled: true,
+            referralCode: true,
           },
         });
         if (dbUser) {
@@ -518,6 +525,7 @@ export function getAuthOptions(): NextAuthOptions {
             typedToken.role = dbUser.role;
             typedToken.needsProfileCompletion = dbUser.needsProfileCompletion;
             typedToken.twoFactorEnabled = dbUser.twoFactorEnabled;
+            typedToken.referralCode = dbUser.referralCode || undefined;
         }
       }
       // remember me 정보는 user 객체에서 전달받을 수 없으므로,
@@ -533,6 +541,7 @@ export function getAuthOptions(): NextAuthOptions {
           role?: string;
           needsProfileCompletion?: boolean;
           twoFactorEnabled?: boolean;
+          referralCode?: string;
         };
         // トークンからユーザー情報を取得
         session.user.id = typedToken.id;
@@ -540,6 +549,7 @@ export function getAuthOptions(): NextAuthOptions {
         session.user.role = typedToken.role;
         session.user.name = typedToken.nickname as string;
         session.user.needsProfileCompletion = typedToken.needsProfileCompletion;
+        session.user.referralCode = typedToken.referralCode;
 
         // ユーザーがまだデータベースに存在するか確認（削除済みアカウント対策）
         try {

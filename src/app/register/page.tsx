@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Mail, Lock, User, Phone, Smile, ArrowLeft, ChevronRight, Eye, EyeOff } from "lucide-react"; // ✅ ボタンアイコンを追加
+import { Mail, Lock, User, Phone, Smile, ArrowLeft, ChevronRight, Eye, EyeOff, Gift } from "lucide-react"; // ✅ ボタンアイコンを追加
 import { fetchWithCsrf } from "@/lib/csrf-client";
 import { validatePassword } from "@/lib/password-policy";
 
-export default function SignUpPage() {
+function SignUpPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [form, setForm] = useState({
     email: "",
@@ -20,6 +21,7 @@ export default function SignUpPage() {
     phone: "",
     nickname: "",
     birthdate: "",
+    referralCode: "", // 紹介コード
   });
   const [nicknameChecked, setNicknameChecked] = useState(false);
   const [nicknameAvailable, setNicknameAvailable] = useState<boolean | null>(null);
@@ -42,6 +44,14 @@ export default function SignUpPage() {
   const [showVerificationInput, setShowVerificationInput] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
   const [verifyingCode, setVerifyingCode] = useState(false);
+
+  // URL パラメータから紹介コードを読み取る
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      setForm((prev) => ({ ...prev, referralCode: refCode.toUpperCase() }));
+    }
+  }, [searchParams]);
 
   // 生年月日フォーマット変換ヘルパー関数
   const formatBirthdate = (birthdate: string): string => {
@@ -465,6 +475,12 @@ export default function SignUpPage() {
               field: "nickname",
               placeholder: "2〜12文字のニックネーム",
               showNicknameCheck: true,
+            },
+            {
+              icon: <Gift size={18} className="text-blue-400" />,
+              label: "紹介コード (任意)",
+              field: "referralCode",
+              placeholder: "紹介コードをお持ちの方は入力",
             },
           ].map(({ icon, label, field, placeholder, type = "text", showVerification = false, showNicknameCheck = false }) => (
               <div className="space-y-2" key={field}>
@@ -998,5 +1014,17 @@ export default function SignUpPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="text-white">読み込み中...</div>
+      </div>
+    }>
+      <SignUpPageContent />
+    </Suspense>
   );
 }

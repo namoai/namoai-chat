@@ -1,0 +1,92 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - img [ref=e7]
+          - link "ナモアイ" [ref=e9] [cursor=pointer]:
+            - /url: /
+        - generic [ref=e12]:
+          - textbox "キャラクターやユーザーを検索..." [ref=e13]
+          - img
+        - generic [ref=e14]:
+          - link [ref=e15] [cursor=pointer]:
+            - /url: /notifications
+            - img [ref=e16]
+          - link "マイページ" [ref=e19] [cursor=pointer]:
+            - /url: /MyPage
+            - img [ref=e20]
+    - generic [ref=e24]:
+      - complementary [ref=e25]:
+        - navigation [ref=e26]:
+          - link [ref=e27] [cursor=pointer]:
+            - /url: /
+            - img [ref=e28]
+          - link [ref=e31] [cursor=pointer]:
+            - /url: /chatlist
+            - img [ref=e32]
+          - link [ref=e34] [cursor=pointer]:
+            - /url: /charlist
+            - img [ref=e35]
+          - link [ref=e40] [cursor=pointer]:
+            - /url: /ranking
+            - img [ref=e41]
+          - link [ref=e44] [cursor=pointer]:
+            - /url: /characters/create
+            - img [ref=e45]
+      - generic [ref=e47]:
+        - main [ref=e48]:
+          - generic [ref=e51]:
+            - generic [ref=e52]:
+              - button [ref=e53]:
+                - img [ref=e54]
+              - heading "キャラクター作成" [level=1] [ref=e56]
+              - generic [ref=e57]:
+                - button "読み込み" [ref=e58] [cursor=pointer]:
+                  - img
+                  - generic [ref=e59]: 読み込み
+                - button "一時保存" [ref=e60] [cursor=pointer]:
+                  - img
+                  - generic [ref=e61]: 一時保存
+            - generic [ref=e63]:
+              - button "プロフィール" [ref=e64]
+              - button "画像" [ref=e65]
+              - button "詳細情報" [ref=e66]
+              - button "開始状況" [ref=e67]
+              - button "その他設定" [ref=e68]
+              - button "ステータス" [ref=e69]
+              - button "ロアブック" [ref=e70]
+              - button "登録" [ref=e71]
+            - generic [ref=e73]:
+              - generic [ref=e74]:
+                - heading "キャラクター情報" [level=3] [ref=e75]
+                - paragraph [ref=e76]:
+                  - text: チャット開始時の日付と場所を設定します。これらの情報は会話の文脈として使用されます。
+                  - text: 「自動生成」ボタンを使用すると、開始状況に基づいてAIが適切な日付と場所を自動生成します。
+              - generic [ref=e77]:
+                - heading "追加情報" [level=3] [ref=e78]
+                - button "自動生成" [ref=e79] [cursor=pointer]
+              - paragraph [ref=e81]: キャラクターの追加情報を入力します。
+              - generic [ref=e82]:
+                - generic [ref=e83]: 日付
+                - textbox "日付" [ref=e84]
+              - generic [ref=e85]:
+                - generic [ref=e86]: 場所
+                - textbox "場所" [ref=e87]:
+                  - /placeholder: 場所を入力してください
+            - generic [ref=e88]:
+              - button "前の段階へ" [ref=e89] [cursor=pointer]
+              - button "登録する" [active] [ref=e90] [cursor=pointer]
+        - contentinfo [ref=e91]:
+          - generic [ref=e93]:
+            - navigation [ref=e94]:
+              - link "特定商取引法に基づく表記" [ref=e95] [cursor=pointer]:
+                - /url: /terms/commercial-transactions
+                - img [ref=e96]
+                - generic [ref=e99]: 特定商取引法に基づく表記
+            - paragraph [ref=e101]: © 2025 ナモアイ. All rights reserved.
+  - alert [ref=e102]
+```

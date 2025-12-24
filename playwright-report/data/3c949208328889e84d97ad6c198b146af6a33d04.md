@@ -1,0 +1,108 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - img [ref=e7]
+          - link "ナモアイ" [ref=e9] [cursor=pointer]:
+            - /url: /
+        - generic [ref=e12]:
+          - textbox "キャラクターやユーザーを検索..." [ref=e13]
+          - img
+        - generic [ref=e14]:
+          - link [ref=e15] [cursor=pointer]:
+            - /url: /notifications
+            - img [ref=e16]
+          - link "マイページ" [ref=e19] [cursor=pointer]:
+            - /url: /MyPage
+            - img [ref=e20]
+    - generic [ref=e24]:
+      - complementary [ref=e25]:
+        - navigation [ref=e26]:
+          - link [ref=e27] [cursor=pointer]:
+            - /url: /
+            - img [ref=e28]
+          - link [ref=e31] [cursor=pointer]:
+            - /url: /chatlist
+            - img [ref=e32]
+          - link [ref=e34] [cursor=pointer]:
+            - /url: /charlist
+            - img [ref=e35]
+          - link [ref=e40] [cursor=pointer]:
+            - /url: /ranking
+            - img [ref=e41]
+          - link [ref=e44] [cursor=pointer]:
+            - /url: /characters/create
+            - img [ref=e45]
+      - generic [ref=e47]:
+        - main [ref=e48]:
+          - generic [ref=e51]:
+            - generic [ref=e52]:
+              - button [ref=e53]:
+                - img [ref=e54]
+              - heading "お問い合わせ" [level=1] [ref=e56]
+              - generic [ref=e57]:
+                - button [ref=e58]:
+                  - img [ref=e59]
+                - button [ref=e62]:
+                  - img [ref=e63]
+            - generic [ref=e64]:
+              - generic [ref=e67]:
+                - img [ref=e68]
+                - textbox "検索..." [ref=e71]
+              - generic [ref=e72]:
+                - generic [ref=e73]:
+                  - img [ref=e74]
+                  - combobox [ref=e76]:
+                    - option "すべての種類" [selected]
+                    - option "通報"
+                    - option "要望"
+                    - option "お問い合わせ"
+                - combobox [ref=e78]:
+                  - option "すべての状態" [selected]
+                  - option "保留中"
+                  - option "検討中"
+                  - option "解決済み"
+                  - option "却下"
+            - generic [ref=e79]:
+              - paragraph [ref=e80]: お問い合わせ履歴がありません。
+              - button "お問い合わせを作成" [ref=e81]
+            - generic [ref=e83]:
+              - generic [ref=e84]:
+                - heading "お問い合わせ" [level=2] [ref=e85]
+                - button [ref=e86]:
+                  - img [ref=e87]
+              - generic [ref=e90]:
+                - generic [ref=e91]:
+                  - generic [ref=e92]: お問い合わせ種類 *
+                  - combobox [ref=e93]:
+                    - option "選択してください" [selected]
+                    - option "システム問題"
+                    - option "返金問題"
+                    - option "機能要望"
+                    - option "バグ報告"
+                    - option "アカウント問題"
+                    - option "決済問題"
+                    - option "その他"
+                - generic [ref=e94]:
+                  - generic [ref=e95]: タイトル *
+                  - textbox "お問い合わせのタイトルを入力してください" [ref=e96]: テストお問い合わせ
+                - generic [ref=e97]:
+                  - generic [ref=e98]: 内容 *
+                  - textbox "お問い合わせの詳細を入力してください" [active] [ref=e99]: これはE2Eテスト用のお問い合わせ内容です。
+                - generic [ref=e100]:
+                  - button "キャンセル" [ref=e101]
+                  - button "送信" [disabled] [ref=e102]
+        - contentinfo [ref=e103]:
+          - generic [ref=e105]:
+            - navigation [ref=e106]:
+              - link "特定商取引法に基づく表記" [ref=e107] [cursor=pointer]:
+                - /url: /terms/commercial-transactions
+                - img [ref=e108]
+                - generic [ref=e111]: 特定商取引法に基づく表記
+            - paragraph [ref=e113]: © 2025 ナモアイ. All rights reserved.
+  - alert [ref=e114]
+```

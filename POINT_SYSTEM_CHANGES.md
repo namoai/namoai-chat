@@ -144,3 +144,4 @@ npx prisma migrate resolve --rolled-back 20241224_add_point_expiration
 
 3. 必要に応じてポイント消費量を元に戻すマイグレーションを実行
 
+
