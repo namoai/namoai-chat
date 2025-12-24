@@ -75,20 +75,25 @@ const LoggedInView = ({ session }: { session: Session }) => {
   const isAdmin = (() => {
     // セッションが存在しない場合は false
     if (!session?.user) {
+      console.log('[MyPage] isAdmin check: no session.user');
       return false;
     }
     
     const userRole = session.user.role;
+    console.log('[MyPage] isAdmin check:', { userRole, userId: session.user.id });
     
     // roleが存在しない、またはUSERの場合は false
     if (!userRole || userRole === 'USER') {
+      console.log('[MyPage] isAdmin check: not admin role');
       return false;
     }
     
     // 管理者権限のみ true
-    return userRole === 'MODERATOR' || 
-           userRole === 'CHAR_MANAGER' || 
-           userRole === 'SUPER_ADMIN';
+    const isAdminRole = userRole === 'MODERATOR' || 
+                        userRole === 'CHAR_MANAGER' || 
+                        userRole === 'SUPER_ADMIN';
+    console.log('[MyPage] isAdmin check result:', isAdminRole);
+    return isAdminRole;
   })();
 
   useEffect(() => {
@@ -728,12 +733,65 @@ const LoggedInView = ({ session }: { session: Session }) => {
   );
 };
 
-const LoggedOutView = () => {
+const LoggedOutView = ({ isMobile }: { isMobile: boolean }) => {
   const menuItems = [
     { icon: <Users size={20} className="text-gray-400" />, text: "ディスコード", href: "/discord" },
     { icon: <BookUser size={20} className="text-gray-400" />, text: "ユーザーガイド", href: "/guide" },
     { icon: <Megaphone size={20} className="text-gray-400" />, text: "お知らせ", badge: "アップデート", href: "/notice" },
   ];
+  
+  // PC版とモバイル版で異なるレイアウト
+  if (!isMobile) {
+    return (
+      <main className="flex flex-col gap-6">
+        <div className="bg-gradient-to-r from-blue-500/20 via-cyan-500/20 to-blue-500/20 backdrop-blur-sm p-8 rounded-2xl border border-white/10">
+          <Link
+            href="/login"
+            className="flex items-center gap-6 cursor-pointer group"
+          >
+            <div className="bg-gradient-to-br from-blue-500 to-cyan-600 p-4 rounded-xl group-hover:scale-110 transition-transform">
+              <Heart size={32} className="text-white" fill="white" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                ログインして始める
+              </h2>
+              <p className="text-gray-400">アカウントにログインして、すべての機能を利用できます</p>
+            </div>
+            <ChevronRight size={24} className="text-gray-400 group-hover:text-blue-400 group-hover:translate-x-1 transition-all" />
+          </Link>
+        </div>
+
+        <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800/50 overflow-hidden">
+          <div className="px-6 pt-5 pb-3">
+            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">コミュニケーション・案内</h2>
+          </div>
+          <nav className="flex flex-col">
+            {menuItems.map((item, index) => (
+              <Link
+                key={index}
+                href={item.href}
+                className="w-full flex items-center text-left p-5 hover:bg-white/10 transition-all cursor-pointer group"
+              >
+                <div className="p-3 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20">
+                  {item.icon}
+                </div>
+                <span className="ml-4 text-lg group-hover:text-blue-400 transition-colors">{item.text}</span>
+                {item.badge && (
+                  <span className="ml-auto text-sm bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold px-3 py-1 rounded-full">
+                    {item.badge}
+                  </span>
+                )}
+                <ChevronRight size={20} className="text-gray-400 ml-auto group-hover:text-blue-400 group-hover:translate-x-1 transition-all" />
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </main>
+    );
+  }
+  
+  // モバイル版
   return (
     <main className="flex flex-col gap-6">
       <Link
@@ -843,7 +901,7 @@ export default function MyPage() {
                 </div>
               )}
               {status === "authenticated" && session && <LoggedInView session={session} />}
-              {status === "unauthenticated" && <LoggedOutView />}
+              {status === "unauthenticated" && <LoggedOutView isMobile={isMobile} />}
             </main>
             <MyPageRightSidebar />
           </div>
@@ -863,7 +921,7 @@ export default function MyPage() {
               </div>
             )}
             {status === "authenticated" && session && <LoggedInView session={session} />}
-            {status === "unauthenticated" && <LoggedOutView />}
+            {status === "unauthenticated" && <LoggedOutView isMobile={isMobile} />}
           </div>
         )}
       </div>

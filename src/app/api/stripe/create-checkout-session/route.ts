@@ -19,7 +19,7 @@ function getStripe(): Stripe {
       throw new Error('STRIPE_SECRET_KEY環境変数が設定されていません。');
     }
     stripeInstance = new Stripe(secretKey, {
-      apiVersion: '2025-11-17.clover',
+      apiVersion: '2024-11-20.acacia',
     });
   }
   return stripeInstance;
@@ -105,9 +105,16 @@ export async function POST(request: NextRequest) {
     
     console.log('Stripe Checkoutセッション作成:', {
       sessionId: checkoutSession.id,
-      successUrl: `${appUrl}/payment/success?session_id=${checkoutSession.id}`,
-      cancelUrl: `${appUrl}/payment/cancel`
+      url: checkoutSession.url,
+      successUrl: `${appUrl}/points?payment_success=true&session_id=${checkoutSession.id}`,
+      cancelUrl: `${appUrl}/points?payment_cancelled=true`
     });
+
+    // URLが存在しない場合はエラー
+    if (!checkoutSession.url) {
+      console.error('Stripe Checkout URLが生成されませんでした:', checkoutSession);
+      throw new Error('Stripe Checkout URLの生成に失敗しました。APIキーまたは設定を確認してください。');
+    }
 
     // 決済レコードにセッションID保存
     await prisma.payments.update({
