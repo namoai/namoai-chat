@@ -57,14 +57,18 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
         // 管理者の場合はアクセス許可（Basic認証やIP制限 제거）
         return NextResponse.next();
       } else {
-        // セッションがない場合はログインページにリダイレクト
+        // セッションがない場合はログインページにリダイレクト（元のURLをcallbackUrlとして渡す）
         console.log('[middleware] No session found for admin page access, redirecting');
-        return NextResponse.redirect(new URL('/login', request.url));
+        const loginUrl = new URL('/login', request.url);
+        loginUrl.searchParams.set('callbackUrl', pathname);
+        return NextResponse.redirect(loginUrl);
       }
     } catch (error) {
-      // セッション確認でエラーが発生した場合もリダイレクト
+      // セッション確認でエラーが発生した場合もリダイレクト（元のURLをcallbackUrlとして渡す）
       console.error('[middleware] Error checking session:', error);
-      return NextResponse.redirect(new URL('/login', request.url));
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(loginUrl);
     }
   }
 

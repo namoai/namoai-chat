@@ -71,6 +71,7 @@ function LoginComponent() {
   const [verifying2FACode, setVerifying2FACode] = useState(false); // 2FAコード検証中
   const router = useRouter();
   const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') || '/MyPage';
 
   // URLパラメータのエラーとタイムアウトを監視してモーダル表示
   useEffect(() => {
@@ -238,7 +239,7 @@ function LoginComponent() {
         email,
         password,
         skip2FA: true, // 2FA検証完了フラグ
-        callbackUrl: "/MyPage",
+        callbackUrl: callbackUrl,
       });
 
       if (result?.error) {
@@ -265,7 +266,7 @@ function LoginComponent() {
         } else {
           localStorage.removeItem('rememberMe');
         }
-        router.replace("/MyPage");
+        router.replace(callbackUrl);
       }
     } catch (error) {
       console.error('2FA verify error:', error);
@@ -312,7 +313,7 @@ function LoginComponent() {
         redirect: false, // 手動でリダイレクトを制御
         email,
         password,
-        callbackUrl: "/MyPage",
+        callbackUrl: callbackUrl,
       });
 
       if (result?.error) {
@@ -434,8 +435,8 @@ function LoginComponent() {
           localStorage.removeItem('rememberMe');
         }
         
-        // 認証成功の場合、マイページへリダイレクト（replaceで履歴を残さない）
-        router.replace("/MyPage");
+        // 認証成功の場合、callbackUrlまたはマイページへリダイレクト（replaceで履歴を残さない）
+        router.replace(callbackUrl);
       }
     } catch (error) {
       console.error('ログインエラー:', error);
@@ -462,7 +463,7 @@ function LoginComponent() {
 
         <Button
           className="w-full flex items-center justify-center gap-3 bg-white text-black hover:bg-gray-100 hover:scale-105 active:scale-95 transition-all duration-200 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl cursor-pointer"
-          onClick={() => signIn("google", { callbackUrl: "/MyPage" })}
+          onClick={() => signIn("google", { callbackUrl: callbackUrl })}
         >
           <FcGoogle size={24} /> Googleアカウントで始まる
         </Button>
