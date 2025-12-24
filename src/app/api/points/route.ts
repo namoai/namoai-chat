@@ -84,18 +84,22 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: '本日は既に出席済みです。' }, { status: 400 });
       }
 
-      // 無料ポイント有効期限を1年後に設定
-      const oneYearFromNow = new Date();
-      oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
-
-      const updatedPoints = await prisma.points.update({
-        where: { user_id: userId },
-        data: {
-          free_points: { increment: 30 },
-          lastAttendedAt: new Date(),
-          freePointsExpiresAt: oneYearFromNow,
-        },
+      // ポイント管理システムを使用してポイント付与
+      const { grantPoints } = await import('@/lib/point-manager');
+      
+      await grantPoints({
+        userId,
+        amount: 30,
+        type: 'free',
+        source: 'attendance',
+        description: '出席チェック',
       });
+
+      // 更新後のポイント情報を取得
+      const updatedPoints = await prisma.points.findUnique({
+        where: { user_id: userId },
+      });
+
       return NextResponse.json({ message: '出席チェック完了！30ポイント獲得しました。', points: updatedPoints });
     }
 

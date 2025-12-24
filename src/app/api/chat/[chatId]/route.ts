@@ -124,51 +124,63 @@ export async function POST(request: Request, context: { params: Promise<{ chatId
       let userMessageForHistory;
       let turnIdForModel;
 
+      // ポイント管理システムを使用してポイント消費
+      const { consumePoints } = await import('@/lib/point-manager');
+
       if (isRegeneration && turnId) {
         console.log(`ステップ3: 再生成のリクエストを処理 (ターンID: ${turnId})`);
-        await prisma.$transaction(async (tx) => {
-          const p = await tx.points.findUnique({ where: { user_id: userId } });
-          const currentPoints = (p?.free_points || 0) + (p?.paid_points || 0);
-          if (currentPoints < totalPointsToConsume) throw new Error("ポイントが不足しています。");
-          let cost = totalPointsToConsume;
-          const freeAfter = Math.max(0, (p?.free_points || 0) - cost);
-          cost = Math.max(0, cost - (p?.free_points || 0));
-          const paidAfter = Math.max(0, (p?.paid_points || 0) - cost);
-          await tx.points.update({ where: { user_id: userId }, data: { free_points: freeAfter, paid_points: paidAfter } });
+        
+        // ポイント消費
+        await consumePoints({
+          userId,
+          amount: totalPointsToConsume,
+          usageType: 'chat',
+          description: '再生成',
+          relatedChatId: chatId,
+          relatedMessageId: turnId,
         });
+
         userMessageForHistory = await prisma.chat_message.findUnique({ where: { id: turnId } });
         if (!userMessageForHistory || userMessageForHistory.role !== 'user') throw new Error("再生成対象のメッセージが見つかりません。");
         turnIdForModel = userMessageForHistory.id;
       } else {
         console.log("ステップ3: 新規ユーザーメッセージ保存開始");
-        userMessageForHistory = await prisma.$transaction(async (tx) => {
-          const p = await tx.points.findUnique({ where: { user_id: userId } });
-          const currentPoints = (p?.free_points || 0) + (p?.paid_points || 0);
-          if (currentPoints < totalPointsToConsume) throw new Error("ポイントが不足しています。");
-          let cost = totalPointsToConsume;
-          const freeAfter = Math.max(0, (p?.free_points || 0) - cost);
-          cost = Math.max(0, cost - (p?.free_points || 0));
-          const paidAfter = Math.max(0, (p?.paid_points || 0) - cost);
-          await tx.points.update({ where: { user_id: userId }, data: { free_points: freeAfter, paid_points: paidAfter } });
-          const newUserMessage = await tx.chat_message.create({ data: { chatId: chatId, role: "user", content: message, version: 1, isActive: true } });
-          const updatedMessage = await tx.chat_message.update({ where: { id: newUserMessage.id }, data: { turnId: newUserMessage.id } });
-          // ▼▼▼【ベクトル検索】メッセージのembeddingを非同期で生成（応答速度を維持）▼▼▼
-          (async () => {
-            try {
-              const embedding = await getEmbedding(message);
-              const embeddingString = `[${embedding.join(',')}]`;
-              await prisma.$executeRawUnsafe(
-                `UPDATE "chat_message" SET "embedding" = $1::vector WHERE "id" = $2`,
-                embeddingString,
-                newUserMessage.id
-              );
-            } catch (error) {
-              console.error('メッセージembedding生成エラー:', error);
-            }
-          })();
-          // ▲▲▲
-          return updatedMessage;
+        
+        // メッセージ保存
+        const newUserMessage = await prisma.chat_message.create({ 
+          data: { chatId: chatId, role: "user", content: message, version: 1, isActive: true } 
         });
+        userMessageForHistory = await prisma.chat_message.update({ 
+          where: { id: newUserMessage.id }, 
+          data: { turnId: newUserMessage.id } 
+        });
+
+        // ポイント消費
+        await consumePoints({
+          userId,
+          amount: totalPointsToConsume,
+          usageType: 'chat',
+          description: 'チャット送信',
+          relatedChatId: chatId,
+          relatedMessageId: userMessageForHistory.id,
+        });
+
+        // ▼▼▼【ベクトル検索】メッセージのembeddingを非同期で生成（応答速度を維持）▼▼▼
+        (async () => {
+          try {
+            const embedding = await getEmbedding(message);
+            const embeddingString = `[${embedding.join(',')}]`;
+            await prisma.$executeRawUnsafe(
+              `UPDATE "chat_message" SET "embedding" = $1::vector WHERE "id" = $2`,
+              embeddingString,
+              newUserMessage.id
+            );
+          } catch (error) {
+            console.error('メッセージembedding生成エラー:', error);
+          }
+        })();
+        // ▲▲▲
+        
         turnIdForModel = userMessageForHistory.id;
         console.log("ステップ3: ユーザーメッセージ保存完了");
       }

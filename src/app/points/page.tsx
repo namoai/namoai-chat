@@ -3,6 +3,7 @@
 import { Suspense, useState, useEffect, useCallback } from 'react';
 // ▼▼▼【修正点】useRouterをインポートします ▼▼▼
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { ArrowLeft, Gift, CheckCircle, HelpCircle, Loader2 } from 'lucide-react';
 import HelpModal from '@/components/HelpModal';
 import { fetchWithCsrf } from "@/lib/csrf-client";
@@ -251,9 +252,15 @@ function PointPageContent() {
               <button onClick={() => router.back()} className="absolute left-0 p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all">
                 <ArrowLeft size={24} />
               </button>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-yellow-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
                 ポイント
               </h1>
+              <Link
+                href="/points/history"
+                className="absolute left-12 px-3 py-2 text-sm rounded-xl bg-gray-900/50 hover:bg-gray-800/50 border border-gray-700/50 hover:border-blue-500/30 transition-all"
+              >
+                履歴
+              </Link>
               <button
                 onClick={() => setIsHelpOpen(true)}
                 className="absolute right-0 p-2 rounded-xl hover:bg-blue-500/10 hover:text-blue-400 transition-all"
@@ -402,6 +409,7 @@ function PointPageContent() {
                 <li><strong>画像生成:</strong> 1枚の画像生成で5ポイント消費されます</li>
                 <li>無料ポイントが優先的に消費され、不足分は有料ポイントから消費されます</li>
                 <li>ポイントが不足している場合は、機能を使用できません</li>
+                <li><strong>取得・使用履歴は<a href="/points/history" className="text-blue-400 hover:underline">ポイント履歴ページ</a>で確認できます</strong></li>
               </ul>
             </div>
           </div>

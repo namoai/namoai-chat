@@ -85,6 +85,8 @@ model users {
   notifications                 notifications[]             @relation("NotificationReceiver")
   notificationsSent             notifications[]             @relation("NotificationActor")
   emailVerificationTokens       email_verification_tokens[]
+  pointTransactions             point_transactions[]
+  pointUsageHistory             point_usage_history[]
   // ▼▼▼【修正】エラーを引き起こす重複した'sessions'フィールドを削除しました。▼▼▼
 }
 
@@ -131,6 +133,45 @@ model points {
   freePointsExpiresAt DateTime? @db.Timestamptz(6) // 無料ポイント有効期限（1年）
   paidPointsExpiresAt DateTime? @db.Timestamptz(6) // 有料ポイント有効期限（1年）
   users               users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+// ポイント取引履歴テーブル（バッチ別管理）
+model point_transactions {
+  id          Int      @id @default(autoincrement())
+  user_id     Int
+  type        String   @db.VarChar(50) // 'free' or 'paid'
+  amount      Int // 取得した量（正の値）
+  balance     Int // このバッチの残高
+  source      String   @db.VarChar(100) // 'attendance', 'purchase', 'admin_grant', 'migration'
+  description String?  @db.Text // 詳細説明
+  payment_id  Int? // paymentsテーブルのID（購入の場合）
+  acquired_at DateTime @default(now()) @db.Timestamptz(6) // 取得日時
+  expires_at  DateTime @db.Timestamptz(6) // 有効期限
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, balance])
+  @@index([user_id, expires_at])
+  @@index([user_id, type])
+  @@index([expires_at])
+}
+
+// ポイント使用履歴テーブル
+model point_usage_history {
+  id                   Int      @id @default(autoincrement())
+  user_id              Int
+  points_used          Int // 使用したポイント数
+  usage_type           String   @db.VarChar(50) // 'chat', 'image_generation', 'boost', 'other'
+  description          String?  @db.Text // 詳細説明
+  related_chat_id      Int? // 関連チャットID
+  related_message_id   Int? // 関連メッセージID
+  transaction_details  Json // どのバッチからいくら消費したかの詳細
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  users                users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, created_at])
+  @@index([usage_type])
+  @@index([related_chat_id])
 }
 
 model payments {
