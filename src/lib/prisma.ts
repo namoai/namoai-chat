@@ -177,8 +177,50 @@ async function createPrisma(): Promise<PrismaClient> {
   console.log('[Prisma] URL has port 6543:', url.includes(':6543'));
   console.log('[Prisma] URL has pgbouncer:', url.includes('pgbouncer='));
 
+  // Connection pool 설정을 URL에 추가
+  // Connection pool settings to prevent "too many connections" errors
+  let finalUrl = url;
+  const separator = finalUrl.includes('?') ? '&' : '?';
+  
+  // 서버리스 환경(Lambda)에서는 연결 풀 크기를 제한
+  // Limit connection pool size in serverless environments (Lambda)
+  const isServerless = !!(
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.AWS_EXECUTION_ENV ||
+    process.env.LAMBDA_TASK_ROOT ||
+    process.env.VERCEL ||
+    process.env.NETLIFY
+  );
+  
+  // Connection limit 설정 (기본값: 서버리스 5, 일반 10)
+  // Connection limit setting (default: serverless 5, normal 10)
+  const connectionLimit = process.env.PRISMA_CONNECTION_LIMIT 
+    ? parseInt(process.env.PRISMA_CONNECTION_LIMIT, 10)
+    : (isServerless ? 5 : 10);
+  
+  // Pool timeout 설정 (초 단위, 기본값: 10초)
+  // Pool timeout setting (in seconds, default: 10 seconds)
+  const poolTimeout = process.env.PRISMA_POOL_TIMEOUT
+    ? parseInt(process.env.PRISMA_POOL_TIMEOUT, 10)
+    : 10;
+  
+  // URL에 connection_limit이 없으면 추가
+  // Add connection_limit to URL if not present
+  if (!finalUrl.includes('connection_limit=')) {
+    finalUrl = `${finalUrl}${separator}connection_limit=${connectionLimit}`;
+    console.log(`[Prisma] Added connection_limit=${connectionLimit} to URL`);
+  }
+  
+  // URL에 pool_timeout이 없으면 추가
+  // Add pool_timeout to URL if not present
+  if (!finalUrl.includes('pool_timeout=')) {
+    const nextSeparator = finalUrl.includes('?') ? '&' : '?';
+    finalUrl = `${finalUrl}${nextSeparator}pool_timeout=${poolTimeout}`;
+    console.log(`[Prisma] Added pool_timeout=${poolTimeout} to URL`);
+  }
+
   const instance = new PrismaClient({
-    datasourceUrl: url,
+    datasourceUrl: finalUrl,
     log:
       process.env.NODE_ENV === "development"
         ? ["query", "error", "warn"]
@@ -202,6 +244,13 @@ async function createPrisma(): Promise<PrismaClient> {
     const isP1001Error = connectError instanceof Error && 
         ('code' in connectError && connectError.code === 'P1001');
     
+    // "Too many database connections" エラーの場合、特別な処理
+    // Special handling for "Too many database connections" errors
+    const isTooManyConnectionsError = connectError instanceof Error &&
+        (connectError.message.includes('Too many database connections') ||
+         connectError.message.includes('remaining connection slots are reserved') ||
+         connectError.message.includes('FATAL: remaining connection slots'));
+    
     if (connectError instanceof Error && 
         (isP1001Error || 
          connectError.message.includes("Can't reach database server"))) {
@@ -210,13 +259,27 @@ async function createPrisma(): Promise<PrismaClient> {
       console.error('[Prisma] 💡 Recommendation: Use Connection Pooling (port 6543) instead of direct connection (port 5432)');
     }
     
+    if (isTooManyConnectionsError) {
+      console.error('[Prisma] ❌ Too many database connections error detected!');
+      console.error('[Prisma] 💡 Solutions:');
+      console.error('[Prisma]   1. Use Prisma Accelerate: https://pris.ly/client/error-accelerate');
+      console.error('[Prisma]   2. Use RDS Proxy for connection pooling');
+      console.error('[Prisma]   3. Reduce connection_limit in DATABASE_URL (currently set to ' + connectionLimit + ')');
+      console.error('[Prisma]   4. Restart RDS instance to clear zombie connections');
+      console.error('[Prisma]   5. Check for connection leaks in your code (ensure $disconnect() is called)');
+    }
+    
     await instance.$disconnect().catch(() => {}); // エラーを無視
     throw connectError;
   }
 
-  if (process.env.NODE_ENV !== "production") {
-    global.__prisma = instance;
-  }
+  // 프로덕션 환경에서도 싱글톤 패턴 유지 (서버리스 환경에서 연결 누수 방지)
+  // Maintain singleton pattern in production (prevent connection leaks in serverless environments)
+  // 단, Lambda 환경에서는 각 실행 컨텍스트마다 새로운 인스턴스가 생성될 수 있으므로
+  // global 캐시는 도움이 되지만 완전한 해결책은 아닙니다.
+  // However, in Lambda environments, a new instance may be created for each execution context,
+  // so global cache helps but is not a complete solution.
+  global.__prisma = instance;
   return instance;
 }
 

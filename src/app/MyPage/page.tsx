@@ -71,7 +71,7 @@ const LoggedInView = ({ session }: { session: Session }) => {
   const [birthdate, setBirthdate] = useState({ year: '', month: '', day: '' });
 
   const userRole = session?.user?.role;
-  const isAdmin = userRole && userRole !== 'USER';
+  const isAdmin = userRole === 'MODERATOR' || userRole === 'CHAR_MANAGER' || userRole === 'SUPER_ADMIN';
 
   useEffect(() => {
     const fetchData = async () => {

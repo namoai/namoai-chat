@@ -142,9 +142,9 @@ export async function POST(request: NextRequest) {
         
         // ポイント消費ロジック
         const boostMultiplier = settings?.responseBoostMultiplier || 1.0;
-        const boostCostMap: { [key: number]: number } = { 1.5: 1, 3.0: 2, 5.0: 4 };
+        const boostCostMap: { [key: number]: number } = { 1.5: 5, 3.0: 10, 5.0: 20 };
         const boostCost = boostCostMap[boostMultiplier] || 0;
-        const totalPointsToConsume = 1 + boostCost;
+        const totalPointsToConsume = 5 + boostCost;
 
         console.time("⏱️ ポイント消費");
         await prisma.$transaction(async (tx) => {

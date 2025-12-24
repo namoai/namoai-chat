@@ -264,39 +264,68 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     const statusCode = corsResponse.status;
     
     // Console/memory log
-    logger.logAccess(request, statusCode);
+    try {
+      logger.logAccess(request, statusCode);
+    } catch (logError) {
+      // Logging failure should not affect the request
+      console.warn('[middleware] Failed to log access:', logError);
+    }
     
     // Persist access logs for admin IP monitor (best-effort)
     if (shouldPersistAccessLog) {
       try {
-        await fetch(`${request.nextUrl.origin}/api/internal/log-access`, {
-          method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          cookie: cookieHeader,
-        },
-          body: JSON.stringify({
-            ip,
-            userAgent: request.headers.get('user-agent') || 'unknown',
-            path: pathname,
-            method: request.method,
-            statusCode,
-            duration,
-          }),
-        });
-      } catch {
-        // ignore
+        // Add timeout to prevent hanging (5 seconds max)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        try {
+          const response = await fetch(`${request.nextUrl.origin}/api/internal/log-access`, {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              cookie: cookieHeader,
+            },
+            body: JSON.stringify({
+              ip,
+              userAgent: request.headers.get('user-agent') || 'unknown',
+              path: pathname,
+              method: request.method,
+              statusCode,
+              duration,
+            }),
+            signal: controller.signal,
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            console.warn(`[middleware] Log access endpoint returned ${response.status} for ${pathname}`);
+          }
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          // Only log if it's not an abort (timeout is expected)
+          if (fetchError instanceof Error && fetchError.name !== 'AbortError') {
+            console.warn('[middleware] Failed to persist access log (non-critical):', fetchError.message);
+          }
+        }
+      } catch (error) {
+        // Catch any unexpected errors in the logging flow
+        console.warn('[middleware] Unexpected error in access log persistence:', error);
       }
     }
 
     if (statusCode >= 400) {
-      logger.warn('API request failed', {
-        path: pathname,
-        method: request.method,
-        statusCode,
-        duration,
-        ip,
-      });
+      try {
+        logger.warn('API request failed', {
+          path: pathname,
+          method: request.method,
+          statusCode,
+          duration,
+          ip,
+        });
+      } catch (warnError) {
+        console.warn('[middleware] Failed to log warning:', warnError);
+      }
     }
   })());
 

@@ -22,10 +22,10 @@ type PointPackage = {
 };
 
 const pointPackages: PointPackage[] = [
-  { yen: 1100, points: 100 },
-  { yen: 2200, points: 250 },
-  { yen: 5500, points: 700 },
-  { yen: 11000, points: 1500 },
+  { yen: 1100, points: 3300 },
+  { yen: 2200, points: 6600 },
+  { yen: 5500, points: 16500 },
+  { yen: 10000, points: 30000 },
 ];
 
 // ▼▼▼【修正点】汎用モーダルコンポーネントを追加 ▼▼▼
@@ -308,7 +308,9 @@ function PointPageContent() {
                     ポイント購入
                   </h2>
                   <div className="text-sm text-gray-400 mb-4 space-y-1">
-                    <p>決済には親権者（法定代理人）の同意が必要です。</p>
+                    <p>• 決済には親権者（法定代理人）の同意が必要です。</p>
+                    <p>• 購入したポイントの有効期限は購入日から1年間です。</p>
+                    <p>• 1ポイント = 約0.33円（10,000円 = 30,000ポイント）</p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {pointPackages.map(pkg => (
@@ -373,8 +375,8 @@ function PointPageContent() {
             <div>
               <h3 className="text-lg font-semibold text-blue-400 mb-2">ポイントの種類</h3>
               <ul className="list-disc list-inside space-y-2 text-gray-300 ml-2">
-                <li><strong className="text-blue-400">有料ポイント:</strong> 購入したポイントです。すべての機能で使用できます。</li>
-                <li><strong className="text-yellow-400">無料ポイント:</strong> 毎日出席イベントなどで獲得できるポイントです。基本的な機能で使用できます。</li>
+                <li><strong className="text-blue-400">有料ポイント:</strong> 購入したポイントです。すべての機能で使用できます。有効期限は購入日から1年間です。</li>
+                <li><strong className="text-yellow-400">無料ポイント:</strong> 毎日出席イベントなどで獲得できるポイントです。基本的な機能で使用できます。有効期限は獲得日から1年間です。</li>
               </ul>
             </div>
             <div>
@@ -396,9 +398,10 @@ function PointPageContent() {
             <div>
               <h3 className="text-lg font-semibold text-pink-400 mb-2">ポイントの使用</h3>
               <ul className="list-disc list-inside space-y-2 text-gray-300 ml-2">
-                <li>チャット機能を使用する際にポイントが消費されます</li>
-                <li>有料ポイントと無料ポイントは自動的に適切に使用されます</li>
-                <li>ポイントが不足している場合は、チャット機能を使用できません</li>
+                <li><strong>チャット:</strong> 1回のチャットで5ポイント消費されます</li>
+                <li><strong>画像生成:</strong> 1枚の画像生成で5ポイント消費されます</li>
+                <li>無料ポイントが優先的に消費され、不足分は有料ポイントから消費されます</li>
+                <li>ポイントが不足している場合は、機能を使用できません</li>
               </ul>
             </div>
           </div>

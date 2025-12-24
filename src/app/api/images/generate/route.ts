@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     // コストチェック（先に確保、返金は別途検討）
-    const COST_PER_IMAGE = 1;
+    const COST_PER_IMAGE = 5;
     const NUM_OUTPUTS = 1;
     const TOTAL_COST = COST_PER_IMAGE;
     const prisma = await getPrisma();
