@@ -71,7 +71,13 @@ const LoggedInView = ({ session }: { session: Session }) => {
   const [birthdate, setBirthdate] = useState({ year: '', month: '', day: '' });
 
   const userRole = session?.user?.role;
-  const isAdmin = userRole === 'MODERATOR' || userRole === 'CHAR_MANAGER' || userRole === 'SUPER_ADMIN';
+  // 管理者権限チェック - USER以外のすべての権限を管理者として扱う
+  const isAdmin = userRole && (userRole === 'MODERATOR' || userRole === 'CHAR_MANAGER' || userRole === 'SUPER_ADMIN');
+
+  // デバッグログ
+  console.log('[MyPage] User role:', userRole);
+  console.log('[MyPage] Is admin:', isAdmin);
+  console.log('[MyPage] Full session:', session);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -798,6 +804,13 @@ export default function MyPage() {
     };
     fetchSession();
   }, []);
+
+  // PC版でログアウト状態の場合、ログインページへリダイレクト
+  useEffect(() => {
+    if (!isMobile && status === "unauthenticated") {
+      window.location.href = '/login?redirect=/MyPage';
+    }
+  }, [isMobile, status]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
