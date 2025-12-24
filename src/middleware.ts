@@ -6,6 +6,7 @@ import { createErrorResponse, ErrorCode } from "@/lib/error-handler";
 import { checkAdminAccessAlwaysPrompt } from "@/lib/security/ip-restriction";
 import { isIpBlocked } from "@/lib/security/suspicious-ip";
 import { getClientIpFromRequest } from "@/lib/security/client-ip";
+import { getToken } from "next-auth/jwt";
 
 type AllowlistCache = { ips: string[]; fetchedAt: number };
 let adminAllowlistCache: AllowlistCache | null = null;
@@ -44,6 +45,33 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
 
   // 管理者ページへのアクセス制限（許可IP + Basic認証）
   if (pathname.startsWith('/admin')) {
+    // まず、ユーザーのセッションを確認して管理者権限をチェック
+    try {
+      const token = await getToken({ 
+        req: request,
+        secret: process.env.NEXTAUTH_SECRET 
+      });
+      
+      // セッションが存在し、ユーザーの役割を確認
+      if (token && token.role) {
+        // 管理者でない場合はBasic認証を要求せずにリダイレクト
+        if (token.role === 'USER') {
+          console.log('[middleware] Non-admin user attempted to access admin page, redirecting');
+          return NextResponse.redirect(new URL('/', request.url));
+        }
+        // 管理者の場合はBasic認証チェックを続行
+      } else {
+        // セッションがない場合もBasic認証を要求せずにリダイレクト
+        console.log('[middleware] No session found for admin page access, redirecting');
+        return NextResponse.redirect(new URL('/login', request.url));
+      }
+    } catch (error) {
+      // セッション確認でエラーが発生した場合もリダイレクト
+      console.error('[middleware] Error checking session:', error);
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    // 管理者の場合のみBasic認証とIP制限をチェック
     // 1) Admin IP allowlist (if configured)
     const ip = getClientIpFromRequest(request);
     console.log('[middleware] admin gate', { pathname, ip });
