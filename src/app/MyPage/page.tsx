@@ -69,9 +69,27 @@ const LoggedInView = ({ session }: { session: Session }) => {
   // 生年月日入力モーダル用の状態
   const [showBirthdateModal, setShowBirthdateModal] = useState(false);
   const [birthdate, setBirthdate] = useState({ year: '', month: '', day: '' });
-
-  const userRole = session?.user?.role;
-  const isAdmin = userRole === 'MODERATOR' || userRole === 'CHAR_MANAGER' || userRole === 'SUPER_ADMIN';
+  
+  // 管理者権限チェック - より厳密にチェック
+  // LoggedInViewは認証済みユーザーのみにレンダリングされるため、statusチェックは不要
+  const isAdmin = (() => {
+    // セッションが存在しない場合は false
+    if (!session?.user) {
+      return false;
+    }
+    
+    const userRole = session.user.role;
+    
+    // roleが存在しない、またはUSERの場合は false
+    if (!userRole || userRole === 'USER') {
+      return false;
+    }
+    
+    // 管理者権限のみ true
+    return userRole === 'MODERATOR' || 
+           userRole === 'CHAR_MANAGER' || 
+           userRole === 'SUPER_ADMIN';
+  })();
 
   useEffect(() => {
     const fetchData = async () => {
