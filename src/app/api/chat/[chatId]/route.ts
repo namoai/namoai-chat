@@ -120,7 +120,7 @@ export async function POST(request: Request, context: { params: Promise<{ chatId
     const dbWritePromise = (async () => {
       console.time("⏱️ DB Write (Points+Msg)");
       console.log(`ステップ1: ポイント消費とメッセージ保存処理開始 (ユーザーID: ${userId})`);
-      const totalPointsToConsume = 1;
+      const totalPointsToConsume = 5;
       let userMessageForHistory;
       let turnIdForModel;
 

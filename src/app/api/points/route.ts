@@ -84,11 +84,16 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: '本日は既に出席済みです。' }, { status: 400 });
       }
 
+      // 無料ポイント有効期限を1年後に設定
+      const oneYearFromNow = new Date();
+      oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+
       const updatedPoints = await prisma.points.update({
         where: { user_id: userId },
         data: {
           free_points: { increment: 30 },
           lastAttendedAt: new Date(),
+          freePointsExpiresAt: oneYearFromNow,
         },
       });
       return NextResponse.json({ message: '出席チェック完了！30ポイント獲得しました。', points: updatedPoints });

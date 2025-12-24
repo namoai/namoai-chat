@@ -98,15 +98,21 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      // 有料ポイント有効期限を1年後に設定
+      const oneYearFromNow = new Date();
+      oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+
       // ポイント追加
       await prisma.points.upsert({
         where: { user_id: payment.user_id },
         create: {
           user_id: payment.user_id,
           paid_points: payment.points,
+          paidPointsExpiresAt: oneYearFromNow,
         },
         update: {
           paid_points: { increment: payment.points },
+          paidPointsExpiresAt: oneYearFromNow,
         },
       });
 
