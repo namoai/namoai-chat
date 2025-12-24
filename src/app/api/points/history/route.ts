@@ -24,6 +24,10 @@ export async function GET(request: NextRequest) {
 
     const prisma = await getPrisma();
 
+    // When type is 'all', we need to fetch more records to ensure proper pagination
+    // after combining and sorting. Fetch enough to cover offset + limit.
+    const fetchLimit = type === 'all' || !type ? (offset + limit) * 2 : limit + offset;
+
     // 取得履歴
     let earnTransactions: Array<{
       id: number;
@@ -42,8 +46,8 @@ export async function GET(request: NextRequest) {
           user_id: userId,
         },
         orderBy: { created_at: 'desc' },
-        take: limit,
-        skip: offset,
+        take: type === 'earn' ? limit + offset : fetchLimit,
+        skip: type === 'earn' ? offset : 0,
         select: {
           id: true,
           type: true,
@@ -74,8 +78,8 @@ export async function GET(request: NextRequest) {
           user_id: userId,
         },
         orderBy: { created_at: 'desc' },
-        take: limit,
-        skip: offset,
+        take: type === 'spend' ? limit + offset : fetchLimit,
+        skip: type === 'spend' ? offset : 0,
         select: {
           id: true,
           points_used: true,
@@ -113,8 +117,11 @@ export async function GET(request: NextRequest) {
         : 0,
     ]);
 
+    // Apply pagination to the combined and sorted result
+    const paginatedHistory = allHistory.slice(offset, offset + limit);
+
     return NextResponse.json({
-      history: allHistory.slice(0, limit),
+      history: paginatedHistory,
       total: earnCount + spendCount,
       hasMore: offset + limit < earnCount + spendCount,
     });
