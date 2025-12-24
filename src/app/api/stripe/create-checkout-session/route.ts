@@ -19,7 +19,8 @@ function getStripe(): Stripe {
       throw new Error('STRIPE_SECRET_KEY環境変数が設定されていません。');
     }
     stripeInstance = new Stripe(secretKey, {
-      apiVersion: '2024-11-20.acacia',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      apiVersion: '2024-11-20.acacia' as any,
     });
   }
   return stripeInstance;
