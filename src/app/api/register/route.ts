@@ -184,6 +184,16 @@ export async function POST(req: Request) {
       },
     });
 
+    // 会員登録ウェルカムボーナス: 500ポイント付与
+    const { grantPoints } = await import('@/lib/point-manager');
+    await grantPoints({
+      userId: newUser.id,
+      amount: 500,
+      type: 'free',
+      source: 'registration',
+      description: '会員登録ウェルカムボーナス',
+    });
+
     // 成功レスポンスをJSONで返却
     return NextResponse.json(
       { 

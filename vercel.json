@@ -1,0 +1,9 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-expired-points",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}
+

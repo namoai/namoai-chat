@@ -437,7 +437,7 @@ export function getAuthOptions(): NextAuthOptions {
           // メールアドレスが管理者リストに含まれているかチェック
           const isAdmin = adminEmails.includes(email.toLowerCase());
 
-          await prisma.users.create({
+          const newUser = await prisma.users.create({
             data: {
               email,
               name: name || "New User",
@@ -450,9 +450,23 @@ export function getAuthOptions(): NextAuthOptions {
               dateOfBirth: null,
               needsProfileCompletion: true,
               role: isAdmin ? Role.SUPER_ADMIN : Role.USER, // ✅ 管理者として設定
+              // ポイントレコードも同時に作成
+              points: {
+                create: {},
+              },
             },
           });
           console.log(`[signIn] New user created: ${email}, role: ${isAdmin ? 'ADMIN' : 'USER'}, needsProfileCompletion=true`);
+          
+          // 会員登録ウェルカムボーナス: 500ポイント付与
+          const { grantPoints } = await import('@/lib/point-manager');
+          await grantPoints({
+            userId: newUser.id,
+            amount: 500,
+            type: 'free',
+            source: 'registration',
+            description: '会員登録ウェルカムボーナス (Google)',
+          });
           // ✅ 修正: URL文字列ではなくtrueを返してJWT/セッション生成を許可
           // リダイレクトはクライアント側で needsProfileCompletion をチェックして実施
           console.log(`[signIn] New user created: ${email}, needsProfileCompletion=true`);

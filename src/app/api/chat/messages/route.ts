@@ -147,20 +147,15 @@ export async function POST(request: NextRequest) {
         const totalPointsToConsume = 5 + boostCost;
 
         console.time("⏱️ ポイント消費");
-        await prisma.$transaction(async (tx) => {
-            const userPointsRecord = await tx.points.findUnique({ where: { user_id: userId } });
-            const currentUserPoints = (userPointsRecord?.free_points || 0) + (userPointsRecord?.paid_points || 0);
-            if (currentUserPoints < totalPointsToConsume) throw new Error("ポイントが不足しています。");
-            
-            let remainingCost = totalPointsToConsume;
-            const freePointsAfter = Math.max(0, (userPointsRecord?.free_points || 0) - remainingCost);
-            remainingCost = Math.max(0, remainingCost - (userPointsRecord?.free_points || 0));
-            const paidPointsAfter = Math.max(0, (userPointsRecord?.paid_points || 0) - remainingCost);
-            
-            await tx.points.update({
-                where: { user_id: userId },
-                data: { free_points: freePointsAfter, paid_points: paidPointsAfter },
-            });
+        const { consumePoints } = await import('@/lib/point-manager');
+        
+        await consumePoints({
+            userId,
+            amount: totalPointsToConsume,
+            usageType: boostCost > 0 ? 'boost' : 'chat',
+            description: boostCost > 0 ? `チャット送信（ブースト ${boostMultiplier}x）` : 'チャット送信',
+            relatedChatId: chatId,
+            relatedMessageId: turnId,
         });
         console.timeEnd("⏱️ ポイント消費");
 

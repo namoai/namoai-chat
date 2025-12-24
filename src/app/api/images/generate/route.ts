@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/nextauth';
-import { getPrisma } from '@/lib/prisma';
 import { ensureEnvVarsLoaded } from '@/lib/load-env-vars';
 
 /**
@@ -55,15 +54,12 @@ export async function POST(request: NextRequest) {
     const COST_PER_IMAGE = 5;
     const NUM_OUTPUTS = 1;
     const TOTAL_COST = COST_PER_IMAGE;
-    const prisma = await getPrisma();
 
-    const existing = await prisma.points.findUnique({ where: { user_id: userId } });
-    if (!existing) {
-      await prisma.points.create({ data: { user_id: userId, free_points: 0, paid_points: 0 } });
-    }
-    const fresh = await prisma.points.findUnique({ where: { user_id: userId } });
-    const totalPoints = (fresh?.free_points ?? 0) + (fresh?.paid_points ?? 0);
-    if (totalPoints < TOTAL_COST) {
+    // ポイント残高確認
+    const { getPointBalance } = await import('@/lib/point-manager');
+    const balance = await getPointBalance(userId);
+
+    if (balance.totalPoints < TOTAL_COST) {
       return NextResponse.json(
         { error: `ポイントが不足しています。${NUM_OUTPUTS}枚生成で${TOTAL_COST}ポイント必要です。` },
         { status: 402 }
@@ -156,24 +152,13 @@ export async function POST(request: NextRequest) {
 
     // ポイントを先に確定（失敗時の返金は別途検討）
     try {
-      await prisma.$transaction(async (tx) => {
-        const current = await tx.points.findUnique({ where: { user_id: userId } });
-        if (!current) {
-          throw new Error(`ポイントが不足しています。${NUM_OUTPUTS}枚生成で${TOTAL_COST}ポイント必要です。`);
-        }
-        const currentTotal = (current.free_points ?? 0) + (current.paid_points ?? 0);
-        if (currentTotal < TOTAL_COST) {
-          throw new Error(`ポイントが不足しています。${NUM_OUTPUTS}枚生成で${TOTAL_COST}ポイント必要です。`);
-        }
-        const freeUse = Math.min(current.free_points ?? 0, TOTAL_COST);
-        const paidUse = TOTAL_COST - freeUse;
-        await tx.points.update({
-          where: { user_id: userId },
-          data: {
-            free_points: { decrement: freeUse },
-            paid_points: paidUse > 0 ? { decrement: paidUse } : undefined,
-          },
-        });
+      const { consumePoints } = await import('@/lib/point-manager');
+      
+      await consumePoints({
+        userId,
+        amount: TOTAL_COST,
+        usageType: 'image_generation',
+        description: `画像生成 - ${prompt.substring(0, 50)}...`,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'ポイント消費に失敗しました。';
