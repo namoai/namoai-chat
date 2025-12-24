@@ -29,6 +29,17 @@ type ModalProps = {
 };
 
 const CustomModal = ({ isOpen, onClose, onConfirm, title, message, confirmText, cancelText, isAlert }: ModalProps) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  const handleConfirm = async () => {
+    setIsProcessing(true);
+    try {
+      await onConfirm();
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
@@ -36,10 +47,23 @@ const CustomModal = ({ isOpen, onClose, onConfirm, title, message, confirmText, 
         <h2 className="text-lg font-bold mb-4 text-white">{title}</h2>
         <p className="text-sm text-gray-200 mb-6 whitespace-pre-line">{message}</p>
         <div className={`flex ${isAlert ? 'justify-end' : 'justify-end gap-4'}`}>
-          {!isAlert && (
+          {!isAlert && !isProcessing && (
             <button onClick={onClose} className="border border-gray-600 text-white hover:bg-gray-700 py-2 px-4 rounded-lg">{cancelText || 'キャンセル'}</button>
           )}
-          <button onClick={onConfirm} className={`bg-blue-600 text-white hover:bg-blue-700 py-2 px-4 rounded-lg`}>{confirmText || 'OK'}</button>
+          <button 
+            onClick={handleConfirm} 
+            disabled={isProcessing}
+            className={`bg-blue-600 text-white hover:bg-blue-700 py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2`}
+          >
+            {isProcessing ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>処理中...</span>
+              </>
+            ) : (
+              confirmText || 'OK'
+            )}
+          </button>
         </div>
       </div>
     </div>
@@ -69,6 +93,8 @@ const LoggedInView = ({ session }: { session: Session }) => {
   // 生年月日入力モーダル用の状態
   const [showBirthdateModal, setShowBirthdateModal] = useState(false);
   const [birthdate, setBirthdate] = useState({ year: '', month: '', day: '' });
+  // ログアウト処理中の状態
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   // 管理者権限チェック - より厳密にチェック
   // LoggedInViewは認証済みユーザーのみにレンダリングされるため、statusチェックは不要
@@ -351,6 +377,8 @@ const LoggedInView = ({ session }: { session: Session }) => {
       confirmText: "はい",
       cancelText: "いいえ",
       onConfirm: async () => {
+        setIsLoggingOut(true);
+        closeModal();
         // ログアウト前にrefresh tokenを無効化
         try {
           await fetch('/api/auth/logout', { method: 'POST' });
@@ -720,12 +748,22 @@ const LoggedInView = ({ session }: { session: Session }) => {
 
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-red-500/20 to-rose-500/20 backdrop-blur-sm rounded-2xl hover:from-red-500/30 hover:to-rose-500/30 transition-all border border-red-500/30 hover:border-red-500/50 cursor-pointer group"
+          disabled={isLoggingOut}
+          className="w-full flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-red-500/20 to-rose-500/20 backdrop-blur-sm rounded-2xl hover:from-red-500/30 hover:to-rose-500/30 transition-all border border-red-500/30 hover:border-red-500/50 cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <div className="p-2 rounded-lg bg-red-500/30">
-            <LogOut size={20} className="text-red-400" />
-          </div>
-          <span className="text-red-400 font-semibold text-lg group-hover:text-red-300 transition-colors">ログアウト</span>
+          {isLoggingOut ? (
+            <>
+              <div className="w-5 h-5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+              <span className="text-red-400 font-semibold text-lg">ログアウト中...</span>
+            </>
+          ) : (
+            <>
+              <div className="p-2 rounded-lg bg-red-500/30">
+                <LogOut size={20} className="text-red-400" />
+              </div>
+              <span className="text-red-400 font-semibold text-lg group-hover:text-red-300 transition-colors">ログアウト</span>
+            </>
+          )}
         </button>
 
       </main>
