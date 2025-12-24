@@ -65,9 +65,26 @@ export async function POST(req: Request) {
       nickname: sanitizeString(parsed.data.nickname),
       birthdate: parsed.data.birthdate,
       emailVerificationProof: parsed.data.emailVerificationProof,
+      referralCode: parsed.data.referralCode ? sanitizeString(parsed.data.referralCode).toUpperCase() : undefined,
     };
 
     const prisma = await getPrisma();
+    
+    // 紹介コードが提供された場合、紹介者を検索
+    let referrerUserId: number | undefined = undefined;
+    if (sanitized.referralCode) {
+      const referrer = await prisma.users.findUnique({
+        where: { referralCode: sanitized.referralCode },
+        select: { id: true },
+      });
+      
+      if (referrer) {
+        referrerUserId = referrer.id;
+      } else {
+        console.log(`[Register] Invalid referral code provided: ${sanitized.referralCode}`);
+        // 無効な紹介コードでも登録は続行（エラーにしない）
+      }
+    }
     // ユーザー重複チェック
     const existingUser = await prisma.users.findFirst({
       where: {
@@ -157,6 +174,10 @@ export async function POST(req: Request) {
       where: { identifier: `email_proof:${sanitized.email.toLowerCase()}` },
     });
 
+    // 紹介コードを生成
+    const { generateReferralCode } = await import('@/lib/referral');
+    const myReferralCode = await generateReferralCode();
+
     // ✅ ユーザーとポイントレコードを同時に作成（メール認証済みとして）
     const newUser = await prisma.users.create({
       data: {
@@ -170,6 +191,8 @@ export async function POST(req: Request) {
         needsProfileCompletion: false,
         safetyFilter: true, // 初期値は必ずON
         emailVerified: new Date(), // proof検証が完了しているため、認証済みとして設定
+        referralCode: myReferralCode, // 自分の紹介コード
+        referredByUserId: referrerUserId, // 誰が紹介したか（あれば）
         // 👇 ユーザーを作成する際に、関連するpointsレコードも一緒に作成するという意味です
         points: {
           create: {

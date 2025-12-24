@@ -1,0 +1,41 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - img [ref=e7]
+        - link "ナモアイ" [ref=e9] [cursor=pointer]:
+          - /url: /
+      - generic [ref=e12]:
+        - textbox "キャラクターやユーザーを検索..." [ref=e13]
+        - img
+      - generic [ref=e14]:
+        - link [ref=e15] [cursor=pointer]:
+          - /url: /notifications
+          - img [ref=e16]
+        - link "マイページ" [ref=e19] [cursor=pointer]:
+          - /url: /MyPage
+          - img [ref=e20]
+  - generic [ref=e24]:
+    - complementary [ref=e25]:
+      - navigation [ref=e26]:
+        - link [ref=e27] [cursor=pointer]:
+          - /url: /
+          - img [ref=e28]
+        - link [ref=e31] [cursor=pointer]:
+          - /url: /chatlist
+          - img [ref=e32]
+        - link [ref=e34] [cursor=pointer]:
+          - /url: /charlist
+          - img [ref=e35]
+        - link [ref=e40] [cursor=pointer]:
+          - /url: /ranking
+          - img [ref=e41]
+        - link [ref=e44] [cursor=pointer]:
+          - /url: /characters/create
+          - img [ref=e45]
+    - main [ref=e48]:
+      - paragraph [ref=e53]: 読み込み中...
+```

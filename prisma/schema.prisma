@@ -67,6 +67,10 @@ model users {
   adultVerificationDate          DateTime? @db.Timestamptz(6) // 成人認証実施日時（証明文書用）
   adultVerificationBirthdate     DateTime? @db.Timestamptz(6) // 成人認証時に入力した生年月日（証明文書用）
   adultVerificationAgreed        Boolean? // 成人認証時の同意内容（証明文書用）
+  referralCode                  String?   @unique @db.VarChar(10) // 自分の紹介コード
+  referredByUserId              Int? // 誰が自分を紹介したか
+  referredBy                    users?    @relation("ReferralRelation", fields: [referredByUserId], references: [id], onDelete: SetNull)
+  referrals                     users[]   @relation("ReferralRelation") // 自分が紹介したユーザー
   accounts                      Account[]                   @relation("UserAccounts")
   Block_Block_blockerIdTousers  Block[]                     @relation("Block_blockerIdTousers")
   Block_Block_blockingIdTousers Block[]                     @relation("Block_blockingIdTousers")
@@ -87,6 +91,8 @@ model users {
   emailVerificationTokens       email_verification_tokens[]
   pointTransactions             point_transactions[]
   pointUsageHistory             point_usage_history[]
+  referralRewardsGiven          referral_rewards[]          @relation("ReferrerRewards") // 自分が与えた報酬
+  referralRewardsReceived       referral_rewards[]          @relation("ReferredRewards") // 自分が受け取った報酬
   // ▼▼▼【修正】エラーを引き起こす重複した'sessions'フィールドを削除しました。▼▼▼
 }
 
@@ -187,6 +193,7 @@ model payments {
   updated_at        DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
   completed_at      DateTime? @db.Timestamptz(6)
   users             users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  referralRewards   referral_rewards[] // この決済によって発生した紹介報酬
 
   @@index([user_id])
   @@index([stripe_payment_id])
@@ -459,6 +466,25 @@ model banners {
 
   @@index([displayOrder])
   @@index([isActive])
+}
+
+model referral_rewards {
+  id                Int      @id @default(autoincrement())
+  referrer_user_id  Int // 紹介者ID
+  referred_user_id  Int // 被紹介者ID
+  points_awarded    Int // 付与されたポイント
+  payment_id        Int? // 初回決済のpayments.id
+  rewarded_at       DateTime @default(now()) @db.Timestamptz(6) // 報酬付与日時
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  
+  referrer          users    @relation("ReferrerRewards", fields: [referrer_user_id], references: [id], onDelete: Cascade)
+  referred          users    @relation("ReferredRewards", fields: [referred_user_id], references: [id], onDelete: Cascade)
+  payment           payments? @relation(fields: [payment_id], references: [id], onDelete: SetNull)
+
+  @@unique([referred_user_id]) // 被紹介者は一度だけ報酬を生成できる
+  @@index([referrer_user_id])
+  @@index([referred_user_id])
+  @@index([rewarded_at])
 }
 
 enum Role {

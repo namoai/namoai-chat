@@ -27,6 +27,7 @@ export const registerSchema = z.object({
     .optional()
     .refine((value) => !value || !isNaN(Date.parse(value)), "生年月日が不正です。"),
   emailVerificationProof: z.string().min(1).optional(),
+  referralCode: z.string().length(6).optional(), // 紹介コード (6文字、オプション)
 });
 
 // パスワード変更用スキーマ

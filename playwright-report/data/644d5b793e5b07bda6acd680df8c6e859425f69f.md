@@ -1,0 +1,90 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - img [ref=e7]
+          - link "ナモアイ" [ref=e9] [cursor=pointer]:
+            - /url: /
+        - generic [ref=e12]:
+          - textbox "キャラクターやユーザーを検索..." [ref=e13]
+          - img
+        - generic [ref=e14]:
+          - link [ref=e15] [cursor=pointer]:
+            - /url: /notifications
+            - img [ref=e16]
+          - link "マイページ" [ref=e19] [cursor=pointer]:
+            - /url: /MyPage
+            - img [ref=e20]
+    - generic [ref=e24]:
+      - complementary [ref=e25]:
+        - navigation [ref=e26]:
+          - link [ref=e27] [cursor=pointer]:
+            - /url: /
+            - img [ref=e28]
+          - link [ref=e31] [cursor=pointer]:
+            - /url: /chatlist
+            - img [ref=e32]
+          - link [ref=e34] [cursor=pointer]:
+            - /url: /charlist
+            - img [ref=e35]
+          - link [ref=e40] [cursor=pointer]:
+            - /url: /ranking
+            - img [ref=e41]
+          - link [active] [ref=e44] [cursor=pointer]:
+            - /url: /characters/create
+            - img [ref=e45]
+      - generic [ref=e47]:
+        - main [ref=e48]:
+          - generic [ref=e51]:
+            - generic [ref=e52]:
+              - button [ref=e53]:
+                - img [ref=e54]
+              - heading "キャラクター作成" [level=1] [ref=e56]
+              - generic [ref=e57]:
+                - button "読み込み" [ref=e58] [cursor=pointer]:
+                  - img
+                  - generic [ref=e59]: 読み込み
+                - button "一時保存" [ref=e60] [cursor=pointer]:
+                  - img
+                  - generic [ref=e61]: 一時保存
+            - generic [ref=e63]:
+              - button "プロフィール" [ref=e64]
+              - button "画像" [ref=e65]
+              - button "詳細情報" [ref=e66]
+              - button "開始状況" [ref=e67]
+              - button "その他設定" [ref=e68]
+              - button "ステータス" [ref=e69]
+              - button "ロアブック" [ref=e70]
+              - button "登録" [ref=e71]
+            - generic [ref=e73]:
+              - generic [ref=e74]:
+                - heading "プロフィール設定" [level=3] [ref=e75]
+                - paragraph [ref=e76]:
+                  - text: キャラクターの基本的な情報を入力します。名前と紹介文は検索や一覧表示で使用され、ユーザーが最初に目にする情報です。
+                  - text: 「自動生成」ボタンを使用すると、AIが自動でプロフィールを生成します。
+              - generic [ref=e77]:
+                - generic [ref=e78]: プロフィール
+                - button "自動生成" [ref=e79] [cursor=pointer]
+              - generic [ref=e80]:
+                - textbox "キャラクターの名前を入力してください" [ref=e81]
+                - paragraph [ref=e82]: 0 / 20
+              - generic [ref=e83]:
+                - textbox "キャラクター紹介文を入力してください" [ref=e84]
+                - paragraph [ref=e85]: 0 / 250
+            - generic [ref=e86]:
+              - button "前の段階へ" [disabled]
+              - button "次の段階へ" [ref=e87] [cursor=pointer]
+        - contentinfo [ref=e88]:
+          - generic [ref=e90]:
+            - navigation [ref=e91]:
+              - link "特定商取引法に基づく表記" [ref=e92] [cursor=pointer]:
+                - /url: /terms/commercial-transactions
+                - img [ref=e93]
+                - generic [ref=e96]: 特定商取引法に基づく表記
+            - paragraph [ref=e98]: © 2025 ナモアイ. All rights reserved.
+  - alert [ref=e99]
+```

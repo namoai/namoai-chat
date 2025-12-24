@@ -1,0 +1,190 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - img [ref=e7]
+          - link "ナモアイ" [ref=e9] [cursor=pointer]:
+            - /url: /
+        - generic [ref=e12]:
+          - textbox "キャラクターやユーザーを検索..." [ref=e13]
+          - img
+        - generic [ref=e14]:
+          - link [ref=e15] [cursor=pointer]:
+            - /url: /notifications
+            - img [ref=e16]
+          - link "マイページ" [ref=e19] [cursor=pointer]:
+            - /url: /MyPage
+            - img [ref=e20]
+    - generic [ref=e24]:
+      - complementary [ref=e25]:
+        - navigation [ref=e26]:
+          - link [ref=e27] [cursor=pointer]:
+            - /url: /
+            - img [ref=e28]
+          - link [ref=e31] [cursor=pointer]:
+            - /url: /chatlist
+            - img [ref=e32]
+          - link [ref=e34] [cursor=pointer]:
+            - /url: /charlist
+            - img [ref=e35]
+          - link [ref=e40] [cursor=pointer]:
+            - /url: /ranking
+            - img [ref=e41]
+          - link [ref=e44] [cursor=pointer]:
+            - /url: /characters/create
+            - img [ref=e45]
+      - generic [ref=e47]:
+        - main [ref=e48]:
+          - generic [ref=e51]:
+            - main [ref=e52]:
+              - heading "マイページ" [level=1] [ref=e54]
+              - button "ヘルプ" [ref=e56]:
+                - img [ref=e57]
+              - main [ref=e60]:
+                - generic [ref=e62]:
+                  - generic [ref=e63]:
+                    - img [ref=e66]
+                    - link [ref=e69] [cursor=pointer]:
+                      - /url: /profile/51
+                      - img [ref=e70]
+                  - generic [ref=e73]:
+                    - heading "ぱくぱく" [level=1] [ref=e74]
+                    - paragraph [ref=e75]: parksc957662@gmail.com
+                    - generic [ref=e76]:
+                      - generic [ref=e77]:
+                        - generic [ref=e78]: "0"
+                        - generic [ref=e79]: フォロワー
+                      - generic [ref=e80]:
+                        - generic [ref=e81]: "0"
+                        - generic [ref=e82]: フォロー中
+                      - generic [ref=e83]:
+                        - generic [ref=e84]: "19"
+                        - generic [ref=e85]: 作成キャラ
+                    - generic [ref=e86]:
+                      - link "プロフィール" [ref=e87] [cursor=pointer]:
+                        - /url: /profile/51
+                      - link "会員情報変更" [ref=e88] [cursor=pointer]:
+                        - /url: /profile-edit
+                - generic [ref=e89]:
+                  - link "作成したキャラクター 管理・編集" [ref=e90] [cursor=pointer]:
+                    - /url: /character-management
+                    - generic [ref=e91]:
+                      - img [ref=e93]
+                      - generic [ref=e96]:
+                        - heading "作成したキャラクター" [level=3] [ref=e97]
+                        - paragraph [ref=e98]: 管理・編集
+                      - img [ref=e99]
+                  - 'link "ポイント 残高: 0 P" [ref=e101] [cursor=pointer]':
+                    - /url: /points
+                    - generic [ref=e102]:
+                      - img [ref=e104]
+                      - generic [ref=e109]:
+                        - heading "ポイント" [level=3] [ref=e110]
+                        - paragraph [ref=e111]: "残高: 0 P"
+                      - img [ref=e112]
+                  - link "ペルソナ設定 チャット時の役割・設定" [ref=e114] [cursor=pointer]:
+                    - /url: /persona/list
+                    - generic [ref=e115]:
+                      - img [ref=e117]
+                      - generic [ref=e129]:
+                        - heading "ペルソナ設定" [level=3] [ref=e130]
+                        - paragraph [ref=e131]: チャット時の役割・設定
+                      - img [ref=e132]
+                  - button "セーフティフィルター ON" [ref=e134]:
+                    - generic [ref=e135]:
+                      - img [ref=e137]
+                      - generic [ref=e140]:
+                        - heading "セーフティフィルター" [level=3] [ref=e141]
+                        - paragraph [ref=e142]: "ON"
+                      - img [ref=e143]
+                  - link "お問い合わせ サポート・要望" [ref=e145] [cursor=pointer]:
+                    - /url: /MyPage/inquiries
+                    - generic [ref=e146]:
+                      - img [ref=e148]
+                      - generic [ref=e150]:
+                        - heading "お問い合わせ" [level=3] [ref=e151]
+                        - paragraph [ref=e152]: サポート・要望
+                      - img [ref=e153]
+                  - link "ディスコード コミュニティ" [ref=e155] [cursor=pointer]:
+                    - /url: /discord
+                    - generic [ref=e156]:
+                      - img [ref=e158]
+                      - generic [ref=e163]:
+                        - heading "ディスコード" [level=3] [ref=e164]
+                        - paragraph [ref=e165]: コミュニティ
+                      - img [ref=e166]
+                  - link "ユーザーガイド 使い方・ヘルプ" [ref=e168] [cursor=pointer]:
+                    - /url: /guide
+                    - generic [ref=e169]:
+                      - img [ref=e171]
+                      - generic [ref=e175]:
+                        - heading "ユーザーガイド" [level=3] [ref=e176]
+                        - paragraph [ref=e177]: 使い方・ヘルプ
+                      - img [ref=e178]
+                  - link "お知らせ 最新情報・アップデート" [ref=e180] [cursor=pointer]:
+                    - /url: /notice
+                    - generic [ref=e181]:
+                      - img [ref=e183]
+                      - generic [ref=e186]:
+                        - heading "お知らせ" [level=3] [ref=e187]
+                        - paragraph [ref=e188]: 最新情報・アップデート
+                      - img [ref=e189]
+                  - link "管理パネル 管理者機能" [ref=e191] [cursor=pointer]:
+                    - /url: /admin
+                    - generic [ref=e192]:
+                      - img [ref=e194]
+                      - generic [ref=e196]:
+                        - heading "管理パネル" [level=3] [ref=e197]
+                        - paragraph [ref=e198]: 管理者機能
+                      - img [ref=e199]
+                - generic [ref=e201]:
+                  - heading "活動統計" [level=3] [ref=e202]
+                  - generic [ref=e203]:
+                    - generic [ref=e204]:
+                      - generic [ref=e205]: "0"
+                      - generic [ref=e206]: 総チャット数
+                    - generic [ref=e207]:
+                      - generic [ref=e208]: "0"
+                      - generic [ref=e209]: 作成キャラ
+                    - generic [ref=e210]:
+                      - generic [ref=e211]: "0"
+                      - generic [ref=e212]: お気に入り
+                - button "ログアウト" [ref=e213] [cursor=pointer]:
+                  - img [ref=e215]
+                  - generic [ref=e218]: ログアウト
+            - complementary [ref=e219]:
+              - generic [ref=e220]:
+                - heading "ユーザー統計" [level=3] [ref=e221]
+                - generic [ref=e222]:
+                  - generic [ref=e223]:
+                    - generic [ref=e224]: フォロワー
+                    - generic [ref=e225]: "0"
+                  - generic [ref=e226]:
+                    - generic [ref=e227]: フォロー中
+                    - generic [ref=e228]: "0"
+                  - generic [ref=e229]:
+                    - generic [ref=e230]: 作成キャラ
+                    - generic [ref=e231]: "19"
+              - generic [ref=e232]:
+                - heading "最近のアクティビティ" [level=3] [ref=e233]
+                - generic [ref=e234]:
+                  - generic [ref=e235]:
+                    - paragraph [ref=e236]: 新しいチャットを開始
+                    - paragraph [ref=e237]: 2時間前
+                  - generic [ref=e238]:
+                    - paragraph [ref=e239]: キャラクターを作成
+                    - paragraph [ref=e240]: 1日前
+        - contentinfo [ref=e241]:
+          - generic [ref=e243]:
+            - navigation [ref=e244]:
+              - link "特定商取引法に基づく表記" [ref=e245] [cursor=pointer]:
+                - /url: /terms/commercial-transactions
+                - img [ref=e246]
+                - generic [ref=e249]: 特定商取引法に基づく表記
+            - paragraph [ref=e251]: © 2025 ナモアイ. All rights reserved.
+  - alert [ref=e252]
+```
