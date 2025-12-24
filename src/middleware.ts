@@ -49,12 +49,13 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
       
       // セッションが存在し、ユーザーの役割を確認
       if (token && token.role) {
-        // 管理者でない場合はリダイレクト
-        if (token.role === 'USER') {
+        // 管理者権限（MODERATOR, CHAR_MANAGER, SUPER_ADMIN）のみ許可
+        const adminRoles = ['MODERATOR', 'CHAR_MANAGER', 'SUPER_ADMIN'];
+        if (!adminRoles.includes(token.role as string)) {
           console.log('[middleware] Non-admin user attempted to access admin page, redirecting');
           return NextResponse.redirect(new URL('/', request.url));
         }
-        // 管理者の場合はアクセス許可（Basic認証やIP制限 제거）
+        // 管理者の場合はアクセス許可
         return NextResponse.next();
       } else {
         // セッションがない場合はログインページにリダイレクト（元のURLをcallbackUrlとして渡す）

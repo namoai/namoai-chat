@@ -3,7 +3,7 @@
 import type { Session } from "next-auth";
 import {
   Heart, ChevronRight, Megaphone, Users, BookUser,
-  User, ShieldCheck, BrainCircuit, LogOut, Coins, Shield, MessageSquare, HelpCircle,
+  User, ShieldCheck, BrainCircuit, LogOut, Coins, MessageSquare, HelpCircle,
 } from "lucide-react";
 import HelpModal from "@/components/HelpModal";
 import { useState, useEffect } from "react";
@@ -96,31 +96,6 @@ const LoggedInView = ({ session }: { session: Session }) => {
   // ログアウト処理中の状態
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
-  // 管理者権限チェック - より厳密にチェック
-  // LoggedInViewは認証済みユーザーのみにレンダリングされるため、statusチェックは不要
-  const isAdmin = (() => {
-    // セッションが存在しない場合は false
-    if (!session?.user) {
-      console.log('[MyPage] isAdmin check: no session.user');
-      return false;
-    }
-    
-    const userRole = session.user.role;
-    console.log('[MyPage] isAdmin check:', { userRole, userId: session.user.id });
-    
-    // roleが存在しない、またはUSERの場合は false
-    if (!userRole || userRole === 'USER') {
-      console.log('[MyPage] isAdmin check: not admin role');
-      return false;
-    }
-    
-    // 管理者権限のみ true
-    const isAdminRole = userRole === 'MODERATOR' || 
-                        userRole === 'CHAR_MANAGER' || 
-                        userRole === 'SUPER_ADMIN';
-    console.log('[MyPage] isAdmin check result:', isAdminRole);
-    return isAdminRole;
-  })();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -705,20 +680,6 @@ const LoggedInView = ({ session }: { session: Session }) => {
             </div>
           </Link>
 
-          {isAdmin && (
-            <Link href="/admin" className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 md:p-6 hover:bg-white/10 transition-all group border border-white/10">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-gradient-to-br from-purple-500/30 to-blue-500/30 flex items-center justify-center flex-shrink-0">
-                  <Shield size={24} className="md:w-7 md:h-7 text-purple-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-white mb-1 group-hover:text-purple-400 transition-colors text-sm md:text-base">管理パネル</h3>
-                  <p className="text-xs md:text-sm text-gray-400">管理者機能</p>
-                </div>
-                <ChevronRight size={20} className="text-gray-400 group-hover:text-purple-400 transition-colors flex-shrink-0" />
-              </div>
-            </Link>
-          )}
         </div>
 
         {/* 統計カード */}

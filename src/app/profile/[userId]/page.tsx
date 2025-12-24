@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, MoreVertical, Heart, MessageSquare, User, Share2, ShieldBan, ShieldCheck, Edit, KeyRound, X, UserMinus, Trash2, HelpCircle } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Heart, MessageSquare, User, Share2, ShieldBan, ShieldCheck, Edit, KeyRound, X, UserMinus, Trash2, HelpCircle, Shield } from 'lucide-react';
 // ▼▼▼【修正】Next.jsのImageコンポーネントをインポートします ▼▼▼
 import Image from 'next/image';
 import Link from 'next/link';
@@ -47,7 +47,7 @@ type ProfileData = {
 };
 
 type SessionData = {
-  user?: { id?: string; }
+  user?: { id?: string; role?: string; }
 };
 
 // コンポーネント
@@ -575,6 +575,12 @@ export default function UserProfilePage() {
                             <UserMinus size={16} className="text-white group-hover:scale-110 group-hover:text-blue-400 transition-all duration-300" /> 
                             <span className="group-hover:translate-x-1 transition-transform duration-300">ブロックリスト</span>
                           </button>
+                          {(session?.user?.role === 'MODERATOR' || session?.user?.role === 'CHAR_MANAGER' || session?.user?.role === 'SUPER_ADMIN') && (
+                            <button onClick={() => { window.location.href = '/admin'; setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-purple-500/20 hover:via-blue-500/20 hover:to-purple-500/20 hover:text-purple-300 hover:shadow-lg hover:shadow-purple-500/30 transition-all duration-300 flex items-center gap-2 group">
+                              <Shield size={16} className="text-white group-hover:scale-110 group-hover:text-purple-400 transition-all duration-300" /> 
+                              <span className="group-hover:translate-x-1 transition-transform duration-300">管理パネル</span>
+                            </button>
+                          )}
                           <div className="border-t border-gray-700/50 my-1"></div>
                           <button onClick={() => { handleAccountDeleteConfirm(); setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-red-400 hover:bg-gradient-to-r hover:from-red-500/20 hover:via-pink-500/20 hover:to-red-500/20 hover:text-red-300 hover:shadow-lg hover:shadow-red-500/30 transition-all duration-300 flex items-center gap-2 group">
                             <Trash2 size={16} className="text-red-400 group-hover:scale-110 group-hover:text-red-300 transition-all duration-300" /> 
@@ -778,6 +784,12 @@ export default function UserProfilePage() {
                             <UserMinus size={16} className="text-white group-hover:scale-110 group-hover:text-blue-400 transition-all duration-300" /> 
                             <span className="group-hover:translate-x-1 transition-transform duration-300">ブロックリスト</span>
                           </button>
+                          {(session?.user?.role === 'MODERATOR' || session?.user?.role === 'CHAR_MANAGER' || session?.user?.role === 'SUPER_ADMIN') && (
+                            <button onClick={() => { window.location.href = '/admin'; setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-purple-500/20 hover:via-blue-500/20 hover:to-purple-500/20 hover:text-purple-300 hover:shadow-lg hover:shadow-purple-500/30 transition-all duration-300 flex items-center gap-2 group">
+                              <Shield size={16} className="text-white group-hover:scale-110 group-hover:text-purple-400 transition-all duration-300" /> 
+                              <span className="group-hover:translate-x-1 transition-transform duration-300">管理パネル</span>
+                            </button>
+                          )}
                           <div className="border-t border-gray-700/50 my-1"></div>
                           <button onClick={() => { handleAccountDeleteConfirm(); setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-red-400 hover:bg-gradient-to-r hover:from-red-500/20 hover:via-pink-500/20 hover:to-red-500/20 hover:text-red-300 hover:shadow-lg hover:shadow-red-500/30 transition-all duration-300 flex items-center gap-2 group">
                             <Trash2 size={16} className="text-red-400 group-hover:scale-110 group-hover:text-red-300 transition-all duration-300" /> 
