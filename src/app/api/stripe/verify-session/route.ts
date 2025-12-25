@@ -19,7 +19,8 @@ function getStripe(): Stripe {
       throw new Error('STRIPE_SECRET_KEY環境変数が設定されていません。');
     }
     stripeInstance = new Stripe(secretKey, {
-      apiVersion: '2025-11-17.clover',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      apiVersion: '2024-11-20.acacia' as any,
     });
   }
   return stripeInstance;
@@ -86,16 +87,16 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      // ポイント追加
-      await prisma.points.upsert({
-        where: { user_id: payment.user_id },
-        create: {
-          user_id: payment.user_id,
-          paid_points: payment.points,
-        },
-        update: {
-          paid_points: { increment: payment.points },
-        },
+      // ポイント管理システムを使用してポイント付与（point_transactionsテーブルに記録）
+      const { grantPoints } = await import('@/lib/point-manager');
+      
+      await grantPoints({
+        userId: payment.user_id,
+        amount: payment.points,
+        type: 'paid',
+        source: 'purchase',
+        description: `ポイント購入 - ¥${payment.amount.toLocaleString()}`,
+        paymentId: payment.id,
       });
 
       console.log(`手動で決済完了処理: Payment ID ${payment.id}, User ID ${payment.user_id}, Points ${payment.points}`);

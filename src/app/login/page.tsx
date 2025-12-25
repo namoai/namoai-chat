@@ -71,6 +71,7 @@ function LoginComponent() {
   const [verifying2FACode, setVerifying2FACode] = useState(false); // 2FAコード検証中
   const router = useRouter();
   const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') || '/MyPage';
 
   // URLパラメータのエラーとタイムアウトを監視してモーダル表示
   useEffect(() => {
@@ -238,7 +239,7 @@ function LoginComponent() {
         email,
         password,
         skip2FA: true, // 2FA検証完了フラグ
-        callbackUrl: "/MyPage",
+        callbackUrl: callbackUrl,
       });
 
       if (result?.error) {
@@ -265,7 +266,40 @@ function LoginComponent() {
         } else {
           localStorage.removeItem('rememberMe');
         }
-        router.replace("/MyPage");
+        
+        // ▼▼▼【修正】管理者パネルへのアクセス時は管理者権限をチェック ▼▼▼
+        if (callbackUrl.startsWith('/admin')) {
+          // セッションを再取得して管理者権限を確認
+          try {
+            const sessionRes = await fetch('/api/auth/session');
+            const sessionData = await sessionRes.json();
+            const adminRoles = ['MODERATOR', 'CHAR_MANAGER', 'SUPER_ADMIN'];
+            
+            if (!sessionData?.user?.role || !adminRoles.includes(sessionData.user.role)) {
+              // 管理者権限がない場合はアクセス拒否モーダルを表示
+              setModalState({
+                isOpen: true,
+                title: 'アクセスが拒否されました',
+                message: '管理者パネルにアクセスするには管理者権限が必要です。\n\n現在のアカウントには管理者権限がありません。',
+                isAlert: true,
+                confirmText: 'OK',
+                onConfirm: () => {
+                  setModalState({ isOpen: false, title: '', message: '' });
+                  router.replace('/MyPage');
+                }
+              });
+              return;
+            }
+          } catch (error) {
+            console.error('セッション確認エラー:', error);
+            // エラー時はマイページへリダイレクト
+            router.replace('/MyPage');
+            return;
+          }
+        }
+        // ▲▲▲ 管理者権限チェック完了 ▲▲▲
+        
+        router.replace(callbackUrl);
       }
     } catch (error) {
       console.error('2FA verify error:', error);
@@ -312,7 +346,7 @@ function LoginComponent() {
         redirect: false, // 手動でリダイレクトを制御
         email,
         password,
-        callbackUrl: "/MyPage",
+        callbackUrl: callbackUrl,
       });
 
       if (result?.error) {
@@ -434,8 +468,40 @@ function LoginComponent() {
           localStorage.removeItem('rememberMe');
         }
         
-        // 認証成功の場合、マイページへリダイレクト（replaceで履歴を残さない）
-        router.replace("/MyPage");
+        // ▼▼▼【修正】管理者パネルへのアクセス時は管理者権限をチェック ▼▼▼
+        if (callbackUrl.startsWith('/admin')) {
+          // セッションを再取得して管理者権限を確認
+          try {
+            const sessionRes = await fetch('/api/auth/session');
+            const sessionData = await sessionRes.json();
+            const adminRoles = ['MODERATOR', 'CHAR_MANAGER', 'SUPER_ADMIN'];
+            
+            if (!sessionData?.user?.role || !adminRoles.includes(sessionData.user.role)) {
+              // 管理者権限がない場合はアクセス拒否モーダルを表示
+              setModalState({
+                isOpen: true,
+                title: 'アクセスが拒否されました',
+                message: '管理者パネルにアクセスするには管理者権限が必要です。\n\n現在のアカウントには管理者権限がありません。',
+                isAlert: true,
+                confirmText: 'OK',
+                onConfirm: () => {
+                  setModalState({ isOpen: false, title: '', message: '' });
+                  router.replace('/MyPage');
+                }
+              });
+              return;
+            }
+          } catch (error) {
+            console.error('セッション確認エラー:', error);
+            // エラー時はマイページへリダイレクト
+            router.replace('/MyPage');
+            return;
+          }
+        }
+        // ▲▲▲ 管理者権限チェック完了 ▲▲▲
+        
+        // 認証成功の場合、callbackUrlまたはマイページへリダイレクト（replaceで履歴を残さない）
+        router.replace(callbackUrl);
       }
     } catch (error) {
       console.error('ログインエラー:', error);
@@ -462,7 +528,7 @@ function LoginComponent() {
 
         <Button
           className="w-full flex items-center justify-center gap-3 bg-white text-black hover:bg-gray-100 hover:scale-105 active:scale-95 transition-all duration-200 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl cursor-pointer"
-          onClick={() => signIn("google", { callbackUrl: "/MyPage" })}
+          onClick={() => signIn("google", { callbackUrl: callbackUrl })}
         >
           <FcGoogle size={24} /> Googleアカウントで始まる
         </Button>

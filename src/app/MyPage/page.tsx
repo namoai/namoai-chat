@@ -3,7 +3,7 @@
 import type { Session } from "next-auth";
 import {
   Heart, ChevronRight, Megaphone, Users, BookUser,
-  User, ShieldCheck, BrainCircuit, LogOut, Coins, Shield, MessageSquare, HelpCircle,
+  User, ShieldCheck, BrainCircuit, LogOut, Coins, MessageSquare, HelpCircle, UserPlus,
 } from "lucide-react";
 import HelpModal from "@/components/HelpModal";
 import { useState, useEffect } from "react";
@@ -29,6 +29,17 @@ type ModalProps = {
 };
 
 const CustomModal = ({ isOpen, onClose, onConfirm, title, message, confirmText, cancelText, isAlert }: ModalProps) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  const handleConfirm = async () => {
+    setIsProcessing(true);
+    try {
+      await onConfirm();
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
@@ -36,10 +47,23 @@ const CustomModal = ({ isOpen, onClose, onConfirm, title, message, confirmText, 
         <h2 className="text-lg font-bold mb-4 text-white">{title}</h2>
         <p className="text-sm text-gray-200 mb-6 whitespace-pre-line">{message}</p>
         <div className={`flex ${isAlert ? 'justify-end' : 'justify-end gap-4'}`}>
-          {!isAlert && (
+          {!isAlert && !isProcessing && (
             <button onClick={onClose} className="border border-gray-600 text-white hover:bg-gray-700 py-2 px-4 rounded-lg">{cancelText || 'キャンセル'}</button>
           )}
-          <button onClick={onConfirm} className={`bg-blue-600 text-white hover:bg-blue-700 py-2 px-4 rounded-lg`}>{confirmText || 'OK'}</button>
+          <button 
+            onClick={handleConfirm} 
+            disabled={isProcessing}
+            className={`bg-blue-600 text-white hover:bg-blue-700 py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2`}
+          >
+            {isProcessing ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>処理中...</span>
+              </>
+            ) : (
+              confirmText || 'OK'
+            )}
+          </button>
         </div>
       </div>
     </div>
@@ -69,27 +93,9 @@ const LoggedInView = ({ session }: { session: Session }) => {
   // 生年月日入力モーダル用の状態
   const [showBirthdateModal, setShowBirthdateModal] = useState(false);
   const [birthdate, setBirthdate] = useState({ year: '', month: '', day: '' });
+  // ログアウト処理中の状態
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
-  // 管理者権限チェック - より厳密にチェック
-  // LoggedInViewは認証済みユーザーのみにレンダリングされるため、statusチェックは不要
-  const isAdmin = (() => {
-    // セッションが存在しない場合は false
-    if (!session?.user) {
-      return false;
-    }
-    
-    const userRole = session.user.role;
-    
-    // roleが存在しない、またはUSERの場合は false
-    if (!userRole || userRole === 'USER') {
-      return false;
-    }
-    
-    // 管理者権限のみ true
-    return userRole === 'MODERATOR' || 
-           userRole === 'CHAR_MANAGER' || 
-           userRole === 'SUPER_ADMIN';
-  })();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -346,6 +352,8 @@ const LoggedInView = ({ session }: { session: Session }) => {
       confirmText: "はい",
       cancelText: "いいえ",
       onConfirm: async () => {
+        setIsLoggingOut(true);
+        closeModal();
         // ログアウト前にrefresh tokenを無効化
         try {
           await fetch('/api/auth/logout', { method: 'POST' });
@@ -589,6 +597,19 @@ const LoggedInView = ({ session }: { session: Session }) => {
             </div>
           </Link>
 
+          <Link href="/referral" className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 md:p-6 hover:bg-white/10 transition-all group border border-white/10">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-gradient-to-br from-cyan-500/30 to-blue-500/30 flex items-center justify-center flex-shrink-0">
+                <UserPlus size={24} className="md:w-7 md:h-7 text-cyan-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-white mb-1 group-hover:text-cyan-400 transition-colors text-sm md:text-base">紹介プログラム</h3>
+                <p className="text-xs md:text-sm text-gray-400">友達を招待して1,000P獲得</p>
+              </div>
+              <ChevronRight size={20} className="text-gray-400 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
+            </div>
+          </Link>
+
           <Link href="/persona/list" className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 md:p-6 hover:bg-white/10 transition-all group border border-white/10">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center flex-shrink-0">
@@ -672,20 +693,6 @@ const LoggedInView = ({ session }: { session: Session }) => {
             </div>
           </Link>
 
-          {isAdmin && (
-            <Link href="/admin" className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 md:p-6 hover:bg-white/10 transition-all group border border-white/10">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-gradient-to-br from-purple-500/30 to-blue-500/30 flex items-center justify-center flex-shrink-0">
-                  <Shield size={24} className="md:w-7 md:h-7 text-purple-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-white mb-1 group-hover:text-purple-400 transition-colors text-sm md:text-base">管理パネル</h3>
-                  <p className="text-xs md:text-sm text-gray-400">管理者機能</p>
-                </div>
-                <ChevronRight size={20} className="text-gray-400 group-hover:text-purple-400 transition-colors flex-shrink-0" />
-              </div>
-            </Link>
-          )}
         </div>
 
         {/* 統計カード */}
@@ -715,12 +722,22 @@ const LoggedInView = ({ session }: { session: Session }) => {
 
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-red-500/20 to-rose-500/20 backdrop-blur-sm rounded-2xl hover:from-red-500/30 hover:to-rose-500/30 transition-all border border-red-500/30 hover:border-red-500/50 cursor-pointer group"
+          disabled={isLoggingOut}
+          className="w-full flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-red-500/20 to-rose-500/20 backdrop-blur-sm rounded-2xl hover:from-red-500/30 hover:to-rose-500/30 transition-all border border-red-500/30 hover:border-red-500/50 cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <div className="p-2 rounded-lg bg-red-500/30">
-            <LogOut size={20} className="text-red-400" />
-          </div>
-          <span className="text-red-400 font-semibold text-lg group-hover:text-red-300 transition-colors">ログアウト</span>
+          {isLoggingOut ? (
+            <>
+              <div className="w-5 h-5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+              <span className="text-red-400 font-semibold text-lg">ログアウト中...</span>
+            </>
+          ) : (
+            <>
+              <div className="p-2 rounded-lg bg-red-500/30">
+                <LogOut size={20} className="text-red-400" />
+              </div>
+              <span className="text-red-400 font-semibold text-lg group-hover:text-red-300 transition-colors">ログアウト</span>
+            </>
+          )}
         </button>
 
       </main>
@@ -728,12 +745,65 @@ const LoggedInView = ({ session }: { session: Session }) => {
   );
 };
 
-const LoggedOutView = () => {
+const LoggedOutView = ({ isMobile }: { isMobile: boolean }) => {
   const menuItems = [
     { icon: <Users size={20} className="text-gray-400" />, text: "ディスコード", href: "/discord" },
     { icon: <BookUser size={20} className="text-gray-400" />, text: "ユーザーガイド", href: "/guide" },
     { icon: <Megaphone size={20} className="text-gray-400" />, text: "お知らせ", badge: "アップデート", href: "/notice" },
   ];
+  
+  // PC版とモバイル版で異なるレイアウト
+  if (!isMobile) {
+    return (
+      <main className="flex flex-col gap-6">
+        <div className="bg-gradient-to-r from-blue-500/20 via-cyan-500/20 to-blue-500/20 backdrop-blur-sm p-8 rounded-2xl border border-white/10">
+          <Link
+            href="/login"
+            className="flex items-center gap-6 cursor-pointer group"
+          >
+            <div className="bg-gradient-to-br from-blue-500 to-cyan-600 p-4 rounded-xl group-hover:scale-110 transition-transform">
+              <Heart size={32} className="text-white" fill="white" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                ログインして始める
+              </h2>
+              <p className="text-gray-400">アカウントにログインして、すべての機能を利用できます</p>
+            </div>
+            <ChevronRight size={24} className="text-gray-400 group-hover:text-blue-400 group-hover:translate-x-1 transition-all" />
+          </Link>
+        </div>
+
+        <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800/50 overflow-hidden">
+          <div className="px-6 pt-5 pb-3">
+            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">コミュニケーション・案内</h2>
+          </div>
+          <nav className="flex flex-col">
+            {menuItems.map((item, index) => (
+              <Link
+                key={index}
+                href={item.href}
+                className="w-full flex items-center text-left p-5 hover:bg-white/10 transition-all cursor-pointer group"
+              >
+                <div className="p-3 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20">
+                  {item.icon}
+                </div>
+                <span className="ml-4 text-lg group-hover:text-blue-400 transition-colors">{item.text}</span>
+                {item.badge && (
+                  <span className="ml-auto text-sm bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold px-3 py-1 rounded-full">
+                    {item.badge}
+                  </span>
+                )}
+                <ChevronRight size={20} className="text-gray-400 ml-auto group-hover:text-blue-400 group-hover:translate-x-1 transition-all" />
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </main>
+    );
+  }
+  
+  // モバイル版
   return (
     <main className="flex flex-col gap-6">
       <Link
@@ -843,7 +913,7 @@ export default function MyPage() {
                 </div>
               )}
               {status === "authenticated" && session && <LoggedInView session={session} />}
-              {status === "unauthenticated" && <LoggedOutView />}
+              {status === "unauthenticated" && <LoggedOutView isMobile={isMobile} />}
             </main>
             <MyPageRightSidebar />
           </div>
@@ -863,7 +933,7 @@ export default function MyPage() {
               </div>
             )}
             {status === "authenticated" && session && <LoggedInView session={session} />}
-            {status === "unauthenticated" && <LoggedOutView />}
+            {status === "unauthenticated" && <LoggedOutView isMobile={isMobile} />}
           </div>
         )}
       </div>

@@ -19,7 +19,8 @@ function getStripe(): Stripe {
       throw new Error('STRIPE_SECRET_KEY環境変数が設定されていません。');
     }
     stripeInstance = new Stripe(secretKey, {
-      apiVersion: '2025-11-17.clover',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      apiVersion: '2024-11-20.acacia' as any,
     });
   }
   return stripeInstance;
@@ -27,10 +28,10 @@ function getStripe(): Stripe {
 
 // ポイントパッケージ定義
 const POINT_PACKAGES: Record<number, { points: number; amount: number }> = {
-  100: { points: 100, amount: 1100 },
-  250: { points: 250, amount: 2200 },
-  700: { points: 700, amount: 5500 },
-  1500: { points: 1500, amount: 11000 },
+  2200: { points: 2200, amount: 1100 },
+  4400: { points: 4400, amount: 2200 },
+  11000: { points: 11000, amount: 5500 },
+  30000: { points: 30000, amount: 11000 },
 };
 
 export async function POST(request: NextRequest) {
@@ -105,9 +106,16 @@ export async function POST(request: NextRequest) {
     
     console.log('Stripe Checkoutセッション作成:', {
       sessionId: checkoutSession.id,
-      successUrl: `${appUrl}/payment/success?session_id=${checkoutSession.id}`,
-      cancelUrl: `${appUrl}/payment/cancel`
+      url: checkoutSession.url,
+      successUrl: `${appUrl}/points?payment_success=true&session_id=${checkoutSession.id}`,
+      cancelUrl: `${appUrl}/points?payment_cancelled=true`
     });
+
+    // URLが存在しない場合はエラー
+    if (!checkoutSession.url) {
+      console.error('Stripe Checkout URLが生成されませんでした:', checkoutSession);
+      throw new Error('Stripe Checkout URLの生成に失敗しました。APIキーまたは設定を確認してください。');
+    }
 
     // 決済レコードにセッションID保存
     await prisma.payments.update({

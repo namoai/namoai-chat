@@ -23,10 +23,10 @@ type PointPackage = {
 };
 
 const pointPackages: PointPackage[] = [
-  { yen: 1100, points: 3300 },
-  { yen: 2200, points: 6600 },
-  { yen: 5500, points: 16500 },
-  { yen: 10000, points: 30000 },
+  { yen: 1100, points: 2200 },
+  { yen: 2200, points: 4400 },
+  { yen: 5500, points: 11000 },
+  { yen: 11000, points: 30000 },
 ];
 
 // ▼▼▼【修正点】汎用モーダルコンポーネントを追加 ▼▼▼
@@ -156,28 +156,35 @@ function PointPageContent() {
   const handleCharge = async (points: number) => {
     try {
       setLoading(true);
+      console.log('ポイント購入開始:', { points });
+      
       const response = await fetchWithCsrf('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ points }),
       });
       
+      console.log('API応答:', { status: response.status, ok: response.ok });
+      
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ error: 'レスポンスの解析に失敗しました' }));
         const errorMsg = errorData.details 
           ? `${errorData.error}\n詳細: ${errorData.details}` 
           : errorData.error || '決済セッションの作成に失敗しました。';
-        console.error('決済エラー:', errorData);
+        console.error('決済エラー:', { status: response.status, errorData });
         throw new Error(errorMsg);
       }
 
       const data = await response.json();
+      console.log('決済セッション作成成功:', { sessionId: data.sessionId, hasUrl: !!data.url });
       
       // Stripe Checkoutページへリダイレクト
       if (data.url) {
+        console.log('Stripe Checkoutへリダイレクト:', data.url);
         window.location.href = data.url;
       } else {
-        throw new Error('決済URLが取得できませんでした。');
+        console.error('URLが存在しません:', data);
+        throw new Error('決済URLが取得できませんでした。Stripe APIキーを確認してください。');
       }
     } catch (error) {
       console.error('ポイント課金処理エラー:', error);
