@@ -38,15 +38,45 @@ export function getClientIp(request: NextRequest): string {
  * Returns true if the given IP is blocked.
  *
  * Current behavior:
- * - Uses `process.env.IP_BLACKLIST` (comma-separated list of IPs).
+ * - Checks database `ip_block` table first.
+ * - Falls back to `process.env.IP_BLACKLIST` (comma-separated list of IPs) for backward compatibility.
  * - Unknown/empty IP is treated as not blocked (to avoid false positives).
  */
 export async function isIpBlocked(ip: string): Promise<boolean> {
   const normalized = (ip || "").trim();
   if (!normalized || normalized === "unknown") return false;
 
-  const blacklist = parseCsvEnv(process.env.IP_BLACKLIST);
   const { ipMatches } = await import('@/lib/security/ip-match');
+
+  // Try database first (if available)
+  try {
+    const { getPrisma } = await import('@/lib/prisma');
+    const prisma = await getPrisma();
+    
+    // Get all blocked IPs from database using parameterized query
+    // Note: ip_block table is created dynamically, so we use $queryRaw with type assertion
+    let dbBlocks: Array<{ ip: string }> = [];
+    try {
+      dbBlocks = await prisma.$queryRaw<Array<{ ip: string }>>`
+        SELECT "ip" FROM "ip_block" LIMIT 1000
+      `;
+    } catch {
+      // Table might not exist yet, fall back to env var
+      dbBlocks = [];
+    }
+
+    // Check if the IP matches any blocked pattern
+    for (const block of dbBlocks) {
+      if (ipMatches(normalized, block.ip)) {
+        return true;
+      }
+    }
+  } catch {
+    // Database not available or table doesn't exist, fall back to env var
+  }
+
+  // Fallback to environment variable
+  const blacklist = parseCsvEnv(process.env.IP_BLACKLIST);
   return blacklist.some((pattern) => ipMatches(normalized, pattern));
 }
 

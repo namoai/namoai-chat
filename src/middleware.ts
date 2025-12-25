@@ -104,10 +104,84 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // 疑わしいIPアドレスのブロックチェック
   const ip = getClientIpFromRequest(request);
   if (await isIpBlocked(ip)) {
-    return NextResponse.json(
-      { error: 'アクセスが拒否されました。' },
-      { status: 403 }
-    );
+    // APIリクエストの場合はJSONを返す
+    if (isApiRoute(pathname)) {
+      return NextResponse.json(
+        { error: 'アクセスが拒否されました。' },
+        { status: 403 }
+      );
+    }
+    
+    // ページリクエストの場合はHTMLエラーページを返す
+    const html = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>アクセス拒否</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #000;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      text-align: center;
+      max-width: 500px;
+    }
+    .icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 24px;
+      background: rgba(239, 68, 68, 0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 16px;
+      color: #fff;
+    }
+    p {
+      font-size: 16px;
+      color: #9ca3af;
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+    .error-code {
+      font-size: 14px;
+      color: #6b7280;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">🚫</div>
+    <h1>アクセスが拒否されました</h1>
+    <p>お客様のIPアドレスからのアクセスはブロックされています。</p>
+    <p>ご不明な点がございましたら、サポートまでお問い合わせください。</p>
+    <div class="error-code">Error Code: 403</div>
+  </div>
+</body>
+</html>`;
+    
+    return new NextResponse(html, {
+      status: 403,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+      },
+    });
   }
 
   // Log every page/API access (best-effort), excluding static assets & internal endpoint.
