@@ -43,9 +43,29 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   if (pathname.startsWith('/admin')) {
     // ユーザーのセッションを確認して管理者権限をチェック
     try {
+      // デバッグ: クッキーを確認
+      const cookieHeader = request.headers.get('cookie');
+      const hasSessionCookie = cookieHeader && (
+        cookieHeader.includes('next-auth.session-token') || 
+        cookieHeader.includes('__Secure-next-auth.session-token')
+      );
+      
+      console.log('[middleware] Admin access attempt:', {
+        pathname,
+        hasCookie: !!cookieHeader,
+        hasSessionCookie,
+        cookieNames: cookieHeader ? cookieHeader.split(';').map(c => c.split('=')[0].trim()) : []
+      });
+
       const token = await getToken({ 
         req: request,
         secret: process.env.NEXTAUTH_SECRET 
+      });
+      
+      console.log('[middleware] Token check result:', {
+        hasToken: !!token,
+        role: token?.role,
+        userId: token?.sub
       });
       
       // セッションが存在し、ユーザーの役割を確認
@@ -53,7 +73,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
         // 管理者権限（MODERATOR, CHAR_MANAGER, SUPER_ADMIN）のみ許可
         const adminRoles = ['MODERATOR', 'CHAR_MANAGER', 'SUPER_ADMIN'];
         if (!adminRoles.includes(token.role as string)) {
-          console.log('[middleware] Non-admin user attempted to access admin page, redirecting');
+          console.log('[middleware] Non-admin user attempted to access admin page, redirecting. Role:', token.role);
           return NextResponse.redirect(new URL('/', request.url));
         }
         
@@ -62,15 +82,17 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
         const basicAuthResponse = checkAdminAccess(request);
         if (basicAuthResponse) {
           // Basic認証が必要な場合（401レスポンス）
+          console.log('[middleware] Basic auth required for admin');
           return basicAuthResponse;
         }
         // ▲▲▲ Basic認証チェック完了 ▲▲▲
         
         // 管理者の場合はアクセス許可
+        console.log('[middleware] Admin access granted');
         return NextResponse.next();
       } else {
         // セッションがない場合はログインページにリダイレクト（元のURLをcallbackUrlとして渡す）
-        console.log('[middleware] No session found for admin page access, redirecting');
+        console.log('[middleware] No session found for admin page access, redirecting to login');
         const loginUrl = new URL('/login', request.url);
         loginUrl.searchParams.set('callbackUrl', pathname);
         return NextResponse.redirect(loginUrl);
