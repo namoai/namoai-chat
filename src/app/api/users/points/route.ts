@@ -4,10 +4,10 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
-import { getPrisma } from "@/lib/prisma";
+import { getPointBalance } from '@/lib/point-manager';
 import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
 
-// ✅ 未使用のrequestパラメータを削除し、警告を解消します
+// ✅ point_transactionsテーブルから正確な残高を計算して返す
 export async function GET() {
   if (isBuildTime()) return buildTimeResponse();
   
@@ -23,21 +23,14 @@ export async function GET() {
     // セッションから取得したユーザーIDを数値に変換
     const userId = parseInt(session.user.id, 10);
 
-    const prisma = await getPrisma();
-    // データベースからユーザーのポイント情報を検索
-    const userPoints = await prisma.points.findUnique({
-      where: {
-        user_id: userId,
-      },
+    // point_transactionsテーブルから正確な残高を計算
+    const balance = await getPointBalance(userId);
+
+    // ポイント情報をJSON形式で返す（既存のAPI形式に合わせる）
+    return NextResponse.json({
+      free_points: balance.totalFreePoints,
+      paid_points: balance.totalPaidPoints,
     });
-
-    // ポイント情報が見つからない場合（例：登録時に作成されなかったケース）は0を返す
-    if (!userPoints) {
-      return NextResponse.json({ free_points: 0, paid_points: 0 });
-    }
-
-    // ポイント情報をJSON形式で返す
-    return NextResponse.json(userPoints);
 
   } catch (error) {
     console.error('ポイントの取得エラー:', error);
