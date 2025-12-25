@@ -5,8 +5,11 @@ import { logger } from "@/lib/logger";
 import { createErrorResponse, ErrorCode } from "@/lib/error-handler";
 import { isIpBlocked } from "@/lib/security/suspicious-ip";
 import { getClientIpFromRequest } from "@/lib/security/client-ip";
-import { getToken } from "next-auth/jwt";
-import { checkAdminAccess } from "@/lib/security/ip-restriction";
+import { checkAdminAccessAlwaysPrompt } from "@/lib/security/ip-restriction";
+
+type AllowlistCache = { ips: string[]; fetchedAt: number };
+let adminAllowlistCache: AllowlistCache | null = null;
+const ADMIN_ALLOWLIST_CACHE_MS = 30_000;
 
 function shouldLogPath(pathname: string): boolean {
   if (pathname === '/api/internal/log-access') return false;
@@ -39,48 +42,62 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     return NextResponse.next();
   }
 
-  // 管理者ページへのアクセス制限（管理者権限のみチェック）
+  // 管理者ページへのアクセス制限（許可IP + Basic認証）
   if (pathname.startsWith('/admin')) {
-    // ユーザーのセッションを確認して管理者権限をチェック
+    // 1) Admin IP allowlist (if configured)
+    const ip = getClientIpFromRequest(request);
+    console.log('[middleware] admin gate', { pathname, ip });
+    const now = Date.now();
+    let allowlist = adminAllowlistCache?.ips ?? [];
     try {
-      const token = await getToken({ 
-        req: request,
-        secret: process.env.NEXTAUTH_SECRET 
-      });
-      
-      // セッションが存在し、ユーザーの役割を確認
-      if (token && token.role) {
-        // 管理者権限（MODERATOR, CHAR_MANAGER, SUPER_ADMIN）のみ許可
-        const adminRoles = ['MODERATOR', 'CHAR_MANAGER', 'SUPER_ADMIN'];
-        if (!adminRoles.includes(token.role as string)) {
-          console.log('[middleware] Non-admin user attempted to access admin page, redirecting');
-          return NextResponse.redirect(new URL('/', request.url));
+      if (!adminAllowlistCache || now - adminAllowlistCache.fetchedAt > ADMIN_ALLOWLIST_CACHE_MS) {
+        const res = await fetch(`${request.nextUrl.origin}/api/internal/admin-ip-allowlist`, {
+          headers: { accept: 'application/json' },
+          cache: 'no-store',
+        });
+        if (res.ok) {
+          const data: unknown = await res.json().catch(() => null);
+          const ips =
+            data && typeof data === 'object' && Array.isArray((data as { ips?: unknown }).ips)
+              ? (data as { ips: unknown[] }).ips.map((x) => String(x))
+              : [];
+          adminAllowlistCache = { ips, fetchedAt: now };
+          allowlist = ips;
         }
-        
-        // ▼▼▼ 管理者の場合のみBasic認証をチェック ▼▼▼
-        // セッションがあり、管理者権限がある場合のみBasic認証をチェック
-        const basicAuthResponse = checkAdminAccess(request);
-        if (basicAuthResponse) {
-          // Basic認証が必要な場合（401レスポンス）
-          return basicAuthResponse;
-        }
-        // ▲▲▲ Basic認証チェック完了 ▲▲▲
-        
-        // 管理者の場合はアクセス許可
-        return NextResponse.next();
-      } else {
-        // セッションがない場合はログインページにリダイレクト（元のURLをcallbackUrlとして渡す）
-        console.log('[middleware] No session found for admin page access, redirecting');
-        const loginUrl = new URL('/login', request.url);
-        loginUrl.searchParams.set('callbackUrl', pathname);
-        return NextResponse.redirect(loginUrl);
       }
-    } catch (error) {
-      // セッション確認でエラーが発生した場合もリダイレクト（元のURLをcallbackUrlとして渡す）
-      console.error('[middleware] Error checking session:', error);
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('callbackUrl', pathname);
-      return NextResponse.redirect(loginUrl);
+    } catch {
+      // If fetch fails, keep the last known cache if present.
+      // Only fail-closed (empty) when we have no cache at all.
+      allowlist = adminAllowlistCache?.ips ?? [];
+    }
+
+    // Requested behavior:
+    // - If allowlist is EMPTY: treat everyone as "not allowed" until an admin registers their IP.
+    //   -> show BASIC prompt every time
+    // - If allowlist has entries and IP is NOT allowed:
+    //   -> show BASIC prompt every time
+    // - If IP is allowed:
+    //   -> do NOT show BASIC prompt
+    // Match by exact/wildcard/CIDR patterns
+    const { ipMatches } = await import('@/lib/security/ip-match');
+    const isAllowed = allowlist.length > 0 && allowlist.some((p) => ipMatches(ip, p));
+
+    // Requested behavior (strict):
+    // - If allowlist is EMPTY: treat everyone as "not allowed" until an admin registers their IP.
+    //   -> show BASIC prompt every time
+    // - If allowlist has entries and IP is NOT allowed:
+    //   -> show BASIC prompt every time
+    // - If IP is allowed:
+    //   -> do NOT show BASIC prompt
+    //
+    // To make browsers re-prompt reliably, vary the realm on each navigation.
+    // (Browsers cache credentials per realm; changing realm invalidates that cache.)
+    // If allowlist is unavailable (no cache) OR current IP isn't allowed -> require BASIC
+    if (!adminAllowlistCache || !isAllowed) {
+      const realmSuffix = `UnallowedIP-${Date.now()}`;
+      const basicCheck = checkAdminAccessAlwaysPrompt(request, realmSuffix);
+      if (basicCheck) return basicCheck;
+      // BASIC succeeded -> allow access even if IP not allowlisted (as a fallback gate)
     }
   }
 
