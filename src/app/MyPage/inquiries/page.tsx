@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Flag, MessageSquare, FileText, CheckCircle, XCircle, Clock, Search, Filter, Plus, X, HelpCircle } from 'lucide-react';
 import type { Session } from 'next-auth';
 import HelpModal from '@/components/HelpModal';
+import { fetchWithCsrf } from '@/lib/csrf-client';
 
 type Report = {
   id: number;
@@ -102,7 +103,7 @@ export default function InquiriesPage() {
 
     try {
       setSubmitting(true);
-      const res = await fetch('/api/reports', {
+      const res = await fetchWithCsrf('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
