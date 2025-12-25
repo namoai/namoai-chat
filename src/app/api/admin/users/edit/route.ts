@@ -134,33 +134,69 @@ export async function PUT(request: NextRequest) {
                 where: { id: userId },
                 data: updateData,
             });
+        });
 
-            // ポイント情報を更新 (指定された場合のみ)
-            if (freePoints !== undefined || paidPoints !== undefined) {
-                const existingPoints = await tx.points.findUnique({
-                    where: { user_id: userId }
-                });
-
-                if (existingPoints) {
-                    await tx.points.update({
-                        where: { user_id: userId },
-                        data: {
-                            free_points: freePoints !== undefined ? freePoints : existingPoints.free_points,
-                            paid_points: paidPoints !== undefined ? paidPoints : existingPoints.paid_points,
-                        },
-                    });
-                } else {
-                    // ポイントレコードが存在しない場合は作成
-                    await tx.points.create({
-                        data: {
-                            user_id: userId,
-                            free_points: freePoints || 0,
-                            paid_points: paidPoints || 0,
-                        },
-                    });
+        // ポイント情報を更新 (指定された場合のみ)
+        // ✅ point_transactions와 일관성을 유지하기 위해 grantPoints/consumePoints 사용
+        // ⚠️ grantPoints/consumePoints가 자체 트랜잭션을 사용하므로 별도로 처리
+        if (freePoints !== undefined || paidPoints !== undefined) {
+            const { getPointBalance } = await import('@/lib/point-manager');
+            const currentBalance = await getPointBalance(userId);
+            
+            // 무료 포인트 차이 계산 및 조정
+            if (freePoints !== undefined) {
+                const freeDiff = freePoints - currentBalance.totalFreePoints;
+                if (freeDiff !== 0) {
+                    if (freeDiff > 0) {
+                        // 포인트 추가
+                        const { grantPoints } = await import('@/lib/point-manager');
+                        await grantPoints({
+                            userId,
+                            amount: freeDiff,
+                            type: 'free',
+                            source: 'admin_grant',
+                            description: `管理者による無料ポイント調整`,
+                        });
+                    } else {
+                        // 포인트 차감 (음수는 consumePoints 사용)
+                        const { consumePoints } = await import('@/lib/point-manager');
+                        await consumePoints({
+                            userId,
+                            amount: Math.abs(freeDiff),
+                            usageType: 'other',
+                            description: `管理者による無料ポイント調整`,
+                        });
+                    }
                 }
             }
-        });
+            
+            // 유료 포인트 차이 계산 및 조정
+            if (paidPoints !== undefined) {
+                const paidDiff = paidPoints - currentBalance.totalPaidPoints;
+                if (paidDiff !== 0) {
+                    if (paidDiff > 0) {
+                        // 포인트 추가
+                        const { grantPoints } = await import('@/lib/point-manager');
+                        await grantPoints({
+                            userId,
+                            amount: paidDiff,
+                            type: 'paid',
+                            source: 'admin_grant',
+                            description: `管理者による有料ポイント調整`,
+                        });
+                    } else {
+                        // 포인트 차감 (음수는 consumePoints 사용)
+                        const { consumePoints } = await import('@/lib/point-manager');
+                        await consumePoints({
+                            userId,
+                            amount: Math.abs(paidDiff),
+                            usageType: 'other',
+                            description: `管理者による有料ポイント調整`,
+                        });
+                    }
+                }
+            }
+        }
 
         return NextResponse.json({ 
             success: true, 
