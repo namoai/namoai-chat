@@ -207,6 +207,11 @@ export default function UserProfilePage() {
     message: string;
   }>({ isOpen: false, stage: 'first', message: '' });
 
+  // 管理者パネルアクセス拒否モーダル状態
+  const [adminAccessDeniedModal, setAdminAccessDeniedModal] = useState<{
+    isOpen: boolean;
+  }>({ isOpen: false });
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const pathParts = window.location.pathname.split('/');
@@ -431,6 +436,35 @@ export default function UserProfilePage() {
               onUnblock={(id) => handleBlock(id)}
           />
       )}
+
+      {/* 管理者パネルアクセス拒否モーダル */}
+      {adminAccessDeniedModal.isOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex justify-center items-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center">
+                <Shield size={32} className="text-red-400" />
+              </div>
+            </div>
+            <h2 className="text-xl font-bold mb-4 text-white text-center">
+              アクセスが拒否されました
+            </h2>
+            <p className="text-gray-200 mb-6 text-center leading-relaxed">
+              管理者パネルにアクセスするには管理者権限が必要です。
+              <br /><br />
+              現在のアカウントには管理者権限がありません。
+            </p>
+            <div className="flex justify-end">
+              <button 
+                onClick={() => setAdminAccessDeniedModal({ isOpen: false })} 
+                className="px-5 py-2.5 bg-blue-600 text-white hover:bg-blue-500 rounded-lg transition-all duration-200 font-medium shadow-lg hover:shadow-blue-500/50"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* 会員退会確認モーダル */}
       {deleteAccountModal.isOpen && (
@@ -575,7 +609,7 @@ export default function UserProfilePage() {
                             <UserMinus size={16} className="text-white group-hover:scale-110 group-hover:text-blue-400 transition-all duration-300" /> 
                             <span className="group-hover:translate-x-1 transition-transform duration-300">ブロックリスト</span>
                           </button>
-                          {(session?.user?.role === 'MODERATOR' || session?.user?.role === 'CHAR_MANAGER' || session?.user?.role === 'SUPER_ADMIN') && (
+                          {sessionStatus === 'authenticated' && session?.user?.role && (session.user.role === 'MODERATOR' || session.user.role === 'CHAR_MANAGER' || session.user.role === 'SUPER_ADMIN') && (
                             <button onClick={() => { window.location.href = '/admin'; setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-purple-500/20 hover:via-blue-500/20 hover:to-purple-500/20 hover:text-purple-300 hover:shadow-lg hover:shadow-purple-500/30 transition-all duration-300 flex items-center gap-2 group">
                               <Shield size={16} className="text-white group-hover:scale-110 group-hover:text-purple-400 transition-all duration-300" /> 
                               <span className="group-hover:translate-x-1 transition-transform duration-300">管理パネル</span>
@@ -784,7 +818,7 @@ export default function UserProfilePage() {
                             <UserMinus size={16} className="text-white group-hover:scale-110 group-hover:text-blue-400 transition-all duration-300" /> 
                             <span className="group-hover:translate-x-1 transition-transform duration-300">ブロックリスト</span>
                           </button>
-                          {(session?.user?.role === 'MODERATOR' || session?.user?.role === 'CHAR_MANAGER' || session?.user?.role === 'SUPER_ADMIN') && (
+                          {sessionStatus === 'authenticated' && session?.user?.role && (session.user.role === 'MODERATOR' || session.user.role === 'CHAR_MANAGER' || session.user.role === 'SUPER_ADMIN') && (
                             <button onClick={() => { window.location.href = '/admin'; setShowMenu(false); }} className="w-full text-left px-4 py-2 !text-white hover:bg-gradient-to-r hover:from-purple-500/20 hover:via-blue-500/20 hover:to-purple-500/20 hover:text-purple-300 hover:shadow-lg hover:shadow-purple-500/30 transition-all duration-300 flex items-center gap-2 group">
                               <Shield size={16} className="text-white group-hover:scale-110 group-hover:text-purple-400 transition-all duration-300" /> 
                               <span className="group-hover:translate-x-1 transition-transform duration-300">管理パネル</span>

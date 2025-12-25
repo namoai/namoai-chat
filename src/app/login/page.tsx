@@ -266,6 +266,39 @@ function LoginComponent() {
         } else {
           localStorage.removeItem('rememberMe');
         }
+        
+        // ▼▼▼【修正】管理者パネルへのアクセス時は管理者権限をチェック ▼▼▼
+        if (callbackUrl.startsWith('/admin')) {
+          // セッションを再取得して管理者権限を確認
+          try {
+            const sessionRes = await fetch('/api/auth/session');
+            const sessionData = await sessionRes.json();
+            const adminRoles = ['MODERATOR', 'CHAR_MANAGER', 'SUPER_ADMIN'];
+            
+            if (!sessionData?.user?.role || !adminRoles.includes(sessionData.user.role)) {
+              // 管理者権限がない場合はアクセス拒否モーダルを表示
+              setModalState({
+                isOpen: true,
+                title: 'アクセスが拒否されました',
+                message: '管理者パネルにアクセスするには管理者権限が必要です。\n\n現在のアカウントには管理者権限がありません。',
+                isAlert: true,
+                confirmText: 'OK',
+                onConfirm: () => {
+                  setModalState({ isOpen: false, title: '', message: '' });
+                  router.replace('/MyPage');
+                }
+              });
+              return;
+            }
+          } catch (error) {
+            console.error('セッション確認エラー:', error);
+            // エラー時はマイページへリダイレクト
+            router.replace('/MyPage');
+            return;
+          }
+        }
+        // ▲▲▲ 管理者権限チェック完了 ▲▲▲
+        
         router.replace(callbackUrl);
       }
     } catch (error) {
@@ -434,6 +467,38 @@ function LoginComponent() {
         } else {
           localStorage.removeItem('rememberMe');
         }
+        
+        // ▼▼▼【修正】管理者パネルへのアクセス時は管理者権限をチェック ▼▼▼
+        if (callbackUrl.startsWith('/admin')) {
+          // セッションを再取得して管理者権限を確認
+          try {
+            const sessionRes = await fetch('/api/auth/session');
+            const sessionData = await sessionRes.json();
+            const adminRoles = ['MODERATOR', 'CHAR_MANAGER', 'SUPER_ADMIN'];
+            
+            if (!sessionData?.user?.role || !adminRoles.includes(sessionData.user.role)) {
+              // 管理者権限がない場合はアクセス拒否モーダルを表示
+              setModalState({
+                isOpen: true,
+                title: 'アクセスが拒否されました',
+                message: '管理者パネルにアクセスするには管理者権限が必要です。\n\n現在のアカウントには管理者権限がありません。',
+                isAlert: true,
+                confirmText: 'OK',
+                onConfirm: () => {
+                  setModalState({ isOpen: false, title: '', message: '' });
+                  router.replace('/MyPage');
+                }
+              });
+              return;
+            }
+          } catch (error) {
+            console.error('セッション確認エラー:', error);
+            // エラー時はマイページへリダイレクト
+            router.replace('/MyPage');
+            return;
+          }
+        }
+        // ▲▲▲ 管理者権限チェック完了 ▲▲▲
         
         // 認証成功の場合、callbackUrlまたはマイページへリダイレクト（replaceで履歴を残さない）
         router.replace(callbackUrl);

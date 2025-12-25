@@ -6,6 +6,7 @@ import { createErrorResponse, ErrorCode } from "@/lib/error-handler";
 import { isIpBlocked } from "@/lib/security/suspicious-ip";
 import { getClientIpFromRequest } from "@/lib/security/client-ip";
 import { getToken } from "next-auth/jwt";
+import { checkAdminAccess } from "@/lib/security/ip-restriction";
 
 function shouldLogPath(pathname: string): boolean {
   if (pathname === '/api/internal/log-access') return false;
@@ -40,6 +41,15 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
 
   // 管理者ページへのアクセス制限（管理者権限のみチェック）
   if (pathname.startsWith('/admin')) {
+    // ▼▼▼ Basic認証チェック（管理者の場合のみ）▼▼▼
+    // まずBasic認証をチェック（環境変数が設定されている場合）
+    const basicAuthResponse = checkAdminAccess(request);
+    if (basicAuthResponse) {
+      // Basic認証が必要な場合（401レスポンス）
+      return basicAuthResponse;
+    }
+    // ▲▲▲ Basic認証チェック完了 ▲▲▲
+    
     // ユーザーのセッションを確認して管理者権限をチェック
     try {
       const token = await getToken({ 
