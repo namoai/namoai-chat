@@ -518,7 +518,7 @@ export default function CharacterDetailPage({
     }
     
     try {
-      const res = await fetch('/api/reports', {
+      const res = await fetchWithCsrf('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
