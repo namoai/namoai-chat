@@ -3,7 +3,7 @@
 import type { Session } from "next-auth";
 import {
   Heart, ChevronRight, Megaphone, Users, BookUser,
-  User, ShieldCheck, BrainCircuit, LogOut, Coins, MessageSquare, HelpCircle,
+  User, ShieldCheck, BrainCircuit, LogOut, Coins, MessageSquare, HelpCircle, UserPlus,
 } from "lucide-react";
 import HelpModal from "@/components/HelpModal";
 import { useState, useEffect } from "react";
@@ -594,6 +594,19 @@ const LoggedInView = ({ session }: { session: Session }) => {
                 </p>
               </div>
               <ChevronRight size={20} className="text-gray-400 group-hover:text-yellow-400 transition-colors flex-shrink-0" />
+            </div>
+          </Link>
+
+          <Link href="/referral" className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 md:p-6 hover:bg-white/10 transition-all group border border-white/10">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-gradient-to-br from-cyan-500/30 to-blue-500/30 flex items-center justify-center flex-shrink-0">
+                <UserPlus size={24} className="md:w-7 md:h-7 text-cyan-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-white mb-1 group-hover:text-cyan-400 transition-colors text-sm md:text-base">紹介プログラム</h3>
+                <p className="text-xs md:text-sm text-gray-400">友達を招待して1,000P獲得</p>
+              </div>
+              <ChevronRight size={20} className="text-gray-400 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
             </div>
           </Link>
 

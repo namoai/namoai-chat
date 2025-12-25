@@ -41,15 +41,6 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
 
   // 管理者ページへのアクセス制限（管理者権限のみチェック）
   if (pathname.startsWith('/admin')) {
-    // ▼▼▼ Basic認証チェック（管理者の場合のみ）▼▼▼
-    // まずBasic認証をチェック（環境変数が設定されている場合）
-    const basicAuthResponse = checkAdminAccess(request);
-    if (basicAuthResponse) {
-      // Basic認証が必要な場合（401レスポンス）
-      return basicAuthResponse;
-    }
-    // ▲▲▲ Basic認証チェック完了 ▲▲▲
-    
     // ユーザーのセッションを確認して管理者権限をチェック
     try {
       const token = await getToken({ 
@@ -65,6 +56,16 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
           console.log('[middleware] Non-admin user attempted to access admin page, redirecting');
           return NextResponse.redirect(new URL('/', request.url));
         }
+        
+        // ▼▼▼ 管理者の場合のみBasic認証をチェック ▼▼▼
+        // セッションがあり、管理者権限がある場合のみBasic認証をチェック
+        const basicAuthResponse = checkAdminAccess(request);
+        if (basicAuthResponse) {
+          // Basic認証が必要な場合（401レスポンス）
+          return basicAuthResponse;
+        }
+        // ▲▲▲ Basic認証チェック完了 ▲▲▲
+        
         // 管理者の場合はアクセス許可
         return NextResponse.next();
       } else {
