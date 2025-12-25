@@ -30,14 +30,10 @@ export const registerSchema = z.object({
   referralCode: z.string().length(6).optional(), // 紹介コード (6文字、オプション)
 });
 
-// パスワード変更用スキーマ
+// パスワード変更用スキーマ（サーバー側ではconfirmPasswordは不要、クライアント側で既に確認済み）
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "現在のパスワードを入力してください。"),
   newPassword: passwordSchema,
-  confirmPassword: z.string().min(1, "確認用パスワードを入力してください。"),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "新しいパスワードと確認用パスワードが一致しません。",
-  path: ["confirmPassword"],
 });
 
 export const sanitizeString = (value: string): string => {
