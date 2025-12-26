@@ -93,6 +93,7 @@ model users {
   pointUsageHistory             point_usage_history[]
   referralRewardsGiven          referral_rewards[]          @relation("ReferrerRewards") // 自分が与えた報酬
   referralRewardsReceived       referral_rewards[]          @relation("ReferredRewards") // 自分が受け取った報酬
+  blockedIPs                    ip_block[]                  @relation("BlockedIPs") // ブロックしたIP
   // ▼▼▼【修正】エラーを引き起こす重複した'sessions'フィールドを削除しました。▼▼▼
 }
 
@@ -485,6 +486,29 @@ model referral_rewards {
   @@index([referrer_user_id])
   @@index([referred_user_id])
   @@index([rewarded_at])
+}
+
+model ip_block {
+  id        Int       @id @default(autoincrement())
+  ip        String    @unique
+  reason    String?
+  blockedBy Int?
+  blockedAt DateTime  @default(now()) @db.Timestamptz(6)
+  blockedByUser users? @relation("BlockedIPs", fields: [blockedBy], references: [id], onDelete: SetNull)
+
+  @@index([blockedAt])
+  @@index([ip])
+  @@map("ip_block")
+}
+
+model admin_ip_allowlist {
+  id        Int      @id @default(autoincrement())
+  ip        String   @unique
+  label     String?
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([createdAt])
+  @@map("admin_ip_allowlist")
 }
 
 enum Role {
