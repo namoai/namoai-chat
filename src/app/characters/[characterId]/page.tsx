@@ -839,46 +839,10 @@ export default function CharacterDetailPage({
 
         {/* モバイル版のみ固定ヘッダー */}
         {isMobile && (
-          <header className="fixed top-0 left-0 right-0 bg-black/80 backdrop-blur-xl z-20 flex items-center justify-between p-4 border-b border-gray-900/50">
+          <header className="fixed top-0 left-0 right-0 bg-black/80 backdrop-blur-xl z-20 flex items-center p-4 border-b border-gray-900/50">
             <button onClick={() => router.back()} className="p-2 rounded-xl hover:bg-white/10 hover:text-blue-400 transition-all">
               <ArrowLeft size={24} />
             </button>
-            <button onClick={() => setIsHelpOpen(true)} className="absolute left-1/2 -translate-x-1/2 p-2 rounded-xl hover:bg-white/10 hover:text-blue-400 transition-all">
-              <HelpCircle size={24} />
-            </button>
-            <div className="flex items-center gap-2 relative" ref={menuRef}>
-              <button onClick={handleFavorite} className="p-2 rounded-xl hover:bg-white/10 transition-all">
-                <Heart size={24} className={character.isFavorited ? 'text-blue-500 fill-current' : 'text-gray-400'} />
-              </button>
-              <button onClick={() => setShowMenu(!showMenu)} className="p-2 rounded-xl hover:bg-white/10 hover:text-blue-400 transition-all">
-                <MoreVertical size={24} />
-              </button>
-              {showMenu && (
-                <div className="absolute right-0 top-12 bg-gray-800/95 backdrop-blur-xl rounded-xl shadow-lg z-30 w-40 border border-gray-700/50 py-2">
-                  {isAuthor ? (
-                    <>
-                      <button onClick={handleEdit} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm hover:bg-white/10 hover:text-blue-400 transition-colors rounded-t-xl">
-                        <Edit size={16} /> 修正
-                      </button>
-                      <button onClick={handleDelete} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors rounded-b-xl">
-                        <Trash2 size={16} /> 削除
-                      </button>
-                    </>
-                  ) : sessionStatus === 'authenticated' ? (
-                    <>
-                      <button onClick={handleReport} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors rounded-t-xl">
-                        <Flag size={16} /> 通報する
-                      </button>
-                      {character?.author?.id && (
-                        <button onClick={handleBlockAuthor} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors rounded-b-xl">
-                          <ShieldBan size={16} /> 制作者をブロック
-                        </button>
-                      )}
-                    </>
-                  ) : null}
-                </div>
-              )}
-            </div>
           </header>
         )}
         
@@ -983,6 +947,9 @@ export default function CharacterDetailPage({
             <main className="max-w-2xl mx-auto relative z-10">
               <div className="text-center mb-6 relative">
                 <div className="absolute right-0 top-0 flex items-center gap-2" ref={menuRef}>
+                  <button onClick={() => setIsHelpOpen(true)} className="p-2 rounded-xl hover:bg-white/10 hover:text-blue-400 transition-all">
+                    <HelpCircle size={20} />
+                  </button>
                   {sessionStatus === 'authenticated' && (
                     <>
                       <button onClick={handleFavorite} className="p-2 rounded-xl hover:bg-white/10 transition-all">
