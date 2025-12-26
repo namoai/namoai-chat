@@ -2,11 +2,11 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 // ./src/app/api/characters/[id]/comments/[commentId]/route.ts
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/nextauth';
-import { isBuildTime, buildTimeResponse } from '@/lib/api-helpers';
+import { isBuildTime, buildTimeResponse, safeJsonParse } from '@/lib/api-helpers';
 
 /**
  * コメント取得（GET）
@@ -54,6 +54,76 @@ export async function GET(
     }
     console.error('コメント取得エラー:', error);
     return NextResponse.json({ error: 'コメントの取得に失敗しました。' }, { status: 500 });
+  }
+}
+
+/**
+ * コメント編集（PUT）
+ * - ルート: /api/characters/[id]/comments/[commentId]
+ * - 認証必須（session.user.id）
+ * - Body: { content: string }
+ * - ✅ Next.js 15 では params は Promise 扱い
+ */
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; commentId: string }> }
+): Promise<Response> {
+  if (isBuildTime()) {
+    return buildTimeResponse();
+  }
+
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
+    }
+
+    const userId = Number.parseInt(session.user.id, 10);
+    const { id, commentId } = await params;
+    const characterId = Number.parseInt(id, 10);
+    const commentIdNum = Number.parseInt(commentId, 10);
+
+    if (!Number.isFinite(characterId) || !Number.isFinite(commentIdNum)) {
+      return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
+    }
+
+    const parseResult = await safeJsonParse<{ content?: string }>(request);
+    if (!parseResult.success) return parseResult.error;
+    const { content } = parseResult.data;
+
+    if (!content || !content.trim()) {
+      return NextResponse.json({ error: 'コメント内容が必要です。' }, { status: 400 });
+    }
+
+    const prisma = await getPrisma();
+    
+    // コメントの存在と権限確認
+    const comment = await prisma.comments.findFirst({
+      where: { id: commentIdNum, characterId },
+    });
+
+    if (!comment) {
+      return NextResponse.json({ error: '指定されたコメントが見つかりません。' }, { status: 404 });
+    }
+
+    // コメントの作成者のみ編集可能
+    if (comment.authorId !== userId) {
+      return NextResponse.json({ error: 'このコメントを編集する権限がありません。' }, { status: 403 });
+    }
+
+    // コメント更新
+    const updatedComment = await prisma.comments.update({
+      where: { id: commentIdNum },
+      data: { content: content.trim() },
+      include: {
+        users: { select: { id: true, nickname: true, image: true } },
+      },
+    });
+
+    return NextResponse.json(updatedComment);
+  } catch (error) {
+    console.error('コメント編集エラー:', error);
+    return NextResponse.json({ error: 'コメントの編集に失敗しました。' }, { status: 500 });
   }
 }
 

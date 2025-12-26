@@ -171,6 +171,13 @@ function Comments({ characterId, characterAuthorId, session, setModalState }: Co
                 throw new Error(errData.error || 'コメントの削除に失敗しました。');
               }
               setComments(comments.filter((comment) => comment.id !== commentId));
+              // 削除成功モーダルを表示
+              setModalState({
+                isOpen: true,
+                title: '削除完了',
+                message: 'コメントを削除しました。',
+                isAlert: true,
+              });
             } catch (err) {
               setModalState({ isOpen: true, title: 'エラー', message: err instanceof Error ? err.message : '削除中にエラーが発生しました。', isAlert: true });
             }
@@ -195,11 +202,21 @@ function Comments({ characterId, characterAuthorId, session, setModalState }: Co
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: editedContent }),
       });
-      if (!res.ok) throw new Error('コメントの更新に失敗しました。');
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'コメントの更新に失敗しました。');
+      }
       const updatedComment: Comment = await res.json();
       setComments(comments.map((c) => (c.id === editingCommentId ? updatedComment : c)));
       setEditingCommentId(null);
       setEditedContent('');
+      // 編集成功モーダルを表示
+      setModalState({
+        isOpen: true,
+        title: '編集完了',
+        message: 'コメントを編集しました。',
+        isAlert: true,
+      });
     } catch (err) { 
       setModalState({ isOpen: true, title: 'エラー', message: err instanceof Error ? err.message : '更新中にエラーが発生しました。', isAlert: true });
     } finally {
