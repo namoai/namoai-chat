@@ -91,15 +91,17 @@ export default function IPBlockPage() {
       });
 
       if (response.ok) {
+        const blockedIP = newIP.trim();
+        setNewIP('');
+        setNewReason('');
+        // リストを先に更新
+        await fetchBlockedIPs();
         setModalState({
           isOpen: true,
           title: '成功',
-          message: `IPアドレス ${newIP} をブロックしました。`,
+          message: `IPアドレス ${blockedIP} をブロックしました。`,
           isAlert: true,
         });
-        setNewIP('');
-        setNewReason('');
-        fetchBlockedIPs();
       } else {
         const data = await response.json();
         setModalState({

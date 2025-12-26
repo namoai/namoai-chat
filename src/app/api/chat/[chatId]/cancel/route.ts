@@ -62,18 +62,15 @@ export async function POST(
     });
 
     // ポイント返金（1ポイント）
+    // ✅ point_transactions와 일관성을 유지하기 위해 grantPoints 사용
     const userId = parseInt(session.user.id, 10);
-    await prisma.$transaction(async (tx) => {
-      const points = await tx.points.findUnique({ where: { user_id: userId } });
-      if (points) {
-        // 無料ポイントを優先して返金
-        await tx.points.update({
-          where: { user_id: userId },
-          data: {
-            free_points: (points.free_points || 0) + 1,
-          },
-        });
-      }
+    const { grantPoints } = await import('@/lib/point-manager');
+    await grantPoints({
+      userId,
+      amount: 1,
+      type: 'free',
+      source: 'admin_grant',
+      description: 'チャットキャンセルによるポイント返金',
     });
 
     return NextResponse.json({ 

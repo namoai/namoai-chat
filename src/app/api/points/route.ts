@@ -33,6 +33,10 @@ export async function GET() {
       });
     }
 
+    // point_transactionsテーブルから正確な残高を計算
+    const { getPointBalance } = await import('@/lib/point-manager');
+    const balance = await getPointBalance(userId);
+
     // 本日出席したか確認します。
     const today = new Date();
     today.setHours(0, 0, 0, 0); // 日付のみを比較するため、時間を初期化します。
@@ -43,7 +47,14 @@ export async function GET() {
 
     const { ageStatus } = await getUserSafetyContext(prisma, userId);
 
-    return NextResponse.json({ ...userPoints, attendedToday, isMinor: ageStatus.isMinor });
+    // point_transactionsから計算した正確な残高を返す
+    return NextResponse.json({ 
+      free_points: balance.totalFreePoints,
+      paid_points: balance.totalPaidPoints,
+      lastAttendedAt: userPoints.lastAttendedAt,
+      attendedToday, 
+      isMinor: ageStatus.isMinor 
+    });
   } catch (error) {
     console.error("ポイント情報の取得エラー:", error);
     return NextResponse.json({ error: "サーバーエラー" }, { status: 500 });
@@ -104,14 +115,26 @@ export async function POST(request: NextRequest) {
     }
 
     // ポイントチャージの処理（実際の決済ロジックはありません）
+    // ⚠️ 이 액션은 사용되지 않을 수 있지만, 사용되는 경우를 위해 grantPoints 사용
     if (action === 'charge' && amount) {
-       const updatedPoints = await prisma.points.update({
-        where: { user_id: userId },
-        data: {
-          paid_points: { increment: amount },
-        },
+      const { grantPoints } = await import('@/lib/point-manager');
+      await grantPoints({
+        userId,
+        amount,
+        type: 'paid',
+        source: 'admin_grant',
+        description: 'ポイントチャージ',
       });
-      return NextResponse.json({ message: `${amount}ポイントがチャージされました。`, points: updatedPoints });
+      
+      // 更新後のポイント情報を取得
+      const { getPointBalance } = await import('@/lib/point-manager');
+      const balance = await getPointBalance(userId);
+      
+      return NextResponse.json({ 
+        message: `${amount}ポイントがチャージされました。`,
+        free_points: balance.totalFreePoints,
+        paid_points: balance.totalPaidPoints,
+      });
     }
 
     return NextResponse.json({ error: '無効なリクエストです。' }, { status: 400 });
